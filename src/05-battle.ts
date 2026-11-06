@@ -240,12 +240,18 @@ function stepFlights(){
 function assign(){
   fly=[[],[]];for(const c of air){c.att=0;if(c.state==='fly')fly[c.side].push(c)}
   for(const c of air)if(c.state==='fly'&&c.tg&&c.tg.state==='fly')c.tg.att++;
-  for(const fl of flights){const live=fl.cr.filter(c=>c.state==='fly'&&!c.ret);fl.leader=live[0]||null;live.forEach((c,i)=>c.slot=i)}
+  for(const fl of flights){const live=fl.cr.filter(c=>c.state==='fly'&&!c.ret);fl.leader=live[0]||null;live.forEach((c,i)=>c.slot=i)
+    if(fl.type==='F'&&fl.leader){const L=fl.leader;
+      if(!fl.tsh||!fl.tsh.alive||t>(fl.tshT||0)){const n=nearestShip(L.x,L.y,1-fl.side);fl.tsh=n&&n.s;fl.tshT=t+4}
+      if(!fl.ph)fl.ph='in';
+      if(fl.ph==='in'&&fl.outAt&&t>=fl.outAt){fl.ph='out';fl.rl=t+R(55,95);fl.outAt=0}
+      else if(fl.ph==='out'&&fl.tsh&&t>=(fl.rl||0)&&Math.hypot(L.x-fl.tsh.x,L.y-fl.tsh.y)>60)fl.ph='in'}}
   for(const c of air){if(c.state!=='fly')continue;
     const P=c.P;
     if(!c.home.alive){const h=nearestCar(c);if(h)c.home=h}
     if(!c.ret){const dh=Math.hypot(c.home.x-c.x,c.home.y-c.y);
       if(c.fuel<dh/(P.vmax*0.6)+80||(c.type==='F'&&c.ammo<=0))c.ret=true}
+    c.bm=(c.type==='F'&&!c.tg&&c.fl.tsh)?1.7:1;
     if(c.ret){c.tg=null;continue}
     if(c.tg&&c.tg.state!=='fly'){c.tg=null;c.na=0}
     if(c.type==='B'){
@@ -257,7 +263,7 @@ function assign(){
     c.na=t+R(1,2);
     if(c.type==='F'){
       c.tg=foeCraft(c,60,15);
-      if(!c.tg){c.goal=foeCraft(c,1e9,200);if(!c.goal)c.ret=true}
+      if(!c.tg){c.goal=foeCraft(c,1e9,200);if(!c.goal&&!c.fl.tsh)c.ret=true}
     }else c.tg=foeCraft(c,15,0,true);
   }
 }
@@ -288,8 +294,10 @@ function craftStep(c,d){
     }
   }else{
     const fl=c.fl,L=fl.leader;
-    if(L===c||!L){const G=c.type==='F'?c.goal:c.sh;
-      if(G){const bx=G.x-c.x,by=G.y-c.y,dist=Math.hypot(bx,by)||1e-6,off=c.fl.lane*Math.min(1,dist/(c.type==='F'?150:200)),dx=bx-by/dist*off,dy=by+bx/dist*off,dd=Math.hypot(dx,dy)||1e-6;vdx=dx/dd*P.vmax*0.8;vdy=dy/dd*P.vmax*0.8}}
+    if(L===c||!L){let G=c.type==='F'?c.goal:c.sh,sf=.8;
+      if(c.type==='F'&&fl.tsh){const sh=fl.tsh,ax=c.x-sh.x,ay=c.y-sh.y,ad=Math.hypot(ax,ay)||1;
+        if(fl.ph==='in'){G=sh;sf=1.6}else{G={x:sh.x+ax/ad*130,y:sh.y+ay/ad*130};sf=Math.min(1.6,Math.hypot(G.x-c.x,G.y-c.y)*.05+.1)}}
+      if(G){const bx=G.x-c.x,by=G.y-c.y,dist=Math.hypot(bx,by)||1e-6,off=c.fl.lane*Math.min(1,dist/(c.type==='F'?150:200)),dx=bx-by/dist*off,dy=by+bx/dist*off,dd=Math.hypot(dx,dy)||1e-6;vdx=dx/dd*P.vmax*sf;vdy=dy/dd*P.vmax*sf}}
     else{const sp=Math.hypot(L.vx,L.vy),ang=sp>0.05?Math.atan2(L.vy,L.vx):L.h,row=Math.ceil(c.slot/2),lat=(c.slot%2?1:-1)*row*1.5,back=row*1.5;
       const px=L.x+Math.cos(ang)*(-back)-Math.sin(ang)*lat,py=L.y+Math.sin(ang)*(-back)+Math.cos(ang)*lat;
       let ex=px-c.x,ey=py-c.y;const el=Math.hypot(ex,ey),cl=Math.min(el,1);if(el>1e-6){ex=ex/el*cl;ey=ey/el*cl}
@@ -297,10 +305,14 @@ function craftStep(c,d){
     if(c.type==='B'&&c.tg&&c.tg.state==='fly'){const e=c.tg,dx=e.x-c.x,dy=e.y-c.y,dist=Math.hypot(dx,dy)||1e-6;fight=true;aim=Math.atan2(dy,dx);c.eng=t;lastEng=t;
       c.cd-=d;if(c.cd<=0&&dist<2.5){c.cd=0.6;shoot(c,e,0.03)}}
   }
+  if(c.type==='F'&&!c.ret&&!c.tg&&c.fl.tsh&&c.fl.ph==='in'&&c.ammo>0&&t>(c.nf||0)){const sh=c.fl.tsh;
+    if(Math.hypot(sh.x-c.x,sh.y-c.y)<12){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
+      for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x+R(-1,1),y2:sh.y+R(-1,1),rt:performance.now(),s:c.side});
+      hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.07*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
-  const al=Math.hypot(ax,ay);if(al>P.a){ax*=P.a/al;ay*=P.a/al}
-  c.vx+=ax*d;c.vy+=ay*d;const v=Math.hypot(c.vx,c.vy);if(v>P.vmax){c.vx*=P.vmax/v;c.vy*=P.vmax/v}
+  const bm=c.bm||1,al=Math.hypot(ax,ay);if(al>P.a*bm){ax*=P.a*bm/al;ay*=P.a*bm/al}
+  c.vx+=ax*d;c.vy+=ay*d;const v=Math.hypot(c.vx,c.vy);if(v>P.vmax*bm){c.vx*=P.vmax*bm/v;c.vy*=P.vmax*bm/v}
   c.x+=c.vx*d;c.y+=c.vy*d;c.fuel-=d;
   if(c.fuel<=0){killCraft(c,'fuel');return}
   const want=fight&&aim!==null?aim:(v>0.05?Math.atan2(c.vy,c.vx):c.h);
@@ -313,7 +325,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg){
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.9,0.9),ab=Math.abs(a);
   const zi=ab<0.785?0:ab>2.356?2:(a>0?1:3);let z=o.zones[zi];
-  let dm=kind==='torp'?1:dmg*(kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
+  let dm=kind==='torp'?1:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
   if(z.arm>0&&dm>0){const c=Math.min(z.arm,dm);z.arm-=c;dm-=c;fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(dm<=0)return}
   else if(dm<=0){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
   if(!z.mods.some(m=>m.alive)){const cand=o.zones.filter(q=>q.mods.some(m=>m.alive));if(!cand.length)return;z=cand[(Math.random()*cand.length)|0]}
