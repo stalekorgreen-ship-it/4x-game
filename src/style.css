@@ -134,3 +134,5 @@ input[type=number]{width:70px}
 table.mono td,table.mono th{padding-top:1px!important;padding-bottom:1px!important}
 
 #top{position:relative;z-index:41}
+
+.panel>*{flex-shrink:0}

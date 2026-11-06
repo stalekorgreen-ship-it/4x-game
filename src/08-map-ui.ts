@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
 import { hooks } from './00-hooks.ts';
@@ -9,9 +9,10 @@ export const $ = id => document.getElementById(id);
 // Обновляет содержимое, только если оно изменилось, и сохраняет горизонтальную прокрутку таблиц
 export function setHtml(el, html) {
   if (!el || el._h === html) return; el._h = html;
-  const sc = [...el.querySelectorAll('[data-sc]')].map(e => e.scrollLeft);
+  const sc = [...el.querySelectorAll('[data-sc]')].map(e => [e.scrollLeft, e.scrollTop]), top = el.scrollTop;
   el.innerHTML = html;
-  el.querySelectorAll('[data-sc]').forEach((e, i) => { e.scrollLeft = sc[i] || 0; });
+  el.querySelectorAll('[data-sc]').forEach((e, i) => { if (sc[i]) { e.scrollLeft = sc[i][0]; e.scrollTop = sc[i][1]; } });
+  if (el.scrollTop !== top) el.scrollTop = top;
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
@@ -354,7 +355,7 @@ export function refreshObj() {
     h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (25 т/сутки каждая).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т</span></div>`).join('');
   }
   if (state.ast[b.id]) {
-    h += Object.entries(state.ast[b.id]).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / b.ores[k])}<span class="mono">${fmtN(v)} т</span></div>`).join('');
+    h += Object.entries(state.ast[b.id]).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / b.ores[k])}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(b.id, k, v, b.ores[k]) * 100, 0)}%</span></div>`).join('');
   }
   if (TERRA[b.id]) {
     const T = TERRA[b.id], t = state.terra[b.id] || {}; let tot = 0, got = 0;

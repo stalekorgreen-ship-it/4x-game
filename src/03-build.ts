@@ -1,11 +1,11 @@
 // @ts-nocheck
-import { BODY, FIELDS, log, rec, state, stockOK } from './01-data.ts';
+import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff } from './01-data.ts';
 import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 25;
 export const BLD = {
-  mine:       {name: 'Шахта на Земле', max: 30, desc: 'Добывает 25 т/сутки всех руд из недр Земли сразу (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
+  mine:       {name: 'Шахта на Земле', max: 30, desc: 'Добывает все жилы Земли сразу: 25 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
   shipyard:   {name: 'Верфь', level: true, max: 3, desc: 'Каждый уровень: +1 стапель и постройка быстрее на 10%.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
@@ -28,8 +28,8 @@ export function buildTick(h) {
   const sp = Math.max(0, Math.min(B.sparesplant * h, S.fe, S.si, 200 - S.spares));
   S.fe -= sp; S.si -= sp; S.spares += sp; rec('fe', 'out', sp, 'plant'); rec('si', 'out', sp, 'plant'); rec('spares', 'in', sp, 'plant');
   if (B.mine) {
-    const g = state.ground.earth, tot = Object.values(g).reduce((a, v) => a + v, 0), m = Math.min(B.mine * MINE_RATE * h, tot);
-    if (m > 0) for (const k of Object.keys(g)) { const part = m * g[k] / tot; g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); }
+    const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу, 1 единица в сутки на жилу × эффективность
+    for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * (techOn('deepdrill') ? 1.5 : 1) * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
   }
   for (const f in FIELDS) state.sci[f] += B.scicenter * h;
   let active = state.build.filter(j => j.started).length;
@@ -51,6 +51,7 @@ export const TECH = [
   {id: 'laser2', f: 'phys', cost: 600, name: 'Тяжёлый лазер', desc: 'Открывает шахтёрский лазер на 12 т/сутки.'},
   {id: 'fusion', f: 'phys', cost: 1200, name: 'Термоядерный двигатель', desc: 'Открывает двигатель мощностью 120 и КПД 1.6 (нужен уран).'},
   {id: 'reliable', f: 'eng', cost: 500, name: 'Надёжные узлы', desc: 'Шанс отказа узлов −30%.'},
+  {id: 'deepdrill', f: 'eng', cost: 700, name: 'Глубинное бурение', desc: 'Шахты на Земле добывают на 50% больше.'},
   {id: 'fastbuild', f: 'eng', cost: 600, name: 'Быстрая сборка', desc: 'Корабли и здания строятся на 20% быстрее.'},
   {id: 'fieldrepair', f: 'eng', cost: 400, name: 'Ремонт на месте', desc: 'Ремонт идёт в 1,5 раза быстрее.'},
   {id: 'xfer', f: 'eng', cost: 900, name: 'Передача топлива и припасов в космосе', desc: 'Открывает систему передачи топлива и припасов: основа станций дозаправки и танкеров.'},

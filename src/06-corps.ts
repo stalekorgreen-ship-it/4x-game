@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { BODIES, BODY, RES, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
+import { BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
 import { GOODS, popTaxDay, popTick } from './07-population.ts';
@@ -91,13 +91,13 @@ export function corpMine(s, h) {
     let best = null, bs = 0;
     for (const b of BODIES) {
       if (b.kind !== 'ast' || b.comet || !canShipMine(b.id) || !state.ast[b.id]) continue;
-      const ores = state.ast[b.id]; let tot = 0, val = 0;
-      for (const k in ores) { tot += ores[k]; val += ores[k] * (PRICE[k] || 30) * (allowBuy(k, PRICE[k] || 30) > 0 ? 1 : 0.3); }
-      if (tot < 800) continue;
+      const ores = state.ast[b.id]; let tot = 0, val = 0, se = 0;
+      for (const k in ores) { tot += ores[k]; const e = ores[k] > 0 ? veinEff(b.id, k, ores[k], (b.ores && b.ores[k]) || ores[k]) : 0; se += e; val += e * (PRICE[k] || 30) * (allowBuy(k, PRICE[k] || 30) > 0 ? 1 : 0.3); }
+      if (tot < 800 || se < .05) continue; val = val / se * Math.min(1, .5 + se / 2);
       const P = objPos(b.id, state.t), d1 = dist(s, P);
       let R = 1e9; for (const x of bases) R = Math.min(R, dist(P, basePos(x)));
       if ((d1 + R) * fpa > s.fuel) continue;
-      const sc = Math.min(val / tot * s.st.cargoCap, val) / (d1 + R + 0.3);
+      const sc = Math.min(val * s.st.cargoCap, val * tot) / (d1 + R + 0.3);
       if (sc > bs) { bs = sc; best = b.id; }
     }
     if (!best) { s.status = 'Нет достижимых целей: нужны станции дозаправки'; return false; }

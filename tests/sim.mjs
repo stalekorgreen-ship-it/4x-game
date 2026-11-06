@@ -105,6 +105,12 @@ ok(Pe.exp > 0 && Pe.expP.edu > 0 && Pe.expP.pen > 0 && Pe.expP.bth > 0, 'обр�
 ok(isFinite(s().money) && g.totals().n > 5e9, 'экономика не рухнула при крайних законах');
 Object.assign(L, F.LAW_DEFAULT);
 
+// 8. Сложность жил
+{ const b = D.veinBase('eros', 'fe'); ok(b >= .3 && b <= 1 && D.veinBase('eros', 'fe') === b, 'сложность жилы детерминирована (' + b + ')');
+  ok(Math.abs(D.veinEff('eros', 'fe', 50, 100) - b / 2) < 1e-9, 'выбрали 50% — эффективность вдвое ниже');
+  D.newGame(); const ss = D.state; ss.paused = true; const sh = ss.ships[0]; ss.ast.eros = {...D.BODY.eros.ores}; sh.at = 'eros'; const f0 = ss.ast.eros.fe, i0 = ss.ast.eros.si;
+  E.execOrder(sh, {type: 'mine', target: 'eros', res: 'all', pct: 100}, 1);
+  ok(ss.ast.eros.fe < f0 && ss.ast.eros.si < i0, 'лазер добывает несколько жил сразу'); }
 // 5. Все панели интерфейса открываются без ошибок
 for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'trade', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
   try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
