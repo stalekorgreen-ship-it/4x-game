@@ -302,7 +302,8 @@ export const shipMass = s => s.st.dry + s.fuel + cargoTotal(s) + (s.towing ? mas
 export const shipSpeed = s => s.st.power / shipMass(s) * SPEED_K * pilSpeed(s);
 export const fuelPerAU = s => shipMass(s) * FUEL_K / s.st.eff * pilFuel(s);
 export const fmtN = (n, d = 0) => Math.abs(n) >= 1e15 ? Number(n).toExponential(1).replace('e+', 'e').replace('.', ',') : Math.abs(n) >= 1e12 ? fmtN0(n / 1e12, 2) + ' трлн' : Math.abs(n) >= 1e9 ? fmtN0(n / 1e9, 1) + ' млрд' : fmtN0(n, d);
-export const fmtN0 = (n, d = 0) => Number(n).toLocaleString('ru-RU', {maximumFractionDigits: d, minimumFractionDigits: d});
+const NF = {};
+export const fmtN0 = (n, d = 0) => (NF[d] || (NF[d] = new Intl.NumberFormat('ru-RU', {maximumFractionDigits: d, minimumFractionDigits: d}))).format(Number(n));
 export function fmtDate(t) { return new Date(EPOCH + t * 86400000).toISOString().replace('T', ' ').slice(0, 16); }
 export function fmtDur(days) {
   if (!isFinite(days)) return '∞';

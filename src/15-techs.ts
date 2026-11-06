@@ -122,7 +122,8 @@ function agg() {
 }
 // бонусы построек за каждый уровень
 export const BEFF = {market: {rpcost: -.05}, crusher: {mine: .08}, techpark: {prod: .03}, composite: {cargo: .05}, enginefab: {thrust: .05}, spaceport: {fare: -.04, fspeed: .08}, colbureau: {infra: -.05}, testrange: {fail: -.06}, repairdock: {repair: .2}, trainctr: {train: .2}, miningsch: {mining: .06}, hospital: {death: -.03}, maternity: {birth: .04}};
-const bmod = k => { const B = state && state.bld; if (!B) return 1; let v = 0; for (const t in BEFF) if (BEFF[t][k] && B[t]) v += BEFF[t][k] * B[t]; return Math.max(.1, 1 + v); };
+let bcT = -1, bcS = null, bcV = {};
+const bmod = k => { const B = state && state.bld; if (!B) return 1; if (bcT !== state.t || bcS !== state) { bcT = state.t; bcS = state; bcV = {}; } if (bcV[k] != null) return bcV[k]; let v = 0; for (const t in BEFF) if (BEFF[t][k] && B[t]) v += BEFF[t][k] * B[t]; return bcV[k] = Math.max(.1, 1 + v); };
 export const tm = k => (agg().m[k] || 1) * bmod(k);
 export const ta = k => agg().a[k] || 0;
 // --- карточки ---
