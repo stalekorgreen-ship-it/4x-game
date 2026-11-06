@@ -6,12 +6,12 @@ import { hooks } from './00-hooks.ts';
 import { addSettlers } from './07-population.ts';
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 
-export const INFRA_PRICE = 20000, FARE = 30, SPEED = 0.04, TICKET = 1000; // кр/т инфраструктуры, кр за т·а.е., а.е. в сутки, кр за колониста
+export const INFRA_PRICE = 800, FARE = 2, SPEED = 0.04, TICKET = 100; // кр/т инфраструктуры, кр за т·а.е., а.е. в сутки, кр за колониста
 export const ITEMS = () => [['infra', 'Инфраструктура'], ...Object.keys(RES).filter(k => k !== 'spares').map(k => [k, RES[k]])];
 export const itemName = k => k === 'infra' ? 'Инфраструктура' : k === 'col' ? 'Колонисты' : (RES[k] || k);
 export const cargoBodies = () => BODIES.filter(b => ['hub', 'planet', 'moon', 'ast'].includes(b.kind) && !b.comet && !b.strange);
 const bdist = (a, b) => dist(objPos(a, state.t), objPos(b, state.t));
-export const fareOf = (a, b) => Math.max(20, FARE * bdist(a, b));
+export const fareOf = (a, b) => Math.max(1, FARE * bdist(a, b));
 const FR = () => state.freight || (state.freight = {orders: [], flights: [], acc: 0, n: 0});
 const depot = id => (state.depot || (state.depot = {}))[id] || (state.depot[id] = {});
 const facs = c => { const v = c.home || c.civ; let n = 0; if (v) for (const g in v.fac) n += v.fac[g]; return n; };

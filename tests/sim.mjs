@@ -62,7 +62,7 @@ ok((s().pop.evN || 0) > 0, 'за годы случились кризисы (' +
 ok(Object.values(s().mp || {}).some((m) => Math.abs(m - 1) > 0.02), 'цены на сырьё живые: ' + Object.entries(s().mp || {}).map(([r, m]) => r + '×' + m.toFixed(2)).join(' '));
 const taxA = s().pop.tax; F.laws().tax = 30; P.popTick(30); const taxB = s().pop.tax; F.laws().tax = 20;
 ok(taxB > taxA * 1.3, 'повышение налога поднимает сбор (' + Math.round(taxA) + ' → ' + Math.round(taxB) + ')');
-const cc = s().corps[3], m0 = s().money; F.lendTo(cc, 1e9); P.popTick(30);
+const cc = s().corps[3], m0 = s().money; s().money = Math.max(s().money, 2e9); F.lendTo(cc, 1e9); P.popTick(30);
 ok(F.loansOf(cc).length === 1 || s().money > m0 - 1e9, 'кредит корпорации выдан, проценты идут');
 const n0 = s().corps.length; const victim = s().corps[5]; victim.credits = -1e13; victim.civ.neg = 5; victim.civ.debt = 1e13;
 P.popTick(30); P.popTick(30);

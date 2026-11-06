@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
+import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
-import { BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
+import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -331,10 +331,11 @@ export function refreshEarth() {
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
   h += '<div class="box"><h2>Здания</h2>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `уровень ${B[t]}/${b.max}` : `${B[t]} шт.`, c = bldCost(t), can = bldCanAdd(t);
-    return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc}</div>
+    return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.</div>
       <div class="row"><span class="grow muted">${costTxt(c)} · ${b.days} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
   }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
   h += `<div class="box"><h2>Строится (2 бригады)</h2>` + (state.build.map(j => `<div class="row"><span style="min-width:120px">${BLD[j.type].name}</span>${j.started ? bar(1 - j.left / j.total) + `<span class="mono">${fmtDur(j.left)}</span>` : `<span class="warn grow">${stockOK(bldCost(j.type)) ? 'ждёт бригаду' : 'не хватает: ' + lackTxt(bldCost(j.type))}</span><button class="btn sm danger" data-a="bcancel" data-id="${j.id}">Отмена</button>`}</div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>';
+  h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
   h += `<div class="box"><div class="stats"><span>Стапелей на верфи</span><span>${yardSlots()}</span><span>Скорость постройки</span><span>×${fmtN(yardSpeed(), 1)}</span><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
 }
@@ -376,26 +377,38 @@ export function refreshScience() {
 export function toggleMark(k) { if (state.marks[k]) delete state.marks[k]; else state.marks[k] = 1; }
 export function renderFindIfOpen() { if (ui.tab === 'find') refreshFindList(); }
 export function renderFind() {
-  const f = ui.find;
-  $('p-find').innerHTML = `<div class="box"><h2>Поиск ископаемых</h2>
-    <div class="row"><input type="text" id="fq" data-c="fq" class="grow" placeholder="Название" value="${esc(f.q)}"></div>
-    <div class="row"><select id="fres" data-c="fres" class="grow"><option value="">Любое ископаемое</option>${Object.keys(RES).filter(k => k !== 'spares').map(k => `<option value="${k}"${f.res === k ? ' selected' : ''}>${RES[k]}</option>`).join('')}</select>
-    <select id="fsort" data-c="fsort"><option value="amt"${f.sort === 'amt' ? ' selected' : ''}>по запасу</option><option value="dist"${f.sort === 'dist' ? ' selected' : ''}>по расстоянию</option></select></div></div>
-    <div id="fmarks"></div><div id="flist" class="dcol"></div>`;
+  const f = ui.find; f.type = f.type || 'all';
+  const sel = (id, arr, cur) => `<select id="${id}" data-c="${id}">${arr.map(([v, n]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+  $('p-find').innerHTML = `<div class="box"><h2>Поиск и обзор тел</h2><div class="row"><input type="text" id="fq" data-c="fq" placeholder="Название" value="${esc(f.q)}" style="width:150px">
+    ${sel('ftype', [['all', 'Все тела'], ['rock', 'Планеты и спутники'], ['ast', 'Астероиды'], ['comet', 'Кометы'], ['mark', 'Отмеченные'], ['special', 'Особые']], f.type)}
+    ${sel('fres', [['', 'Сортировка по ресурсу…'], ...Object.keys(RES).filter(k => k !== 'spares').map(k => [k, RES[k]])], f.res)}
+    ${sel('fsort', [['amt', 'по запасу'], ['dist', 'по расстоянию'], ['mass', 'по массе'], ['a', 'по орбите']], f.sort)}</div>
+    <div class="help">Ячейка ресурса: запас, т / доступность жилы (сложность ×1.0 — лучшая). Клик по строке — выбрать тело, ★ — отметка.</div></div>
+    <div id="fmarks"></div><div id="flist"></div>`;
   refreshFindList();
 }
+const FCOLS = ['fe', 'ni', 'ti', 'cu', 'si', 'c', 'ice', 'pt', 'ree', 'u', 'vol'];
+const VOLS = ['n2', 'co2', 'ch4', 'nh3'];
+const cn = n => n < 1e5 ? fmtN(n) : Number(n).toExponential(1).replace('e+', 'e').replace('.', ',');
 export function refreshFindList() {
   if (!$('flist')) return;
-  const f = ui.find, ep = objPos('earth', state.t), q = f.q.trim().toLowerCase();
-  const rows = BODIES.filter(b => !b.comet && state.ast[b.id] && (!q || b.name.toLowerCase().includes(q)) && (!f.res || state.ast[b.id][f.res] > 0)).map(b => {
-    const o = state.ast[b.id], p = objPos(b.id, state.t);
-    return {b, o, d: Math.hypot(p.x - ep.x, p.y - ep.y), amt: f.res ? o[f.res] : sumVals(o)};
-  }).filter(r => r.amt > 0).sort((a, c) => f.sort === 'dist' ? a.d - c.d : c.amt - a.amt).slice(0, 40);
-  const mkBtn = k => `<button class="btn sm" data-a="mark" data-k="${k}" aria-label="Отметка">${state.marks[k] ? '★' : '☆'}</button>`;
-  $('flist').innerHTML = '<h2>Результаты (' + rows.length + ')</h2>' + rows.map(({b, o, d}) => {
-    const top = (f.res ? [[f.res, o[f.res]]] : Object.entries(o).filter(([, v]) => v > 0).sort((a, c) => c[1] - a[1]).slice(0, 4)).map(([k, v]) => `<span class="sk${k === f.res ? ' hi' : ''}" style="min-width:0;padding:0 4px">${RES[k]} ${fmtN(v)}</span>`).join(' ');
-    return `<div class="ship" style="gap:4px"><div class="row">${mkBtn(b.id)}<b class="grow">${b.name}</b><span class="muted mono">${fmtN(d, 2)} а.е.</span><button class="btn sm" data-a="focus" data-k="${b.id}">На карте</button></div><div class="row">${top}</div></div>`;
-  }).join('');
+  const f = ui.find, ep = objPos('earth', state.t), q = f.q.trim().toLowerCase(), G = 6.674e-11;
+  const oresOf = b => state.ast[b.id] || (state.ground && state.ground[b.id]) || null;
+  const rows = BODIES.filter(b => ['ast', 'moon', 'planet', 'hub'].includes(b.kind) && oresOf(b) && (!q || b.name.toLowerCase().includes(q)) &&
+    (f.type === 'all' || (f.type === 'rock' && b.kind !== 'ast') || (f.type === 'ast' && b.kind === 'ast' && !b.comet && !b.strange) || (f.type === 'comet' && b.comet) || (f.type === 'special' && (b.strange || b.sci)) || (f.type === 'mark' && state.marks[b.id])) &&
+    (!f.res || (oresOf(b)[f.res] > 0))).map(b => {
+    const o = oresOf(b), p = objPos(b.id, state.t), vol = VOLS.reduce((a, k) => a + (o[k] || 0), 0);
+    return {b, o, vol, d: Math.hypot(p.x - ep.x, p.y - ep.y), amt: f.res ? o[f.res] : sumVals(o)};
+  }).sort((a, c) => f.sort === 'dist' ? a.d - c.d : f.sort === 'mass' ? (c.b.mass || 0) - (a.b.mass || 0) : f.sort === 'a' ? (a.b.a || 0) - (c.b.a || 0) : c.amt - a.amt);
+  const total = rows.length, shown = rows.slice(0, 150);
+  const star = k => `<span data-a="mark" data-k="${k}" style="cursor:pointer">${state.marks[k] ? '★' : '☆'}</span>`;
+  const th = t => `<th style="text-align:right;padding:1px 5px;white-space:nowrap">${t}</th>`;
+  const cell = (b, o, k) => { const v = k === 'vol' ? VOLS.reduce((a, x) => a + (o[x] || 0), 0) : (o[k] || 0); if (!(v > 0)) return '<td style="text-align:right;color:#555">–</td>'; const e = k === 'vol' ? .5 : veinBase(b.id, k); return `<td style="text-align:right;padding:1px 5px;white-space:nowrap">${cn(v)} <span style="color:${e >= .7 ? 'var(--good)' : e >= .4 ? 'var(--warn)' : 'var(--bad)'}">${e.toFixed(1)}</span></td>`; };
+  const TYPE = b => b.comet ? 'комета' : b.kind === 'moon' ? 'спутник' : b.kind === 'planet' || b.kind === 'hub' ? 'планета' : b.strange ? 'особый' : (b.type ? b.type + '-тип' : 'астероид');
+  setHtml($('flist'), `<div class="box"><h2>Найдено: ${total}${total > 150 ? ' (показаны первые 150)' : ''}</h2><div data-sc style="overflow:auto;max-height:calc(100vh - 330px)"><table class="mono" style="border-collapse:collapse;font-size:11px;min-width:100%"><tr style="position:sticky;top:0;background:var(--panel2)">
+    <th></th><th style="text-align:left;padding:1px 5px">Тело</th><th style="text-align:left">Тип</th>${th('а.е.')}${th('От Земли')}${th('Диам. км')}${th('Масса кг')}${FCOLS.map(k => th(k === 'vol' ? 'Летучие' : RES[k])).join('')}</tr>` +
+    shown.map(({b, o, d}) => `<tr data-a="selbody" data-id="${b.id}" style="cursor:pointer;border-top:1px solid #8882"><td style="padding:1px 4px">${star(b.id)}</td><td style="padding:1px 5px;white-space:nowrap;color:${b.sci ? '#b794e8' : 'inherit'}">${esc(b.name)}</td><td style="color:var(--muted)">${TYPE(b)}</td>
+      <td style="text-align:right;padding:1px 5px">${b.a != null ? fmtN(b.a, 2) : '—'}</td><td style="text-align:right;padding:1px 5px">${fmtN(d, 2)}</td><td style="text-align:right;padding:1px 5px">${b.d ? fmtN(b.d, b.d < 10 ? 2 : 0) : '—'}</td><td style="text-align:right;padding:1px 5px">${b.mass ? cn(b.mass) : '—'}</td>${FCOLS.map(k => cell(b, o, k)).join('')}</tr>`).join('') + '</table></div></div>');
   const keys = Object.keys(state.marks);
   $('fmarks').innerHTML = keys.length ? '<div class="box"><h2>Отмеченные (' + keys.length + ')</h2>' + keys.map(k => {
     const p = objPos(k, state.t), d = Math.hypot(p.x - ep.x, p.y - ep.y);
@@ -503,7 +516,7 @@ $('side').addEventListener('change', e => {
     if (el.value === 'new') { const g = newGroup('Группа ' + s.name); s.groupId = g.id; ui.edit = {kind: 'group', id: g.id}; }
     else s.groupId = el.value ? +el.value : null;
     s.pc = 0; s.wait = null; s.interrupt = null; s.tmp = null; renderObj();
-  } else if (['fq', 'fres', 'fsort'].includes(c)) { ui.find[c === 'fq' ? 'q' : c === 'fres' ? 'res' : 'sort'] = el.value; refreshFindList(); }
+  } else if (['fq', 'fres', 'fsort', 'ftype'].includes(c)) { ui.find[c === 'fq' ? 'q' : c === 'fres' ? 'res' : c === 'ftype' ? 'type' : 'sort'] = el.value; refreshFindList(); }
   else if (['ydesign', 'ycount', 'ygroup'].includes(c)) yardChange(c, el);
   else ordersChange(c, el);
 });

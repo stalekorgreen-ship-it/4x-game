@@ -67,7 +67,7 @@ function makeCorp(i) {
   return c;
 }
 export function initCorps() {
-  state.corps = []; state.money = state.money || 5e7; state.corpVer = 4; state.nameIdx = CORP_COUNT;
+  state.corps = []; state.money = state.money || 3e6; state.corpVer = 4; state.nameIdx = CORP_COUNT;
   for (let i = 0; i < CORP_COUNT; i++) state.corps.push(makeCorp(i));
 }
 // Вместо обанкротившихся через год появляются новые стартапы
@@ -237,7 +237,7 @@ export function refreshCorp() {
     h += `<div class="box"><h2>${esc(c.name)} <span class="muted">· шаблон «${c.tpl}»</span></h2><div class="stats"><span>Рудокопов / танкеров</span><span>${ships.filter(s => s.role === 'm').length} / ${ships.filter(s => s.role === 't').length}</span><span>Станции</span><span>${sts.length ? sts.map(s => `${esc(nameOf(s.at))} (топл. ${fmtN(s.fuel)} т)`).join(', ') : 'нет'}</span><span>Капитал</span><span>${fmtN(c.credits)} кр.</span><span>Продано всего</span><span>${fmtN(c.sold)} кр.</span><span>Потеряно кораблей</span><span>${c.lost}</span></div>
       <div class="help">Исследования: ${CTECH.filter(x => c.civ.tech[x.id]).map(x => x.name).join(', ') || 'пока нет'}${c.civ.cur ? '. Сейчас: ' + CTECH.find(x => x.id === c.civ.cur).name + ' (' + fmtN(c.civ.prog) + '/' + CTECH.find(x => x.id === c.civ.cur).cost + ' ОИ)' : ''}. Лаборатории: ${c.civ.labs} (${fmtN(labRP(c), 1)} ОИ/сут).</div>
       <div class="help">Заводы: ${Object.keys(c.civ.fac).filter(g => c.civ.fac[g] > 0).map(g => GOODS[g].n + ' ' + fmtN(c.civ.fac[g]) + ' (цена ' + fm(c.civ.pr[g] || 0) + ')').join(', ') || 'нет'}. Шахты: ${Object.keys(c.civ.mines).filter(r => c.civ.mines[r] > 0).map(r => RES[r].toLowerCase() + ' ×' + c.civ.mines[r]).join(', ') || 'нет'}. ${c.civ.yard ? '<b>Есть коммерческая верфь</b>, доход от чужих заказов: ' + fmtN(c.civ.fees || 0) + ' кр.' : 'Верфи нет.'}</div>
-      <div class="row">Долг банку: ${fmtN(c.civ.debt || 0)} кр. <select id="lendamt">${[1e9, 5e9, 2e10].map(x => `<option value="${x}">${fmtN(x)} кр</option>`).join('')}</select><button class="btn sm" data-lend="${c.id}">Выдать кредит (6%)</button></div>
+      <div class="row">Долг банку: ${fmtN(c.civ.debt || 0)} кр. <select id="lendamt">${[1e6, 5e6, 2e7].map(x => `<option value="${x}">${fmtN(x)} кр</option>`).join('')}</select><button class="btn sm" data-lend="${c.id}">Выдать кредит (6%)</button></div>
       ${sts.length ? `<div class="help">Топливо на станциях: ${fmtN(svcPrice(sts[0], 'fuel'))} кр/т у «${esc(nameOf(sts[0].at))}».</div>` : ''}</div>`;
   }
   setHtml(p, h);

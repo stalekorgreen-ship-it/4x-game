@@ -12,6 +12,11 @@ export const BLD = {
   scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, max: 3, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
 };
+// Сотрудники построек: люди из рынка труда Земли, зарплата — средняя по рынку (в масштабе казны)
+export const BW = {mine: 20000, fuelplant: 30000, sparesplant: 30000, shipyard: 100000, scicenter: 10000, academy: 50000}, BLD_MIX = [.5, .35, .15, 0], WK = 1e-3;
+export const bldWorkers = () => Object.keys(BW).reduce((a, t) => a + (state.bld[t] || 0) * BW[t], 0);
+export const bldJobs = s => state.bld ? bldWorkers() * BLD_MIX[s] : 0;
+export function bldWage() { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !state.bld) return 0; let w = 0; for (let s = 0; s < 4; s++) w += bldJobs(s) * P.wage[s]; return w * WK; }
 export const techOn = id => !!(state.tech && state.tech[id]);
 export const yardSlots = () => 2 + state.bld.shipyard;
 export const yardSpeed = () => (1 + 0.1 * (state.bld.shipyard - 1)) * (techOn('fastbuild') ? 1.2 : 1);
@@ -23,6 +28,7 @@ export function bldQueued(t) { return state.build.filter(j => j.type === t).leng
 export function bldCanAdd(t) { const b = BLD[t]; return !b.level || state.bld[t] + bldQueued(t) < b.max; }
 export function buildTick(h) {
   const B = state.bld, S = state.stock;
+  state.money -= bldWage() * h; state.bldWageDay = bldWage();
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');
   const sp = Math.max(0, Math.min(B.sparesplant * h, S.fe, S.si, 200 - S.spares));

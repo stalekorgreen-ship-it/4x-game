@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
 import { hooks } from './00-hooks.ts';
@@ -15,6 +15,7 @@ export function setHtml(el, html) {
   if (el.scrollTop !== top) el.scrollTop = top;
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+import { COLONIZABLE, colInfo } from './07-population.ts';
 export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
@@ -78,7 +79,7 @@ export function drawMap() {
   // орбиты
   cx.lineWidth = 1;
   for (const b of BODIES) {
-    if (!b.a) continue;
+    if (!b.a || b.gen) continue;
     if (b.a * ui.cam.k > 2e6) continue;
     cx.strokeStyle = b.kind === 'ast' ? '#151f2e' : '#1f2d42';
     cx.beginPath(); cx.arc(sx, sy, b.a * ui.cam.k, 0, 7); cx.stroke();
@@ -125,9 +126,19 @@ export function drawMap() {
     if (b.kind === 'hub') { cx.strokeStyle = '#e3a94f'; cx.beginPath(); cx.arc(x, y, r + 4, 0, 7); cx.stroke(); }
     if (selB === b.id) { cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, r + 7, 0, 7); cx.stroke(); }
     if (b.sci && b.kind === 'ast') { cx.strokeStyle = '#a77be0'; cx.setLineDash([2, 3]); cx.beginPath(); cx.arc(x, y, r + 4, 0, 7); cx.stroke(); cx.setLineDash([]); }
-    if (b.comet && selB !== b.id) { /* без подписей */ } else if (ui.labels && (b.kind === 'moon' ? ui.cam.k > 3000 || selB === b.id : (b.kind !== 'ast' || ui.cam.k > 150 || b.sci || selB === b.id) || state.marks[b.id])) {
+    if (b.comet && selB !== b.id) { /* без подписей */ } else if (ui.labels && (b.kind === 'moon' ? ui.cam.k > 3000 || selB === b.id : (b.kind !== 'ast' || ui.cam.k > (b.gen ? 3000 : 150) || b.sci || selB === b.id) || state.marks[b.id])) {
       cx.fillStyle = b.sci ? '#b794e8' : b.kind === 'ast' ? '#8493aa' : '#c3cede'; cx.fillText(b.name, x + r + 5, y + 1);
     }
+  }
+  // линейка: зажат Shift — от выбранного объекта до курсора
+  if (ui.shift && ui.mouse) {
+    const f = selPos() || objPos('earth', state.t), [fx, fy] = w2s(f), w = s2w(ui.mouse.x, ui.mouse.y), d = Math.hypot(w.x - f.x, w.y - f.y), p = pickAt(ui.mouse.x, ui.mouse.y);
+    cx.save(); cx.strokeStyle = '#7fe3ff'; cx.fillStyle = '#7fe3ff'; cx.lineWidth = 1.5; cx.setLineDash([6, 4]);
+    cx.beginPath(); cx.moveTo(fx, fy); cx.lineTo(ui.mouse.x, ui.mouse.y); cx.stroke(); cx.setLineDash([]);
+    cx.beginPath(); cx.arc(fx, fy, 4, 0, 7); cx.fill(); cx.beginPath(); cx.arc(ui.mouse.x, ui.mouse.y, 4, 0, 7); cx.stroke();
+    const km = d * 149597870.7, txt = `${fmtN(d, d < 0.1 ? 4 : 3)} а.е. · ${fmtN(km / 1e6, km < 1e6 ? 3 : 1)} млн км · свет ${fmtN(d * 8.317, 1)} мин${p && p.kind === 'body' ? ' · ' + BODY[p.id].name : ''}`;
+    cx.font = '12px "IBM Plex Mono",monospace'; const tw = cx.measureText(txt).width + 12, mx = Math.min(Math.max((fx + ui.mouse.x) / 2 - tw / 2, 4), W - tw - 4), my = (fy + ui.mouse.y) / 2 - 14;
+    cx.fillStyle = 'rgba(5,12,20,.88)'; cx.fillRect(mx, my - 10, tw, 20); cx.fillStyle = '#7fe3ff'; cx.textBaseline = 'middle'; cx.fillText(txt, mx + 6, my); cx.restore();
   }
   // станции
   for (const st of state.stations) {
@@ -221,6 +232,7 @@ export function select(sel) {
     cv.setPointerCapture(e.pointerId); cv.classList.add('drag');
   });
   cv.addEventListener('pointermove', e => {
+    { const r = cv.getBoundingClientRect(); ui.mouse = {x: e.clientX - r.left, y: e.clientY - r.top}; ui.shift = e.shiftKey; }
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 4) { moved = true; ui.bfollow = false; }
@@ -350,10 +362,20 @@ export function refreshObj() {
     const pl = state.sites[b.id];
     h += `<div class="muted">Научный объект${b.hot ? ' (жара: быстрый износ)' : ''}. Множитель науки:</div>` + Object.entries(b.sci).map(([f, m]) => `<div class="row"><span style="width:90px">${FIELDS[f]} ×${m}</span>${bar(pl[f] / b.pool[f])}<span class="mono">${fmtN(pl[f])}</span></div>`).join('');
   }
+  { // сводка по телу
+    const rows = [], cn = n => n < 1e5 ? fmtN(n) : Number(n).toExponential(2).replace('e+', 'e').replace('.', ',');
+    rows.push(['Тип', b.comet ? 'комета' : b.kind === 'moon' ? 'спутник' : b.kind === 'planet' || b.kind === 'hub' ? 'планета' : b.strange ? 'особый объект' : b.type ? AST_TYPE_NAME[b.type] + ' астероид' : 'астероид']);
+    if (b.parent) rows.push(['Обращается вокруг', BODY[b.parent].name]);
+    if (b.mass) rows.push(['Масса', cn(b.mass) + ' кг']);
+    if (b.d) rows.push(['Диаметр', fmtN(b.d, b.d < 10 ? 2 : 0) + ' км']);
+    if (b.mass && b.d) rows.push(['Гравитация', fmtN(6.674e-11 * b.mass / Math.pow(b.d * 500, 2), 4) + ' м/с²']);
+    if (COLONIZABLE(b.id)) { const I = colInfo(b.id); rows.push(['Колонизация', state.cols && state.cols[b.id] ? 'колония основана' : `${fmtN(I.cost)} кр, ${fmtN(I.settlers)} поселенцев`]); rows.push(['Вместимость тела', fmtN(I.hab) + ' чел.']); rows.push(['Надбавка к ввозу', '×' + fmtN(I.dist, 2)]); }
+    h += `<div class="stats" style="margin-top:4px">${rows.map(r => `<span>${r[0]}</span><span>${r[1]}</span>`).join('')}</div>`;
+  }
   if (b.d) h += `<div class="muted">Диаметр ${fmtN(b.d, b.d < 10 ? 2 : 0)} км · ${canShipMine(b.id) ? 'доступен корабельным лазерам' : 'слишком велик для корабельных лазеров (лимит ' + shipMineLimit() + ' км, растёт с технологиями): нужны шахты и население'}</div>`;
   if (state.ground && state.ground[b.id]) {
     const gr = state.ground[b.id];
-    h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (1 т/сутки на жилу каждая).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т</span></div>`).join('');
+    h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (1 т/сутки на жилу каждая).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + (b.id === 'earth' ? '' : Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(b.id, k, v, GROUND[b.id][k]) * 100, 0)}%</span></div>`).join(''));
     if (b.id === 'earth') h += Object.entries(gr).map(([k, v]) => { const n = state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1), y = depleteYears('earth', k, GROUND.earth[k] || v, n); return `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / (GROUND.earth[k] || v))}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff('earth', k, v, GROUND.earth[k] || v) * 100, 0)}% · ${n > 0 ? '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет' : 'нет шахт'}</span></div>`; }).join('');
   }
   if (state.ast[b.id]) {
@@ -392,3 +414,7 @@ export function refreshFleet() {
 export function refreshLog() {
   $('p-log').innerHTML = state.log.slice(0, 80).map(l => `<div><span class="t">${fmtDate(l.t).slice(0, 10)}</span>${esc(l.msg)}</div>`).join('') || '<div class="help">Пока тихо.</div>';
 }
+
+document.addEventListener('keydown', e => { if (e.key === 'Shift') ui.shift = true; });
+document.addEventListener('keyup', e => { if (e.key === 'Shift') ui.shift = false; });
+window.addEventListener('blur', () => { ui.shift = false; });

@@ -2,6 +2,7 @@
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { state, log, rec, fmtN } from './01-data.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
+import { bldJobs } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
@@ -36,6 +37,7 @@ export function civJobs() {
     for (let s = 0; s < 4; s++) J[s] += (c.civ.labs || 0) * FACT_W * LAB_MIX[s];
     let m = 0; for (const r in c.civ.mines) m += c.civ.mines[r];
     for (let s = 0; s < 4; s++) J[s] += m * FACT_W * MINE_MIX[s]; }
+  if (ctxId() === 'earth') for (let s = 0; s < 4; s++) J[s] += bldJobs(s);
   return J;
 }
 // Оплата постройки корабля: своя верфь — по себестоимости, чужая — плюс 50% владельцу верфи.

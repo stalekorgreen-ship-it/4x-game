@@ -14,7 +14,7 @@ export const GOODS = {
   med: {n: 'Медицина', raw: 'c', need: .7, mix: [.1, .3, .4, .2]},
   pow: {n: 'Энергия', raw: 'u', need: 1, mix: [.3, .4, .25, .05]},
 };
-export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [4, 7, 12, 20], TUIT = [0, 2, 4, 7], FACT_COST = 2e8, TAXK = 1.25e-5;
+export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [4, 7, 12, 20], TUIT = [0, 2, 4, 7], FACT_COST = 2e8, TAXK = 1.25e-6;
 export const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
@@ -79,7 +79,7 @@ export const COLONIZABLE = id => { const b = BODY[id]; return !!b && ['planet', 
 export function colInfo(id) {
   const b = BODY[id], a = b.a != null ? b.a : (BODY[b.parent] || {a: 1}).a, d = Math.abs(a - 1);
   const hab = b.kind === 'planet' ? (id === 'venus' ? 5e6 : 2e7) : b.kind === 'moon' ? 3e6 : (b.d && b.d > 300 ? 1e6 : 2e5);
-  return {hab, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 5e7 * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: 20000};
+  return {hab, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: 20000};
 }
 export function foundWhy(id) {
   if (!COLONIZABLE(id)) return 'Это тело нельзя заселить';

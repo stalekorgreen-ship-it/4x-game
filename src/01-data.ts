@@ -213,12 +213,6 @@ export const BODIES = [
 export const GAS_ADD = {ceres: {nh3: 6000, n2: 2500}, bennu: {co2: 1200, ch4: 400}, ryugu: {nh3: 900, ch4: 500}, hygiea: {nh3: 3000, n2: 1500}, themis: {co2: 5000, nh3: 3000},
   interamnia: {n2: 2000, co2: 3000}, chiron: {n2: 3000, ch4: 2500}, mathilde: {ch4: 1500, co2: 2000}, phobos: {co2: 600}, deimos: {nh3: 400}, europa: {n2: 1500, nh3: 1200}, sylvia: {co2: 1500, nh3: 800}};
 for (const b of BODIES) if (GAS_ADD[b.id]) Object.assign(b.ores, GAS_ADD[b.id]);
-// Кометы: огромные запасы льда и газов
-for (let i = 0; i < 400; i++) {
-  const m = 1e10 * (1 + ((i * 7919) % 100) / 20); // 1–6 млрд·10 т: ядро кометы, 10–60 млрд т
-  BODIES.push({id: 'comet' + i, name: 'Комета К-' + (i + 1), a: 3.6 + ((i * 0.6180339) % 1) * 3.2, ang: (i * 2.39996) % 6.2832, kind: 'ast', comet: true,
-    ores: {ice: Math.round(m * 0.40), n2: Math.round(m * 0.20), co2: Math.round(m * 0.17), ch4: Math.round(m * 0.08), nh3: Math.round(m * 0.15)}});
-}
 // Диаметры (км): оборудование кораблей берёт только небольшие тела
 export const DIAM = {ceres: 940, vesta: 525, pallas: 512, hygiea: 430, davida: 270, interamnia: 330, europa: 315, sylvia: 270, eunomia: 255, juno: 234, psyche: 226, themis: 200, kleopatra: 135,
   mathilde: 52, ida: 31, eros: 17, gaspra: 12, toutatis: 4.5, apophis: 0.37, bennu: 0.49, ryugu: 0.9, itokawa: 0.33, icarus: 1.4, orpheus: 1, phaethon: 5.8, xanomaly: 50, oumuamua: 0.4,
@@ -226,14 +220,46 @@ export const DIAM = {ceres: 940, vesta: 525, pallas: 512, hygiea: 430, davida: 2
 for (const b of BODIES) if (DIAM[b.id]) b.d = DIAM[b.id];
 // Недра Земли и планет: добываются шахтами при наличии населения
 export const GROUND = {
-  earth: {fe: 2.4e6, si: 1.5e6, cu: 6e5, c: 5e5, ni: 4e5, ti: 3e5, ice: 5e5, ree: 4e4, pt: 1.5e4, u: 8e3},
-  mars: {fe: 9e8, si: 6e8, ti: 5e7, ice: 3e8, ni: 2e7, c: 1e7}, venus: {fe: 8e8, si: 7e8, cu: 4e7, ti: 3e7, ni: 3e7, u: 1e6},
+  // реальные порядки запасов (т): разведанные запасы земной коры; Марс ~0.1 и Венера ~0.8 от Земли по массе
+  earth: {fe: 1.8e11, si: 1e13, cu: 8.7e8, c: 1e12, ni: 1e8, ti: 7e8, ice: 1e14, ree: 1.2e8, pt: 7e4, u: 6e6},
+  mars: {fe: 1.8e10, si: 1e12, cu: 9e7, ice: 5e15, ni: 1e7, ti: 7e7, c: 1e11, ree: 1.2e7, pt: 7e3}, venus: {fe: 1.4e11, si: 8e12, cu: 7e8, ti: 5e8, ni: 8e7, u: 5e6, c: 8e11},
 };
 export const POP = {earth: 1500}; // рабочие, доступные на Земле (колоний пока нет)
 export const shipMineLimit = () => (state && state.tech && state.tech.rock1000) ? 1000 : (state && state.tech && state.tech.rock300) ? 300 : 100;
 export const canShipMine = id => { const b = BODY[id]; return !!b && (b.d === undefined || b.d <= shipMineLimit()); };
 // Тераформирование: сколько тонн чего нужно доставить на планету
 export const TERRA = {mars: {name: 'Марс', unit: 1e10, need: {ice: 3e12, n2: 3e12, co2: 2e12, nh3: 1e12, ch4: 1e12}}};
+
+// ===== Реальные массы и запасы: масса тела × доля вещества =====
+const MASS = {luna: 7.35e22, phobos: 1.07e16, deimos: 1.5e15, apophis: 6.1e10, bennu: 7.8e10, ryugu: 4.5e11, eros: 6.7e15, vesta: 2.59e20, juno: 2.7e19, ceres: 9.4e20, pallas: 2.04e20, psyche: 2.4e19, hygiea: 8.7e19,
+  itokawa: 3.5e10, icarus: 1e12, orpheus: 1e11, gaspra: 1e16, toutatis: 5e13, eunomia: 3.1e19, mathilde: 1e17, kleopatra: 4.6e18, ida: 4.2e16, interamnia: 3.5e19, europa: 2.4e19, themis: 1.2e19, davida: 3.4e19,
+  sylvia: 1.5e19, phaethon: 1.4e14, xanomaly: 1e17, oumuamua: 4e9, chiron: 4e18};
+const rscale = (b, kg, share) => { const W = Object.values(b.ores).reduce((a, v) => a + v, 0); b.mass = kg; if (W <= 0) return; const t = kg / 1000 * share; for (const k in b.ores) b.ores[k] = Math.round(t * b.ores[k] / W); };
+for (const b of BODIES) if (b.ores && MASS[b.id]) rscale(b, MASS[b.id], .5);
+// Процедурные астероиды и кометы
+function mkRng(seed) { let a = seed; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const GR = mkRng(20240611), LET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const AST_TYPES = [
+  {k: 'C', w: .5, rho: 1300, ores: {c: .25, ice: .2, si: .15, fe: .1, nh3: .04, co2: .03, ni: .004, cu: .0005, ree: .0002}},
+  {k: 'S', w: .35, rho: 2700, ores: {si: .35, fe: .3, ni: .03, ti: .02, cu: .003, ree: .001, pt: .0001}},
+  {k: 'M', w: .15, rho: 5300, ores: {fe: .55, ni: .12, ti: .01, cu: .005, pt: .002, ree: .0008, u: .00003}},
+];
+export const AST_TYPE_NAME = {C: 'углеродный (C)', S: 'каменный (S)', M: 'металлический (M)'};
+for (let i = 0; i < 900; i++) {
+  const u = GR(), ty = AST_TYPES[GR() < .5 ? 0 : GR() < .7 ? 1 : 2], r = GR();
+  const d = Math.round(.3 * Math.pow(10, 2.7 * Math.pow(u, 1.6)) * 100) / 100, a = r < .7 ? 2.1 + 1.2 * GR() : r < .9 ? .95 + 1.05 * GR() : 3.9 + 1.4 * GR();
+  const kg = 4 / 3 * Math.PI * Math.pow(d * 500, 3) * ty.rho, ores = {};
+  for (const k in ty.ores) ores[k] = 1;
+  const b = {id: 'ga' + i, name: (2001 + Math.floor(GR() * 30)) + ' ' + LET[Math.floor(GR() * 24)] + LET[Math.floor(GR() * 24)] + Math.floor(1 + GR() * 400), a: Math.round(a * 1000) / 1000, ang: GR() * 6.2832, kind: 'ast', gen: true, type: ty.k, d, ores};
+  rscale(b, kg, 1); for (const k in ty.ores) b.ores[k] = Math.round(kg / 1000 * ty.ores[k]);
+  BODIES.push(b);
+}
+// Кометы: ледяные ядра, закручены в вихрь у внешнего края (три рукава)
+for (let i = 0; i < 600; i++) {
+  const u = GR(), a = 4 + 14 * Math.pow(u, .85), arm = i % 3, kg = Math.pow(10, 12 + 3.7 * Math.pow(GR(), 1.5)), t = kg / 1000;
+  BODIES.push({id: 'comet' + i, name: 'Комета К-' + (i + 1), a: Math.round(a * 1000) / 1000, ang: (arm * 2.0944 + 2.6 * Math.log(a / 4) + (GR() - .5) * .35) % 6.2832, kind: 'ast', comet: true, gen: true, mass: kg, d: Math.max(.1, Math.round(2 * Math.cbrt(kg / 600 * 3 / (4 * Math.PI)) / 10) / 100),
+    ores: {ice: Math.round(t * .5), n2: Math.round(t * .06), co2: Math.round(t * .15), ch4: Math.round(t * .05), nh3: Math.round(t * .1), c: Math.round(t * .08), si: Math.round(t * .06)}});
+}
 export const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
 export const GROUP_COLORS = ['#6fdc8c','#e3a94f','#c58cf0','#5ec8d8','#ef7f9a','#a8d65a'];
 
@@ -274,7 +300,7 @@ export function massOf(id) {
 export const shipMass = s => s.st.dry + s.fuel + cargoTotal(s) + (s.towing ? massOf(s.towing) : 0);
 export const shipSpeed = s => s.st.power / shipMass(s) * SPEED_K * pilSpeed(s);
 export const fuelPerAU = s => shipMass(s) * FUEL_K / s.st.eff * pilFuel(s);
-export const fmtN = (n, d = 0) => Math.abs(n) >= 1e12 ? fmtN0(n / 1e12, 2) + ' трлн' : Math.abs(n) >= 1e9 ? fmtN0(n / 1e9, 1) + ' млрд' : fmtN0(n, d);
+export const fmtN = (n, d = 0) => Math.abs(n) >= 1e15 ? Number(n).toExponential(1).replace('e+', 'e').replace('.', ',') : Math.abs(n) >= 1e12 ? fmtN0(n / 1e12, 2) + ' трлн' : Math.abs(n) >= 1e9 ? fmtN0(n / 1e9, 1) + ' млрд' : fmtN0(n, d);
 export const fmtN0 = (n, d = 0) => Number(n).toLocaleString('ru-RU', {maximumFractionDigits: d, minimumFractionDigits: d});
 export function fmtDate(t) { return new Date(EPOCH + t * 86400000).toISOString().replace('T', ' ').slice(0, 16); }
 export function fmtDur(days) {
