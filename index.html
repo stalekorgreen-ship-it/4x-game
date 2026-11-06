@@ -24,13 +24,16 @@
     </div>
     <div id="maphint">Колесо или +/−: масштаб · Перетаскивание: сдвиг · Клик: выбрать</div>
   </div>
-  <aside id="side">
+  <div id="veil" hidden></div>
+  <aside id="side" class="card">
+    <button class="btn sm" id="mclose" aria-label="Закрыть" title="Закрыть (Esc)">✕</button>
     <div id="subtabs" role="tablist"></div>
     <section class="panel" id="p-obj"></section>
     <section class="panel" id="p-orders" hidden></section>
     <section class="panel" id="p-yard" hidden></section>
     <section class="panel" id="p-earth" hidden></section>
     <section class="panel" id="p-corp" hidden></section>
+    <section class="panel" id="p-trade" hidden></section>
     <section class="panel" id="p-pop" hidden></section>
     <section class="panel" id="p-comp" hidden></section>
     <section class="panel" id="p-laws" hidden></section>

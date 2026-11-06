@@ -7,6 +7,18 @@ import { CTECH, LAB_COST, SHIP_K, canBuildShips, hasXfer, labRP, newCiv, payBuil
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 import { lendTo } from './12-state.ts';
 /* ===== КОРПОРАЦИИ: конкуренты, начинающие с Земли ===== */
+// Политика закупок игрока: сколько и по какой цене брать у корпораций (общая для всех продавцов)
+export const buyPol = k => { const b = state.buyPol || (state.buyPol = {}); return b[k] || (b[k] = {mode: 'off', amt: 0, max: 0}); };
+const bmonth = () => { const m = Math.floor(state.t / 30); if (!state.bm || state.bm.m !== m) state.bm = {m, v: {}, last: state.bm ? state.bm.v : {}}; return state.bm; };
+export const boughtMonth = k => bmonth().v[k] || 0;
+export const noteBought = (k, q) => { const b = bmonth(); b.v[k] = (b.v[k] || 0) + q; };
+// сколько тонн игрок готов взять сейчас по цене price
+export function allowBuy(k, price) {
+  const p = buyPol(k); if (p.mode === 'off') return 0; if (p.max > 0 && price > p.max) return 0;
+  if (p.mode === 'all') return Infinity;
+  if (p.mode === 'keep') return Math.max(0, p.amt - (state.stock[k] || 0));
+  return Math.max(0, p.amt - boughtMonth(k));
+}
 export const PRICE = {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500};
 export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000;
 export const CORP_DEF = [
@@ -80,7 +92,7 @@ export function corpMine(s, h) {
     for (const b of BODIES) {
       if (b.kind !== 'ast' || b.comet || !canShipMine(b.id) || !state.ast[b.id]) continue;
       const ores = state.ast[b.id]; let tot = 0, val = 0;
-      for (const k in ores) { tot += ores[k]; val += ores[k] * (PRICE[k] || 30) * ((c.buy.all || c.buy[k]) ? 1 : 0.3); }
+      for (const k in ores) { tot += ores[k]; val += ores[k] * (PRICE[k] || 30) * (allowBuy(k, PRICE[k] || 30) > 0 ? 1 : 0.3); }
       if (tot < 800) continue;
       const P = objPos(b.id, state.t), d1 = dist(s, P);
       let R = 1e9; for (const x of bases) R = Math.min(R, dist(P, basePos(x)));
@@ -186,8 +198,8 @@ export function corpSellToEarth(s) {
   const c = corpById(s.corp); let sum = 0, plSum = 0; const got = [];
   for (const [k, v] of Object.entries(s.cargo)) {
     if (v <= 0) continue;
-    const want = c && (c.buy.all || c.buy[k]), pay = v * (PRICE[k] || 50) * (want ? 1 : 0.3); sum += pay;
-    if (want) { plSum += pay; state.stock[k] = (state.stock[k] || 0) + v; rec(k, 'in', v, 'corp'); got.push(`${fmtN(v)} т ${RES[k].toLowerCase()}`); }
+    const pr = PRICE[k] || 50, q = Math.max(0, Math.min(v, c ? allowBuy(k, pr) : 0, state.money / pr)), pay = q * pr + (v - q) * pr * 0.3; sum += pay;
+    if (q > 0) { plSum += q * pr; state.stock[k] = (state.stock[k] || 0) + q; noteBought(k, q); rec(k, 'in', q, 'corp'); got.push(`${fmtN(q)} т ${RES[k].toLowerCase()}`); }
   }
   s.cargo = {};
   if (c) { c.credits += sum; c.sold += sum; }
@@ -225,8 +237,6 @@ export function refreshCorp() {
       <div class="help">Исследования: ${CTECH.filter(x => c.civ.tech[x.id]).map(x => x.name).join(', ') || 'пока нет'}${c.civ.cur ? '. Сейчас: ' + CTECH.find(x => x.id === c.civ.cur).name + ' (' + fmtN(c.civ.prog) + '/' + CTECH.find(x => x.id === c.civ.cur).cost + ' ОИ)' : ''}. Лаборатории: ${c.civ.labs} (${fmtN(labRP(c), 1)} ОИ/сут).</div>
       <div class="help">Заводы: ${Object.keys(c.civ.fac).filter(g => c.civ.fac[g] > 0).map(g => GOODS[g].n + ' ' + fmtN(c.civ.fac[g]) + ' (цена ' + fm(c.civ.pr[g] || 0) + ')').join(', ') || 'нет'}. Шахты: ${Object.keys(c.civ.mines).filter(r => c.civ.mines[r] > 0).map(r => RES[r].toLowerCase() + ' ×' + c.civ.mines[r]).join(', ') || 'нет'}. ${c.civ.yard ? '<b>Есть коммерческая верфь</b>, доход от чужих заказов: ' + fmtN(c.civ.fees || 0) + ' кр.' : 'Верфи нет.'}</div>
       <div class="row">Долг банку: ${fmtN(c.civ.debt || 0)} кр. <select id="lendamt">${[1e9, 5e9, 2e10].map(x => `<option value="${x}">${fmtN(x)} кр</option>`).join('')}</select><button class="btn sm" data-lend="${c.id}">Выдать кредит (6%)</button></div>
-      <label class="row"><input type="checkbox" data-corp="${c.id}" data-all="1"${c.buy.all ? ' checked' : ''}> <b>Покупать всё</b></label>
-      <div class="res">${Object.keys(RES).filter(k => k !== 'spares').map(k => `<label><input type="checkbox" data-corp="${c.id}" data-res="${k}"${c.buy.all || c.buy[k] ? ' checked' : ''}${c.buy.all ? ' disabled' : ''}> ${RES[k]}</label><span class="mono muted">${PRICE[k]} кр/т</span>`).join('')}</div>
       ${sts.length ? `<div class="help">Топливо на станциях: ${fmtN(svcPrice(sts[0], 'fuel'))} кр/т у «${esc(nameOf(sts[0].at))}».</div>` : ''}</div>`;
   }
   setHtml(p, h);
@@ -236,7 +246,6 @@ export function refreshCorp() {
   p.addEventListener('click', e => { const lb = e.target.closest('[data-lend]'); if (lb) { lendTo(corpById(+lb.dataset.lend), +document.getElementById('lendamt').value); p._h = null; refreshCorp(); return; } const r = e.target.closest('[data-corpsel]'); if (r) { ui.corpSel = +r.dataset.corpsel; p._h = null; refreshCorp(); } });
   p.addEventListener('change', e => {
     const t = e.target, c = corpById(+t.dataset.corp); if (!c) return;
-    if (t.dataset.all) c.buy.all = t.checked; else if (t.dataset.res) c.buy[t.dataset.res] = t.checked;
     p._h = null; refreshCorp();
   });
 })();

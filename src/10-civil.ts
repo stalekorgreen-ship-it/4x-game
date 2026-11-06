@@ -2,7 +2,7 @@
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { state, log, rec, fmtN } from './01-data.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
-import { PRICE, respawnTick } from './06-corps.ts';
+import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
 export const MINE_COST = 5e7, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
@@ -79,6 +79,11 @@ function rawMarket(rawNeed, dt, init) {
     for (const s of pool) { s.sold = Math.min(s.cap, left); left -= s.sold; paid += s.sold * s.price; if (s.id === 'imp') imp = s.sold; }
     const a = total > 0 ? paid / total : PRICE[r]; avg[r] = a;
     for (const k in needs) cost[k] = (cost[k] || 0) + needs[k] * a;
+    if (!init && ctxId() === 'earth') { // игрок скупает излишки шахт по своей политике (дешёвые первыми)
+      let al = allowBuy(r, 0) === 0 ? 0 : 1; const cand = pool.filter(x => x.c && x.cap - x.sold > 1e-9).sort((a, b) => a.price - b.price);
+      for (const x of cand) { al = allowBuy(r, x.price); if (!(al > 0)) continue; const q = Math.min(al, (x.cap - x.sold) * dt, state.money / x.price); if (!(q > 0)) continue;
+        const pay = q * x.price, mt = pay * laws().mineTax / 100; state.money -= pay - mt; x.c.credits += pay - mt; state.stock[r] = (state.stock[r] || 0) + q; x.sold += q / dt; noteBought(r, q); rec(r, 'in', q, 'corp'); state.mtaxInc = (state.mtaxInc || 0) + mt; }
+    }
     if (!init) for (const s of pool) {
       if (s.c) { const rv = s.sold * s.price * dt, mt = rv * laws().mineTax / 100; s.c.credits += rv - mt; state.money += mt; state.mtaxInc = (state.mtaxInc || 0) + mt; s.c.civ.mp[r] = s.sold >= s.cap * .98 ? Math.min(PRICE[r] * 1.7, s.price * 1.03) : Math.max(PRICE[r] * .5, s.price * .97); }
       else if (s.id === 'imp' && s.sold > 0) { const ti = s.sold * PRICE[r] * 1.8 * (P.dist || 1) * tf / (1 + tf); P.tarAcc = (P.tarAcc || 0) + ti * dt; }
@@ -119,7 +124,8 @@ export function settleEconomy(mk, rawNeed, dt, init) {
     P.price = P.price || {}; P.price[g] = R.avg * R.mult; P.raw = P.raw || {}; P.raw[g] = {t: R.sold / G.need * RAW_PER};
   }
   if (init) return;
-  const sellers = [];
+  const sellers = [], off = new Map();
+  if (home) playerBuyRP(off, dt);
   for (const c of [...corpsAll()]) {
     let m = 0; for (const r in c.civ.mines) m += c.civ.mines[r];
     let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * W[s] * .96 * hk;
@@ -127,7 +133,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
     if (!home) { const pm = c.civ.pm || 0; c.civ.pm = 0; c.pmAdd = (c.pmAdd || 0) + pm; civTick(c, mk, dt, true); continue; }
     let lw = 0; for (let s = 0; s < 4; s++) lw += LAB_MIX[s] * W[s] * .96;
     c.credits -= (c.civ.labs || 0) * FACT_W * lw * dt;
-    rpMonth(c, dt, sellers);
+    rpMonth(c, dt, sellers, off.get(c) ? off.get(c).rp : 0);
     licenseTick(c);
     const pm = (c.civ.pm || 0) + (c.pmAdd || 0); c.civ.pm = 0; c.pmAdd = 0;
     if (finTick(c, dt, pm)) continue;
@@ -177,14 +183,9 @@ function useRP(c, rp) {
   }
   return rp;
 }
-function rpMonth(c, dt, sellers) {
-  const v = c.civ, rp = labRP(c) * dt; v.hired = 0;
+function rpMonth(c, dt, sellers, rp) {
+  const v = c.civ;
   if (rp <= 0) { if (v.rpPool > 0 && v.cur) v.rpPool = useRP(c, v.rpPool); return; }
-  if (state.contracts && state.contracts[c.id]) {
-    const pay = rp * rpPrice(c);
-    if (state.money >= pay) { state.money -= pay; c.credits += pay; state.rp = (state.rp || 0) + rp; v.hired = rp / dt; return; }
-    delete state.contracts[c.id]; log(`Контракт с лабораториями «${c.name}» расторгнут: не хватило кредитов.`);
-  }
   const share = v.cur ? .0 : 1; // если своей темы нет — всё на продажу
   const sell = rp * (share || .25);
   if (sell > 0) sellers.push({c, rp: sell});
@@ -223,4 +224,19 @@ function tryExpand(c) {
   if (!c.civs[best]) { c.credits -= cost; c.civs[best] = newBranch(c); { let bg = 'food', bm = -1; for (const g in GOODS) { const sc = (P.price && P.price[g] || 1) * (P.dem[g] || 0); if (sc > bm) { bm = sc; bg = g; } } c.civs[best].fac[bg] = 1; c.civs[best].pr[bg] = .95; } log(`«${c.name}» открыла филиал на колонии «${cs[best].name}».`); }
   else return false;
   return true;
+}
+
+// Игрок покупает очки исследований: сколько в месяц и не дороже какой цены — игра сама берёт у самых дешёвых лабораторий
+export const sciPol = () => state.sciBuy || (state.sciBuy = {amt: 0, max: 15000});
+function playerBuyRP(off, dt) {
+  const L = sciPol(); let avail = 0, val = 0;
+  for (const c of corpsAll()) { const rp = labRP(c) * dt; if (rp > 0) { off.set(c, {rp, price: rpPrice(c)}); avail += rp; val += rp * rpPrice(c); c.civ.hired = 0; } }
+  state.sciInfo = {avail: avail * 30 / dt, avg: avail > 0 ? val / avail : 0, bought: 0, spent: 0};
+  let want = L.amt * dt / 30;
+  for (const [c, o] of [...off.entries()].sort((a, b) => a[1].price - b[1].price)) {
+    if (want <= 0) break; if (L.max > 0 && o.price > L.max) break;
+    const q = Math.min(want, o.rp, state.money / o.price); if (!(q > 0)) break;
+    const pay = q * o.price; state.money -= pay; c.credits += pay; state.rp = (state.rp || 0) + q; o.rp -= q; want -= q; c.civ.hired = q / dt;
+    state.sciInfo.bought += q * 30 / dt; state.sciInfo.spent += pay * 30 / dt;
+  }
 }

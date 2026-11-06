@@ -46,9 +46,15 @@ B.researchTick(1);
 ok(s().tprog.reliable === 100 && !s().tech.reliable, 'исследование идёт постепенно (100/500)');
 s().sci.eng = 450; B.researchTick(1);
 ok(s().tech.reliable === true, 'тема изучена, когда набрались очки');
-s().contracts[lab.id] = true; s().money = 1e9; const rp0 = s().rp;
+s().sciBuy = {amt: 5000, max: 20000}; s().money = 1e9; const rp0 = s().rp;
 s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
-ok(s().tech.effdrive || s().tprog.effdrive > 0, 'очки по контракту лаборатории идут игроку');
+ok(s().tech.effdrive || s().tprog.effdrive > 0, 'купленные очки идут игроку');
+ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
+// закупки руды: политика игрока
+s().buyPol = {fe: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.fe || 0, si0 = s().stock.si || 0;
+for (let i = 0; i < 120; i++) g.advance(2);
+ok((s().stock.fe || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.fe || 0) - fe0) + ' т железа)');
+ok((s().stock.si || 0) <= si0 + 1e-6, 'при слишком низкой максимальной цене ничего не покупается');
 
 ok(s().money > 5e7, 'налоги капают');
 // 4. Государство: налоги, кредиты, банкротство, кризисы, цены
@@ -58,7 +64,7 @@ const taxA = s().pop.tax; F.laws().tax = 30; P.popTick(30); const taxB = s().pop
 ok(taxB > taxA * 1.3, 'повышение налога поднимает сбор (' + Math.round(taxA) + ' → ' + Math.round(taxB) + ')');
 const cc = s().corps[3], m0 = s().money; F.lendTo(cc, 1e9); P.popTick(30);
 ok(F.loansOf(cc).length === 1 || s().money > m0 - 1e9, 'кредит корпорации выдан, проценты идут');
-const n0 = s().corps.length; const victim = s().corps[5]; victim.credits = -9e9; victim.civ.neg = 5; victim.civ.debt = 9e9;
+const n0 = s().corps.length; const victim = s().corps[5]; victim.credits = -1e13; victim.civ.neg = 5; victim.civ.debt = 1e13;
 P.popTick(30); P.popTick(30);
 ok(!s().corps.includes(victim) && (s().bankr || 0) >= 1, 'банкротство: корпорация исчезла, активы поглощены');
 for (let i = 0; i < 14; i++) { s().t += 30; P.popTick(30); }
@@ -100,7 +106,7 @@ ok(isFinite(s().money) && g.totals().n > 5e9, 'экономика не рухн�
 Object.assign(L, F.LAW_DEFAULT);
 
 // 5. Все панели интерфейса открываются без ошибок
-for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
+for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'trade', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
   try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
 }
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');

@@ -4,6 +4,7 @@ import { BODY, RES, GROUND, TERRA, canShipMine, shipMineLimit, state, fmtN } fro
 import { hooks } from './00-hooks.ts';
 import { COLONIZABLE, FW, GOODS, STR, STR_COL, colInfo, colPicker, colSel, foundColony, foundWhy, totals, withCtx } from './07-population.ts';
 import { MINE_MIX } from './10-civil.ts';
+import { PRICE, boughtMonth, buyPol } from './06-corps.ts';
 import { $, bar, esc, setHtml, ui } from './08-map-ui.ts';
 
 const I = (p) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -13,7 +14,7 @@ export const SECTIONS = [
   {id: 'orders', name: 'Приказы', icon: I('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), subs: [['orders', 'Приказы и правила']]},
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
   {id: 'sci', name: 'Наука', icon: I('<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>'), subs: [['sci', 'Исследования']]},
-  {id: 'corp', name: 'Корпорации', icon: I('<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M8 10h2M14 10h2"/>'), subs: [['corp', 'Корпорации']]},
+  {id: 'corp', name: 'Корпорации', icon: I('<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M8 10h2M14 10h2"/>'), subs: [['corp', 'Корпорации'], ['trade', 'Закупки сырья']]},
   {id: 'state', name: 'Государство', icon: I('<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 006 0zM17 7l-3 7a3 3 0 006 0z"/>'), subs: [['laws', 'Законы и кредиты']]},
   {id: 'find', name: 'Поиск', icon: I('<circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/>'), subs: [['find', 'Поиск']]},
   {id: 'log', name: 'Журнал', icon: I('<path d="M6 4h12v14a2 2 0 01-2 2H6zM9 8h6M9 12h6M9 16h4"/>'), subs: [['log', 'Журнал событий']]},
@@ -93,3 +94,18 @@ export function refreshCol() {
   };
   for (const id of ['p-pop', 'p-work', 'p-col']) { const el = document.getElementById(id); if (el) el.addEventListener('click', clk); }
 })();
+
+/* --- Закупки сырья: общая политика игрока, склад на Земле --- */
+const TR_MODES = [['off', 'Не покупать'], ['all', 'Всё, что продают'], ['keep', 'Пока на складе меньше N т'], ['month', 'N т в месяц']];
+export function refreshTrade() {
+  const p = $('p-trade'); if (!p) return;
+  const ks = Object.keys(RES).filter((k) => k !== 'spares');
+  if (!p._built) {
+    p._built = true;
+    p.innerHTML = `<div class="box"><h2>Закупки сырья у корпораций</h2><div class="help">Игра сама покупает у самых дешёвых продавцов (шахты корпораций и их корабли-рудокопы) и кладёт на склад Земли. Режим «Пока на складе меньше N т» — докупать только при нехватке на производство. «Не дороже» 0 — без ограничения цены; всё, что вы не берёте, корпорации сбывают на рынке за 30% цены.</div>
+    <div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr>${['Ресурс', 'Режим', 'N т', 'Не дороже, кр/т', 'Цена', 'На складе', 'Куплено: сейчас / прошлый мес.'].map((x) => `<th style="text-align:left;padding:2px 6px">${x}</th>`).join('')}</tr>
+    ${ks.map((k) => { const q = buyPol(k); return `<tr><td style="padding:2px 6px;border-top:1px solid #8883">${RES[k]}</td><td style="padding:2px 6px;border-top:1px solid #8883"><select data-tr="mode" data-k="${k}">${TR_MODES.map(([v, n]) => `<option value="${v}"${q.mode === v ? ' selected' : ''}>${n}</option>`).join('')}</select></td><td style="padding:2px 6px;border-top:1px solid #8883"><input type="number" min="0" data-tr="amt" data-k="${k}" value="${q.amt}" style="width:90px"></td><td style="padding:2px 6px;border-top:1px solid #8883"><input type="number" min="0" data-tr="max" data-k="${k}" value="${q.max}" style="width:80px"></td><td style="padding:2px 6px;border-top:1px solid #8883">${fmtN(PRICE[k] || 0)}</td><td id="tr-s-${k}" style="padding:2px 6px;border-top:1px solid #8883"></td><td id="tr-b-${k}" style="padding:2px 6px;border-top:1px solid #8883"></td></tr>`; }).join('')}</table></div></div>`;
+    p.addEventListener('input', (e) => { const t = e.target, k = t.dataset && t.dataset.k; if (!k) return; const q = buyPol(k); if (t.dataset.tr === 'mode') q.mode = t.value; else q[t.dataset.tr] = Math.max(0, +t.value || 0); });
+  }
+  for (const k of ks) { const a = $('tr-s-' + k), b = $('tr-b-' + k); if (a) a.textContent = fmtN(state.stock[k] || 0); if (b) b.textContent = fmtN(boughtMonth(k)) + ' / ' + fmtN((state.bm && state.bm.last && state.bm.last[k]) || 0); }
+}

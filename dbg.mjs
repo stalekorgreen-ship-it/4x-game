@@ -1,8 +1,8 @@
 const stub = () => new Proxy(function () {}, { get: (_, k) => (k === Symbol.toPrimitive ? () => 0 : stub()), apply: () => stub(), construct: () => stub(), set: () => true });
 Object.assign(globalThis, { document: stub(), window: stub(), localStorage: { getItem: () => null, setItem() {} }, requestAnimationFrame() {}, ResizeObserver: function () { return stub(); } });
-const D = await import('/home/claude/4x-game/src/01-data.ts'); const E = await import('/home/claude/4x-game/src/04-engine.ts'); const P = await import('/home/claude/4x-game/src/07-population.ts'); await import('/home/claude/4x-game/src/06-corps.ts'); await import('/home/claude/4x-game/src/09-orders-ui.ts');
-D.newGame(); const s = () => D.state; s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
-s().ships[0].at = 'mars'; s().money = 1e10; P.foundColony('mars');
-for (let i = 0; i < 2500; i++) E.advance(2);
-const mp = s().cols.mars.pop; console.log('t', s().t / 360, 'gImp', JSON.stringify(mp.gImp), 'n', mp.n, 'fac', JSON.stringify(mp.fac));
-console.log(s().corps.map(c => Math.round(c.credits / 1e9) + 'B/' + Object.values(c.civ.fac).reduce((a, b) => a + b, 0)).join(' '));
+const D = await import('./src/01-data.ts'); const P = await import('./src/07-population.ts'); await import('./src/06-corps.ts'); await import('./src/09-orders-ui.ts');
+D.newGame(); const s = () => D.state; s().paused = true;
+for (let i = 0; i < 3; i++) { s().t += 30; P.popTick(30); }
+const v = s().corps[5]; v.credits = -9e9; v.civ.neg = 5; v.civ.debt = 9e9;
+P.popTick(30); console.log(s().corps.includes(v), v.credits, v.civ.neg, v.civ.debt, s().bankr);
+P.popTick(30); console.log(s().corps.includes(v), v.credits, v.civ.neg, v.civ.debt, s().bankr);

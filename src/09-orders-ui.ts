@@ -5,11 +5,11 @@ import { BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techOn, t
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
-import { rpPrice, labRP } from './10-civil.ts';
+import { rpPrice, labRP, sciPol } from './10-civil.ts';
 import { refreshLaws } from './12-state.ts';
 import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
-import { buildShell, refreshCol, refreshComp, refreshWork, syncShell } from './11-shell.ts';
+import { buildShell, refreshTrade, refreshCol, refreshComp, refreshWork, syncShell } from './11-shell.ts';
 import { setHtml } from './08-map-ui.ts';
 import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
@@ -348,11 +348,8 @@ export function earthClick(a, d) {
 /* ===== ПАНЕЛЬ «НАУКА» ===== */
 export function refreshScience() {
   const S = state.sci, act = state.research || {}, prog = state.tprog || {};
-  let h = `<div class="box"><h2>Очки науки (поступают в текущее исследование)</h2><div class="stats">${Object.entries(FIELDS).map(([f, n]) => `<span>${n}</span><span>${fmtN(S[f], 1)}</span>`).join('')}<span>Очки по контрактам</span><span>${fmtN(state.rp || 0, 1)}</span></div>
-    <div class="help">Выберите тему в каждой области: очки области идут в неё сами, пока тема не изучена. Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. Очки с контрактов лабораторий делятся между активными темами.</div></div>`;
-  // контракты с лабораториями корпораций
-  const labs = (state.corps || []).filter(c => c.civ.labs > 0).sort((a, b) => rpPrice(a) - rpPrice(b));
-  h += `<div class="box"><h2>Лаборатории корпораций</h2>` + (labs.length ? `<div class="help">Пока вы платите, все очки лаборатории идут вам. Если контракта нет, лаборатории работают на себя или сдаются другим корпорациям.</div>` + labs.map(c => { const rp = labRP(c), hired = !!state.contracts[c.id]; return `<div class="row"><span class="grow">${esc(c.name)} <span class="muted">· ${c.civ.labs} лаб., ${fmtN(rp, 1)} ОИ/сут</span></span><span class="mono muted">${fmtN(rpPrice(c))} кр/ОИ (${fmtN(rp * rpPrice(c))} кр/сут)</span><button class="btn sm ${hired ? 'on' : ''}" data-a="hirelab" data-c="${c.id}">${hired ? 'Расторгнуть' : 'Нанять'}</button></div>`; }).join('') : `<div class="help">Корпорации пока не построили лабораторий.</div>`) + '</div>';
+  let h = `<div class="box"><h2>Очки науки (поступают в текущее исследование)</h2><div class="stats">${Object.entries(FIELDS).map(([f, n]) => `<span>${n}</span><span>${fmtN(S[f], 1)}</span>`).join('')}<span>Купленные очки</span><span>${fmtN(state.rp || 0, 1)}</span></div>
+    <div class="help">Выберите тему в каждой области: очки области идут в неё сами, пока тема не изучена. Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. Купленные очки лабораторий делятся между активными темами.</div></div>`;
   for (const f in FIELDS) {
     h += `<div class="box"><h2>${FIELDS[f]}</h2>` + TECH.filter(t => t.f === f).map(t => {
       const done = state.tech[t.id], cur = act[f] === t.id, p = prog[t.id] || 0;
@@ -361,8 +358,18 @@ export function refreshScience() {
   }
   h += '<div class="box"><h2>Научные объекты</h2>' + BODIES.filter(b => b.sci).map(b => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow" style="color:#b794e8">${b.name}</b><button class="btn sm" data-a="selbody" data-id="${b.id}">На карте</button></div>` +
     Object.entries(b.sci).map(([f, m]) => `<div class="row"><span style="width:110px">${FIELDS[f]} ×${m}</span>${bar(state.sites[b.id][f] / b.pool[f])}<span class="mono">${fmtN(state.sites[b.id][f])}</span></div>`).join('') + '</div>').join('') + '</div>';
-  setHtml($('p-sci'), h);
+  const p = $('p-sci');
+  if (!p._built) { p._built = true; p.innerHTML = `<div class="box"><h2>Покупка очков исследований у лабораторий корпораций</h2><div id="sc-info"></div>
+    <div class="row"><label>Покупать в месяц, ОИ <input type="number" min="0" step="10" data-sci="amt" id="sc-amt" value="${sciPol().amt}"></label><label>Не дороже, кр за ОИ <input type="number" min="0" step="100" data-sci="max" id="sc-max" value="${sciPol().max}" style="width:90px"></label></div>
+    <div class="help">Игра сама заключает сделки с самыми дешёвыми лабораториями. 0 в «Не дороже» — без ограничения цены. Купленные очки идут в изучаемые темы.</div></div><div id="sc-main" class="dcol" style="gap:6px"></div>`; }
+  const I = state.sciInfo || {avail: 0, avg: 0, bought: 0, spent: 0};
+  setHtml($('sc-info'), `<div class="stats"><span>Доступно у лабораторий в месяц</span><span>${fmtN(I.avail, 0)} ОИ</span><span>Средняя цена</span><span>${fmtN(I.avg, 0)} кр/ОИ</span><span>Куплено за прошлый месяц</span><span>${fmtN(I.bought, 0)} ОИ за ${fmtN(I.spent, 0)} кр</span></div>`);
+  setHtml($('sc-main'), h);
 }
+(function sciEvents() {
+  const p = document.getElementById('p-sci');
+  p.addEventListener('input', (e) => { const k = e.target.dataset && e.target.dataset.sci; if (k) sciPol()[k] = Math.max(0, +e.target.value || 0); });
+})();
 
 /* ===== ПОИСК И ОТМЕТКИ ===== */
 export function toggleMark(k) { if (state.marks[k]) delete state.marks[k]; else state.marks[k] = 1; }
@@ -429,8 +436,9 @@ export function crewChange(el) {
 /* ===== ВКЛАДКИ, СОБЫТИЯ, ЦИКЛ ===== */
 export function showTab(name) {
   ui.tab = name;
+  const side = $('side'); if (side) { side.classList.toggle('modal', name !== 'obj'); side.classList.toggle('card', name === 'obj'); const v = $('veil'); if (v) v.hidden = name === 'obj'; }
   syncShell(name);
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'pop', 'comp', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();
@@ -442,6 +450,7 @@ export function showTab(name) {
   if (name === 'laws') refreshLaws();
   if (name === 'work') refreshWork();
   if (name === 'col') refreshCol();
+  if (name === 'trade') refreshTrade();
   if (name === 'sci') refreshScience();
   if (name === 'find') renderFind();
   if (name === 'fleet') refreshFleet();
@@ -465,7 +474,6 @@ export function sideAction(a, d) {
   if (a === 'mark') { toggleMark(d.k); refreshObj(); return renderFindIfOpen(); }
   if (a === 'focus') { const k = d.k; select(isSt(k) ? {kind: 'station', id: +k.slice(3)} : isSh(k) ? {kind: 'ship', id: +k.slice(3)} : {kind: 'body', id: k}); focusSel(); return; }
   if (a === 'buytech') { techSet(d.t); return refreshScience(); }
-  if (a === 'hirelab') { const id = +d.c; if (state.contracts[id]) delete state.contracts[id]; else state.contracts[id] = true; return refreshScience(); }
   if (a === 'editship') { ui.edit = {kind: 'ship', id: ui.sel.id}; return showTab('orders'); }
   if (a === 'addmine') { const t = ui.sel.id; return addOrderTo($('actGroup').value, {type: 'mine', target: t, res: $('actRes').value, pct: 100}); }
   const selId = ui.sel.kind === 'station' ? 'st:' + ui.sel.id : ui.sel.kind === 'ship' ? 'sh:' + ui.sel.id : ui.sel.id;
@@ -498,8 +506,9 @@ $('side').addEventListener('change', e => {
 });
 document.addEventListener('keydown', e => {
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
-  if (e.code === 'Space') { e.preventDefault(); state.paused = !state.paused; }
-  else if (e.key >= '1' && e.key <= '6') { state.speedIdx = +e.key - 1; state.paused = false; }
+  if (e.code === 'Escape' && ui.tab !== 'obj') { showTab('obj'); }
+  else if (e.code === 'Space') { e.preventDefault(); state.paused = !state.paused; }
+  else if (e.key >= '1' && e.key <= '7') { state.speedIdx = +e.key - 1; state.paused = false; }
   else if (e.key === 'Escape') closeDesigner();
 });
 $('speeds').addEventListener('click', e => {
@@ -543,6 +552,7 @@ export function frame(now) {
     else if (ui.tab === 'laws') refreshLaws();
     else if (ui.tab === 'work') refreshWork();
     else if (ui.tab === 'col') refreshCol();
+    else if (ui.tab === 'trade') refreshTrade();
     else if (ui.tab === 'sci') refreshScience();
   }
   requestAnimationFrame(frame);
@@ -620,3 +630,5 @@ $('sclose').onclick = () => { $('stats').hidden = true; };
 $('stats').addEventListener('pointerdown', e => { if (e.target === $('stats')) $('stats').hidden = true; });
 
 hooks.showTab = showTab;
+
+(function modalClose() { const c = document.getElementById('mclose'), v = document.getElementById('veil'); if (c) c.onclick = () => showTab('obj'); if (v) v.onclick = () => showTab('obj'); })();
