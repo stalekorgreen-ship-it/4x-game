@@ -92,7 +92,7 @@ const val=s=>s.T.role==='freight'?.6:(VAL[s.cls]||1);
 function fleetsUpdate(){
   for(const F of FL.values()){F.ships=[];F.lrp=0;F.srp=0;F.lrR=0;F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
   for(const s of ships){if(!s.alive)continue;const key=s.side*1000+s.fid;let F=FL.get(key);
-    if(!F){F={ships:[],n:0,cx:0,cy:0,str:0,fr:0,key,side:s.side,fid:s.fid,next:0,stance:'engage',until:0,flank:Math.random()<.4?(Math.random()<.5?1:-1)*R(.7,1.2):0,tgt:null,focus:null,gx:s.x,gy:s.y,dx:-s.x/(Math.hypot(s.x,s.y)||1),dy:-s.y/(Math.hypot(s.x,s.y)||1),slotsAt:-99,rng:40,lrp:0,srp:0,lrR:0,zl:(((s.side*3+s.fid)%3)-1)*14,wait0:-1};FL.set(key,F)}
+    if(!F){F={ships:[],n:0,cx:0,cy:0,str:0,fr:0,key,side:s.side,fid:s.fid,next:0,stance:'engage',until:0,flank:Math.random()<.4?(Math.random()<.5?1:-1)*R(.7,1.2):0,tgt:null,focus:null,gx:s.x,gy:s.y,dx:-s.x/(Math.hypot(s.x,s.y)||1),dy:-s.y/(Math.hypot(s.x,s.y)||1),slotsAt:-99,rng:40,lrp:0,srp:0,lrR:0,zl:(((s.side*3+s.fid)%3)-1)*14,wait0:-1,born:t};FL.set(key,F)}
     F.ships.push(s);F.lrp+=s.lrp*hpf(s);F.srp+=s.srp*hpf(s);F.lrR=Math.max(F.lrR,s.lrR);F.n++;F.cx+=s.x;F.cy+=s.y;F.str+=s.aliveN*(1+val(s));if(s.T.role==='freight')F.fr++;s.F=F}
   for(const [k,F] of FL){if(!F.n){FL.delete(k);continue}F.cx/=F.n;F.cy/=F.n;F.convoy=F.fr>=F.n*.5}
   const all=[...FL.values()];
@@ -137,10 +137,10 @@ function fleetsUpdate(){
     if(F.flank&&dist<420)F.zl+=((F.flank>0?24:-24)-F.zl)*.3;
     F.tdx=dx;F.tdy=dy;
     if(F.n!==F.nSlots||t-F.slotsAt>6){assignSlots(F);F.nSlots=F.n;F.slotsAt=t}
-    if(t<45)for(const q of F.ships)if(!q.placed&&q.slotBack!=null){q.placed=1;const px=-F.dy,py=F.dx;q.x=F.gx-F.dx*q.slotBack+px*q.slotLat;q.y=F.gy-F.dy*q.slotBack+py*q.slotLat;q.sx=q.sy=0;q.hd=Math.atan2(F.dy,F.dx)}
+    if(t-F.born<20)for(const q of F.ships)if(!q.placed&&q.slotBack!=null){q.placed=1;const px=-F.dy,py=F.dx;q.x=F.gx-F.dx*q.slotBack+px*q.slotLat;q.y=F.gy-F.dy*q.slotBack+py*q.slotLat;q.sx=q.sy=0;q.hd=Math.atan2(F.dy,F.dx)}
   }
   for(const F of all){const dtf=Math.min(5,Math.max(0,t-(F.pt==null?t:F.pt)));F.pt=t;if(F.tgx==null){F.tgx=F.gx;F.tgy=F.gy;F.tdx=F.dx;F.tdy=F.dy}
-    const k=1-Math.exp(-dtf/5);F.gx+=(F.tgx-F.gx)*k;F.gy+=(F.tgy-F.gy)*k;F.dx+=(F.tdx-F.dx)*k*.7;F.dy+=(F.tdy-F.dy)*k*.7;const l=Math.hypot(F.dx,F.dy)||1;F.dx/=l;F.dy/=l}
+    const k=1-Math.exp(-dtf/5),gdx=F.tgx-F.gx,gdy=F.tgy-F.gy,gd=Math.hypot(gdx,gdy)||1,stp=Math.min(gd*k,(F.minSpd||.45)*1.05*dtf);F.gx+=gdx/gd*stp;F.gy+=gdy/gd*stp;F.dx+=(F.tdx-F.dx)*k*.7;F.dy+=(F.tdy-F.dy)*k*.7;const l=Math.hypot(F.dx,F.dy)||1;F.dx/=l;F.dy/=l}
 }
 function assignSlots(F){ // строй: впереди крепкие, за ними основные стрелки, в хвосте авианосцы, транспорты и ПВО
   const r0=[],r1=[],r2=[],fight=[];
@@ -267,12 +267,12 @@ function assign(){
     }else c.tg=foeCraft(c,15,0,true);
   }
 }
-function shoot(c,e,p){shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side});
+function shoot(c,e,p){shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});
   if(Math.random()<p){e.hp--;fx.push({x:e.x,y:e.y,t0:t,d:3,r:0.5});if(e.hp<=0)killCraft(e)}}
 function craftStep(c,d){
   const P=c.P,home=c.home;
   if(c.type==='F'&&mis.length&&t>(c.pd||0)){let q=null,bd=64;for(const m of mis){if(m.side===c.side)continue;const dd=(m.x-c.x)*(m.x-c.x)+(m.y-c.y)*(m.y-c.y);if(dd<bd){bd=dd;q=m}}
-    if(q){c.pd=t+1;shots.push({x1:c.x,y1:c.y,x2:q.x,y2:q.y,rt:performance.now(),s:c.side});if(Math.random()<.1)hurtMis(q,1)}}
+    if(q){c.pd=t+1;shots.push({x1:c.x,y1:c.y,x2:q.x,y2:q.y,rt:performance.now(),s:c.side,a:c,b:q});if(Math.random()<.1)hurtMis(q,1)}}
   let vdx=c.vx,vdy=c.vy,aim=null,fight=false;
   c.jt-=d;
   if(c.jt<=0){c.jt=R(2,5);const a=R(0,6.283),m=R(0.2,0.5)*P.a;c.jx=Math.cos(a)*m;c.jy=Math.sin(a)*m}
@@ -307,7 +307,7 @@ function craftStep(c,d){
   }
   if(c.type==='F'&&!c.ret&&!c.tg&&c.fl.tsh&&c.fl.ph==='in'&&c.ammo>0&&t>(c.nf||0)){const sh=c.fl.tsh;
     if(Math.hypot(sh.x-c.x,sh.y-c.y)<12){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
-      for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x+R(-1,1),y2:sh.y+R(-1,1),rt:performance.now(),s:c.side});
+      for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x+R(-1,1),y2:sh.y+R(-1,1),rt:performance.now(),s:c.side,a:c,b:sh});
       hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.07*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
@@ -382,7 +382,7 @@ function step(dt){
     for(const m of s.tur){
       if(!m.alive)continue;
       if(mis.length&&(m.k==='T'||m.k==='A')&&t>(m.pd||0)){const q=nearMis(s,m.k==='A'?m.cfg.rng:22);
-        if(q){m.pd=t+(m.k==='A'?6:12)*R(.8,1.3);m.fa=Math.atan2(q.y-s.y,q.x-s.x);m.rt=performance.now();shots.push({x1:s.x,y1:s.y,x2:q.x,y2:q.y,rt:performance.now(),s:s.side});
+        if(q){m.pd=t+(m.k==='A'?6:12)*R(.8,1.3);m.fa=Math.atan2(q.y-s.y,q.x-s.x);m.rt=performance.now();shots.push({x1:s.x,y1:s.y,x2:q.x,y2:q.y,rt:performance.now(),s:s.side,a:s,b:q});
           if(Math.random()<(m.k==='A'?.25:.08))hurtMis(q,1)}}
       m.cd-=dt;if(m.cd>0)continue;
       const C=m.cfg;
@@ -568,7 +568,7 @@ function draw(g,ox,oy,k,dp){
     g.fill()}
   const now=performance.now();shots=shots.filter(s=>now-s.rt<140);
   g.lineWidth=1.4*dp;
-  for(const sh of shots){g.strokeStyle='#fff';g.globalAlpha=1-(now-sh.rt)/140;g.beginPath();g.moveTo(X(sh.x1),Y(sh.y1));g.lineTo(X(sh.x1+(sh.x2-sh.x1)*.7),Y(sh.y1+(sh.y2-sh.y1)*.7));g.stroke()}
+  for(const sh of shots){if(sh.a&&sh.a.alive!==false){sh.x1=sh.a.x;sh.y1=sh.a.y}if(sh.b&&sh.b.alive!==false){const ox=sh.x2-(sh.bx||sh.x2),oy=sh.y2-(sh.by||sh.y2);sh.x2=sh.b.x;sh.y2=sh.b.y}g.strokeStyle='#fff';g.globalAlpha=1-(now-sh.rt)/140;g.beginPath();g.moveTo(X(sh.x1),Y(sh.y1));g.lineTo(X(sh.x1+(sh.x2-sh.x1)*.7),Y(sh.y1+(sh.y2-sh.y1)*.7));g.stroke()}
   beams=beams.filter(b=>now-b.rt<420);
   for(const b of beams){const u=(now-b.rt)/420,a=Math.pow(1-u,.7);if(b.b.alive){b.tx=b.b.x;b.ty=b.b.y;b.tz=b.b.z}
     const x1=X(b.a.x),y1=Y(b.a.y)+Z(b.a.z),x2=X(b.tx),y2=Y(b.ty)+Z(b.tz);g.lineCap='round';
