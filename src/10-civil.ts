@@ -148,14 +148,14 @@ function civTick(c, mk, dt, col) {
   const v = c.civ, FACT_W = FW(), FACT_COST = FC(), MINE_COST = MC(); v.month++;
   let tot = 0; for (const g in v.fac) tot += v.fac[g];
   let monthly = 0; for (const g in v.fac) monthly += v.fac[g] * FACT_W * 7;
-  const avail = c.credits - monthly * 2;
+  const avail = c.credits - monthly * 2, foc = c.strat && c.strat.focus;
   // верфь: первый, кто накопил, строит её; остальные покупают постройки у него
   if (!col && !v.yard && avail > YARD_COST * 1.2 && (!hasYard() || avail > YARD_COST * 8)) {
     pay(c, YARD_COST, 'subSpace'); v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); return;
   }
   if (!col && !hasYard() && tot >= 40) return; // копят на верфь
-  if (!col && v.month % 4 === 0 && avail > FC() * 6 && tryExpand(c)) return;
-  const wantLabs = col ? 0 : tot >= 6 ? Math.min(40, Math.ceil(tot / 12)) : 0;
+  if (!col && v.month % (foc === 'expand' ? 1 : 4) === 0 && avail > FC() * (foc === 'expand' ? 3 : 6) && tryExpand(c)) return;
+  const wantLabs = col ? 0 : tot >= 6 ? Math.min(40, Math.ceil(tot / 12 * (foc === 'science' ? 2.5 : foc === 'industry' ? .7 : 1))) : 0;
   if ((v.labs || 0) < wantLabs && avail > LAB_COST * 1.5) { pay(c, LAB_COST, 'subSci'); v.labs = (v.labs || 0) + 1; return; }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
@@ -163,10 +163,10 @@ function civTick(c, mk, dt, col) {
   if (g === null) for (const k in v.fac) if (v.fac[k] > 0) { g = k; break; }
   if (g === null) return;
   if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k in GOODS) if (k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
-  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] < 5 && avail > MINE_COST * 4) { pay(c, MINE_COST, 'subInd'); v.mines[r]++; return; }
+  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] < (foc === 'mining' ? 9 : 5) && avail > MINE_COST * 4) { pay(c, MINE_COST, 'subInd'); v.mines[r]++; return; }
   const raw = GOODS[g].raw;
   if (!(v.mines[raw] > 0) && tot >= 3) { if (avail > MINE_COST * 1.2) { pay(c, MINE_COST, 'subInd'); v.mines[raw] = 1; log(`«${c.name}» открыла шахту: ${raw}.`); } return; }
-  const k = Math.min(Math.floor(avail / FACT_COST), Math.max(1, Math.ceil(tot * .1)));
+  const k = Math.min(Math.floor(avail / FACT_COST), Math.max(1, Math.ceil(tot * .1 * (foc === 'industry' ? 2.2 : 1))));
   if (k > 0) { pay(c, k * FACT_COST, 'subInd'); v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95; }
 }
 

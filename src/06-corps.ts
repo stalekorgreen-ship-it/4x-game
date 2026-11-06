@@ -1,10 +1,10 @@
 // @ts-nocheck
-import { BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
+import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
-import { GOODS, popTaxDay, popTick } from './07-population.ts';
+import { FC, GOODS, popTaxDay, popTick } from './07-population.ts';
 import { freightTick } from './13-freight.ts';
-import { CTECH, LAB_COST, SHIP_K, canBuildShips, hasXfer, labRP, newCiv, payBuild, rpPrice } from './10-civil.ts';
+import { CTECH, LAB_COST, MINE_COST, YARD_COST, SHIP_K, canBuildShips, hasXfer, labRP, newCiv, payBuild, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 import { lendTo } from './12-state.ts';
 /* ===== КОРПОРАЦИИ: конкуренты, начинающие с Земли ===== */
@@ -154,6 +154,29 @@ export function corpTank(s, h) {
   return false;
 }
 
+// --- полугодовой пересмотр стратегии корпорации ---
+const FOCI = {industry: 'промышленность', mining: 'добыча сырья', fleet: 'флот', science: 'наука', expand: 'колонии'};
+const worth = c => { const v = c.civ; let w = c.credits; for (const g in v.fac) w += v.fac[g] * FC(); for (const r in v.mines) w += v.mines[r] * MINE_COST; w += (v.labs || 0) * LAB_COST + (v.yard ? YARD_COST : 0);
+  for (const s of state.ships) if (s.corp === c.id) w += costCr(s.role === 'm' ? c.parts : CORP_TANKER) * SHIP_K * .5; return w; };
+function mutateParts(c) { // добавляем или убираем деталь, сохраняя пригодность корабля
+  const p = {...c.parts}, opts = [['laser', 1, 6], ['ion', 1, 8], ['tank', 1, 10], ['cargo', 1, 6], ['laser', -1, 6], ['tank', -1, 10], ['ion', -1, 8], ['cargo', -1, 6]];
+  for (let i = 0; i < 8; i++) { const [k, d, mx] = opts[Math.floor(Math.random() * opts.length)]; const n = (p[k] || 0) + d; if (n < 1 || n > mx) continue; p[k] = n; break; }
+  p.cabin = Math.max(p.cabin || 1, Math.ceil((p.laser * 2 + 1) / 5)); p.life = Math.max(p.life || 1, Math.ceil(p.cabin * 5 / 10)); return p;
+}
+export function reviewStrategy(c) {
+  const S = c.strat = c.strat || {focus: Object.keys(FOCI)[c.id % 5], t0: state.t, w0: worth(c), g0: 0, streak: 0, mut: false};
+  if (state.t - S.t0 < 180) return;
+  const w = worth(c), g = (w - S.w0) / Math.max(1, S.w0), ok = g > 0.02 && g >= S.g0 * .6;
+  if (S.mut && g < S.g0 && c.partsPrev) { c.parts = c.partsPrev; c.partsPrev = null; log(`«${c.name}»: изменение проекта корабля не оправдалось, возвращён прежний шаблон.`); }
+  S.mut = false;
+  if (ok) { S.streak++; c.aggr = Math.min(2, c.aggr * 1.04); }
+  else {
+    const old = S.focus, ks = Object.keys(FOCI).filter(k => k !== old); S.focus = ks[Math.floor(Math.random() * ks.length)]; S.streak = 0;
+    log(`«${c.name}» меняет стратегию: ${FOCI[old]} → ${FOCI[S.focus]}.`);
+    if (['mining', 'fleet'].includes(S.focus) || S.focus === old) { c.partsPrev = c.parts; c.parts = mutateParts(c); S.mut = true; log(`«${c.name}» дорабатывает проект рудокопа: ${Object.entries(c.parts).map(([k, v]) => v + '×' + (COMP[k] ? COMP[k].name : k)).join(', ')}.`); }
+  }
+  S.t0 = state.t; S.w0 = w; S.g0 = g;
+}
 export function corpTick(h) {
   state.money = (state.money || 0) + popTaxDay() * h; popTick(h); freightTick(h);
   state.corpAcc = (state.corpAcc || 0) + h;
@@ -167,11 +190,12 @@ export function corpTick(h) {
         repairParts(s, 12, dt * 0.25, n => { c.credits -= n * PRICE.spares * 1.0; return n; }, false);
       }
     }
+    reviewStrategy(c); const fk = c.strat.focus === 'fleet' ? 1.4 : c.strat.focus === 'mining' ? 1.15 : 1, ag = c.aggr / fk;
     if (state.t - c.last < 6 || !canBuildShips(c) || c.credits < 3e7) continue;
     const mine = state.ships.filter(s => s.corp === c.id), nM = mine.filter(s => s.role === 'm').length, nT = mine.filter(s => s.role === 't').length, sts = ownStations(c), nS = sts.length;
     const mc = costCr(c.parts) * 1.1 * SHIP_K, tc = costCr(CORP_TANKER) * SHIP_K, sc = stationCr() * SHIP_K;
-    if (nM < 3 + 3 * nS && c.credits >= mc * c.aggr) { if (payBuild(c, mc, 60)) { c.last = state.t; createCorpShip(c, 'm'); } }
-    else if (nM >= 3 && nS < 5 && c.credits >= (sc + tc) * 1.5 * c.aggr) {
+    if (nM < 3 + 3 * nS && c.credits >= mc * ag) { if (payBuild(c, mc, 60)) { c.last = state.t; createCorpShip(c, 'm'); } }
+    else if (nM >= 3 && nS < 5 && c.credits >= (sc + tc) * 1.5 * ag) {
       const spot = pickStationSpot(c);
       if (spot && payBuild(c, sc, 200)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc, 90)) createCorpShip(c, 't'); }
     } else if (hasXfer(c) && nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc, 90)) { c.last = state.t; createCorpShip(c, 't'); } }
@@ -235,6 +259,7 @@ export function refreshCorp() {
   for (const c of [sel]) {
     const sts = ownStations(c), ships = state.ships.filter(s => s.corp === c.id);
     h += `<div class="box"><h2>${esc(c.name)} <span class="muted">· шаблон «${c.tpl}»</span></h2><div class="stats"><span>Рудокопов / танкеров</span><span>${ships.filter(s => s.role === 'm').length} / ${ships.filter(s => s.role === 't').length}</span><span>Станции</span><span>${sts.length ? sts.map(s => `${esc(nameOf(s.at))} (топл. ${fmtN(s.fuel)} т)`).join(', ') : 'нет'}</span><span>Капитал</span><span>${fmtN(c.credits)} кр.</span><span>Продано всего</span><span>${fmtN(c.sold)} кр.</span><span>Потеряно кораблей</span><span>${c.lost}</span></div>
+      <div class="help">Стратегия: ${FOCI[(c.strat || {}).focus] || '—'}${c.strat && c.strat.streak ? ' (успешных полугодий подряд: ' + c.strat.streak + ')' : ''}. Проект рудокопа: ${Object.entries(c.parts).map(([k, v]) => v + '×' + (COMP[k] ? COMP[k].name : k)).join(', ')}.</div>
       <div class="help">Исследования: ${CTECH.filter(x => c.civ.tech[x.id]).map(x => x.name).join(', ') || 'пока нет'}${c.civ.cur ? '. Сейчас: ' + CTECH.find(x => x.id === c.civ.cur).name + ' (' + fmtN(c.civ.prog) + '/' + CTECH.find(x => x.id === c.civ.cur).cost + ' ОИ)' : ''}. Лаборатории: ${c.civ.labs} (${fmtN(labRP(c), 1)} ОИ/сут).</div>
       <div class="help">Заводы: ${Object.keys(c.civ.fac).filter(g => c.civ.fac[g] > 0).map(g => GOODS[g].n + ' ' + fmtN(c.civ.fac[g]) + ' (цена ' + fm(c.civ.pr[g] || 0) + ')').join(', ') || 'нет'}. Шахты: ${Object.keys(c.civ.mines).filter(r => c.civ.mines[r] > 0).map(r => RES[r].toLowerCase() + ' ×' + c.civ.mines[r]).join(', ') || 'нет'}. ${c.civ.yard ? '<b>Есть коммерческая верфь</b>, доход от чужих заказов: ' + fmtN(c.civ.fees || 0) + ' кр.' : 'Верфи нет.'}</div>
       <div class="row">Долг банку: ${fmtN(c.civ.debt || 0)} кр. <select id="lendamt">${[1e6, 5e6, 2e7].map(x => `<option value="${x}">${fmtN(x)} кр</option>`).join('')}</select><button class="btn sm" data-lend="${c.id}">Выдать кредит (6%)</button></div>
