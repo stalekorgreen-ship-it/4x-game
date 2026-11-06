@@ -4,6 +4,7 @@ import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy } from './10-civil.ts';
 import { $, H, W, cv, setHtml, ui } from './08-map-ui.ts';
+import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
 export const GOODS = {
@@ -101,13 +102,16 @@ function takeEarth(q) { // переселенцы уходят из когорт
 }
 function immigrate(dt) {
   const P = state.pop; if (!P.hab) return;
-  const n = P.n || 0, room = P.hab - n; if (room <= 0) return;
+  const n = P.n || 0, room = P.hab - n - (P.inflight || 0); if (room <= 0) return;
   const vac = clampN(1.02 - (P.mfill || 1), 0, 1), wel = P.avgWel == null ? 1 : P.avgWel;
   const q = Math.min(room, (n * .04 * vac * wel + 100 * wel) * dt / 30);
   if (q <= 0) return;
-  takeEarth(q);
+  takeEarth(q); P.immY = (P.immY || 0) + q;
+  if (!dispatchColonists(ctxId(), q)) addSettlers(ctxId(), q); // везут корпорации, без контроля игрока
+}
+export function addSettlers(id, q) {
+  const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q);
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
-  P.immY = (P.immY || 0) + q;
 }
 export function jobsFac() { const P = state.pop, J = civJobs(); for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
 export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }

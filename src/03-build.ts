@@ -3,9 +3,9 @@ import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff } from './01-da
 import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
-export const MINE_RATE = 25;
+export const MINE_RATE = 1;
 export const BLD = {
-  mine:       {name: 'Шахта на Земле', max: 30, desc: 'Добывает все жилы Земли сразу: 25 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
+  mine:       {name: 'Шахта на Земле', max: 30, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
   shipyard:   {name: 'Верфь', level: true, max: 3, desc: 'Каждый уровень: +1 стапель и постройка быстрее на 10%.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},

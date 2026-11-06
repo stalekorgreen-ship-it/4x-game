@@ -20,7 +20,7 @@ export const COMP = {
   chem:  {name:'Химический двигатель', desc:'Мощность 50, жрёт топливо (КПД 0.35)', power:50, mass:6, eff:0.35, cost:{fe:15, ni:10}},
   tank:  {name:'Топливный бак', desc:'50 т топлива', fuel:50, mass:4, cost:{fe:6, ti:4}},
   cargo: {name:'Грузовой отсек / склад', desc:'200 т груза (руда, лёд, платина)', cargo:200, mass:8, cost:{fe:12}},
-  laser: {name:'Шахтёрский лазер', desc:'5 т/сутки на каждую жилу сразу, нужно 2 человека экипажа', mine:5, mass:6, cost:{pt:3, ree:3, si:8}},
+  laser: {name:'Шахтёрский лазер', desc:'1 т/сутки на каждую жилу сразу (× эффективность жилы), нужно 2 человека экипажа', mine:1, mass:6, cost:{pt:3, ree:3, si:8}},
   cabin: {name:'Каюты экипажа', desc:'5 мест', crew:5, mass:4, cost:{fe:6, c:6}},
   life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, cu:6, si:4}},
   xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{cu:8, si:6, ti:4}, tech:'xfer'},
@@ -30,7 +30,7 @@ export const COMP = {
   lab_eng: {name:'Инженерная лаборатория', desc:'Изучает инженерные аномалии', lab:'eng', mass:8, cost:{fe:10, ti:5, cu:6}},
   lab_bio: {name:'Биолаборатория', desc:'Изучает биологические аномалии', lab:'bio', mass:8, cost:{c:10, si:6, cu:4}},
   fusion:{name:'Термоядерный двигатель', desc:'Мощность 120, КПД 1.6 (нужна технология)', power:120, mass:10, eff:1.6, cost:{u:5, ti:20, ree:6, cu:15}, tech:'fusion'},
-  laser2:{name:'Тяжёлый лазер', desc:'12 т/сутки на каждую жилу (нужна технология)', mine:12, mass:9, cost:{pt:5, ree:5, si:12}, tech:'laser2'},
+  laser2:{name:'Тяжёлый лазер', desc:'2 т/сутки на каждую жилу (нужна технология)', mine:2, mass:9, cost:{pt:5, ree:5, si:12}, tech:'laser2'},
   armor: {name:'Броневая плита', desc:'+1 слой брони на каждом секторе корабля', armor:1, mass:20, cost:{fe:40, ti:10}},
   rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:10, cu:8, ti:4}},
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
@@ -161,9 +161,11 @@ export const FIELDS = {phys: 'Физика', eng: 'Инженерия', bio: 'Б
 export const RES = {fe:'Железо', ni:'Никель', ti:'Титан', cu:'Медь', si:'Кремний', c:'Углерод', ice:'Лёд', pt:'Платиноиды', ree:'Редкоземельные', n2:'Азот', co2:'Углекислый газ', ch4:'Метан', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
 
 // Точки Лагранжа Солнце–Земля. Расстояния условно увеличены, чтобы их было видно на карте.
-// Сложность добычи жилы: 0.3–1.0 у каждого тела свой (детерминированно), падает вместе с выработкой.
+// Сложность добычи жилы: 0.1–1.0 у каждого тела свой (детерминированно), падает вместе с выработкой.
 // Эффективность = сложность × (остаток / исходный запас): выбрали 50% железа — вдвое медленнее.
-export function veinBase(id, k) { let h = 2166136261; for (const ch of id + ':' + k) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return Math.round((.3 + .7 * ((h >>> 0) % 1000) / 999) * 20) / 20; }
+export function veinBase(id, k) { let h = 2166136261; for (const ch of id + ':' + k) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return Math.round((.1 + .9 * ((h >>> 0) % 1000) / 999) * 20) / 20; }
+// Через сколько лет жила выработается на 90% при текущей добыче M т/сутки на жилу (экспоненциально: чем меньше остаток, тем медленнее)
+export function depleteYears(id, k, init, M) { const b = veinBase(id, k); return init > 0 && M > 0 ? Math.log(10) * init / (M * b) / 360 : Infinity; }
 export function veinEff(id, k, cur, init) { return init > 0 ? veinBase(id, k) * Math.max(0, Math.min(1, cur / init)) : 0; }
 export const BODIES = [
   {id:'sun', name:'Солнце', a:0, ang:0, kind:'sun', hot:true, sci:{phys:15}, pool:{phys:12000}},

@@ -3,6 +3,7 @@ import { BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelP
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
 import { GOODS, popTaxDay, popTick } from './07-population.ts';
+import { freightTick } from './13-freight.ts';
 import { CTECH, LAB_COST, SHIP_K, canBuildShips, hasXfer, labRP, newCiv, payBuild, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 import { lendTo } from './12-state.ts';
@@ -154,7 +155,7 @@ export function corpTank(s, h) {
 }
 
 export function corpTick(h) {
-  state.money = (state.money || 0) + popTaxDay() * h; popTick(h);
+  state.money = (state.money || 0) + popTaxDay() * h; popTick(h); freightTick(h);
   state.corpAcc = (state.corpAcc || 0) + h;
   if (state.corpAcc < 0.5) return;
   const dt = state.corpAcc; state.corpAcc = 0;

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
 import { hooks } from './00-hooks.ts';
@@ -293,6 +293,7 @@ export function renderObj() {
     } else {
       act = `<div class="box"><h2>Добавить приказ</h2>${actGroupSel()}<div class="row"><button class="btn" data-a="addmove">Лететь сюда</button>${b.sci ? '<button class="btn" data-a="addresearch">Исследовать</button>' : ''}</div></div>`;
     }
+    if (['hub', 'planet', 'moon', 'ast'].includes(b.kind) && !b.comet) act += `<div class="box"><h2>Грузовой заказ</h2><div class="row"><button class="btn" data-a="cargoto" data-id="${b.id}">Заказать доставку груза сюда</button></div><div class="help">Корпорации привезут инфраструктуру или ресурсы за фрахт.</div></div>`;
     p.innerHTML = `<div id="od"></div>${act}`;
   }
   refreshObj();
@@ -352,7 +353,8 @@ export function refreshObj() {
   if (b.d) h += `<div class="muted">Диаметр ${fmtN(b.d, b.d < 10 ? 2 : 0)} км · ${canShipMine(b.id) ? 'доступен корабельным лазерам' : 'слишком велик для корабельных лазеров (лимит ' + shipMineLimit() + ' км, растёт с технологиями): нужны шахты и население'}</div>`;
   if (state.ground && state.ground[b.id]) {
     const gr = state.ground[b.id];
-    h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (25 т/сутки каждая).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т</span></div>`).join('');
+    h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (1 т/сутки на жилу каждая).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т</span></div>`).join('');
+    if (b.id === 'earth') h += Object.entries(gr).map(([k, v]) => { const n = state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1), y = depleteYears('earth', k, GROUND.earth[k] || v, n); return `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / (GROUND.earth[k] || v))}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff('earth', k, v, GROUND.earth[k] || v) * 100, 0)}% · ${n > 0 ? '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет' : 'нет шахт'}</span></div>`; }).join('');
   }
   if (state.ast[b.id]) {
     h += Object.entries(state.ast[b.id]).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / b.ores[k])}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(b.id, k, v, b.ores[k]) * 100, 0)}%</span></div>`).join('');

@@ -79,7 +79,8 @@ ok(g.totals().n === e0 || g.totals().n < e0, 'Земля отдала посел
 ok(P.foundColony('ceres') === false, 'без корабля у Цереры не основать');
 s().ships[0].at = 'ceres'; ok(P.foundColony('ceres') && s().cols.ceres, 'колония на астероиде основана');
 const mn0 = s().cols.mars.pop.n || 20000;
-for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); }
+const FRt = await import('../src/13-freight.ts');
+for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); FRt.freightTick(30); }
 const mp = s().cols.mars.pop;
 ok(mp.n > mn0 * 1.5, `Марс растёт (${Math.round(mn0)} → ${Math.round(mp.n)})`);
 ok(Object.values(mp.sat).every((x) => x > .8), 'на Марсе есть товары (ввоз + заводы)');
@@ -111,8 +112,21 @@ Object.assign(L, F.LAW_DEFAULT);
   D.newGame(); const ss = D.state; ss.paused = true; const sh = ss.ships[0]; ss.ast.eros = {...D.BODY.eros.ores}; sh.at = 'eros'; const f0 = ss.ast.eros.fe, i0 = ss.ast.eros.si;
   E.execOrder(sh, {type: 'mine', target: 'eros', res: 'all', pct: 100}, 1);
   ok(ss.ast.eros.fe < f0 && ss.ast.eros.si < i0, 'лазер добывает несколько жил сразу'); }
+// 9. Грузовые заказы корпорациям
+{ D.newGame(); const ss = D.state; ss.paused = true; ss.ships[0].at = 'luna'; ss.money = 1e10; ss.stock.fe = 5000; P.foundColony('luna');
+  const Fr = await import('../src/13-freight.ts'); const hab0 = ss.cols.luna.pop.hab, m0 = ss.money;
+  ok(Fr.orderCargo('infra', 1000, 'earth', 'luna') && Fr.orderCargo('fe', 800, 'earth', 'eros'), 'заказы размещены');
+  for (let i = 0; i < 40; i++) { ss.t += 1; Fr.freightTick(1); }
+  ok(ss.freight.flights.length > 0 || ss.freight.orders.length === 0, 'корпорации взяли заказы в рейс');
+  for (let i = 0; i < 120; i++) { ss.t += 1; Fr.freightTick(1); }
+  ok(ss.cols.luna.pop.hab === hab0 + 20000, 'инфраструктура доставлена: вместимость колонии выросла');
+  ok((ss.depot.eros && ss.depot.eros.fe) === 800 && ss.stock.fe === 4200, 'железо доставлено на склад Эроса');
+  ok(ss.money < m0 && ss.corps.some((c) => c.credits > 1.2e9), 'корпорации заработали на фрахте');
+  ss.cols.luna.pop.n = 5000; ss.cols.luna.pop.mfill = 0.5; ss.cols.luna.pop.hab = 1e6; const fl0 = ss.freight.flights.length;
+  for (let i = 0; i < 3; i++) { ss.t += 30; P.popTick(30); }
+  ok(ss.freight.flights.some((f) => f.item === 'col'), 'колонистов везут корпорации (рейсы без контроля игрока)'); }
 // 5. Все панели интерфейса открываются без ошибок
-for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'trade', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
+for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'trade', 'cargo', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
   try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
 }
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');

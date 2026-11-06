@@ -1,6 +1,6 @@
 // @ts-nocheck
 // Оболочка интерфейса: иконки разделов сверху слева и подвкладки, панели «Состав» и «Работа».
-import { veinEff, BODY, RES, GROUND, TERRA, canShipMine, shipMineLimit, state, fmtN } from './01-data.ts';
+import { depleteYears, veinEff, BODY, RES, GROUND, TERRA, canShipMine, shipMineLimit, state, fmtN } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 import { COLONIZABLE, FW, GOODS, STR, STR_COL, colInfo, colPicker, colSel, foundColony, foundWhy, totals, withCtx } from './07-population.ts';
 import { MINE_MIX } from './10-civil.ts';
@@ -14,7 +14,7 @@ export const SECTIONS = [
   {id: 'orders', name: 'Приказы', icon: I('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), subs: [['orders', 'Приказы и правила']]},
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
   {id: 'sci', name: 'Наука', icon: I('<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>'), subs: [['sci', 'Исследования']]},
-  {id: 'corp', name: 'Корпорации', icon: I('<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M8 10h2M14 10h2"/>'), subs: [['corp', 'Корпорации'], ['trade', 'Закупки сырья']]},
+  {id: 'corp', name: 'Корпорации', icon: I('<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M8 10h2M14 10h2"/>'), subs: [['corp', 'Корпорации'], ['trade', 'Закупки сырья'], ['cargo', 'Грузы']]},
   {id: 'state', name: 'Государство', icon: I('<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 006 0zM17 7l-3 7a3 3 0 006 0z"/>'), subs: [['laws', 'Законы и кредиты']]},
   {id: 'find', name: 'Поиск', icon: I('<circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/>'), subs: [['find', 'Поиск']]},
   {id: 'log', name: 'Журнал', icon: I('<path d="M6 4h12v14a2 2 0 01-2 2H6zM9 8h6M9 12h6M9 16h4"/>'), subs: [['log', 'Журнал событий']]},
@@ -35,15 +35,16 @@ export function syncShell(tab) {
   if (st._h !== h) { st._h = h; st.innerHTML = h; }
 }
 
+const endTxt = (id, k, max) => { const n = id === 'earth' ? state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1) : 0; if (!(n > 0)) return 'нет шахт'; const y = depleteYears(id, k, max, n); return '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет'; };
 /* --- Состав: недра, руды, газы выбранного тела --- */
 export function refreshComp() {
   const p = $('p-comp'); if (!p) return;
   const id = ui.sel.kind === 'body' ? ui.sel.id : 'earth', b = BODY[id];
   let h = `<div class="box"><h2>Состав: ${esc(b.name)}</h2>`;
   if (b.d) h += `<div class="muted">Диаметр ${fmtN(b.d, b.d < 10 ? 2 : 0)} км · ${canShipMine(id) ? 'доступен корабельным лазерам' : 'слишком велик для лазеров (лимит ' + shipMineLimit() + ' км)'}</div>`;
-  const row = (k, v, max) => `<div class="row"><span style="width:90px">${RES[k] || k}</span>${bar(max ? v / max : 0)}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(id, k, v, max || v) * 100, 0)}%</span></div>`;
+  const row = (k, v, max, g) => `<div class="row"><span style="width:90px">${RES[k] || k}</span>${bar(max ? v / max : 0)}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(id, k, v, max || v) * 100, 0)}%${g ? ' · ' + endTxt(id, k, max) : ''}</span></div>`;
   const gr = state.ground && state.ground[id];
-  if (gr) h += `<h3>Недра (шахты)</h3>` + Object.entries(gr).map(([k, v]) => row(k, v, GROUND[id] ? GROUND[id][k] : v)).join('');
+  if (gr) h += `<h3>Недра (шахты)</h3>` + Object.entries(gr).map(([k, v]) => row(k, v, GROUND[id] ? GROUND[id][k] : v, 1)).join('') + `<div class="help">«90% за» — через сколько лет шахты выработают жилу на 90% при нынешнем числе шахт (дальше добыча всё медленнее).</div>`;
   if (state.ast[id]) h += `<h3>Руды и летучие (корабельная добыча)</h3><div class="help">Эффективность жилы = сложность тела × остаток: выбрали 50% — вдвое медленнее. Лазер и шахта берут все жилы сразу.</div>` + Object.entries(state.ast[id]).map(([k, v]) => row(k, v, b.ores[k])).join('');
   if (!gr && !state.ast[id]) h += `<div class="help">У этого тела нет разведанных ресурсов.</div>`;
   if (TERRA[id]) { const T = TERRA[id], t = state.terra[id] || {}; h += `<h3>Тераформирование</h3>` + Object.keys(T.need).map((k) => `<div class="row"><span style="width:90px">${RES[k]}</span>${bar((t[k] || 0) / T.need[k])}<span class="mono">${fmtN(t[k] || 0)} / ${fmtN(T.need[k])}</span></div>`).join(''); }
