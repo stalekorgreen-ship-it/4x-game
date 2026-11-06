@@ -4,7 +4,8 @@ import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, 
 import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
 import { PRICE, corpBuyFuel, corpById, corpChargeLoad, corpMine, corpSellToEarth, corpTank, corpTick, initCorps, wipeCorps } from './06-corps.ts';
-import { initPop } from './07-population.ts';
+import { initPop, relinkCols } from './07-population.ts';
+import { LAW_DEFAULT } from './12-state.ts';
 
 /* ===== СИМУЛЯЦИЯ ===== */
 export const CORP_LOD = 0.5; // сутки между шагами корабля корпорации
@@ -468,7 +469,7 @@ export function loadGame() {
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 5e7; initCorps(); }
-    if (!state.pop) initPop();
+    if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})};
     state.research = state.research || {}; state.tprog = state.tprog || {}; state.contracts = state.contracts || {}; state.rp = state.rp || 0;
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }
     for (const b of BODIES) if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores};

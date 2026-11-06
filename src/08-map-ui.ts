@@ -14,7 +14,7 @@ export function setHtml(el, html) {
   el.querySelectorAll('[data-sc]').forEach((e, i) => { e.scrollLeft = sc[i] || 0; });
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-export const ui = {skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
+export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
 export function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }

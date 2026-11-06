@@ -63,8 +63,44 @@ P.popTick(30); P.popTick(30);
 ok(!s().corps.includes(victim) && (s().bankr || 0) >= 1, 'банкротство: корпорация исчезла, активы поглощены');
 for (let i = 0; i < 14; i++) { s().t += 30; P.popTick(30); }
 ok(s().corps.length >= n0 - 1, 'через год основана новая корпорация');
+// 6. Колонии: те же механики на любом теле
+D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
+ok(P.foundWhy('mars') !== '', 'без корабля колонию основать нельзя');
+s().ships[0].at = 'mars'; s().money = 1e10;
+const e0 = g.totals().n;
+ok(P.foundColony('mars') && s().cols.mars, 'колония на Марсе основана');
+ok(g.totals().n === e0 || g.totals().n < e0, 'Земля отдала поселенцев');
+ok(P.foundColony('ceres') === false, 'без корабля у Цереры не основать');
+s().ships[0].at = 'ceres'; ok(P.foundColony('ceres') && s().cols.ceres, 'колония на астероиде основана');
+const mn0 = s().cols.mars.pop.n || 20000;
+for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); }
+const mp = s().cols.mars.pop;
+ok(mp.n > mn0 * 1.5, `Марс растёт (${Math.round(mn0)} → ${Math.round(mp.n)})`);
+ok(Object.values(mp.sat).every((x) => x > .8), 'на Марсе есть товары (ввоз + заводы)');
+ok(mp.tax > 0 && mp.fac.food > 0, 'на Марсе есть налоги и заводы');
+ok(s().ctx === 'earth' && s().corps.every((c) => c.civ === c.home), 'контекст вернулся на Землю');
+ok(s().cols.ceres.pop.n <= s().cols.ceres.pop.hab + 1, 'население астероида не превышает вместимость');
+// корпорации открывают филиалы на колониях
+for (let i = 0; i < 2500; i++) g.advance(2);
+const br = s().corps.filter((c) => c.civs && Object.keys(c.civs).length);
+ok(br.length > 0, `корпорации открыли филиалы на колониях (${br.length})`);
+ok(s().corps.every((c) => c.civ === c.home), 'после симуляции контекст корпораций цел');
+// сохранение/загрузка
+const raw = JSON.stringify(s()); const o = JSON.parse(raw);
+ok(!!o.cols.mars && o.pop === undefined, 'сохранение содержит колонии без дубля pop');
+// 7. Законы
+D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
+const L = F.laws(); const base = P.popTaxDay();
+L.minWage = 140; L.hours = 48; L.edu = 100; L.tariff = 30; L.birthSup = 100; L.pension = 100; L.mineTax = 30;
+for (let i = 0; i < 24; i++) { s().t += 30; g.popTick(30); }
+const Pe = s().cols.earth.pop;
+ok(Pe.wage[0] >= 4 * 1.4 - 1e-6, 'минимальная зарплата поднимает ставки');
+ok(Pe.exp > 0 && Pe.expP.edu > 0 && Pe.expP.pen > 0 && Pe.expP.bth > 0, 'образование, пенсии и рождаемость тратят казну');
+ok(isFinite(s().money) && g.totals().n > 5e9, 'экономика не рухнула при крайних законах');
+Object.assign(L, F.LAW_DEFAULT);
+
 // 5. Все панели интерфейса открываются без ошибок
-for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
+for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'col', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
   try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
 }
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');
