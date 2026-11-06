@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { RES, fmtN, rec, state } from './01-data.ts';
 import { PRICE } from './06-corps.ts';
+import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy } from './10-civil.ts';
 import { $, H, W, cv, setHtml } from './08-map-ui.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
@@ -122,9 +123,9 @@ export function stepEcon(dt, init) {
     if (a < 15) i = P.parInc[s] * 2;
     else if (!work(a)) i = incomeOf(s, 64, 'ret');
     else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * incomeOf(s, a, 'un') + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
-    inc[s][a] = i; wel[s][a] = null;
+    inc[s][a] = i * (1 - (laws().tax - 20) / 100); wel[s][a] = null;
   }
-  P.wbill = wb; P.tax = wb * TAXK;
+  P.wbill = wb; P.tax = wb * TAXK * laws().tax / 20;
   // 3) спрос, выпуск, удовлетворённость: покупают у самого дешёвого продавца
   let sn = 0, sw = 0; for (const g in GOODS) { sw += GOODS[g].need; }
   P.mfill = MINE_MIX.reduce((a, m, s) => a + m * fill[s], 0); P.fill = fill;
@@ -133,6 +134,7 @@ export function stepEcon(dt, init) {
   for (const c of state.corps || []) if (c.civ.labs) rawNeed.si[c.id] = (rawNeed.si[c.id] || 0) + c.civ.labs * LAB_SI;
   for (const g in GOODS) {
     let D = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) D += P.c[s][a].n * needOf(g, a);
+    D *= (P.evDem && P.evDem[g]) || 1;
     let staff = 0; for (let s = 0; s < 4; s++) staff += GOODS[g].mix[s] * fill[s];
     const R = goodsMarket(g, D, P.fac[g] * FACT_W * PROD * staff, staff); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;

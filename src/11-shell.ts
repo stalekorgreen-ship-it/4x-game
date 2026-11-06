@@ -14,6 +14,7 @@ export const SECTIONS = [
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
   {id: 'sci', name: 'Наука', icon: I('<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>'), subs: [['sci', 'Исследования']]},
   {id: 'corp', name: 'Корпорации', icon: I('<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M8 10h2M14 10h2"/>'), subs: [['corp', 'Корпорации']]},
+  {id: 'state', name: 'Государство', icon: I('<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 006 0zM17 7l-3 7a3 3 0 006 0z"/>'), subs: [['laws', 'Законы и кредиты']]},
   {id: 'find', name: 'Поиск', icon: I('<circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/>'), subs: [['find', 'Поиск']]},
   {id: 'log', name: 'Журнал', icon: I('<path d="M6 4h12v14a2 2 0 01-2 2H6zM9 8h6M9 12h6M9 16h4"/>'), subs: [['log', 'Журнал событий']]},
 ];

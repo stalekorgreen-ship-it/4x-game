@@ -7,6 +7,7 @@ const E = await import('../src/04-engine.ts'); const B = await import('../src/03
 const P = await import('../src/07-population.ts');
 await import('../src/06-corps.ts');
 const U = await import('../src/09-orders-ui.ts');
+const F = await import('../src/12-state.ts');
 const g = { newGame: D.newGame, advance: E.advance, totals: P.totals, popTick: P.popTick, get state() { return D.state; } };
 const run = (c) => { if (c === 'newGame()') D.newGame(); };
 let fail = 0;
@@ -50,8 +51,20 @@ s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.effdrive || s().tprog.effdrive > 0, 'очки по контракту лаборатории идут игроку');
 
 ok(s().money > 5e7, 'налоги капают');
-// 4. Все панели интерфейса открываются без ошибок
-for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log']) {
+// 4. Государство: налоги, кредиты, банкротство, кризисы, цены
+ok((s().pop.evN || 0) > 0, 'за годы случились кризисы (' + (s().pop.evN || 0) + ')');
+ok(Object.values(s().mp || {}).some((m) => Math.abs(m - 1) > 0.02), 'цены на сырьё живые: ' + Object.entries(s().mp || {}).map(([r, m]) => r + '×' + m.toFixed(2)).join(' '));
+const taxA = s().pop.tax; F.laws().tax = 30; P.popTick(30); const taxB = s().pop.tax; F.laws().tax = 20;
+ok(taxB > taxA * 1.3, 'повышение налога поднимает сбор (' + Math.round(taxA) + ' → ' + Math.round(taxB) + ')');
+const cc = s().corps[3], m0 = s().money; F.lendTo(cc, 1e9); P.popTick(30);
+ok(F.loansOf(cc).length === 1 || s().money > m0 - 1e9, 'кредит корпорации выдан, проценты идут');
+const n0 = s().corps.length; const victim = s().corps[5]; victim.credits = -9e9; victim.civ.neg = 5; victim.civ.debt = 9e9;
+P.popTick(30); P.popTick(30);
+ok(!s().corps.includes(victim) && (s().bankr || 0) >= 1, 'банкротство: корпорация исчезла, активы поглощены');
+for (let i = 0; i < 14; i++) { s().t += 30; P.popTick(30); }
+ok(s().corps.length >= n0 - 1, 'через год основана новая корпорация');
+// 5. Все панели интерфейса открываются без ошибок
+for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log', 'laws']) {
   try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
 }
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');

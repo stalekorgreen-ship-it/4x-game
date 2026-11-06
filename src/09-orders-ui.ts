@@ -6,6 +6,7 @@ import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
 import { rpPrice, labRP } from './10-civil.ts';
+import { refreshLaws } from './12-state.ts';
 import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
 import { buildShell, refreshComp, refreshWork, syncShell } from './11-shell.ts';
@@ -429,7 +430,7 @@ export function crewChange(el) {
 export function showTab(name) {
   ui.tab = name;
   syncShell(name);
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();
@@ -438,6 +439,7 @@ export function showTab(name) {
   if (name === 'corp') refreshCorp();
   if (name === 'pop') refreshPop();
   if (name === 'comp') refreshComp();
+  if (name === 'laws') refreshLaws();
   if (name === 'work') refreshWork();
   if (name === 'sci') refreshScience();
   if (name === 'find') renderFind();
@@ -537,6 +539,7 @@ export function frame(now) {
     else if (ui.tab === 'corp') refreshCorp();
     else if (ui.tab === 'pop') refreshPop();
     else if (ui.tab === 'comp') refreshComp();
+    else if (ui.tab === 'laws') refreshLaws();
     else if (ui.tab === 'work') refreshWork();
     else if (ui.tab === 'sci') refreshScience();
   }

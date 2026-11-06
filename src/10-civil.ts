@@ -2,9 +2,11 @@
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { state, log, rec, fmtN } from './01-data.ts';
 import { GOODS, FACT_W, PROD, RAW_PER, FACT_COST, BASEW, clampN } from './07-population.ts';
-import { PRICE } from './06-corps.ts';
+import { PRICE, respawnTick } from './06-corps.ts';
+import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
 export const MINE_COST = 5e7, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
+export const mpOf = r => (state.mp && state.mp[r]) || 1;
 export const SPECIALTY = ['food', 'elec', 'wear', 'pow'];
 export const LAB_COST = 3e7, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
 export const CTECH = [
@@ -42,13 +44,13 @@ export function payBuild(c, cost, days) {
   if (!o || state.t < (o.civ.busy || 0)) return false;
   const price = own ? cost : cost * 1.5;
   if (c.credits < price) return false;
-  c.credits -= price; o.civ.busy = state.t + days;
+  pay(c, price, 'subSpace'); o.civ.busy = state.t + days;
   if (!own) { o.credits += price; o.civ.fees = (o.civ.fees || 0) + cost * .5; }
   return true;
 }
 export function goodsMarket(g, D, legCap, staff) {
-  const P = state.pop, S = [{id: 'leg', cap: legCap, price: 1}];
-  for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95; S.push({id: c.id, c, cap: n * FACT_W * PROD * staff * outMult(c), price: c.civ.pr[g]}); } }
+  const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: 1}];
+  for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95; S.push({id: c.id, c, cap: n * FACT_W * PROD * staff * outMult(c) * ((P.evMult && P.evMult[g]) || 1) * (c.civ.strikeUntil > state.t ? .5 : 1), price: c.civ.pr[g]}); } }
   S.sort((a, b) => a.price - b.price);
   let left = D; for (const s of S) { s.sold = Math.min(s.cap, left); left -= s.sold; }
   const sold = D - left, sat = D > 0 ? Math.min(1, sold / D) : 1, mult = clampN(1 + 1.5 * (1 - sat), 1, 3);
@@ -66,7 +68,7 @@ function rawMarket(rawNeed, dt, init) {
       if (c.civ.mp[r] == null) c.civ.mp[r] = PRICE[r] * .97;
       if (out - use > 1e-9) pool.push({id: c.id, c, cap: out - use, price: c.civ.mp[r], r});
     }
-    const stock = state.stock[r] || 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r]});
+    const stock = state.stock[r] || 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r] * mpOf(r)});
     pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8});
     for (const k in needs) total += needs[k];
     pool.sort((a, b) => a.price - b.price);
@@ -76,9 +78,13 @@ function rawMarket(rawNeed, dt, init) {
     for (const k in needs) cost[k] = (cost[k] || 0) + needs[k] * a;
     if (!init) for (const s of pool) {
       if (s.c) { s.c.credits += s.sold * s.price * dt; s.c.civ.mp[r] = s.sold >= s.cap * .98 ? Math.min(PRICE[r] * 1.7, s.price * 1.03) : Math.max(PRICE[r] * .5, s.price * .97); }
-      else if (s.id === 'pl' && s.sold > 0) { const t = s.sold * dt; state.stock[r] -= t; state.money += t * PRICE[r]; rec(r, 'out', t, 'pop'); }
+      else if (s.id === 'pl' && s.sold > 0) { const t = s.sold * dt; state.stock[r] -= t; state.money += t * s.price; rec(r, 'out', t, 'pop'); }
     }
-    P.rawMk[r] = {need: total + own, own, imp, avg: a};
+    if (!init) { // живая цена: дефицит (ввоз) поднимает, избыток нераспроданного сырья снижает
+      state.mp = state.mp || {}; let cc = 0, un = 0; for (const s of pool) if (s.c) { cc += s.cap; un += s.cap - s.sold; }
+      let m = mpOf(r) * (1 + .35 * (total > 0 ? imp / total : 0) - .05 * (cc > 0 ? un / cc : 0)); m += (1 - m) * .08; state.mp[r] = clampN(m, .6, 3);
+    }
+    P.rawMk[r] = {need: total + own, own, imp, avg: a, mp: mpOf(r)};
   }
   return {avg, cost};
 }
@@ -95,7 +101,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       if (init) continue;
       if (leg) { P.cap[g] += (rev - wc - rc) * dt * .5; P.rev = P.rev || {}; P.rev[g] = rev; }
       else {
-        const c = s.c; c.credits += (rev - wc - rc) * dt; c.civ.sold[g] = s.sold; c.civ.cap[g] = s.cap; c.civ.unitc[g] = (wc + rc) / Math.max(1, s.cap); c.civ.comp[g] = s.comp * R.mult;
+        const c = s.c; c.credits += (rev - wc - rc) * dt; c.civ.pm = (c.civ.pm || 0) + (rev - wc - rc) * dt; c.civ.sold[g] = s.sold; c.civ.cap[g] = s.cap; c.civ.unitc[g] = (wc + rc) / Math.max(1, s.cap); c.civ.comp[g] = s.comp * R.mult;
         const util = s.cap > 0 ? s.sold / s.cap : 0, u = c.civ.unitc[g];
         if (util >= .97) c.civ.pr[g] = Math.min(c.civ.pr[g] * 1.03, Math.max(s.comp * 1.4, .3)); else c.civ.pr[g] = Math.max(u * 1.05, c.civ.pr[g] * (util < .5 ? .95 : .985));
       }
@@ -109,16 +115,20 @@ export function settleEconomy(mk, rawNeed, dt, init) {
   }
   if (init) return;
   const sellers = [];
-  for (const c of corpsAll()) {
+  for (const c of [...corpsAll()]) {
     let m = 0; for (const r in c.civ.mines) m += c.civ.mines[r];
     let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * W[s] * .96;
     c.credits -= m * FACT_W * wp * dt;
     let lw = 0; for (let s = 0; s < 4; s++) lw += LAB_MIX[s] * W[s] * .96;
     c.credits -= (c.civ.labs || 0) * FACT_W * lw * dt;
     rpMonth(c, dt, sellers);
+    licenseTick(c);
+    const pm = c.civ.pm || 0; c.civ.pm = 0;
+    if (finTick(c, dt, pm)) continue;
     civTick(c, mk, dt);
   }
   settleRP(sellers, dt);
+  eventTick(dt); respawnTick();
 }
 function civTick(c, mk, dt) {
   const v = c.civ; v.month++;
@@ -127,21 +137,22 @@ function civTick(c, mk, dt) {
   const avail = c.credits - monthly * 2;
   // верфь: первый, кто накопил, строит её; остальные покупают постройки у него
   if (!v.yard && avail > YARD_COST * 1.2 && (!hasYard() || avail > YARD_COST * 8)) {
-    c.credits -= YARD_COST; v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); return;
+    pay(c, YARD_COST, 'subSpace'); v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); return;
   }
   if (!hasYard() && tot >= 40) return; // копят на верфь
   const wantLabs = tot >= 6 ? Math.min(40, Math.ceil(tot / 12)) : 0;
-  if ((v.labs || 0) < wantLabs && avail > LAB_COST * 1.5) { c.credits -= LAB_COST; v.labs = (v.labs || 0) + 1; return; }
+  if ((v.labs || 0) < wantLabs && avail > LAB_COST * 1.5) { pay(c, LAB_COST, 'subSci'); v.labs = (v.labs || 0) + 1; return; }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
   for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
   if (g === null) for (const k in v.fac) if (v.fac[k] > 0) { g = k; break; }
   if (g === null) return;
   if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k in GOODS) if (k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
+  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] < 5 && avail > MINE_COST * 4) { pay(c, MINE_COST, 'subInd'); v.mines[r]++; return; }
   const raw = GOODS[g].raw;
-  if (!(v.mines[raw] > 0) && tot >= 3) { if (avail > MINE_COST * 1.2) { c.credits -= MINE_COST; v.mines[raw] = 1; log(`«${c.name}» открыла шахту: ${raw}.`); } return; }
+  if (!(v.mines[raw] > 0) && tot >= 3) { if (avail > MINE_COST * 1.2) { pay(c, MINE_COST, 'subInd'); v.mines[raw] = 1; log(`«${c.name}» открыла шахту: ${raw}.`); } return; }
   const k = Math.min(Math.floor(avail / FACT_COST), Math.max(1, Math.ceil(tot * .1)));
-  if (k > 0) { c.credits -= k * FACT_COST; v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95; }
+  if (k > 0) { pay(c, k * FACT_COST, 'subInd'); v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95; }
 }
 
 // --- исследования корпораций и контракты лабораторий ---
