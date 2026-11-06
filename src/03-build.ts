@@ -1,8 +1,10 @@
 // @ts-nocheck
+import { BODY, FIELDS, log, rec, state, stockOK } from './01-data.ts';
+import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
-const MINE_RATE = 25;
-const BLD = {
+export const MINE_RATE = 25;
+export const BLD = {
   mine:       {name: 'Шахта на Земле', max: 30, desc: 'Добывает 25 т/сутки всех руд из недр Земли сразу (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
@@ -10,16 +12,16 @@ const BLD = {
   scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, max: 3, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
 };
-const techOn = id => !!(state.tech && state.tech[id]);
-const yardSlots = () => 2 + state.bld.shipyard;
-const yardSpeed = () => (1 + 0.1 * (state.bld.shipyard - 1)) * (techOn('fastbuild') ? 1.2 : 1);
-const academyInterval = () => 60 / (1 + 0.3 * state.bld.academy);
-const academyClass = () => 5 + 5 * state.bld.academy;
-const academyBonus = () => 0.5 * state.bld.academy + (techOn('select') ? 1 : 0);
-function bldCost(t) { const b = BLD[t], k = b.level ? Math.max(1, state.bld[t]) : 1; return Object.fromEntries(Object.entries(b.cost).map(([r, v]) => [r, v * k])); }
-function bldQueued(t) { return state.build.filter(j => j.type === t).length; }
-function bldCanAdd(t) { const b = BLD[t]; return !b.level || state.bld[t] + bldQueued(t) < b.max; }
-function buildTick(h) {
+export const techOn = id => !!(state.tech && state.tech[id]);
+export const yardSlots = () => 2 + state.bld.shipyard;
+export const yardSpeed = () => (1 + 0.1 * (state.bld.shipyard - 1)) * (techOn('fastbuild') ? 1.2 : 1);
+export const academyInterval = () => 60 / (1 + 0.3 * state.bld.academy);
+export const academyClass = () => 5 + 5 * state.bld.academy;
+export const academyBonus = () => 0.5 * state.bld.academy + (techOn('select') ? 1 : 0);
+export function bldCost(t) { const b = BLD[t], k = b.level ? Math.max(1, state.bld[t]) : 1; return Object.fromEntries(Object.entries(b.cost).map(([r, v]) => [r, v * k])); }
+export function bldQueued(t) { return state.build.filter(j => j.type === t).length; }
+export function bldCanAdd(t) { const b = BLD[t]; return !b.level || state.bld[t] + bldQueued(t) < b.max; }
+export function buildTick(h) {
   const B = state.bld, S = state.stock;
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');
@@ -42,7 +44,7 @@ function buildTick(h) {
   if (done.length) state.build = state.build.filter(j => !done.includes(j));
 }
 
-const TECH = [
+export const TECH = [
   {id: 'rock300', f: 'eng', cost: 800, name: 'Крупные астероиды I', desc: 'Корабельные лазеры берут тела диаметром до 300 км.'},
   {id: 'rock1000', f: 'eng', cost: 1800, name: 'Крупные астероиды II', desc: 'Корабельные лазеры берут тела диаметром до 1000 км (Церера, Веста).'},
   {id: 'effdrive', f: 'phys', cost: 400, name: 'Экономичные двигатели', desc: 'Расход топлива кораблей −15%.'},
@@ -54,13 +56,13 @@ const TECH = [
   {id: 'train', f: 'bio', cost: 400, name: 'Ускоренное обучение', desc: 'Навыки офицеров растут вдвое быстрее.'},
   {id: 'select', f: 'bio', cost: 700, name: 'Отбор кандидатов', desc: 'Новые офицеры в среднем на 1 сильнее.'},
 ];
-function techBuy(id) {
+export function techBuy(id) {
   const t = TECH.find(x => x.id === id);
   if (!t || state.tech[id] || state.sci[t.f] < t.cost) return;
   state.sci[t.f] -= t.cost; state.tech[id] = true; log(`Изучено: «${t.name}».`);
 }
 // наука от лабораторий корабля или станции на теле с аномалией
-function produceSci(ent, bodyId, h) {
+export function produceSci(ent, bodyId, h) {
   const b = BODY[bodyId], pool = state.sites[bodyId]; if (!b || !b.sci || !pool) return 0;
   let tot = 0;
   for (const f in FIELDS) {
@@ -71,6 +73,6 @@ function produceSci(ent, bodyId, h) {
   if (tot > 0) { train(ent, 'sci', h, 200); if (b.hot && ent.eq) useWear(ent, 'life', 1.5 * h, 0.01 * h); }
   return tot;
 }
-function sciTick(h) {
+export function sciTick(h) {
   for (const st of state.stations) if (st.at && !st.towedBy && BODY[st.at] && BODY[st.at].sci && st.st.labsTotal) produceSci(st, st.at, h);
 }

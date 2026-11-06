@@ -1,34 +1,43 @@
 // @ts-nocheck
+import { BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
+import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
+import { BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techBuy, techOn, yardSlots, yardSpeed } from './03-build.ts';
+import { advance, loadGame, saveGame } from './04-engine.ts';
+import { Battle } from './05-battle.ts';
+import { refreshCorp } from './06-corps.ts';
+import { refreshPop } from './07-population.ts';
+import { hooks } from './00-hooks.ts';
+import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
 /* ===== ПАНЕЛЬ «ПРИКАЗЫ» ===== */
-const ORDER_TYPES = {
+export const ORDER_TYPES = {
   move: 'Лететь к', mine: 'Добывать', home: 'Вернуться на базу: разгрузка, заправка, ремонт', load: 'Погрузить на базе', wait: 'Ждать',
   research: 'Исследовать объект', minebest: 'Добывать лучшее по ископаемому', jump: 'Перейти к приказу (условие)', dump: 'Сбросить груз', joingroup: 'Перейти в группу', stop: 'Остановиться', tow: 'Взять на буксир', terraform: 'Сбросить груз на планету (тераформирование)', redirect: 'Направить комету на планету (тераформирование)', release: 'Отцепить буксир', transfer: 'Передать топливо станции', refuelships: 'Заправить нуждающиеся корабли',
 };
-const ORDER_NEEDS = {minebest: 'шахтёр', research: 'учёный', tow: 'тягач', release: 'тягач', transfer: 'танкер', refuelships: 'танкер'};
-function typeAllowed(t, members, prog) {
+export const ORDER_NEEDS = {minebest: 'шахтёр', research: 'учёный', tow: 'тягач', release: 'тягач', transfer: 'танкер', refuelships: 'танкер'};
+export function typeAllowed(t, members, prog) {
   const need = ORDER_NEEDS[t];
   if (!need || prog.orders.some(o => o.type === t) || !members.length) return true;
   return members.some(s => need === 'шахтёр' ? s.st.lasers > 0 : need === 'учёный' ? s.st.labsTotal > 0 : need === 'тягач' ? s.st.tow > 0 : s.st.xfer > 0);
 }
-function typeOpts(sel, members, prog) {
+export function typeOpts(sel, members, prog) {
   return Object.entries(ORDER_TYPES).filter(([k]) => k === sel || typeAllowed(k, members, prog))
     .map(([k, v]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${v}${ORDER_NEEDS[k] ? ' (' + ORDER_NEEDS[k] + ')' : ''}</option>`).join('');
 }
-const defOrder = t => ({
+export const defOrder = t => ({
   move: {type: 'move', target: 'l1'}, mine: {type: 'mine', target: 'eros', res: 'all', pct: 100},
   home: {type: 'home', base: 'earth'}, load: {type: 'load', base: 'earth', item: 'spares', amount: 100},
   wait: {type: 'wait', hours: 24}, research: {type: 'research', target: 'auto', days: 30},
   minebest: {type: 'minebest', res: 'all', pct: 100}, terraform: {type: 'terraform', target: 'mars'}, redirect: {type: 'redirect', planet: 'mars'}, jump: {type: 'jump', to: 1, cond: 'always', val: 50}, dump: {type: 'dump'}, joingroup: {type: 'joingroup', group: state.groups[0] ? state.groups[0].id : 0}, stop: {type: 'stop'}, tow: {type: 'tow', target: 'broken'}, release: {type: 'release'},
   transfer: {type: 'transfer', target: state.stations[0] ? 'st:' + state.stations[0].id : ''}, refuelships: {type: 'refuelships', pct: 40},
 }[t]);
-function towOpts(sel) {
+export function towOpts(sel) {
   return `<option value="broken"${sel === 'broken' ? ' selected' : ''}>Ближайший сломанный корабль</option>` +
     (state.stations.length ? `<optgroup label="Станции">${stOpts(sel)}</optgroup>` : '') +
     `<optgroup label="Корабли">${myShips().map(s => `<option value="sh:${s.id}"${'sh:' + s.id === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>`;
 }
 
-function currentHolder() {
+export function currentHolder() {
   let e = ui.edit;
   if (e && e.kind === 'group' && !state.groups.find(g => g.id === e.id)) e = null;
   if (e && e.kind === 'ship' && !state.ships.find(s => s.id === e.id)) e = null;
@@ -39,11 +48,11 @@ function currentHolder() {
   const s = state.ships.find(x => x.id === e.id);
   return {kind: 'ship', s, prog: s.own, grouped: !!groupOf(s)};
 }
-function resetPc(h) {
+export function resetPc(h) {
   const ships = h.kind === 'group' ? state.ships.filter(s => s.groupId === h.g.id) : [h.s];
   for (const s of ships) { s.pc = 0; s.wait = null; s.tmp = null; }
 }
-function orderFields(o, i) {
+export function orderFields(o, i) {
   if (o.type === 'move') return `<select data-c="otarget" data-i="${i}">${targetOpts(o.target)}</select>`;
   if (o.type === 'mine') {
     const b = BODY[o.target], ro = '<option value="all"' + (!o.res || o.res === 'all' ? ' selected' : '') + '>Всё сразу</option>' + Object.keys(b ? b.ores || {} : {}).map(k => `<option value="${k}"${k === o.res ? ' selected' : ''}>${RES[k]}</option>`).join('');
@@ -69,7 +78,7 @@ function orderFields(o, i) {
   if (o.type === 'refuelships') return `<div class="row">топливо ниже <input type="number" min="1" max="99" value="${o.pct}" data-c="opct" data-i="${i}"> %</div><div class="help">Летит к ближайшему такому кораблю вне баз. Если таких нет, приказ пропускается.</div>`;
   return '<div class="help">Отцепить груз здесь. Если рядом тело или станция, он останется возле них.</div>';
 }
-function renderOrders() {
+export function renderOrders() {
   const p = $('p-orders'), h = currentHolder();
   if (!h) { p.innerHTML = `<div class="box"><div class="help">Групп пока нет.</div><button class="btn" data-a="newgroup">Создать группу</button></div>`; return; }
   const e = ui.edit;
@@ -121,7 +130,7 @@ function renderOrders() {
   }
   p.innerHTML = html;
 }
-function ordersClick(a, d) {
+export function ordersClick(a, d) {
   const h = currentHolder();
   if (a === 'newgroup') { const g = newGroup(); ui.edit = {kind: 'group', id: g.id}; }
   else if (a === 'togroup') ui.edit = {kind: 'group', id: +d.id};
@@ -146,7 +155,7 @@ function ordersClick(a, d) {
   }
   renderOrders();
 }
-function ordersChange(c, el) {
+export function ordersChange(c, el) {
   const h = currentHolder(), i = +el.dataset.i, v = el.value;
   if (c === 'editsel') { ui.edit = {kind: v[0] === 'g' ? 'group' : 'ship', id: +v.slice(1)}; return renderOrders(); }
   if (!h) return;
@@ -176,12 +185,12 @@ function ordersChange(c, el) {
 
 /* ===== ПАНЕЛЬ «ВЕРФЬ» ===== */
 ui.y = {design: null, count: 1, group: null};
-function costTxt(c) { return Object.entries(c).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v)}`).join(', '); }
-const yDesign = () => state.designs.find(x => x.id === ui.y.design);
-const isStationDesign = () => { const d = yDesign(); return !!(d && designStats(d.parts).station); };
-const designTag = d => { const s = designStats(d.parts), t = [s.station ? 'станция' : '', s.parts_hook ? '' : '', s.tow ? 'тягач' : '', s.tanker ? 'танкер' : '', s.lasers ? 'шахтёр' : '', s.warship ? 'боевой' : '', s.labsTotal ? 'учёный' : '', !s.station && s.cargoCap && !s.lasers ? 'грузовой' : ''].filter(Boolean); return t.length ? ' [' + t.join(', ') + ']' : ''; };
-const dStats = d => designStats(d.parts);
-function renderYard() {
+export function costTxt(c) { return Object.entries(c).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v)}`).join(', '); }
+export const yDesign = () => state.designs.find(x => x.id === ui.y.design);
+export const isStationDesign = () => { const d = yDesign(); return !!(d && designStats(d.parts).station); };
+export const designTag = d => { const s = designStats(d.parts), t = [s.station ? 'станция' : '', s.parts_hook ? '' : '', s.tow ? 'тягач' : '', s.tanker ? 'танкер' : '', s.lasers ? 'шахтёр' : '', s.warship ? 'боевой' : '', s.labsTotal ? 'учёный' : '', !s.station && s.cargoCap && !s.lasers ? 'грузовой' : ''].filter(Boolean); return t.length ? ' [' + t.join(', ') + ']' : ''; };
+export const dStats = d => designStats(d.parts);
+export function renderYard() {
   const y = ui.y, p = $('p-yard');
   if (!state.designs.find(d => d.id === y.design)) y.design = state.designs[0] ? state.designs[0].id : null;
   if (y.group === null) y.group = '';
@@ -197,7 +206,7 @@ function renderYard() {
   const sel = $('yGroup'); if (sel) sel.value = y.group;
   refreshYardInfo(); refreshYq();
 }
-function refreshYardInfo() {
+export function refreshYardInfo() {
   const d = state.designs.find(x => x.id === ui.y.design), el = $('yInfo'); if (!el) return;
   if (!d) { el.innerHTML = '<div class="help">Нет проектов. Откройте конструктор.</div>'; return; }
   const st = dStats(d);
@@ -206,7 +215,7 @@ function refreshYardInfo() {
     (stockOK(st.cost) ? '' : `<div class="warn">Не хватает на складе: ${lackTxt(st.cost)}</div>`) +
     st.errors.map(e => `<div class="err">${e}</div>`).join('') + st.warns.map(e => `<div class="warn">${e}</div>`).join('');
 }
-function refreshYq() {
+export function refreshYq() {
   const el = $('yq'); if (!el) return;
   el.innerHTML = state.yard.length ? state.yard.map(j => {
     const g = state.groups.find(x => x.id === j.groupId);
@@ -215,7 +224,7 @@ function refreshYq() {
     return `<div class="row"><span style="min-width:110px">${esc(j.name)}${j.station ? ' (станция)' : ''}${g ? ' → ' + esc(g.name) : ''}</span>${st}</div>`;
   }).join('') : '<div class="help">Очередь пуста.</div>';
 }
-function yardClick(a, d) {
+export function yardClick(a, d) {
   if (a === 'enqueue') {
     const des = state.designs.find(x => x.id === ui.y.design); if (!des) return;
     const st = dStats(des);
@@ -229,21 +238,21 @@ function yardClick(a, d) {
     renderYard();
   } else if (a === 'ycancel') { state.yard = state.yard.filter(j => j.id !== +d.id); refreshYq(); }
 }
-function yardChange(c, el) {
+export function yardChange(c, el) {
   if (c === 'ydesign') { ui.y.design = +el.value; refreshYardInfo(); }
   else if (c === 'ycount') ui.y.count = Math.min(20, Math.max(1, +el.value || 1));
   else if (c === 'ygroup') ui.y.group = el.value;
 }
 
 /* ===== КОНСТРУКТОР ===== */
-function curDesign() { return state.designs.find(d => d.id === ui.dsel); }
-function openDesigner() {
+export function curDesign() { return state.designs.find(d => d.id === ui.dsel); }
+export function openDesigner() {
   if (!curDesign()) ui.dsel = state.designs[0] ? state.designs[0].id : null;
   if (!curDesign()) { const d = {id: uid(), name: 'Новый проект', parts: {}, prio: {cmd: 0, eng: 0, pil: 0, min: 0}}; state.designs.push(d); ui.dsel = d.id; }
   $('designer').hidden = false; renderDesigner(true);
 }
-function closeDesigner() { $('designer').hidden = true; if (ui.tab === 'yard') renderYard(); }
-function renderDesigner(full) {
+export function closeDesigner() { $('designer').hidden = true; if (ui.tab === 'yard') renderYard(); }
+export function renderDesigner(full) {
   const d = curDesign(); if (!d) return;
   $('dlist').innerHTML = state.designs.map(x => `<div class="item${x.id === d.id ? ' sel' : ''}" data-d="${x.id}">${esc(x.name)}<span class="muted">${designTag(x)}</span></div>`).join('');
   if (full) $('dname').value = d.name;
@@ -309,7 +318,7 @@ function renderDesigner(full) {
 
 
 /* ===== ПАНЕЛЬ «ЗЕМЛЯ» ===== */
-function refreshEarth() {
+export function refreshEarth() {
   const S = state.stock, B = state.bld;
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
@@ -324,8 +333,8 @@ function refreshEarth() {
   h += `<div class="box"><div class="stats"><span>Стапелей на верфи</span><span>${yardSlots()}</span><span>Скорость постройки</span><span>×${fmtN(yardSpeed(), 1)}</span><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
 }
-const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');
-function earthClick(a, d) {
+export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');
+export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
   if (a === 'bbuild' && bldCanAdd(d.t)) state.build.push({id: uid(), type: d.t, started: false, left: BLD[d.t].days, total: BLD[d.t].days});
   if (a === 'bcancel') state.build = state.build.filter(j => j.id !== +d.id);
@@ -333,7 +342,7 @@ function earthClick(a, d) {
 }
 
 /* ===== ПАНЕЛЬ «НАУКА» ===== */
-function refreshScience() {
+export function refreshScience() {
   const S = state.sci;
   let h = `<div class="box"><h2>Очки науки</h2><div class="stats">${Object.entries(FIELDS).map(([f, n]) => `<span>${n}</span><span>${fmtN(S[f], 1)}</span>`).join('')}</div>
     <div class="help">Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. На аномальных объектах науки в десять раз больше: нужны корабли или станции с лабораториями и учёным в экипаже.</div></div>`;
@@ -346,9 +355,9 @@ function refreshScience() {
 }
 
 /* ===== ПОИСК И ОТМЕТКИ ===== */
-function toggleMark(k) { if (state.marks[k]) delete state.marks[k]; else state.marks[k] = 1; }
-function renderFindIfOpen() { if (ui.tab === 'find') refreshFindList(); }
-function renderFind() {
+export function toggleMark(k) { if (state.marks[k]) delete state.marks[k]; else state.marks[k] = 1; }
+export function renderFindIfOpen() { if (ui.tab === 'find') refreshFindList(); }
+export function renderFind() {
   const f = ui.find;
   $('p-find').innerHTML = `<div class="box"><h2>Поиск ископаемых</h2>
     <div class="row"><input type="text" id="fq" data-c="fq" class="grow" placeholder="Название" value="${esc(f.q)}"></div>
@@ -357,7 +366,7 @@ function renderFind() {
     <div id="fmarks"></div><div id="flist" class="dcol"></div>`;
   refreshFindList();
 }
-function refreshFindList() {
+export function refreshFindList() {
   if (!$('flist')) return;
   const f = ui.find, ep = objPos('earth', state.t), q = f.q.trim().toLowerCase();
   const rows = BODIES.filter(b => !b.comet && state.ast[b.id] && (!q || b.name.toLowerCase().includes(q)) && (!f.res || state.ast[b.id][f.res] > 0)).map(b => {
@@ -377,15 +386,15 @@ function refreshFindList() {
 }
 
 /* ===== ОФИЦЕРЫ ===== */
-function prioHtml(d) {
+export function prioHtml(d) {
   const s = dStats(d), slots = slotsFor(s), pr = d.prio || (d.prio = {cmd: 0, eng: 0, pil: 0, min: 0});
   const opt = (v, cur) => `<option value="${v}"${v === cur ? ' selected' : ''}>${v ? 'не ниже ' + v : 'лучший из доступных'}</option>`;
   const {miss} = staffFor(s, pr);
   return '<h2>Офицеры для экипажа</h2>' + slots.map(r => `<label class="row"><span style="min-width:96px">${ROLES[r]}</span><select data-prio="${r}">${[0, 3, 4, 5, 6, 7, 8, 9, 10].map(v => opt(v, pr[r] || 0)).join('')}</select></label>`).join('') +
     (miss.length ? `<div class="warn">Сейчас нет свободных: ${miss.join(', ')}. Корабль достроится, когда они появятся.</div>` : '<div class="ok">Свободные офицеры подходят.</div>');
 }
-const skHtml = (o, role) => ['eng', 'sci', 'min', 'pil', 'cmd'].map(r => `<span class="sk${r === role ? ' hi' : ''}" title="${SKILLS[r]}">${r === 'eng' ? 'И' : r === 'sci' ? 'Н' : r === 'min' ? 'Г' : r === 'pil' ? 'П' : 'К'}${fmtN(o.sk[r], 1)}</span>`).join('');
-function renderOfficers() {
+export const skHtml = (o, role) => ['eng', 'sci', 'min', 'pil', 'cmd'].map(r => `<span class="sk${r === role ? ' hi' : ''}" title="${SKILLS[r]}">${r === 'eng' ? 'И' : r === 'sci' ? 'Н' : r === 'min' ? 'Г' : r === 'pil' ? 'П' : 'К'}${fmtN(o.sk[r], 1)}</span>`).join('');
+export function renderOfficers() {
   const p = $('p-off'), free = freeOfficers().sort((a, b) => b.sk.eng + b.sk.cmd - a.sk.eng - a.sk.cmd);
   let h = `<div class="help">Академия выпускает класс офицеров (до 20 за выпуск на высоком уровне), качество самое разное: от слабых до узких специалистов. И — инженерия, Н — наука, Г — горное дело, П — пилотирование, К — командование. Со временем навыки растут от практики.</div>
     <div class="box"><h2>Свободные (${free.length})</h2>${free.slice(0, 30).map(o => `<div class="row"><span class="grow">${esc(o.name)}</span>${skHtml(o)}</div>`).join('') || '<div class="help">Свободных нет.</div>'}${free.length > 30 ? `<div class="help">Показаны 30 лучших, ещё ${free.length - 30} в запасе.</div>` : ''}</div>`;
@@ -400,7 +409,7 @@ function renderOfficers() {
   }
   p.innerHTML = h;
 }
-function crewChange(el) {
+export function crewChange(el) {
   const kind = el.dataset.kind, id = +el.dataset.id;
   const e = (kind === 'ship' ? state.ships : state.stations).find(x => x.id === id);
   if (e) setCrew(e, kind, el.dataset.role, el.value ? +el.value : 0);
@@ -408,7 +417,7 @@ function crewChange(el) {
 }
 
 /* ===== ВКЛАДКИ, СОБЫТИЯ, ЦИКЛ ===== */
-function showTab(name) {
+export function showTab(name) {
   ui.tab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
@@ -424,7 +433,7 @@ function showTab(name) {
   if (name === 'fleet') refreshFleet();
   if (name === 'log') refreshLog();
 }
-function addOrderTo(groupVal, order) {
+export function addOrderTo(groupVal, order) {
   let g;
   if (groupVal === 'new') { g = newGroup(); } else g = state.groups.find(x => x.id === +groupVal);
   if (!g) return;
@@ -432,7 +441,7 @@ function addOrderTo(groupVal, order) {
   ui.edit = {kind: 'group', id: g.id};
   showTab('orders');
 }
-function sideAction(a, d) {
+export function sideAction(a, d) {
   if (a === 'openstats') return openStats();
   if (a === 'opendesigner') return openDesigner();
   if (a === 'openyard') return showTab('yard');
@@ -483,7 +492,7 @@ $('speeds').addEventListener('click', e => {
   else if (e.target.dataset.sp) { state.speedIdx = +e.target.dataset.sp; state.paused = false; }
   refreshHeader();
 });
-function addNewGameButton() {
+export function addNewGameButton() {
   const b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Новая игра';
   let armed = 0;
   b.onclick = () => {
@@ -493,8 +502,8 @@ function addNewGameButton() {
   $('top').appendChild(b);
 }
 
-let lastT = performance.now(), lastUi = 0;
-function frame(now) {
+export let lastT = performance.now(), lastUi = 0;
+export function frame(now) {
   const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
   if (!state.paused) {
     let days = dt * SPEEDS[state.speedIdx].m / 1440;
@@ -529,23 +538,23 @@ function frame(now) {
 })();
 
 /* ===== СТАТИСТИКА РЕСУРСОВ ===== */
-const STAT_PER = {30: {n: 30, size: 1, l: '1 месяц'}, 90: {n: 30, size: 3, l: '3 месяца'}, 180: {n: 30, size: 6, l: '6 месяцев'}, 360: {n: 12, size: 30, l: '1 год'}};
+export const STAT_PER = {30: {n: 30, size: 1, l: '1 месяц'}, 90: {n: 30, size: 3, l: '3 месяца'}, 180: {n: 30, size: 6, l: '6 месяцев'}, 360: {n: 12, size: 30, l: '1 год'}};
 ui.st = ui.st || {res: 'fe', per: 30, view: 'table'};
-const statRes = () => Object.keys(RES).concat(['fuel']);
-const statName = k => k === 'fuel' ? 'Топливо' : RES[k];
-function openStats() {
+export const statRes = () => Object.keys(RES).concat(['fuel']);
+export const statName = k => k === 'fuel' ? 'Топливо' : RES[k];
+export function openStats() {
   $('sres').innerHTML = statRes().map(k => `<option value="${k}">${statName(k)}</option>`).join('');
   $('sres').value = ui.st.res;
   $('sper').innerHTML = Object.entries(STAT_PER).map(([k, v]) => `<button class="btn sm${+k === ui.st.per ? ' on' : ''}" data-per="${k}">${v.l}</button>`).join('');
   $('stats').hidden = false; renderStats();
 }
-const dayVals = (day, k) => { const e = state.hist && state.hist[day] && state.hist[day][k]; if (!e) return null; if (Array.isArray(e)) return {'i:old': e[0], 'o:old': e[1]}; return e; };
-function renderStats() {
+export const dayVals = (day, k) => { const e = state.hist && state.hist[day] && state.hist[day][k]; if (!e) return null; if (Array.isArray(e)) return {'i:old': e[0], 'o:old': e[1]}; return e; };
+export function renderStats() {
   [...$('stab').children].forEach(b => b.classList.toggle('on', b.dataset.v === ui.st.view));
   $('stable').hidden = ui.st.view !== 'table'; $('schartwrap').hidden = ui.st.view !== 'chart';
   if (ui.st.view === 'table') renderStatTable(); else renderStatChart();
 }
-function renderStatTable() {
+export function renderStatTable() {
   const day0 = Math.floor(state.t), P = ui.st.per, keys = statRes(), sums = {};
   for (const k of keys) { sums[k] = {}; for (let d = day0 - P + 1; d <= day0; d++) { const e = dayVals(d, k); if (e) for (const q in e) sums[k][q] = (sums[k][q] || 0) + e[q]; } }
   const val = (k, q) => sums[k][q] || 0;
@@ -561,7 +570,7 @@ function renderStatTable() {
   h += `<tr><td>На складе сейчас</td>${keys.map(k => `<td>${fmtN(state.stock[k] || 0)}</td>`).join('')}</tr></tbody></table>`;
   $('stable').innerHTML = h;
 }
-function renderStatChart() {
+export function renderStatChart() {
   const k = ui.st.res, P = STAT_PER[ui.st.per], day0 = Math.floor(state.t);
   const bins = [];
   for (let i = 0; i < P.n; i++) {
@@ -588,3 +597,5 @@ $('stab').addEventListener('click', e => { const b = e.target.closest('[data-v]'
 $('stable').addEventListener('click', e => { const th = e.target.closest('[data-res]'); if (!th) return; ui.st.res = th.dataset.res; $('sres').value = ui.st.res; ui.st.view = 'chart'; renderStats(); });
 $('sclose').onclick = () => { $('stats').hidden = true; };
 $('stats').addEventListener('pointerdown', e => { if (e.target === $('stats')) $('stats').hidden = true; });
+
+hooks.showTab = showTab;

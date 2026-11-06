@@ -1,23 +1,28 @@
 // @ts-nocheck
+import { BODIES, BODY, RES, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
+import { eqFor, repairParts } from './02-crew.ts';
+import { execOrder, isBase, serve, travel } from './04-engine.ts';
+import { popTaxDay, popTick } from './07-population.ts';
+import { $, esc } from './08-map-ui.ts';
 /* ===== КОРПОРАЦИИ: конкуренты, начинающие с Земли ===== */
-const PRICE = {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500};
-const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000;
-const CORP_DEF = [
+export const PRICE = {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500};
+export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000;
+export const CORP_DEF = [
   {name: 'Вега Майнинг', tpl: 'Лёгкий', aggr: 1.0, parts: {ion: 2, tank: 2, cargo: 1, laser: 2, cabin: 2, life: 1}},
   {name: 'Синергия Ресурсов', tpl: 'Дальнобойный', aggr: 0.8, parts: {ion: 3, tank: 6, cargo: 1, laser: 2, cabin: 2, life: 1}},
   {name: 'Ферро-Групп', tpl: 'Грузовой', aggr: 1.2, parts: {ion: 3, tank: 3, cargo: 3, laser: 2, cabin: 2, life: 1}},
   {name: 'Ориент Спейс', tpl: 'Быстрый', aggr: 1.0, parts: {ion: 5, tank: 3, cargo: 1, laser: 3, cabin: 3, life: 1}},
 ];
-const CORP_STATION = {cargo: 6, tank: 10, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1};
-const CORP_TANKER = {ion: 4, tank: 12, xfer: 1, cabin: 1, life: 1};
-const costCr = parts => Object.entries(designStats(parts).cost).reduce((a, [k, v]) => a + v * (PRICE[k] || 50), 0) * 0.5;
-const stationCr = () => costCr(CORP_STATION) * 8;
-const corpById = id => (state.corps || []).find(c => c.id === id);
-const corpName = id => { const c = corpById(id); return c ? c.name : 'корпорация'; };
-const svcPrice = (st, k) => Math.round((PRICE[k] || 50) * SERVICE_MARKUP * (1 + 0.15 * dist(objPos(st.at || 'earth', state.t), objPos('earth', state.t))));
-const ownStations = c => state.stations.filter(x => x.corp === c.id);
+export const CORP_STATION = {cargo: 6, tank: 10, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1};
+export const CORP_TANKER = {ion: 4, tank: 12, xfer: 1, cabin: 1, life: 1};
+export const costCr = parts => Object.entries(designStats(parts).cost).reduce((a, [k, v]) => a + v * (PRICE[k] || 50), 0) * 0.5;
+export const stationCr = () => costCr(CORP_STATION) * 8;
+export const corpById = id => (state.corps || []).find(c => c.id === id);
+export const corpName = id => { const c = corpById(id); return c ? c.name : 'корпорация'; };
+export const svcPrice = (st, k) => Math.round((PRICE[k] || 50) * SERVICE_MARKUP * (1 + 0.15 * dist(objPos(st.at || 'earth', state.t), objPos('earth', state.t))));
+export const ownStations = c => state.stations.filter(x => x.corp === c.id);
 
-function createCorpShip(c, role) {
+export function createCorpShip(c, role) {
   const parts = role === 'm' ? c.parts : CORP_TANKER, st = designStats(parts);
   const nm = role === 'm' ? 'Рудокоп' : 'Танкер', key = c.name + nm, n = state.counters.ship[key] = (state.counters.ship[key] || 0) + 1;
   const p = objPos('earth', state.t);
@@ -27,14 +32,14 @@ function createCorpShip(c, role) {
   c.credits -= st.fuelCap * PRICE.fuel;
   state.ships.push(s); return s;
 }
-function createCorpStation(c, bodyId) {
+export function createCorpStation(c, bodyId) {
   const st = designStats(CORP_STATION), p = objPos(bodyId, state.t), n = ownStations(c).length + 1;
   const s = {id: uid(), name: `${c.name} · ${BODY[bodyId].name}`, st, x: p.x, y: p.y, at: bodyId, fuel: 0, spares: 0, store: {}, towedBy: null, crew: {}, corp: c.id};
   state.stations.push(s);
   log(`Корпорация «${c.name}» построила станцию у «${BODY[bodyId].name}»: там можно заправиться за деньги.`);
   return s;
 }
-function initCorps() {
+export function initCorps() {
   state.corps = []; state.money = state.money || 5e7; state.corpVer = 2;
   for (const d of CORP_DEF) {
     const c = {id: uid(), name: d.name, tpl: d.tpl, aggr: d.aggr, parts: d.parts, credits: 60000, buy: {all: true}, sold: 0, last: 0, g: {}, lost: 0};
@@ -45,14 +50,14 @@ function initCorps() {
     state.corps.push(c); createCorpShip(c, 'm');
   }
 }
-function wipeCorps() {
+export function wipeCorps() {
   state.ships = state.ships.filter(s => !s.corp); state.stations = state.stations.filter(s => !s.corp); state.groups = state.groups.filter(g => !g.corp); state.corps = null;
 }
-const allBases = () => [{id: 'earth', at: 'earth', fuel: 1e9}].concat(state.stations.filter(x => !x.towedBy).map(x => ({id: 'st:' + x.id, at: x.id, fuel: x.fuel, st: x})));
-const basePos = b => objPos(b.id, state.t);
+export const allBases = () => [{id: 'earth', at: 'earth', fuel: 1e9}].concat(state.stations.filter(x => !x.towedBy).map(x => ({id: 'st:' + x.id, at: x.id, fuel: x.fuel, st: x})));
+export const basePos = b => objPos(b.id, state.t);
 
 /* --- ИИ рудокопа: те же правила, что у игрока (топливо, дальность, станции) --- */
-function corpMine(s, h) {
+export function corpMine(s, h) {
   const T = s.tmp || (s.tmp = {ph: 'plan'}), E = objPos('earth', state.t);
   if (T.ph === 'plan') {
     if (!isBase(s.at)) { T.ph = 'back'; return false; }
@@ -95,7 +100,7 @@ function corpMine(s, h) {
   return false;
 }
 /* --- ИИ танкера: возит топливо и припасы со своей Земли на станции корпорации --- */
-function corpTank(s, h) {
+export function corpTank(s, h) {
   const c = corpById(s.corp), T = s.tmp || (s.tmp = {ph: 'load'}), E = objPos('earth', state.t);
   if (!c) return true;
   if (T.ph === 'load') {
@@ -123,7 +128,7 @@ function corpTank(s, h) {
   return false;
 }
 
-function corpTick(h) {
+export function corpTick(h) {
   state.money = (state.money || 0) + popTaxDay() * h; popTick(h);
   state.corpAcc = (state.corpAcc || 0) + h;
   if (state.corpAcc < 0.5) return;
@@ -147,7 +152,7 @@ function corpTick(h) {
     } else if (nS && nT < nS && c.credits >= tc * 1.2) { c.credits -= tc; c.last = state.t; createCorpShip(c, 't'); }
   }
 }
-function pickStationSpot(c) {
+export function pickStationSpot(c) {
   const used = new Set(state.stations.map(x => x.at)), bases = allBases(), tfpa = designStats(CORP_TANKER); // дальность танкера
   const tank = designStats(CORP_TANKER), trange = tank.range * 0.4;
   let best = null, bs = 0;
@@ -165,7 +170,7 @@ function pickStationSpot(c) {
   return best;
 }
 // Земля покупает у корпорации по полной цене то, что отметил игрок; остальное уходит на общий рынок за 30%
-function corpSellToEarth(s) {
+export function corpSellToEarth(s) {
   const c = corpById(s.corp); let sum = 0, plSum = 0; const got = [];
   for (const [k, v] of Object.entries(s.cargo)) {
     if (v <= 0) continue;
@@ -179,7 +184,7 @@ function corpSellToEarth(s) {
   const take = s.st.fuelCap - s.fuel; if (take > 0.01) { s.fuel = s.st.fuelCap; if (c) c.credits -= take * PRICE.fuel; }
 }
 // Заправка на станции корпорации: свои корабли бесплатно, чужие платят владельцу
-function corpBuyFuel(s, st) {
+export function corpBuyFuel(s, st) {
   const c = corpById(st.corp), take = Math.min(s.st.fuelCap - s.fuel, st.fuel); if (take <= 0.01) return;
   s.fuel += take; st.fuel -= take;
   if (s.corp === st.corp) return;
@@ -188,14 +193,14 @@ function corpBuyFuel(s, st) {
   if (c) c.credits += pay;
   if (!s.corp) log(`«${s.name}» заправился на станции «${st.name}»: ${fmtN(take)} т за ${fmtN(pay)} кр.`);
 }
-function corpChargeLoad(s, before, st) {
+export function corpChargeLoad(s, before, st) {
   let pay = 0; const c = corpById(st.corp);
   for (const k of Object.keys(s.cargo)) { const d = (s.cargo[k] || 0) - (before[k] || 0); if (d > 0) pay += d * svcPrice(st, k); }
   if (pay > 0) { state.money -= pay; if (c) c.credits += pay; log(`«${s.name}» купил груз на станции «${st.name}» за ${fmtN(pay)} кр.`); }
 }
 
 /* --- вкладка «Корпорации» --- */
-function refreshCorp() {
+export function refreshCorp() {
   const p = $('p-corp'); if (!p || !state.corps) return;
   let h = `<div class="box"><h2>Корпорации</h2><div class="help">Корпорации стартуют с Земли с одним рудокопом и соревнуются, у кого выгоднее шаблон корабля. Добыча продаётся вам: отмеченное вы покупаете по полной цене, остальное они сбывают на общем рынке за 30%. Когда денег хватает, строят новые рудокопы, потом станции дозаправки и танкеры, которые возят туда топливо. Чужие корабли на станции платят владельцу за топливо. Налоги Земли: +${fmtN(popTaxDay())} кр/сут.</div><div class="row"><b>Кредиты игрока: ${fmtN(state.money)}</b></div></div>`;
   for (const c of [...state.corps].sort((a, b) => b.sold - a.sold)) {

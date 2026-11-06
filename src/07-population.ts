@@ -1,24 +1,27 @@
 // @ts-nocheck
+import { RES, fmtN, rec, state } from './01-data.ts';
+import { PRICE } from './06-corps.ts';
+import { $, H, W, cv } from './08-map-ui.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
-const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
-const GOODS = {
+export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
+export const GOODS = {
   food: {n: 'Еда', raw: 'n2', need: 2.2, mix: [.7, .25, .05, 0]},
   wear: {n: 'Товары', raw: 'fe', need: 1.4, mix: [.6, .35, .05, 0]},
   elec: {n: 'Электроника', raw: 'si', need: .8, mix: [.2, .4, .3, .1]},
   med: {n: 'Медицина', raw: 'c', need: .7, mix: [.1, .3, .4, .2]},
   pow: {n: 'Энергия', raw: 'u', need: 1, mix: [.3, .4, .25, .05]},
 };
-const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [4, 7, 12, 20], TUIT = [0, 2, 4, 7], FACT_COST = 2e8, TAXK = 1.25e-5;
-const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
-const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
-const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
-const needOf = (g, a) => GOODS[g].need * needF(a) * (g === 'med' && a >= 50 ? 1 + (a - 50) / 25 : 1);
-const basket = a => { let b = 0; for (const g in GOODS) b += needOf(g, a); return b; };
-const work = a => a >= 15 && a < 65;
-const mortQ = a => a < 1 ? .02 : .0003 + .00002 * Math.exp(Math.min(a, 100) / 11);
-const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
+export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [4, 7, 12, 20], TUIT = [0, 2, 4, 7], FACT_COST = 2e8, TAXK = 1.25e-5;
+export const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
+export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
+export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
+export const needOf = (g, a) => GOODS[g].need * needF(a) * (g === 'med' && a >= 50 ? 1 + (a - 50) / 25 : 1);
+export const basket = a => { let b = 0; for (const g in GOODS) b += needOf(g, a); return b; };
+export const work = a => a >= 15 && a < 65;
+export const mortQ = a => a < 1 ? .02 : .0003 + .00002 * Math.exp(Math.min(a, 100) / 11);
+export const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
 
-function initPop() {
+export function initPop() {
   const T0 = 7e9, f = a => a < 15 ? 1.72 : a < 65 ? 1.62 - .0156 * (a - 15) : .8 * Math.exp(-(a - 65) / 12);
   let sum = 0; for (let a = 0; a <= 100; a++) sum += f(a);
   const c = [[], [], [], []];
@@ -39,9 +42,9 @@ function initPop() {
   for (let s = 0; s < 4; s++) P.oth[s] = Math.max(0, E[s] - J[s]);
   P.pop0 = tot.n; stepEcon(30, true);
 }
-function jobsFac() { const P = state.pop, J = [0, 0, 0, 0]; for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FACT_W * GOODS[g].mix[s]; return J; }
-function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
-function totals() {
+export function jobsFac() { const P = state.pop, J = [0, 0, 0, 0]; for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FACT_W * GOODS[g].mix[s]; return J; }
+export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
+export function totals() {
   const P = state.pop, t = {n: 0, un: 0, st: 0, emp: 0, wf: 0, S: [0, 1, 2, 3].map(() => ({n: 0, un: 0, wf: 0, emp: 0}))};
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; t.n += x.n; t.S[s].n += x.n;
@@ -50,11 +53,11 @@ function totals() {
   }
   return t;
 }
-function unRate(s) { const t = totals().S[s]; return t.wf > 0 ? t.un / t.wf : 0; }
-function popTaxDay() { return state.pop ? state.pop.tax : 3e5; }
-function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); return kind === 'emp' ? w : kind === 'un' ? w * .3 : w * .4; }
+export function unRate(s) { const t = totals().S[s]; return t.wf > 0 ? t.un / t.wf : 0; }
+export function popTaxDay() { return state.pop ? state.pop.tax : 3e5; }
+export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); return kind === 'emp' ? w : kind === 'un' ? w * .3 : w * .4; }
 
-function stepDemog(dt) { // dt в днях (месяц)
+export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360;
   const wel = P.wel || {};
   let b = 0, d = 0;
@@ -67,10 +70,10 @@ function stepDemog(dt) { // dt в днях (месяц)
   }
   P.c[0][0].n += b; P.c[0][0].st += b; P.birth = b / f; P.death = d / f; P.bornY += b; P.diedY += d;
 }
-function parentInc(s) { // средний доход занятых 30–50 лет страты
+export function parentInc(s) { // средний доход занятых 30–50 лет страты
   const w = state.pop.wage[s]; return w;
 }
-function stepAge() {
+export function stepAge() {
   const P = state.pop, nw = [[], [], [], []];
   for (let s = 0; s < 4; s++) { for (let a = 0; a <= 100; a++) nw[s][a] = {n: 0, un: 0, st: 0}; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const x = P.c[s][a], b = nw[s][Math.min(100, a + 1)]; b.n += x.n; b.un += x.un; b.st += x.st; }
@@ -90,7 +93,7 @@ function stepAge() {
   // рождаемость за год (сброс счётчиков)
   P.bornY = 0; P.diedY = 0;
 }
-function stepEcon(dt, init) {
+export function stepEcon(dt, init) {
   const P = state.pop, t = totals();
   // 1) безработица и зарплаты
   for (let s = 0; s < 4; s++) { const u = t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf : 0; P.wage[s] = BASEW[s] * clampN(1.3 - 2 * u, .5, 1.4); }
@@ -158,7 +161,7 @@ function stepEcon(dt, init) {
     }
   }
 }
-function popTick(h) {
+export function popTick(h) {
   const P = state.pop; if (!P) return;
   P.acc += h; if (P.acc < 30) return;
   const dt = P.acc; P.acc = 0;
@@ -168,8 +171,8 @@ function popTick(h) {
 }
 
 /* --- вкладка «Население» --- */
-const popUi = {s: 1, a: 42};
-function refreshPop() {
+export const popUi = {s: 1, a: 42};
+export function refreshPop() {
   const p = $('p-pop'); if (!p || !state.pop) return;
   if (!p._built) {
     p._built = true;
@@ -198,9 +201,9 @@ function refreshPop() {
     ['Шанс смерти в год', fmtN(mortQ(a) * (1 + 3 * (1 - P.wel[s][a])) * 100, 2) + '%'], ['Рождаемость на человека в год', a >= 20 && a < 40 ? fmtN(.056 * FERT[s] * (.6 + .4 * P.wel[s][a]) * 100, 1) + '%' : '—'], ['Довольство', fmtN(P.wel[s][a] * 100, 0) + '%']]);
   drawPyr();
 }
-function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }
-function sumSt(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].st; return n; }
-function drawPyr() {
+export function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }
+export function sumSt(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].st; return n; }
+export function drawPyr() {
   const cv = $('pp-cv'); if (!cv) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, P = state.pop;
   g.clearRect(0, 0, W, H); let mx = 1; for (let a = 0; a <= 100; a++) { let n = 0; for (let s = 0; s < 4; s++) n += P.c[s][a].n; mx = Math.max(mx, n); }
   const rh = (H - 10) / 101;

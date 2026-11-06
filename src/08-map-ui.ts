@@ -1,39 +1,43 @@
 // @ts-nocheck
+import { BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
+import { Battle, raidChip } from './05-battle.ts';
+import { hooks } from './00-hooks.ts';
 
 /* ===== UI: ОБЩЕЕ ===== */
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-const ui = {dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
+export const $ = id => document.getElementById(id);
+export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+export const ui = {dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
-function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }
-function groupOpts(sel, withNone, withNew) {
+export function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }
+export function groupOpts(sel, withNone, withNew) {
   let h = '';
   if (withNone) h += `<option value="">Без группы</option>`;
   h += state.groups.filter(g => !g.corp).map(g => `<option value="${g.id}"${g.id === sel ? ' selected' : ''}>${esc(g.name)}</option>`).join('');
   if (withNew) h += `<option value="new">+ Новая группа</option>`;
   return h;
 }
-const stOpts = sel => state.stations.map(s => `<option value="st:${s.id}"${'st:' + s.id === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
-const targetOpts = sel => `<optgroup label="Тела">${bodyOpts(sel)}</optgroup>` + (state.stations.length ? `<optgroup label="Станции">${stOpts(sel)}</optgroup>` : '');
-const baseOpts = sel => `<option value="earth"${sel === 'earth' ? ' selected' : ''}>Земля</option><option value="nearest"${sel === 'nearest' ? ' selected' : ''}>Ближайшая станция или Земля</option>` + state.stations.map(s => `<option value="st:${s.id}"${'st:' + s.id === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
-const bodyOpts = (sel, only) => BODIES.filter(b => !b.comet && (b.kind !== 'sun' || only === 'sci') && (!only || (only === 'ast' ? (b.kind === 'ast' || b.kind === 'moon') && Object.keys(b.ores).length && canShipMine(b.id) : only === 'sci' ? b.sci : b.kind === only)))
+export const stOpts = sel => state.stations.map(s => `<option value="st:${s.id}"${'st:' + s.id === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+export const targetOpts = sel => `<optgroup label="Тела">${bodyOpts(sel)}</optgroup>` + (state.stations.length ? `<optgroup label="Станции">${stOpts(sel)}</optgroup>` : '');
+export const baseOpts = sel => `<option value="earth"${sel === 'earth' ? ' selected' : ''}>Земля</option><option value="nearest"${sel === 'nearest' ? ' selected' : ''}>Ближайшая станция или Земля</option>` + state.stations.map(s => `<option value="st:${s.id}"${'st:' + s.id === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+export const bodyOpts = (sel, only) => BODIES.filter(b => !b.comet && (b.kind !== 'sun' || only === 'sci') && (!only || (only === 'ast' ? (b.kind === 'ast' || b.kind === 'moon') && Object.keys(b.ores).length && canShipMine(b.id) : only === 'sci' ? b.sci : b.kind === only)))
   .map(b => `<option value="${b.id}"${b.id === sel ? ' selected' : ''}>${b.name}</option>`).join('');
 
 /* ===== ПОЯСА ===== */
-function mkBelt(n, a0, a1, col, maxK, seed) {
+export function mkBelt(n, a0, a1, col, maxK, seed) {
   let s = seed; const rn = () => (s = (s * 16807) % 2147483647) / 2147483647, p = [];
   for (let i = 0; i < n; i++) p.push({a: a0 + (a1 - a0) * (rn() + rn()) / 2, ang: rn() * 6.2832, s: rn() < 0.08 ? 2 : 1});
   return {p, col, maxK};
 }
-const BELTS = [mkBelt(2600, 2.1, 3.3, 'rgba(150,160,175,0.55)', 0, 12345), mkBelt(1800, 30, 50, 'rgba(120,140,170,0.5)', 14, 777)];
+export const BELTS = [mkBelt(2600, 2.1, 3.3, 'rgba(150,160,175,0.55)', 0, 12345), mkBelt(1800, 30, 50, 'rgba(120,140,170,0.5)', 14, 777)];
 
 /* ===== ШАПКА ===== */
-function buildHeader() {
+export function buildHeader() {
   $('speeds').innerHTML = `<button class="btn" id="bpause" title="Пауза (пробел)"></button>` +
     SPEEDS.map((s, i) => `<button class="btn" data-sp="${i}" title="Клавиша ${i + 1}">${s.l}/с</button>`).join('');
 }
-function refreshHeader() {
+export function refreshHeader() {
   $('clock').textContent = fmtDate(state.t);
   const bp = $('bpause'); bp.textContent = state.paused ? '▶ Пуск' : '⏸ Пауза'; bp.classList.toggle('on', state.paused);
   document.querySelectorAll('[data-sp]').forEach(b => b.classList.toggle('on', !state.paused && +b.dataset.sp === state.speedIdx));
@@ -42,24 +46,24 @@ function refreshHeader() {
 }
 
 /* ===== КАРТА ===== */
-const cv = $('map'), cx = cv.getContext('2d');
-let W = 300, H = 300;
-function resizeMap() {
+export const cv = $('map'), cx = cv.getContext('2d');
+export let W = 300, H = 300;
+export function resizeMap() {
   const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
   W = r.width; H = r.height;
   cv.width = Math.max(1, Math.round(W * d)); cv.height = Math.max(1, Math.round(H * d));
   cx.setTransform(d, 0, 0, d, 0, 0);
   if (!ui.camInit && W > 50) { fitMap(); ui.camInit = true; }
 }
-function fitMap() { ui.follow = false; ui.cam.x = 0; ui.cam.y = 0; ui.cam.k = Math.min(W, H) / 2 / 3.4; }
-function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k + H / 2]; }
-function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / ui.cam.k + ui.cam.y}; }
+export function fitMap() { ui.follow = false; ui.cam.x = 0; ui.cam.y = 0; ui.cam.k = Math.min(W, H) / 2 / 3.4; }
+export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k + H / 2]; }
+export function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / ui.cam.k + ui.cam.y}; }
 
-function shipScreen(s, i) {
+export function shipScreen(s, i) {
   const [x, y] = w2s(s);
   return s.at ? [x + 7, y - 7 - (i % 3) * 5] : [x, y];
 }
-function drawMap() {
+export function drawMap() {
   cx.clearRect(0, 0, W, H);
   cx.fillStyle = '#070a10'; cx.fillRect(0, 0, W, H);
   const [sx, sy] = w2s({x: 0, y: 0});
@@ -158,7 +162,7 @@ function drawMap() {
   }
   cx.lineWidth = 1;
 }
-function pickAt(mx, my) {
+export function pickAt(mx, my) {
   let best = null, bd = 12;
   state.ships.forEach((s, i) => {
     const [x, y] = shipScreen(s, i), d = Math.hypot(x - mx, y - my);
@@ -177,9 +181,9 @@ function pickAt(mx, my) {
   }
   return best;
 }
-const AU_KM = 149597870.7;
-function focusBattle() { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; ui.follow = false; ui.cam.k = Math.min(W, H * 1.6) / 1500 * AU_KM; }
-function drawBattleLayer() {
+export const AU_KM = 149597870.7;
+export function focusBattle() { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; ui.follow = false; ui.cam.k = Math.min(W, H * 1.6) / 1500 * AU_KM; }
+export function drawBattleLayer() {
   const p = objPos('earth', state.t), [bx, by] = w2s(p), kk = ui.cam.k / AU_KM;
   if (kk * 1500 >= 5) Battle.draw(cx, bx, by, kk, 1);
   if (kk * 3000 < 160) {
@@ -188,19 +192,19 @@ function drawBattleLayer() {
     cx.fillStyle = '#ff6a5e'; cx.font = '12px system-ui'; cx.fillText('⚔ БОЙ', bx + 20, by - 12);
   }
 }
-function selPos() {
+export function selPos() {
   const s = ui.sel;
   if (s.kind === 'ship') { const x = state.ships.find(q => q.id === s.id); return x ? {x: x.x, y: x.y} : null; }
   return objPos(s.kind === 'station' ? 'st:' + s.id : s.id, state.t);
 }
-function focusSel(keepZoom) {
+export function focusSel(keepZoom) {
   const p = selPos(); if (!p) return;
   ui.cam.x = p.x; ui.cam.y = p.y;
   const s = ui.sel, b = s.kind === 'body' ? BODY[s.id] : null;
   if (!keepZoom) ui.cam.k = Math.max(ui.cam.k, b && b.kind === 'moon' ? b.r * 6000 > 4000 ? 60000 : 400000 : 600);
 }
-function select(sel) {
-  ui.sel = sel; renderObj(); showTab('obj');
+export function select(sel) {
+  ui.sel = sel; renderObj(); hooks.showTab('obj');
 }
 (function mapEvents() {
   let drag = null, moved = false;
@@ -247,8 +251,8 @@ function select(sel) {
 })();
 
 /* ===== ПАНЕЛЬ «ОБЪЕКТ» ===== */
-const actGroupSel = () => `<div class="row"><select id="actGroup">${groupOpts(ui.edit && ui.edit.kind === 'group' ? ui.edit.id : null, false, true)}</select></div>`;
-function renderObj() {
+export const actGroupSel = () => `<div class="row"><select id="actGroup">${groupOpts(ui.edit && ui.edit.kind === 'group' ? ui.edit.id : null, false, true)}</select></div>`;
+export function renderObj() {
   const p = $('p-obj');
   if (ui.sel.kind === 'ship') {
     const s = state.ships.find(x => x.id === ui.sel.id);
@@ -285,8 +289,8 @@ function renderObj() {
   }
   refreshObj();
 }
-function bar(frac, cls) { return `<span class="bar ${cls || ''}"><i style="width:${Math.max(0, Math.min(1, frac)) * 100}%"></i></span>`; }
-function refreshObj() {
+export function bar(frac, cls) { return `<span class="bar ${cls || ''}"><i style="width:${Math.max(0, Math.min(1, frac)) * 100}%"></i></span>`; }
+export function refreshObj() {
   const od = $('od'); if (!od) return;
   const mk = k => `<button class="btn sm" data-a="mark" data-k="${k}">${state.marks[k] ? '★ Снять отметку' : '☆ Отметить'}</button>`;
   if (ui.sel.kind === 'ship') {
@@ -358,7 +362,7 @@ function refreshObj() {
 }
 
 /* ===== ФЛОТ И ЖУРНАЛ ===== */
-function refreshFleet() {
+export function refreshFleet() {
   const p = $('p-fleet');
   let h = '';
   if (myStations().length) h += '<h2>Станции</h2>' + myStations().map(st => `<div class="ship${ui.sel.kind === 'station' && ui.sel.id === st.id ? ' sel' : ''}" data-st="${st.id}">
@@ -375,6 +379,6 @@ function refreshFleet() {
   }).join('');
   p.innerHTML = h + '<div class="help">Полосы корабля: топливо (синяя), груз (оранжевая), состояние (зелёная).</div>';
 }
-function refreshLog() {
+export function refreshLog() {
   $('p-log').innerHTML = state.log.slice(0, 80).map(l => `<div><span class="t">${fmtDate(l.t).slice(0, 10)}</span>${esc(l.msg)}</div>`).join('') || '<div class="help">Пока тихо.</div>';
 }

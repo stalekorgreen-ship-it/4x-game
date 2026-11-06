@@ -1,7 +1,10 @@
 // @ts-nocheck
+import { RES, compOf, dist, fmtN, log, mkKey, rec, state } from './01-data.ts';
+import { effSkill, officerById } from './02-crew.ts';
+import { W, bar, cx, focusBattle, ui } from './08-map-ui.ts';
 
 /* ===== БОЙ (движок боя из демо) ===== */
-const Battle = (() => {
+export const Battle = (() => {
 const $b = id => document.getElementById(id);
 
 const DOPT={hc:20,dd:20,fr:35,cv:100},JINK=0.0015,VP=6,LIFE=10,RANGE=VP*LIFE,SIGMA=0.02,LAUNCH=450,SUB=0.25,REL=60;
@@ -331,7 +334,7 @@ return {begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,h
 })();
 
 /* ===== НАЛЁТЫ ===== */
-function raidSpecs(k) {
+export function raidSpecs(k) {
   const sp = (name, o) => Object.assign({name, rails: 0, flak: 0, arm: 2, eng: 3, L: 0.7, F: 0, B: 0, sk: 4 + Math.min(4, k * 0.5), dmg: 0, spd: 1, ref: null}, o);
   const out = [], rails = 8 + 3 * k, arm = 2 + Math.floor(k / 2);
   const RC = (cal, bar, ld, saf, n) => Array(n).fill(compOf(mkKey('rail', {cal, bar, ld, saf})).rcfg);
@@ -343,29 +346,29 @@ function raidSpecs(k) {
   if (k >= 2) out.push(sp('Налётчик-авианосец', {late: true, rails: 4, arm, eng: 4, L: 2.2, F: 10 * (1 + Math.floor(k / 2)), B: 5 * Math.floor(k / 2)}));
   return out;
 }
-function specFromShip(s) {
+export function specFromShip(s) {
   const st = s.st, cmd = effSkill(s, 'cmd');
   return {name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (st.L < 1 ? 1.25 : 1),
     railCfg: st.railList, flakCfg: st.flakList, defl: st.defl, fq: st.fq, bq: st.bq};
 }
-function removeShip(s) {
+export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }
   state.ships = state.ships.filter(x => x !== s);
   if (ui.sel.kind === 'ship' && ui.sel.id === s.id) ui.sel = {kind: 'body', id: 'earth'};
 }
-function plunder() {
+export function plunder() {
   const f = Math.min(0.5, 0.2 + 0.05 * state.raid.k), lost = [];
   for (const k of ['fe', 'ni', 'ti', 'cu', 'si', 'c', 'pt', 'ree', 'fuel', 'spares']) {
     const v = Math.floor((state.stock[k] || 0) * f); if (v > 0) { state.stock[k] -= v; rec(k, 'out', v, 'raid'); lost.push(`${v} ${k === 'fuel' ? 'топлива' : k === 'spares' ? 'тех. изд.' : RES[k] || k}`); }
   }
   log(`Налётчики разграбили Землю: потеряно ${Math.round(f * 100)}% запасов (${lost.slice(0, 4).join(', ')}…). Постройте боевые корабли и держите их на Земле.`);
 }
-function nextRaid() {
+export function nextRaid() {
   const r = state.raid; r.k++; r.eta = state.t + 90 + Math.random() * 60; r.warned = false; r.active = false; state.inBattle = false;
   for (const s of state.ships) s.inB = false;
 }
-function startRaid() {
+export function startRaid() {
   const r = state.raid, enemy = raidSpecs(r.k);
   const def = state.ships.filter(s => s.st.warship && s.at === 'earth' && !s.towedBy);
   const first = enemy.filter(e => !e.late), late = enemy.filter(e => e.late);
@@ -375,7 +378,7 @@ function startRaid() {
   ui.bfollow = true; focusBattle();
 }
 // корабли, пришедшие на помощь во время боя, вступают в него; бой идёт в игровом времени
-function battleTick(h) {
+export function battleTick(h) {
   for (const s of state.ships) {
     if (s.inB || !s.st.warship || s.at !== 'earth' || s.towedBy) continue;
     s.inB = true; Battle.join(0, specFromShip(s), 1500);
@@ -384,7 +387,7 @@ function battleTick(h) {
   Battle.tick(h * 86400);
   if (Battle.isDone()) Battle.finish();
 }
-function applyRaid(res) {
+export function applyRaid(res) {
   const lostNames = [];
   for (const r of res.mine) {
     const s = state.ships.find(x => x.id === r.ref); if (!s) continue;
@@ -400,7 +403,7 @@ function applyRaid(res) {
   } else log(`Налётчики отступили. Потери: ${lostNames.length ? lostNames.join(', ') : 'нет'}. Повреждённые корабли чинятся на Земле.`);
   nextRaid();
 }
-function raidTick(h) {
+export function raidTick(h) {
   const r = state.raid; if (!r) return;
   if (r.active) { battleTick(h); return; }
   for (const s of state.ships) {
@@ -423,7 +426,7 @@ function raidTick(h) {
   }
   if (state.t >= r.eta) startRaid();
 }
-function raidChip() {
+export function raidChip() {
   const r = state.raid; if (!r) return '';
   if (r.active) return `<span class="chip" style="border-color:var(--bad);color:var(--bad)"><b>⚔ Бой у Земли</b>${Math.floor(Battle.time() / 60)} мин</span>`;
   if (r.warned) return `<span class="chip" style="border-color:var(--bad);color:var(--bad)"><b>Налёт</b>через ${fmtN(Math.max(0, r.eta - state.t))} сут</span>`;

@@ -1,7 +1,13 @@
 // @ts-nocheck
+import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
+import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
+import { academyInterval, buildTick, produceSci, sciTick, yardSlots, yardSpeed } from './03-build.ts';
+import { Battle, raidTick } from './05-battle.ts';
+import { PRICE, corpBuyFuel, corpById, corpChargeLoad, corpMine, corpSellToEarth, corpTank, corpTick, initCorps, wipeCorps } from './06-corps.ts';
+import { initPop } from './07-population.ts';
 
 /* ===== СИМУЛЯЦИЯ ===== */
-function advance(days) {
+export function advance(days) {
   while (days > 1e-9) {
     const h = Math.min(days, Battle.active() ? 1 / 86400 : 1 / 48);
     state.t += h;
@@ -12,7 +18,7 @@ function advance(days) {
   }
 }
 
-function yardTick(h) {
+export function yardTick(h) {
   const CAP = yardSlots();
   let active = state.yard.filter(j => j.started).length;
   for (const j of state.yard) {
@@ -40,12 +46,12 @@ function yardTick(h) {
 }
 
 /* --- базы: Земля и станции --- */
-const isBase = id => id === 'earth' || isSt(id);
-const freeStore = st => st.st.cargoCap - storeTotal(st);
-function stationUseful(st) {
+export const isBase = id => id === 'earth' || isSt(id);
+export const freeStore = st => st.st.cargoCap - storeTotal(st);
+export function stationUseful(st) {
   return freeStore(st) > 0.5 || (st.st.xfer && st.fuel > 0.5) || (st.st.repair && st.spares > 0.5) || st.st.spareCap - st.spares > 0.5;
 }
-function resolveBase(s, base) {
+export function resolveBase(s, base) {
   if (!base || base === 'earth') return 'earth';
   if (base === 'nearest') {
     let best = 'earth', bd = dist(s, objPos('earth', state.t));
@@ -58,12 +64,12 @@ function resolveBase(s, base) {
   }
   return stById(base) ? base : 'earth';
 }
-function takeSpares(n) {
+export function takeSpares(n) {
   const got = Math.min(n, state.stock.spares);
   state.stock.spares -= got; rec('spares', 'out', got, 'spares');
   return got;
 }
-function serve(s, baseId) {
+export function serve(s, baseId) {
   const got = [];
   if (s.corp && baseId === 'earth') { corpSellToEarth(s); return; }
   { const cs = stById(baseId); if (cs && cs.corp) { corpBuyFuel(s, cs); return; } }
@@ -99,7 +105,7 @@ function serve(s, baseId) {
   }
 }
 // ремонт у базы; true — корабль занят ремонтом и ждёт
-function repairStep(s, h) {
+export function repairStep(s, h) {
   if (!s.at || !isBase(s.at) || shipCond(s) >= 99.5) return false;
   const st = isSt(s.at) ? stById(s.at) : null;
   if (st && !st.st.repair) return false;
@@ -110,7 +116,7 @@ function repairStep(s, h) {
 }
 
 /* --- правила --- */
-function checkRules(s, prog) {
+export function checkRules(s, prog) {
   for (const r of prog.rules || []) {
     if (r.cond === 'cargo' && s.st.cargoCap > 0 && cargoTotal(s) > 0 && cargoTotal(s) / s.st.cargoCap * 100 >= r.val - 1e-6) return r;
     if (r.cond === 'fuel' && s.fuel / s.st.fuelCap * 100 <= r.val) return r;
@@ -122,24 +128,24 @@ function checkRules(s, prog) {
   }
   return null;
 }
-const RULE_NAME = {cargo: 'трюм заполнен', fuel: 'мало топлива', fuelhome: 'топлива в обрез до Земли', cond: 'сильный износ'};
+export const RULE_NAME = {cargo: 'трюм заполнен', fuel: 'мало топлива', fuelhome: 'топлива в обрез до Земли', cond: 'сильный износ'};
 
-function shipTick(s, h) {
+export function shipTick(s, h) {
   shipTickInner(s, h);
   syncTow(s);
 }
-function syncTow(s) {
+export function syncTow(s) {
   if (!s.towing) return;
   const e = isSt(s.towing) ? stById(s.towing) : shById(s.towing);
   if (!e) { s.towing = null; return; }
   e.x = s.x; e.y = s.y; e.at = s.at; e.towedBy = s.id;
 }
-function finishOrder(s) {
+export function finishOrder(s) {
   s.tmp = null;
   if (s.interrupt) s.interrupt = null;
   else { s.pc++; s.wait = null; }
 }
-function shipTickInner(s, h) {
+export function shipTickInner(s, h) {
   if (s.inB) { s.status = 'В бою'; return; }
   if (s.towedBy) { s.status = 'На буксире'; return; }
   if (s.at) { const p = objPos(s.at, state.t); s.x = p.x; s.y = p.y; }
@@ -173,7 +179,7 @@ function shipTickInner(s, h) {
 }
 
 /* --- движение --- */
-function travel(s, tid, h) {
+export function travel(s, tid, h) {
   if (s.at === tid) return true;
   if (s.at && !s.corp) { // на старте: хватит ли топлива долететь и вернуться к ближайшей базе
     const P = objPos(tid, state.t), fpa = fuelPerAU(s) * 1.1;
@@ -215,7 +221,7 @@ function travel(s, tid, h) {
 }
 
 /* --- буксир --- */
-function releaseTow(s) {
+export function releaseTow(s) {
   if (!s.towing) return;
   const e = isSt(s.towing) ? stById(s.towing) : shById(s.towing);
   if (e) {
@@ -226,7 +232,7 @@ function releaseTow(s) {
 }
 
 /* --- приказы --- */
-function execOrder(s, o, h) {
+export function execOrder(s, o, h) {
   switch (o.type) {
     case 'move':
       if (!o.target || (isSt(o.target) && !stById(o.target))) return true;
@@ -445,14 +451,14 @@ function execOrder(s, o, h) {
 }
 
 /* ===== СОХРАНЕНИЕ ===== */
-function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
-function loadGame() {
+export function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+export function loadGame() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
     if (!s || !s.ships || !s.designs || !s.stations) return false;
-    state = s; state.inBattle = false; state.terra = state.terra || {};
+    setState(s); state.inBattle = false; state.terra = state.terra || {};
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 2) wipeCorps();
     if (!state.corps) { state.money = state.money || 5e7; initCorps(); }
