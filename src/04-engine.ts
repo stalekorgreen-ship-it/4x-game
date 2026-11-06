@@ -474,5 +474,5 @@ export function loadGame() {
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }
     for (const b of BODIES) if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores};
     return true;
-  } catch (e) { return false; }
+  } catch (e) { console.error('loadGame', e); return false; }
 }
