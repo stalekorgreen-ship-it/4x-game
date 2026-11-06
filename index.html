@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Пояс 4X</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+</head><body>
+
+<header id="top">
+  <h1>Пояс</h1>
+  <div id="clock">—</div>
+  <div class="speeds" id="speeds" role="group" aria-label="Скорость времени"></div>
+  <div id="stock"></div>
+</header>
+<main>
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="mapctl">
+      <button class="btn sm" data-map="earth">К Земле</button>
+      <button class="btn sm" data-map="fit">Вся система</button>
+      <button class="btn sm" data-map="labels" id="btnLabels">Подписи</button>
+      <button class="btn sm" data-map="in" aria-label="Приблизить">+</button><button class="btn sm" data-map="out" aria-label="Отдалить">−</button>
+      <button class="btn sm" data-map="sel">На объекте</button><button class="btn sm" data-map="follow" id="btnFollow">Следить</button><button class="btn sm on" data-map="belts" id="btnBelts">Пояса</button>
+    </div>
+    <div id="maphint">Колесо или +/−: масштаб · Перетаскивание: сдвиг · Клик: выбрать</div>
+  </div>
+  <aside id="side">
+    <div id="tabs" role="tablist">
+      <button class="tab on" data-tab="obj">Объект</button>
+      <button class="tab" data-tab="orders">Приказы</button>
+      <button class="tab" data-tab="yard">Верфь</button>
+      <button class="tab" data-tab="earth">Земля</button>
+      <button class="tab" data-tab="corp">Корпорации</button>
+      <button class="tab" data-tab="pop">Население</button>
+      <button class="tab" data-tab="find">Поиск</button>
+      <button class="tab" data-tab="sci">Наука</button>
+      <button class="tab" data-tab="off">Офицеры</button>
+      <button class="tab" data-tab="fleet">Флот</button>
+      <button class="tab" data-tab="log">Журнал</button>
+    </div>
+    <section class="panel" id="p-obj"></section>
+    <section class="panel" id="p-orders" hidden></section>
+    <section class="panel" id="p-yard" hidden></section>
+    <section class="panel" id="p-earth" hidden></section>
+    <section class="panel" id="p-corp" hidden></section>
+    <section class="panel" id="p-pop" hidden></section>
+    <section class="panel" id="p-find" hidden></section>
+    <section class="panel" id="p-sci" hidden></section>
+    <section class="panel" id="p-off" hidden></section>
+    <section class="panel" id="p-fleet" hidden></section>
+    <section class="panel log" id="p-log" hidden></section>
+  </aside>
+</main>
+
+<div id="battle" hidden>
+  <div class="bhead"><h3 id="btitle">Бой</h3><button class="btn" id="bgo">К бою</button><button class="btn on" id="bas">Замедление в догфайте</button><button class="btn" id="bpm">Снаряды: точки</button></div>
+  <div id="bstats"></div><div id="binfo" hidden></div>
+  <div class="help">Бой идёт на карте у Земли: приблизьте Землю колесом мыши или нажмите «К бою». Клик по кораблю — броня и модули. Подкрепление вступает в бой, как только прибудет на Землю.</div>
+</div>
+
+<div id="stats" hidden>
+  <div class="dwin" role="dialog" aria-label="Ресурсы" style="width:min(1100px,100%)">
+    <div class="dhead"><h3>Ресурсы: приток и расход</h3><button class="btn" id="sclose">Закрыть</button></div>
+    <div class="sbody"><div class="row"><span class="speeds" id="stab"><button class="btn sm on" data-v="table">Сводка по всем ресурсам</button><button class="btn sm" data-v="chart">График ресурса</button></span><span class="speeds" id="sper"></span></div>
+      <div id="stable"></div>
+      <div id="schartwrap" hidden><div class="row"><select id="sres" class="grow" aria-label="Ресурс"></select></div>
+      <div class="sleg"><span><i style="background:var(--good)"></i>Приток: <b id="sin"></b></span><span><i style="background:var(--accent)"></i>Расход: <b id="sout"></b></span></div>
+      <div id="schart"></div></div>
+      <div class="help">Приток — добыча кораблями и шахтами, выпуск заводов, трофеи. Расход — стройка, верфь, заводы, заправка, тех. изделия кораблям, потери от налётов. Щёлкните по названию ресурса в таблице, чтобы открыть его график.</div></div>
+  </div>
+</div>
+
+<div id="designer" hidden>
+  <div class="dwin" role="dialog" aria-label="Конструктор кораблей">
+    <div class="dhead"><h3>Конструктор кораблей</h3><button class="btn" id="dclose">Закрыть</button></div>
+    <div class="dbody">
+      <div class="dcol"><h2>Проекты</h2><div class="dl" id="dlist"></div>
+        <button class="btn" id="dnew">Новый проект</button><button class="btn" id="dcopy">Копировать</button><button class="btn danger" id="ddel">Удалить</button></div>
+      <div class="dcol"><div class="row"><input type="text" id="dname" class="grow" aria-label="Название проекта"></div><div class="flags" id="dflags"></div><h2>Компоненты</h2><div class="dl" id="dcomps"></div></div>
+      <div class="dcol"><h2>Характеристики</h2><div id="dstats"></div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body></html>
