@@ -35,7 +35,7 @@ export const COMP = {
   armor: {name:'Броневая плита', desc:'+1 слой брони на каждом секторе корабля', armor:1, mass:20, cost:{fe:40, ti:10}},
   rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:10, cu:8, ti:4}},
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
-  lgun:  {name:'Боевой лазер', desc:'Бьёт мгновенно на огромное расстояние, но жрёт много энергии и долго заряжается', lgun:1, mass:16, cost:{fe:20, cu:24, si:16, ree:4}},
+  lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:240, cu:290, si:190, ree:48}},
   missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:14, cu:10, ti:6, si:6}},
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
@@ -353,15 +353,15 @@ export function rec(k, dir, v, cat) {
 }
 export const STAT_IN = {ship: 'Добыча кораблями', mine: 'Добыча шахтами', plant: 'Заводы (выпуск)', loot: 'Трофеи', corp: 'Покупка у корпораций', old: 'Прочее'};
 // --- боевой лазер ---
-export const LAS_D = {s: {dmg: 2, m: 9}, m: {dmg: 4, m: 16}, l: {dmg: 8, m: 30}};
+export const LAS_D = {s: {dmg: 2, m: 150}, m: {dmg: 4, m: 450}, l: {dmg: 8, m: 1200}};
 export const LAS_R = {n: 150, m: 250, f: 400};
-export const mkLas = (pw, fr) => ({dmg: LAS_D[pw].dmg, rng: LAS_R[fr], chg: 0.05 * LAS_D[pw].dmg});
+export const mkLas = (pw, fr) => ({dmg: LAS_D[pw].dmg, rng: LAS_R[fr], chg: 0.02 * LAS_D[pw].dmg});
 COMP.lgun.opts = [O('pw', 'Мощность', 'm', [['s', 'малая ×½'], ['m', 'средняя'], ['l', 'большая ×2']]), O('fr', 'Фокусировка', 'm', [['n', 'ближняя 150 км'], ['m', 'средняя 250 км'], ['f', 'дальняя 400 км']])];
 COMP.lgun.ap = (c, s) => {
-  const D = LAS_D[s.pw.v], k = D.dmg / 4; c.mass = D.m * (s.fr.v === 'f' ? 1.3 : s.fr.v === 'n' ? 0.85 : 1);
-  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * k * (s.fr.v === 'f' ? 1.4 : 1)));
+  const D = LAS_D[s.pw.v], k = D.dmg / 4; c.mass = Math.round(D.m * (s.fr.v === 'f' ? 1.6 : s.fr.v === 'n' ? 0.8 : 1));
+  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * k * 12 * (s.fr.v === 'f' ? 1.5 : 1)));
   c.lcfg = mkLas(s.pw.v, s.fr.v); c.name = `Лазер ${D.dmg} ед. / ${c.lcfg.rng} км`;
-  c.desc = `урон ${D.dmg}, дальность ${c.lcfg.rng} км, мгновенный; выстрел на дальности стоит энергии ~ квадрат расстояния (на 150 км ≈ ${Math.round(D.dmg * (0.4 + 1.56))}, перезарядка ${Math.round(D.dmg * (0.4 + 1.56) / c.lcfg.chg)} с)`;
+  c.desc = `урон ${D.dmg}, дальность ${c.lcfg.rng} км, линза ${{n: 30, m: 60, f: 100}[s.fr.v]} м, реактор и конденсаторы — сотни тонн; цена выстрела растёт как квадрат расстояния, перезарядка на полной дальности ${Math.round(D.dmg * (0.4 + Math.pow(c.lcfg.rng / 120, 2)) / c.lcfg.chg / 60)} мин`;
 };
 // --- ракеты ---
 export const MIS_A = {l: {hp: 1, m: 0.7, n: 'лёгкая'}, m: {hp: 2, m: 1, n: 'средняя'}, h: {hp: 3, m: 1.5, n: 'тяжёлая'}};
