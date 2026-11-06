@@ -3,7 +3,7 @@ import { BODIES, BODY, RES, canShipMine, designStats, dist, fmtN, fuelPerAU, isS
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
 import { GOODS, popTaxDay, popTick } from './07-population.ts';
-import { SPECIALTY, canBuildShips, newCiv, payBuild } from './10-civil.ts';
+import { SHIP_K, SPECIALTY, canBuildShips, newCiv, payBuild } from './10-civil.ts';
 import { $, esc, setHtml } from './08-map-ui.ts';
 /* ===== КОРПОРАЦИИ: конкуренты, начинающие с Земли ===== */
 export const PRICE = {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500};
@@ -144,12 +144,12 @@ export function corpTick(h) {
     }
     if (state.t - c.last < 6 || !canBuildShips(c) || c.credits < 3e7) continue;
     const mine = state.ships.filter(s => s.corp === c.id), nM = mine.filter(s => s.role === 'm').length, nT = mine.filter(s => s.role === 't').length, sts = ownStations(c), nS = sts.length;
-    const mc = costCr(c.parts) * 1.1, tc = costCr(CORP_TANKER), sc = stationCr();
-    if (nM < 3 + 3 * nS && c.credits >= mc * c.aggr) { if (payBuild(c, mc)) { c.last = state.t; createCorpShip(c, 'm'); } }
+    const mc = costCr(c.parts) * 1.1 * SHIP_K, tc = costCr(CORP_TANKER) * SHIP_K, sc = stationCr() * SHIP_K;
+    if (nM < 3 + 3 * nS && c.credits >= mc * c.aggr) { if (payBuild(c, mc, 60)) { c.last = state.t; createCorpShip(c, 'm'); } }
     else if (nM >= 3 && nS < 5 && c.credits >= (sc + tc) * 1.5 * c.aggr) {
       const spot = pickStationSpot(c);
-      if (spot && payBuild(c, sc)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc)) createCorpShip(c, 't'); }
-    } else if (nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc)) { c.last = state.t; createCorpShip(c, 't'); } }
+      if (spot && payBuild(c, sc, 200)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc, 90)) createCorpShip(c, 't'); }
+    } else if (nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc, 90)) { c.last = state.t; createCorpShip(c, 't'); } }
   }
 }
 export function pickStationSpot(c) {
@@ -203,7 +203,7 @@ export function corpChargeLoad(s, before, st) {
 export function refreshCorp() {
   const p = $('p-corp'); if (!p || !state.corps) return;
   const P = state.pop, fm = (n, d = 2) => fmtN(n, d);
-  let h = `<div class="box"><h2>Корпорации</h2><div class="help">Корпорации начинают с Земли с двумя заводами и своей шахтой. Они сами строят новые заводы на выручку, торгуют на рынке по самой низкой цене, а лишнее сырьё продают. Когда копят достаточно, строят коммерческую верфь (очень дорого). Остальные покупают у владельца постройку кораблей и станций с наценкой 50%, и он зарабатывает на этом. Кто первым строит новое, тот получает преимущество в цене. Налоги Земли: +${fmtN(popTaxDay())} кр/сут. Кредиты игрока: <b>${fmtN(state.money)}</b></div></div>`;
+  let h = `<div class="box"><h2>Корпорации</h2><div class="help">Корпорации начинают с Земли с двумя заводами и своей шахтой. Они сами строят новые заводы на выручку, торгуют на рынке по самой низкой цене, а лишнее сырьё продают. Когда копят достаточно, строят коммерческую верфь: минимум 1000 т (около 800 т стали и 200 т прочего), это очень дорого и окупается годами. Верфь строит один заказ за раз: миньер ~60 суток, танкер ~90, станция ~200. Остальные покупают у владельца постройку кораблей и станций с наценкой 50%, и он зарабатывает на этом. Кто первым строит новое, тот получает преимущество в цене. Налоги Земли: +${fmtN(popTaxDay())} кр/сут. Кредиты игрока: <b>${fmtN(state.money)}</b></div></div>`;
   if (P && P.price) h += `<div class="box"><h2>Рынок товаров</h2><div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr><th style="text-align:left">Товар</th><th style="text-align:left">Цена ×</th><th style="text-align:left">Лучшая цена корпорации</th></tr>${Object.keys(GOODS).map(g => { const prs = state.corps.filter(c => c.civ && c.civ.pr[g] && c.civ.fac[g]).map(c => c.civ.pr[g]); return `<tr><td>${GOODS[g].n}</td><td>${fm(P.price[g])}</td><td>${prs.length ? fm(Math.min(...prs)) : '—'}</td></tr>`; }).join('')}</table></div></div>`;
   for (const c of [...state.corps].sort((a, b) => b.sold - a.sold)) {
     const sts = ownStations(c), ships = state.ships.filter(s => s.corp === c.id);

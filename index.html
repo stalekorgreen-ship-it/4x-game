@@ -6,6 +6,7 @@
 </head><body>
 
 <header id="top">
+  <div id="iconbar"></div>
   <h1>Пояс</h1>
   <div id="clock">—</div>
   <div class="speeds" id="speeds" role="group" aria-label="Скорость времени"></div>
@@ -24,25 +25,15 @@
     <div id="maphint">Колесо или +/−: масштаб · Перетаскивание: сдвиг · Клик: выбрать</div>
   </div>
   <aside id="side">
-    <div id="tabs" role="tablist">
-      <button class="tab on" data-tab="obj">Объект</button>
-      <button class="tab" data-tab="orders">Приказы</button>
-      <button class="tab" data-tab="yard">Верфь</button>
-      <button class="tab" data-tab="earth">Земля</button>
-      <button class="tab" data-tab="corp">Корпорации</button>
-      <button class="tab" data-tab="pop">Население</button>
-      <button class="tab" data-tab="find">Поиск</button>
-      <button class="tab" data-tab="sci">Наука</button>
-      <button class="tab" data-tab="off">Офицеры</button>
-      <button class="tab" data-tab="fleet">Флот</button>
-      <button class="tab" data-tab="log">Журнал</button>
-    </div>
+    <div id="subtabs" role="tablist"></div>
     <section class="panel" id="p-obj"></section>
     <section class="panel" id="p-orders" hidden></section>
     <section class="panel" id="p-yard" hidden></section>
     <section class="panel" id="p-earth" hidden></section>
     <section class="panel" id="p-corp" hidden></section>
     <section class="panel" id="p-pop" hidden></section>
+    <section class="panel" id="p-comp" hidden></section>
+    <section class="panel" id="p-work" hidden></section>
     <section class="panel" id="p-find" hidden></section>
     <section class="panel" id="p-sci" hidden></section>
     <section class="panel" id="p-off" hidden></section>

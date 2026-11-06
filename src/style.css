@@ -14,6 +14,12 @@ button,select,input{font:inherit;color:inherit}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
 #top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+#iconbar{display:flex;gap:4px;flex-wrap:wrap}
+.ico{display:flex;flex-direction:column;align-items:center;gap:1px;width:54px;padding:4px 2px 3px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--muted);cursor:pointer;font-size:9px;line-height:1.1}
+.ico:hover{color:var(--fg);border-color:#3a4d6a}
+.ico.on{color:var(--accent);border-color:var(--accent);background:var(--panel2)}
+.ico svg{display:block}
+#subtabs{display:flex;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel2)}
 #top h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 #clock{font-family:var(--mono);font-size:14px;min-width:150px}
 .speeds{display:flex;gap:4px;flex-wrap:wrap}

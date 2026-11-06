@@ -4,7 +4,7 @@ import { state, log, rec, fmtN } from './01-data.ts';
 import { GOODS, FACT_W, PROD, RAW_PER, FACT_COST, BASEW, clampN } from './07-population.ts';
 import { PRICE } from './06-corps.ts';
 
-export const MINE_COST = 5e7, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 6e8;
+export const MINE_COST = 5e7, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
 export const SPECIALTY = ['food', 'elec', 'wear', 'pow'];
 export const newCiv = (spec) => ({fac: {[spec]: 2}, mines: {[GOODS[spec].raw]: 1}, yard: 0, pr: {}, mp: {}, sold: {}, cap: {}, unitc: {}, comp: {}, month: 0, built: 0});
 const corpsAll = () => state.corps || [];
@@ -20,10 +20,15 @@ export function civJobs() {
   return J;
 }
 // Оплата постройки корабля: своя верфь — по себестоимости, чужая — плюс 50% владельцу верфи.
-export function payBuild(c, cost) {
-  if (c.civ.yard) { if (c.credits < cost) return false; c.credits -= cost; return true; }
-  const o = yardOwners()[0]; if (!o || c.credits < cost * 1.5) return false;
-  c.credits -= cost * 1.5; o.credits += cost * 1.5; o.civ.fees = (o.civ.fees || 0) + cost * .5; return true;
+// Верфь строит по одному заказу за раз: пока занята, новые заказы ждут (days — срок постройки).
+export function payBuild(c, cost, days) {
+  const own = c.civ.yard ? c : null, o = own || yardOwners().filter(x => state.t >= (x.civ.busy || 0))[0];
+  if (!o || state.t < (o.civ.busy || 0)) return false;
+  const price = own ? cost : cost * 1.5;
+  if (c.credits < price) return false;
+  c.credits -= price; o.civ.busy = state.t + days;
+  if (!own) { o.credits += price; o.civ.fees = (o.civ.fees || 0) + cost * .5; }
+  return true;
 }
 export function goodsMarket(g, D, legCap, staff) {
   const P = state.pop, S = [{id: 'leg', cap: legCap, price: 1}];
@@ -103,7 +108,7 @@ function civTick(c, mk, dt) {
   if (!v.yard && avail > YARD_COST * 1.2 && (!hasYard() || avail > YARD_COST * 8)) {
     c.credits -= YARD_COST; v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); return;
   }
-  if (!hasYard() && tot >= 20) return; // копят на верфь
+  if (!hasYard() && tot >= 40) return; // копят на верфь
   // сырьё: нет шахты — строят
   let g = null, best = -1;
   for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }

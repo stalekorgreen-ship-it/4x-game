@@ -7,6 +7,7 @@ import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
 import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
+import { buildShell, refreshComp, refreshWork, syncShell } from './11-shell.ts';
 import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
 /* ===== ПАНЕЛЬ «ПРИКАЗЫ» ===== */
@@ -419,8 +420,8 @@ export function crewChange(el) {
 /* ===== ВКЛАДКИ, СОБЫТИЯ, ЦИКЛ ===== */
 export function showTab(name) {
   ui.tab = name;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
+  syncShell(name);
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();
@@ -428,6 +429,8 @@ export function showTab(name) {
   if (name === 'earth') refreshEarth();
   if (name === 'corp') refreshCorp();
   if (name === 'pop') refreshPop();
+  if (name === 'comp') refreshComp();
+  if (name === 'work') refreshWork();
   if (name === 'sci') refreshScience();
   if (name === 'find') renderFind();
   if (name === 'fleet') refreshFleet();
@@ -522,6 +525,8 @@ export function frame(now) {
     else if (ui.tab === 'earth') refreshEarth();
     else if (ui.tab === 'corp') refreshCorp();
     else if (ui.tab === 'pop') refreshPop();
+    else if (ui.tab === 'comp') refreshComp();
+    else if (ui.tab === 'work') refreshWork();
     else if (ui.tab === 'sci') refreshScience();
   }
   requestAnimationFrame(frame);
@@ -531,7 +536,7 @@ export function frame(now) {
   buildHeader(); addNewGameButton();
   $('btnLabels').classList.add('on');
   new ResizeObserver(resizeMap).observe($('mapwrap')); resizeMap();
-  showTab('obj'); refreshHeader();
+  buildShell(); showTab('obj'); refreshHeader();
   setInterval(saveGame, 5000);
   window.addEventListener('pagehide', saveGame);
   requestAnimationFrame(frame);
