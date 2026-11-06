@@ -57,6 +57,26 @@ export function refreshHeader() {
 /* ===== КАРТА ===== */
 export const cv = $('map'), cx = cv.getContext('2d');
 export let W = 300, H = 300;
+
+// звёздное небо: [x, y, яркость, параллакс, цвет, размер]
+const STARS = (() => { const r = []; let h = 12345; const rnd = () => (h = (h * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; const cols = ['#ffffff', '#cfe3ff', '#ffe8c8', '#ffd0d0']; for (let i = 0; i < 260; i++) r.push([rnd(), rnd(), .25 + rnd() * .6, rnd() * .012, cols[(rnd() * 4) | 0], rnd() < .9 ? 1 : 2]); return r; })();
+const PCOL = {earth: ['#3d7fd8', '#5fae6a'], venus: ['#e6c27a', '#c9985a'], mars: ['#d0714f', '#8c3f2a'], luna: ['#cfd3da', '#8a8f99']};
+function drawBall(x, y, r, col, sx, sy, b) {
+  const pc = PCOL[b.id] || [col, col], a = Math.atan2(sy - y, sx - x), lx = x + Math.cos(a) * r * .45, ly = y + Math.sin(a) * r * .45;
+  const g = cx.createRadialGradient(lx, ly, r * .1, x, y, r * 1.05); g.addColorStop(0, pc[0]); g.addColorStop(.7, pc[1] || pc[0]); g.addColorStop(1, '#05070b');
+  cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill();
+  if (r > 6 && ['earth', 'venus', 'mars'].includes(b.id)) { cx.strokeStyle = b.id === 'earth' ? 'rgba(120,180,255,.45)' : b.id === 'venus' ? 'rgba(255,220,150,.4)' : 'rgba(255,150,110,.25)'; cx.lineWidth = Math.max(1, r * .08); cx.beginPath(); cx.arc(x, y, r + cx.lineWidth * .5, 0, 7); cx.stroke(); cx.lineWidth = 1; }
+}
+// размер значка корабля по массе (в пикселях)
+function shipSize(s) { const m = Math.max(1, (s.st && s.st.dry) || 100); return Math.max(4, Math.min(13, 1.8 * Math.log10(m) + 1)); }
+function drawShipGlyph(x, y, sz, a, col, moving, s) {
+  cx.save(); cx.translate(x, y); cx.rotate(a);
+  if (moving) { const g = cx.createLinearGradient(-sz * .6, 0, -sz * 1.8, 0); g.addColorStop(0, 'rgba(255,200,120,.9)'); g.addColorStop(1, 'rgba(255,120,40,0)'); cx.fillStyle = g; cx.beginPath(); cx.moveTo(-sz * .6, -sz * .22); cx.lineTo(-sz * 1.8, 0); cx.lineTo(-sz * .6, sz * .22); cx.fill(); }
+  cx.fillStyle = col; cx.strokeStyle = 'rgba(0,0,0,.55)'; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(sz, 0); cx.lineTo(sz * .1, -sz * .5); cx.lineTo(-sz * .7, -sz * .42); cx.lineTo(-sz * .6, 0); cx.lineTo(-sz * .7, sz * .42); cx.lineTo(sz * .1, sz * .5); cx.closePath(); cx.fill(); cx.stroke();
+  if (s && s.st && s.st.cargoCap > 0 && sz >= 6) { cx.fillStyle = 'rgba(0,0,0,.35)'; cx.fillRect(-sz * .45, -sz * .18, sz * .55, sz * .36); }
+  cx.restore();
+}
 export function resizeMap() {
   const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
   W = r.width; H = r.height;
@@ -74,7 +94,8 @@ export function shipScreen(s, i) {
 }
 export function drawMap() {
   cx.clearRect(0, 0, W, H);
-  cx.fillStyle = '#070a10'; cx.fillRect(0, 0, W, H);
+  { const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * .75); g.addColorStop(0, '#0b1220'); g.addColorStop(1, '#04060b'); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
+  { const k = ui.cam.k; for (const q of STARS) { const x = ((q[0] * W - ui.cam.x * k * q[3]) % W + W) % W, y = ((q[1] * H - ui.cam.y * k * q[3]) % H + H) % H; cx.globalAlpha = q[2] * (.75 + .25 * Math.sin(performance.now() / 900 + q[0] * 50)); cx.fillStyle = q[4]; cx.fillRect(x, y, q[5], q[5]); } cx.globalAlpha = 1; }
   const [sx, sy] = w2s({x: 0, y: 0});
   // орбиты
   cx.lineWidth = 1;
@@ -101,7 +122,8 @@ export function drawMap() {
     cx.strokeStyle = '#1b2a40'; cx.beginPath(); cx.arc(px, py, b.r * ui.cam.k, 0, 7); cx.stroke();
   }
   // солнце
-  cx.fillStyle = '#f2c14e'; cx.beginPath(); cx.arc(sx, sy, 5, 0, 7); cx.fill();
+  { const sr = Math.max(5, Math.min(300, 696000 / AU_KM * ui.cam.k)), g = cx.createRadialGradient(sx, sy, sr * .5, sx, sy, sr * 5); g.addColorStop(0, 'rgba(255,200,90,.55)'); g.addColorStop(.3, 'rgba(255,170,60,.16)'); g.addColorStop(1, 'rgba(255,150,40,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(sx, sy, sr * 5, 0, 7); cx.fill();
+    const g2 = cx.createRadialGradient(sx - sr * .25, sy - sr * .25, 0, sx, sy, sr); g2.addColorStop(0, '#fff3c4'); g2.addColorStop(1, '#f2a33a'); cx.fillStyle = g2; cx.beginPath(); cx.arc(sx, sy, sr, 0, 7); cx.fill(); }
   const selB = ui.sel.kind === 'body' ? ui.sel.id : null;
   // тела
   cx.font = '11px "IBM Plex Sans",sans-serif'; cx.textBaseline = 'middle';
@@ -123,7 +145,9 @@ export function drawMap() {
       const o = state.ast[b.id], left = Object.values(o).reduce((a, c) => a + c, 0);
       if (left < 1) col = '#3a3f4a';
     }
-    cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill();
+    if (b.kind !== 'ast' && !b.comet && b.d) r = Math.max(r, Math.min(600, b.d / 2 / AU_KM * ui.cam.k));
+    if (b.kind !== 'ast' && r >= 3) drawBall(x, y, r, col, sx, sy, b);
+    else { cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill(); }
     if (b.kind === 'hub') { cx.strokeStyle = '#e3a94f'; cx.beginPath(); cx.arc(x, y, r + 4, 0, 7); cx.stroke(); }
     if (selB === b.id) { cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, r + 7, 0, 7); cx.stroke(); }
     if (b.sci && b.kind === 'ast') { cx.strokeStyle = '#a77be0'; cx.setLineDash([2, 3]); cx.beginPath(); cx.arc(x, y, r + 4, 0, 7); cx.stroke(); cx.setLineDash([]); }
@@ -159,18 +183,9 @@ export function drawMap() {
       cx.strokeStyle = col; cx.globalAlpha = .55; cx.setLineDash([3, 4]);
       cx.beginPath(); cx.moveTo(x, y); cx.lineTo(dx, dy); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
     }
-    cx.fillStyle = col;
-    cx.beginPath();
-    if (s.at) { cx.rect(x - 2.5, y - 2.5, 5, 5); }
-    else {
-      const [dx, dy] = s.dest ? w2s(objPos(s.dest, state.t + (s.eta || 0))) : [x + 1, y];
-      const a = Math.atan2(dy - y, dx - x);
-      cx.moveTo(x + Math.cos(a) * 6, y + Math.sin(a) * 6);
-      cx.lineTo(x + Math.cos(a + 2.5) * 5, y + Math.sin(a + 2.5) * 5);
-      cx.lineTo(x + Math.cos(a - 2.5) * 5, y + Math.sin(a - 2.5) * 5);
-    }
-    cx.fill();
-    if (ui.sel.kind === 'ship' && ui.sel.id === s.id) { cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 9, 0, 7); cx.stroke(); }
+    { const sz = shipSize(s), dest = s.dest && !s.at ? w2s(objPos(s.dest, state.t + (s.eta || 0))) : null, a = dest ? Math.atan2(dest[1] - y, dest[0] - x) : -Math.PI / 2;
+      drawShipGlyph(x, y, sz, a, col, !!dest, s); }
+    if (ui.sel.kind === 'ship' && ui.sel.id === s.id) { cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, shipSize(s) + 6, 0, 7); cx.stroke(); }
   });
   if (Battle.active()) drawBattleLayer();
   // отметки
