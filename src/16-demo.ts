@@ -3,6 +3,11 @@
 import { state, log } from './01-data.ts';
 import { Battle } from './05-battle.ts';
 import { focusBattle, ui, setHtml, $ } from './08-map-ui.ts';
+import { BODIES, BODY } from './01-data.ts';
+import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
+import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
+import { colonyCost } from './14-climate.ts';
+import { advance } from './04-engine.ts';
 
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), TAU = Math.PI * 2;
 // шаблоны кораблей: [название, генератор спецификации]
@@ -76,6 +81,31 @@ export function refreshDemo() {
       <div class="row"><label>Сценарий <select id="dm-kind"><option value="random">Случайный</option>${Object.entries(SCENARIOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label></div>
       <div class="row"><label>Размер <select id="dm-size"><option value="1">Небольшой (4–10 кораблей на сторону)</option><option value="2" selected>Средний (12–40)</option><option value="3">Огромный (70–200)</option></select></label></div>
       <div class="row"><button class="btn on" id="dm-go">Посмотреть бой</button></div><div class="help">Кнопки «К бою» и «Закончить» появятся в окне боя внизу. Скорость времени регулируется обычными кнопками сверху.</div></div>`;
+    p.insertAdjacentHTML('beforeend', `<div class="box"><h2>Зрелая система</h2><div class="help">Заселяет 11 планет, спутников и астероидов (всего около 100 млрд человек) и запускает по 100 кораблей у каждой из 20 корпораций (≈2000 штук). Нужно, чтобы посмотреть, как выглядит и как тянет большая система. Текущая игра изменится: после просмотра нажмите «Новая игра».</div><div class="row"><button class="btn" id="dm-mature">Создать зрелую систему</button></div><div class="help" id="dm-msg"></div></div>`);
+    p.addEventListener('click', e => { if (e.target.id === 'dm-mature') { $('dm-msg').textContent = 'Считаю, подождите несколько секунд…'; setTimeout(() => { const r = matureSystem(); $('dm-msg').textContent = `Готово: тел ${r.cols}, кораблей ${r.ships}. Нажмите «Пуск».`; ui.sel = {kind: 'body', id: 'earth'}; }, 30); } });
     p.addEventListener('click', e => { if (e.target.id === 'dm-go') { startDemo($('dm-kind').value, +$('dm-size').value); } });
   }
+}
+
+// Зрелая система: 12 заселённых тел, ~100 млрд человек, тысячи кораблей корпораций. Только для просмотра, лучше начать потом «Новую игру».
+export function matureSystem() {
+  const want = ['venus', 'mars', 'luna', 'phobos', 'deimos', 'ceres', 'vesta', 'pallas', 'hygiea', 'eros', 'davida'];
+  const pool = BODIES.filter(b => COLONIZABLE(b.id) && !b.comet && !b.gen && !state.cols[b.id]).sort((a, b) => (b.d || 0) - (a.d || 0)).map(b => b.id);
+  const ids = want.filter(id => BODY[id] && COLONIZABLE(id) && !state.cols[id]);
+  for (const id of pool) { if (ids.length >= 11) break; if (!ids.includes(id)) ids.push(id); }
+  const total = 100e9 - 9.6e9, T0 = total / ids.length;
+  for (const id of ids) {
+    const I = colInfo(id), b = BODY[id], per = colonyCost(id).per;
+    mkCol(id, b.name, T0, {f: earthF, fs: 1, cover: 1, hab: Math.round(T0 * 1.4), dist: I.dist, seed: 0, kind: b.kind});
+    state.cols[id].infra = Math.round(T0 * 1.4 / per);
+  }
+  let n = 0;
+  for (const c of state.corps) {
+    c.credits = 1e13;
+    for (let i = 0; i < 100; i++) { createCorpShip(c, i % 8 === 7 ? 't' : 'm'); n++; }
+    for (let i = 0; i < 2; i++) { const sp = pickStationSpot(c); if (sp) createCorpStation(c, sp); }
+  }
+  for (let i = 0; i < 160; i++) advance(.25); // разлетаются по системе
+  log(`Демо «зрелая система»: заселено тел ${ids.length}, население ~100 млрд, кораблей корпораций ${n}.`);
+  return {cols: ids.length, ships: n};
 }

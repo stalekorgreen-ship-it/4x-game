@@ -84,25 +84,38 @@ export const allBases = () => [{id: 'earth', at: 'earth', fuel: 1e9}].concat(sta
 export const basePos = b => objPos(b.id, state.t);
 
 /* --- ИИ рудокопа: те же правила, что у игрока (топливо, дальность, станции) --- */
+let _mp = {k: '', v: null};
+function minePool() {
+  const k = Math.floor(state.t / 2) + ':' + state.stations.length;
+  if (_mp.k === k) return _mp.v;
+  const v = [];
+  for (const b of BODIES) {
+    if (b.kind !== 'ast' || b.comet || !canShipMine(b.id) || !state.ast[b.id]) continue;
+    const ores = state.ast[b.id]; let tot = 0, val = 0, se = 0;
+    for (const kk in ores) { tot += ores[kk]; const e = ores[kk] > 0 ? veinEff(b.id, kk, ores[kk], (b.ores && b.ores[kk]) || ores[kk]) : 0; se += e; val += e * (PRICE[kk] || 30) * (allowBuy(kk, PRICE[kk] || 30) > 0 ? 1 : 0.3); }
+    if (tot < 800 || se < .05) continue; val = val / se * Math.min(1, .5 + se / 2);
+    const P = objPos(b.id, state.t); let Rc = null, Rk = -1;
+    v.push({id: b.id, P, tot, val, R: bases => { if (Rk !== state.stations.length || Rc === null) { Rc = 1e9; for (const x of bases) Rc = Math.min(Rc, dist(P, basePos(x))); Rk = state.stations.length; } return Rc; }});
+  }
+  _mp = {k, v}; return v;
+}
 export function corpMine(s, h) {
   const T = s.tmp || (s.tmp = {ph: 'plan'}), E = objPos('earth', state.t);
   if (T.ph === 'plan') {
+    if (T.wait > state.t) return false;
     if (!isBase(s.at)) { T.ph = 'back'; return false; }
     serve(s, s.at);
     const fpa = fuelPerAU(s) * 1.7, c = corpById(s.corp), bases = allBases();
     let best = null, bs = 0;
-    for (const b of BODIES) {
-      if (b.kind !== 'ast' || b.comet || !canShipMine(b.id) || !state.ast[b.id]) continue;
-      const ores = state.ast[b.id]; let tot = 0, val = 0, se = 0;
-      for (const k in ores) { tot += ores[k]; const e = ores[k] > 0 ? veinEff(b.id, k, ores[k], (b.ores && b.ores[k]) || ores[k]) : 0; se += e; val += e * (PRICE[k] || 30) * (allowBuy(k, PRICE[k] || 30) > 0 ? 1 : 0.3); }
-      if (tot < 800 || se < .05) continue; val = val / se * Math.min(1, .5 + se / 2);
-      const P = objPos(b.id, state.t), d1 = dist(s, P);
-      let R = 1e9; for (const x of bases) R = Math.min(R, dist(P, basePos(x)));
+    const cd = minePool();
+    for (const q of cd) {
+      const P = q.P, d1 = dist(s, P);
+      let R = q.R(bases);
       if ((d1 + R) * fpa > s.fuel) continue;
-      const sc = Math.min(val * s.st.cargoCap, val * tot) / (d1 + R + 0.3);
-      if (sc > bs) { bs = sc; best = b.id; }
+      const sc = Math.min(q.val * s.st.cargoCap, q.val * q.tot) / (d1 + R + 0.3);
+      if (sc > bs) { bs = sc; best = q.id; }
     }
-    if (!best) { s.status = 'Нет достижимых целей: нужны станции дозаправки'; return false; }
+    if (!best) { s.status = 'Нет достижимых целей: нужны станции дозаправки'; T.wait = state.t + 3; return false; }
     T.tgt = best; T.ph = 'out';
   }
   if (T.ph === 'out') { if (!travel(s, T.tgt, h)) return false; T.ph = 'mine'; }
@@ -110,6 +123,7 @@ export function corpMine(s, h) {
   if (T.ph === 'back') {
     const fpa = fuelPerAU(s) * 1.1;
     if (!T.dest || s.at === T.dest) {
+      if (T.wait > state.t) return false;
       T.dest = null;
       if (s.at === 'earth') { serve(s, 'earth'); s.tmp = {ph: 'plan'}; return false; }
       if (isSt(s.at)) serve(s, s.at);
@@ -117,7 +131,7 @@ export function corpMine(s, h) {
       else {
         let best = null, bd = 1e9;
         for (const x of state.stations) { if (x.towedBy || x.fuel < 5) continue; const p = objPos('st:' + x.id, state.t); if (dist(s, p) * fpa > s.fuel || x === stById(s.at)) continue; const d = dist(p, E); if (d < bd) { bd = d; best = 'st:' + x.id; } }
-        if (!best) { s.status = 'Нет топлива до базы: ждёт спасения'; return false; }
+        if (!best) { s.status = 'Нет топлива до базы: ждёт спасения'; T.wait = state.t + 3; return false; }
         T.dest = best;
       }
     }
@@ -202,7 +216,13 @@ export function corpTick(h) {
     } else if (hasXfer(c) && nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc, 90)) { c.last = state.t; createCorpShip(c, 't'); } }
   }
 }
+let _psc = {k: '', v: null};
 export function pickStationSpot(c) {
+  const k = Math.floor(state.t) + ':' + state.stations.length;
+  if (_psc.k === k) return _psc.v;
+  const v = pickStationSpot0(c); _psc = {k, v}; return v;
+}
+function pickStationSpot0(c) {
   const used = new Set(state.stations.map(x => x.at)), bases = allBases(), tfpa = designStats(CORP_TANKER); // дальность танкера
   const tank = designStats(CORP_TANKER), trange = tank.range * 0.4;
   let best = null, bs = 0;

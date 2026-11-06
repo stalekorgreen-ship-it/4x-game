@@ -50,7 +50,7 @@ export function relinkCols() {
   for (const c of state.corps || []) { Object.defineProperty(c, 'home', {value: c.civ, writable: true, configurable: true, enumerable: false}); for (const id in (c.civs || {})) c.civs[id].tech = c.civ.tech; }
 }
 
-const earthF = a => a < 15 ? 1.72 : a < 65 ? 1.62 - .0156 * (a - 15) : .8 * Math.exp(-(a - 65) / 12);
+export const earthF = a => a < 15 ? 1.72 : a < 65 ? 1.62 - .0156 * (a - 15) : .8 * Math.exp(-(a - 65) / 12);
 const settlerF = a => a < 15 ? .3 : a < 20 ? .5 : a < 50 ? 1.6 : a < 65 ? .5 : .1;
 export function initPop() { state.cols = {}; state.ctx = 'earth'; mkCol('earth', 'Земля', 7e9, {f: earthF, fs: 1, cover: 1, hab: 0, dist: 1, seed: 0}); }
 export function mkCol(id, name, T0, o) {

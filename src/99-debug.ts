@@ -9,3 +9,4 @@ window.__game.Battle = Battle; window.__game.startRaid = startRaid; window.__gam
 import { ui } from './08-map-ui.ts'; window.__game.ui = ui;
 import { startDemo } from './16-demo.ts'; window.__game.startDemo = startDemo;
 import { advance } from './04-engine.ts'; import { drawMap } from './08-map-ui.ts'; window.__game.advance = advance; window.__game.drawMap = drawMap;
+import { matureSystem } from './16-demo.ts'; window.__game.matureSystem = matureSystem;

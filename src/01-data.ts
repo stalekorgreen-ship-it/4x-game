@@ -272,10 +272,27 @@ export const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const isSt = id => typeof id === 'string' && id.startsWith('st:');
 export const isSh = id => typeof id === 'string' && id.startsWith('sh:');
 export const myShips = () => state.ships.filter(s => !s.corp), myStations = () => state.stations.filter(s => !s.corp);
-export const stById = id => state.stations.find(s => 'st:' + s.id === id);
-export const shById = id => state.ships.find(s => 'sh:' + s.id === id);
+let _ix = {t: -1, ns: -1, nh: -1, st: null, sh: null, st0: null, sh0: null};
+function ix() {
+  const I = _ix;
+  if (I.t !== state.t || I.ns !== state.stations.length || I.nh !== state.ships.length || I.st0 !== state.stations || I.sh0 !== state.ships) {
+    I.t = state.t; I.ns = state.stations.length; I.nh = state.ships.length; I.st0 = state.stations; I.sh0 = state.ships;
+    I.st = new Map(); I.sh = new Map(); I.ab = null;
+    for (const s of state.stations) I.st.set('st:' + s.id, s);
+    for (const s of state.ships) I.sh.set('sh:' + s.id, s);
+  }
+  return I;
+}
+export const stById = id => ix().st.get(id);
+export const shById = id => ix().sh.get(id);
 export function earthAng(t) { const e = BODY.earth; return e.ang + 2 * Math.PI * t / 365.25; }
+let _opT = NaN, _opC = new Map();
 export function objPos(id, t) {
+  if (t !== _opT) { _opT = t; _opC = new Map(); }
+  let r = _opC.get(id); if (r) return r;
+  r = objPos0(id, t); if (!isSh(id)) _opC.set(id, r); return r;
+}
+function objPos0(id, t) {
   if (isSt(id)) { const s = stById(id); if (!s) return {x: 0, y: 0}; return s.at ? objPos(s.at, t) : {x: s.x, y: s.y}; }
   if (isSh(id)) { const s = shById(id); return s ? {x: s.x, y: s.y} : {x: 0, y: 0}; }
   const b = BODY[id];
