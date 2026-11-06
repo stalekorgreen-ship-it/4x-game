@@ -120,7 +120,10 @@ function agg() {
   for (const id in T) { const t = T[id] && BYID[id]; if (!t || !t.eff) continue; for (const k in t.eff) { cv.m[k] = (cv.m[k] || 1) * (1 + t.eff[k]); cv.a[k] = (cv.a[k] || 0) + t.eff[k]; } }
   return cv;
 }
-export const tm = k => agg().m[k] || 1;
+// бонусы построек за каждый уровень
+export const BEFF = {market: {rpcost: -.05}, crusher: {mine: .08}, techpark: {prod: .03}, composite: {cargo: .05}, enginefab: {thrust: .05}, spaceport: {fare: -.04, fspeed: .08}, colbureau: {infra: -.05}, testrange: {fail: -.06}, repairdock: {repair: .2}, trainctr: {train: .2}, miningsch: {mining: .06}, hospital: {death: -.03}, maternity: {birth: .04}};
+const bmod = k => { const B = state && state.bld; if (!B) return 1; let v = 0; for (const t in BEFF) if (BEFF[t][k] && B[t]) v += BEFF[t][k] * B[t]; return Math.max(.1, 1 + v); };
+export const tm = k => (agg().m[k] || 1) * bmod(k);
 export const ta = k => agg().a[k] || 0;
 // --- карточки ---
 export const OFFER_N = 3;

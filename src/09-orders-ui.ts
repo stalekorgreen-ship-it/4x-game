@@ -2,7 +2,7 @@
 import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
+import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -325,14 +325,14 @@ export function renderDesigner(full) {
 
 /* ===== ПАНЕЛЬ «ЗЕМЛЯ» ===== */
 export function refreshEarth() {
-  const S = state.stock, B = state.bld;
+  const S = state.stock, B = state.bld; for (const t in BLD) if (B[t] == null) B[t] = 0;
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
   let h = `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}</span>`).join('')}</div>
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
   h += '<div class="box"><h2>Здания</h2>' + Object.entries(BLD).map(([t, b]) => {
-    const have = b.level ? `уровень ${B[t]}/${b.max}` : `${B[t]} шт.`, c = bldCost(t), can = bldCanAdd(t);
-    return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.</div>
+    const have = b.level ? `уровень ${B[t] || 0}/${b.max}` : `${B[t] || 0} шт.${b.max ? ' (до ' + b.max + ')' : ''}`, c = bldCost(t), can = bldCanAdd(t), gate = bldGate(t);
+    return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.${gate ? ` <span class="warn">${gate}</span>` : ''}</div>
       <div class="row"><span class="grow muted">${costTxt(c)} · ${b.days} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
   }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
   h += `<div class="box"><h2>Строится (2 бригады)</h2>` + (state.build.map(j => `<div class="row"><span style="min-width:120px">${BLD[j.type].name}</span>${j.started ? bar(1 - j.left / j.total) + `<span class="mono">${fmtDur(j.left)}</span>` : `<span class="warn grow">${stockOK(bldCost(j.type)) ? 'ждёт бригаду' : 'не хватает: ' + lackTxt(bldCost(j.type))}</span><button class="btn sm danger" data-a="bcancel" data-id="${j.id}">Отмена</button>`}</div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>';
