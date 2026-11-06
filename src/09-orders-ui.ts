@@ -288,7 +288,7 @@ export function renderDesigner(full) {
     <span>Груз</span><span>${fmtN(s.cargoCap)} т</span><span>Добыча</span><span>${fmtN(s.mine)} т/сут</span>
     <span>Экипаж: нужно / мест</span><span>${s.crewNeed} / ${s.crewCap}</span><span>Жизнеобеспечение</span><span>на ${s.lifeCap}</span>
     ${s.tow ? `<span>Буксир</span><span>до ${fmtN(s.tow)} т</span>` : ''}${s.xfer ? '<span>Передача топлива</span><span>есть</span>' : ''}${s.repair ? '<span>Ремонтный док</span><span>есть</span>' : ''}${s.spareCap ? `<span>Склад тех. изделий</span><span>${fmtN(s.spareCap)}</span>` : ''}
-    ${s.warship ? `<span>Броня</span><span>${s.armor} слоёв</span><span>Рельсотроны / зенитки</span><span>${s.rail} / ${s.flak}</span>${s.rail ? `<span>Огневая мощь рельсов</span><span>${fmtN(s.fire, 2)} ур./мин · осечка ${(s.jam * 100).toFixed(1)}%</span>` : ''}${s.defl ? `<span>Отражение</span><span>${Math.round(s.defl * 100)}%</span>` : ''}<span>Манёвренность в бою</span><span>×${fmtN(s.bspd, 2)}</span><span>Истребители / бомбардировщики</span><span>${s.hangF} / ${s.hangB}</span><span>Длина корабля</span><span>${Math.round(s.L * 1000)} м</span>` : ''}
+    ${s.warship ? `<span>Броня</span><span>${s.armor} слоёв</span><span>Рельсотроны / зенитки</span><span>${s.rail} / ${s.flak}</span>${s.lgun || s.msl ? `<span>Лазеры / ракетные установки</span><span>${s.lgun} / ${s.msl}</span>` : ''}${s.rail ? `<span>Огневая мощь рельсов</span><span>${fmtN(s.fire, 2)} ур./мин · осечка ${(s.jam * 100).toFixed(1)}%</span>` : ''}${s.defl ? `<span>Отражение</span><span>${Math.round(s.defl * 100)}%</span>` : ''}<span>Манёвренность в бою</span><span>×${fmtN(s.bspd, 2)}</span><span>Истребители / бомбардировщики</span><span>${s.hangF} / ${s.hangB}</span><span>Длина корабля</span><span>${Math.round(s.L * 1000)} м</span>` : ''}
     <span>Стоимость</span><span class="${aff ? '' : 'warn'}">${costTxt(s.cost) || '—'}${aff ? '' : '<br>не хватает: ' + lackTxt(s.cost)}</span><span>Постройка</span><span>${s.buildDays} сут</span></div>` +
     (s.errors.length ? s.errors.map(e => `<div class="err">${e}</div>`).join('') : '<div class="ok">Проект готов к постройке.</div>') +
     s.warns.map(e => `<div class="warn">${e}</div>`).join('') +
@@ -586,7 +586,7 @@ export function frame(now) {
 (function init() {
   if (!loadGame()) newGame();
   buildHeader(); addNewGameButton();
-  $('btnLabels').classList.add('on');
+  $('btnLabels').classList.add('on'); ui.d3 = true;
   new ResizeObserver(resizeMap).observe($('mapwrap')); resizeMap();
   buildShell(); showTab('obj'); refreshHeader();
   setInterval(saveGame, 5000);

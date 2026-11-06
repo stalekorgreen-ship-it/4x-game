@@ -3,12 +3,13 @@
 import { state, log } from './01-data.ts';
 import { Battle } from './05-battle.ts';
 import { focusBattle, ui, setHtml, $ } from './08-map-ui.ts';
-import { BODIES, BODY } from './01-data.ts';
+import { BODIES, BODY, mkLas, mkMis } from './01-data.ts';
 import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
 
+const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), TAU = Math.PI * 2;
 // шаблоны кораблей: [название, генератор спецификации]
 const TYPES = {
@@ -18,6 +19,10 @@ const TYPES = {
   cruiser: n => ({name: 'Крейсер', rails: RI(14, 24), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(3, 4), spd: .9}),
   battleship: n => ({name: 'Линкор', rails: RI(30, 40), flak: 6, eng: 5, L: R(2.8, 3.4), arm: 5, spd: .7, defl: .1}),
   carrier: n => ({name: 'Авианосец', rails: 4, flak: 6, eng: 4, L: R(2.2, 2.8), arm: 3, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
+  laserCruiser: n => { const k = RI(3, 6), fr = Math.random() < .5 ? 'f' : 'm'; return {name: 'Лазерный крейсер', rails: RI(4, 8), flak: 4, lasers: k, laserCfg: LC(k, 'm', fr), eng: 4, L: R(1.6, 2), arm: 3, spd: .9}; },
+  laserBattleship: n => { const k = RI(4, 7); return {name: 'Лазерный линкор', rails: RI(8, 14), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 5, L: R(2.8, 3.4), arm: 5, spd: .7, defl: .1}; },
+  missileFrigate: n => { const k = RI(3, 6); return {name: 'Ракетный фрегат', rails: 2, flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 8), eng: 3, L: R(.5, .7), arm: 2, spd: 1.1}; },
+  missileCruiser: n => { const k = RI(4, 8); return {name: 'Ракетный крейсер', rails: RI(6, 12), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 16), eng: 4, L: R(1.5, 1.9), arm: 3, spd: .9}; },
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
@@ -26,6 +31,8 @@ const MIXES = {
   line: {destroyer: 4, cruiser: 3, frigate: 2, battleship: 1},
   heavy: {cruiser: 3, battleship: 3, carrier: 1, destroyer: 2, frigate: 1},
   carrier: {carrier: 2, frigate: 3, destroyer: 3, cruiser: 1},
+  lasers: {laserCruiser: 3, destroyer: 3, frigate: 1, laserBattleship: 1},
+  missiles: {missileFrigate: 4, missileCruiser: 2, destroyer: 2, frigate: 2},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 function fleet(n, mix, fid, speed) {
@@ -47,7 +54,7 @@ export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
   const ang0 = R(0, TAU), E = R(320, 480), late = [], fleets = [[], []];
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
-  const mixFor = n => n < 12 ? MIXES.light : n < 40 ? (Math.random() < .5 ? MIXES.line : MIXES.carrier) : (Math.random() < .5 ? MIXES.heavy : MIXES.line);
+  const mixFor = n => { const r = Math.random(); if (n >= 8 && r < .22) return MIXES.lasers; if (n >= 6 && r < .44) return MIXES.missiles; return n < 12 ? MIXES.light : n < 40 ? (Math.random() < .5 ? MIXES.line : MIXES.carrier) : (Math.random() < .5 ? MIXES.heavy : MIXES.line); };
   let title = SCENARIOS[kind].split(':')[0];
   if (kind === 'line') {
     for (const side of [0, 1]) { const n = total(size), m = mixFor(n); place(side, fleet(n, m, side, 1), ang0 + side * Math.PI, E, 0); }
@@ -65,7 +72,7 @@ export function makeScenario(kind, size) {
   }
   late.sort((a, b) => a.t - b.t);
   const cnt = [late.filter(x => x.side === 0).length, late.filter(x => x.side === 1).length];
-  return {title: `Бой-демо: ${title} (${cnt[0]} против ${cnt[1]})`, fleets, late, demo: true, maxT: 60000, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
+  return {title: `Бой-демо: ${title} (${cnt[0]} против ${cnt[1]})`, fleets, late, demo: true, maxT: 5400, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
 }
 export function startDemo(kind, size) {
   if (Battle.active()) return;

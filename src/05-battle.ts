@@ -11,10 +11,11 @@ const DOPT={hc:20,dd:20,fr:35,cv:100},JINK=0.0015,VP=6,LIFE=10,RANGE=VP*LIFE,SIG
 const FI={vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO={vmax:0.8,a:0.05,fuel:2200,hp:4};
 const TORP={sp:2.5,pd:0.02,pdr:35,launch:120,mod:2};
 const FLAK={range:60,blast:1.2};
-const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1},FC0={blast:1.2,rng:60,rel:1,fail:0};
+const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0={blast:1.2,rng:60,rel:1,fail:0},LC0={dmg:4,rng:250,chg:.2},MC0={hp:2,spd:3.2,dmg:4,blast:6,ammo:8,rng:220,rel:.83};
+const BURST={5:10,10:8,15:6,20:5},TILT=.55;
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
-let ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
+let mis=[],beams=[],bursts=[],d3=true,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
 let pend=[],lastFriend=0,vw={ox:0,oy:0,kk:1},active=false;
 const R=(a,b)=>a+Math.random()*(b-a);
 const gauss=()=>{let u=0;for(let i=0;i<4;i++)u+=Math.random();return (u-2)*1.73};
@@ -25,9 +26,13 @@ function mkShip(side,sp,x,y){
   const zones=ZN.map(()=>({arm:T.arm,mods:[]}));
   const add=(k,z)=>{const m={k,alive:true,sk:(k==='T'||k==='A')?Math.max(1,Math.min(10,Math.round((sp.sk||5.5)+gauss()*2))):0,cd:R(0,REL),z};zones[z].mods.push(m);return m};
   const tur=[];for(let i=0;i<sp.rails;i++){const m=add('T',i%4);m.cfg=(sp.railCfg&&sp.railCfg[i])||RC0;tur.push(m)}for(let i=0;i<sp.flak;i++){const m=add('A',(i+2)%4);m.cfg=(sp.flakCfg&&sp.flakCfg[i])||FC0;tur.push(m)}
+  for(let i=0;i<(sp.lasers||0);i++){const m=add('L',(i+1)%4);m.cfg=(sp.laserCfg&&sp.laserCfg[i])||LC0;tur.push(m)}
+  for(let i=0;i<(sp.miss||0);i++){const m=add('M',(i+3)%4);m.cfg=(sp.missCfg&&sp.missCfg[i])||MC0;m.ammo=m.cfg.ammo;tur.push(m)}
   for(let i=0;i<T.eng;i++)add('E',2);
-  const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+T.eng+1;
-  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp};
+  const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.lasers||0)+(sp.miss||0)+T.eng+1;
+  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0};
+  for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*m.cfg.rng/100;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
+  sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>m.cfg.rng));
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
     if(zi===0){m.u=.3+.06*(i%2);m.v=(i-(n-1)/2)*.16}else if(zi===2){m.u=-.4;m.v=(i-(n-1)/2)*.2}
     else{m.u=-.26+.52*(i+.5)/n;m.v=(zi===1?1:-1)*.2}});});
@@ -47,8 +52,8 @@ function addFlights(sh,ty,total){
     flights.push(fl)}
 }
 function reset(cfg){
-  hadContact=false;sepT=0;ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;sel=null;done=false;pend=(cfg.late||[]).map(x=>({...x}));lastFriend=0;
-  stat={shots:[0,0],hits:[0,0],torp:[0,0],torpHit:[0,0],torpPd:[0,0],flak:[0,0],flakKill:[0,0],lostF:[0,0],lostB:[0,0]};
+  hadContact=false;sepT=0;ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;sel=null;done=false;pend=(cfg.late||[]).map(x=>({...x}));lastFriend=0;
+  stat={las:[0,0],lasHit:[0,0],mis:[0,0],misHit:[0,0],misShot:[0,0],bfail:[0,0],shots:[0,0],hits:[0,0],torp:[0,0],torpHit:[0,0],torpPd:[0,0],flak:[0,0],flakKill:[0,0],lostF:[0,0],lostB:[0,0]};
   const X={dd:8,hc:2,fr:-4,cv:-12};
   cfg.fleets.forEach((list,side)=>{
     const dir=side?-1:1;
@@ -85,10 +90,10 @@ function around(side,x,y,rad){ // корабли стороны в радиус�
 const hpf=s=>s.aliveN/s.total;
 const val=s=>s.T.role==='freight'?.6:(VAL[s.cls]||1);
 function fleetsUpdate(){
-  for(const F of FL.values()){F.ships=[];F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
+  for(const F of FL.values()){F.ships=[];F.lrp=0;F.srp=0;F.lrR=0;F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
   for(const s of ships){if(!s.alive)continue;const key=s.side*1000+s.fid;let F=FL.get(key);
-    if(!F){F={ships:[],n:0,cx:0,cy:0,str:0,fr:0,key,side:s.side,fid:s.fid,next:0,stance:'engage',until:0,flank:Math.random()<.4?(Math.random()<.5?1:-1)*R(.7,1.2):0,tgt:null,focus:null,gx:s.x,gy:s.y,dx:s.side?-1:1,dy:0,slotsAt:-99,rng:40};FL.set(key,F)}
-    F.ships.push(s);F.n++;F.cx+=s.x;F.cy+=s.y;F.str+=s.aliveN*(1+val(s));if(s.T.role==='freight')F.fr++;s.F=F}
+    if(!F){F={ships:[],n:0,cx:0,cy:0,str:0,fr:0,key,side:s.side,fid:s.fid,next:0,stance:'engage',until:0,flank:Math.random()<.4?(Math.random()<.5?1:-1)*R(.7,1.2):0,tgt:null,focus:null,gx:s.x,gy:s.y,dx:s.side?-1:1,dy:0,slotsAt:-99,rng:40,lrp:0,srp:0,lrR:0,zl:(((s.side*3+s.fid)%3)-1)*14,wait0:-1};FL.set(key,F)}
+    F.ships.push(s);F.lrp+=s.lrp*hpf(s);F.srp+=s.srp*hpf(s);F.lrR=Math.max(F.lrR,s.lrR);F.n++;F.cx+=s.x;F.cy+=s.y;F.str+=s.aliveN*(1+val(s));if(s.T.role==='freight')F.fr++;s.F=F}
   for(const [k,F] of FL){if(!F.n){FL.delete(k);continue}F.cx/=F.n;F.cy/=F.n;F.convoy=F.fr>=F.n*.5}
   const all=[...FL.values()];
   for(const F of all){
@@ -102,7 +107,17 @@ function fleetsUpdate(){
     if(F.convoy)F.stance='convoy';
     else if(t<F.until&&F.stance==='retreat')F.stance='retreat';
     else if(ratio<brave&&dist<300&&t>(F.calm||0)){F.stance='retreat';F.until=t+R(25,45);F.calm=F.until+60}
-    else F.stance=dist>F.rng*2.5&&F.flank?'flank':'engage';
+    else{
+      let st=dist>F.rng*2.5&&F.flank?'flank':'engage';const E=bf;
+      if(F.lrp>8&&F.lrp>E.lrp*1.3&&F.lrp>=F.srp*.35){st='kite';F.hold=Math.max(60,F.lrR*.8)}
+      else if(E.lrp>10&&E.lrp>F.lrp*1.3&&F.srp>0)st='assault';
+      // ждём подходящих союзников, чтобы ударить вместе
+      let waiting=false;
+      if(st!=='assault'||dist>F.rng*3)for(const A of all){if(A.side!==F.side||A===F||A.convoy||A.n<3)continue;
+        const dA=Math.hypot(A.cx-bf.cx,A.cy-bf.cy);
+        if(dA<450&&dA>F.rng*2&&dA>dist+30&&dist<380&&dist>F.rng*1.8){waiting=true;break}}
+      if(waiting){if(F.wait0<0)F.wait0=t;if(t-F.wait0<50)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
+      F.stance=st}
     // общий фокус огня: самая ценная и повреждённая цель в зоне
     const cand=around(1-F.side,F.cx+(bf.cx-F.cx)*.3,F.cy+(bf.cy-F.cy)*.3,110);let fb=null,fs=0;
     for(const o of cand){const sc=val(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;
@@ -110,7 +125,10 @@ function fleetsUpdate(){
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
     if(F.stance==='flank'){const a=F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
     if(F.stance==='retreat'||F.stance==='convoy'){F.gx=F.cx-dx*160;F.gy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.gx=F.cx-(ne.cx-F.cx)/dl*200;F.gy=F.cy-(ne.cy-F.cy)/dl*200}}
-    else{const hold=Math.max(25,F.rng*(F.stance==='engage'?.9:1.3));F.gx=bf.cx-dx*hold;F.gy=bf.cy-dy*hold}
+    else if(F.stance==='wait'){F.gx=F.cx;F.gy=F.cy}
+    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?14:Math.max(25,F.rng*(F.stance==='engage'?.9:1.3));F.gx=bf.cx-dx*hold;F.gy=bf.cy-dy*hold}
+    // слои по высоте: в бою флоты сближаются по вертикали
+    F.zl+=((dist<260?bf.zl+(F.side?7:-7):F.zl)-F.zl)*.4;
     F.dx=dx;F.dy=dy;
     if(F.n!==F.nSlots||t-F.slotsAt>6){assignSlots(F);F.nSlots=F.n;F.slotsAt=t}
   }
@@ -118,7 +136,7 @@ function fleetsUpdate(){
 function assignSlots(F){ // строй: тяжёлые в центре, лёгкие по краям, авианосцы и транспорты сзади
   const rowOf=s=>(s.cls==='cv'||s.T.role==='freight')?1:0,rows=[[],[]];for(const s of F.ships)rows[rowOf(s)].push(s);
   rows.forEach((row,ri)=>{row.sort((a,b)=>b.T.L-a.T.L);const per=12;
-    row.forEach((s,i)=>{const col=i%per,line=Math.floor(i/per),sp=Math.max(2.2,s.T.L*1.5+1.2);s.slotLat=((col%2)?1:-1)*Math.ceil(col/2)*sp;s.slotBack=ri*18+line*14+(s.cls==='dd'||s.cls==='fr'&&s.T.role!=='freight'?-5:0)})});
+    row.forEach((s,i)=>{const col=i%per,line=Math.floor(i/per),sp=Math.max(3.4,s.T.L*1.8+2);s.slotLat=((col%2)?1:-1)*Math.ceil(col/2)*sp+(line%2)*sp*.5;s.slotBack=ri*18+line*16+(s.cls==='dd'||s.cls==='fr'&&s.T.role!=='freight'?-5:0)})});
 }
 function retarget(s){
   s.nt=t+R(1.2,2.4);const C=s.F,maxR=s.maxR||60;
@@ -129,36 +147,55 @@ function retarget(s){
   if(!s.tg)s.tg=(nearestShip(s.x,s.y,1-s.side)||{}).s||null;
 }
 function steer(s,dt){
-  const T=s.T,F=s.F,vm=.2*VMK*T.spd,eng=Math.max(.15,s.engN/T.eng),hp=hpf(s);
+  const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;
   if(t>=s.nt||!s.tg||!s.tg.alive)retarget(s);
   if(t>=s.next){s.next=t+R(6,14);s.sdir=Math.random()<.5?1:-1}
   const tg=s.tg;let vx=0,vy=0,want=s.hd;
   const flee=(hp<.35&&!T.role)||(F.stance==='retreat'&&!F.convoy),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
-  if(flee&&tg){vx=-ux*vm;vy=-uy*vm;want=Math.atan2(uy,ux)+(td<80?0:Math.PI*.0)}
+  if(flee&&tg){vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
   else{
     // формация
     const fx=F.dx,fy=F.dy,px=-fy,py=fx,Px=F.gx-fx*(s.slotBack||0)+px*(s.slotLat||0),Py=F.gy-fy*(s.slotBack||0)+py*(s.slotLat||0);
     let ex=Px-s.x,ey=Py-s.y;const ed=Math.hypot(ex,ey)||1;
-    const fvm=Math.min(vm,.2*VMK*Math.min(...F.ships.slice(0,40).map(o=>o.T.spd))*1.15),sp=ed>40?vm:Math.min(fvm,ed*.2+.01);
+    if(F.n<2||!F.minSpd)F.minSpd=F.minSpd||vm;
+    if(!F.spdAt||t-F.spdAt>5){F.spdAt=t;F.minSpd=.2*VMK*Math.min(...F.ships.slice(0,40).map(o=>o.T.spd))}
+    const fvm=Math.min(vm,F.minSpd*1.15),sp=ed>40?vm:Math.min(fvm,ed*.2+.01);
+    // экстренное ускорение: догнать строй / вовремя встать на место
+    if(ed>70)boost=Math.min(2,1+(ed-70)/120);
     let fvx=ex/ed*sp,fvy=ey/ed*sp;
+    const er=Math.max(s.maxR,F.stance==='kite'?F.hold:0),dopt=F.stance==='kite'?F.hold:F.stance==='assault'?14:T.dopt;
     if(T.role==='freight'||F.stance==='convoy'&&T.role){vx=fvx;vy=fvy}
-    else if(tg&&td<s.maxR*1.5){
-      const k=Math.max(-1,Math.min(1,(td-T.dopt)/15)),lat=.35*vm*s.sdir,w=s.cls==='hc'||s.cls==='cv'?.55:.25;
+    else if(tg&&td<er*1.5){
+      const k=Math.max(-1,Math.min(1,(td-dopt)/15)),lat=.35*vm*s.sdir,w=F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25;
       const rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;
       vx=w*fvx+(1-w)*rx;vy=w*fvy+(1-w)*ry;want=Math.atan2(uy,ux);
-    }else{vx=fvx;vy=fvy;if(tg)want=Math.atan2(uy,ux);else if(sp>.02)want=Math.atan2(vy,vx)}
+      if(F.stance==='assault'&&td>s.maxR*.7)boost=Math.max(boost,1.7);
+      else if(F.stance==='kite'&&td<F.hold*.6)boost=Math.max(boost,1.4);
+    }else{vx=fvx;vy=fvy;if(tg)want=Math.atan2(uy,ux);else if(sp>.02)want=Math.atan2(vy,vx);
+      if(F.stance==='assault'&&tg)boost=Math.max(boost,1.5)}
   }
-  // разлёт соседей
-  for(const o of around(s.side,s.x,s.y,5)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy)||1e-6;const f=.2*(5-d)/5/d;vx+=dx*f;vy+=dy*f}
-  const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
+  // разлёт: не стоять друг за другом на линии огня и не кучковаться
+  for(const o of around(s.side,s.x,s.y,12)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy)||1e-6;
+    if(d<5){const f=.2*(5-d)/5/d;vx+=dx*f;vy+=dy*f}
+    if(tg){const al=(-dx)*ux+(-dy)*uy,pp=(-dx)*(-uy)+(-dy)*ux; // o перед нами на линии на врага
+      if(al>0&&Math.abs(pp)<o.T.L*.5+3){const sg=pp>=0?-1:1,f=.12*vm*(1-Math.abs(pp)/(o.T.L*.5+3));vx+=-uy*sg*f*3;vy+=ux*sg*f*3}}}
+  // скорость вперёд больше, назад и вбок — меньше
+  const c=Math.cos(s.hd),sn=Math.sin(s.hd);let fw=vx*c+vy*sn,lt=-vx*sn+vy*c;if(fw<0)fw*=.5;lt*=.6;vx=fw*c-lt*sn;vy=fw*sn+lt*c;
+  // поломка двигателя при форсаже: чем сильнее ускорение, тем выше шанс
+  if(boost>1.02&&s.engN>0&&Math.random()<.00006*(1+3*(boost-1))*dt*s.engN){
+    const em=[];for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive)em.push(m);
+    if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:8,r:2});boost=1}}
+  s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
+  vm*=boost;const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   // инерция: ускорение ограничено тягой и массой
-  const a=.035*VMK*(eng+.1)/(1+T.L*.35)*dt,dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
+  const a=.035*VMK*(eng+.1)/(1+T.L*.35)*dt*(1+(boost-1)*1.2),dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
   if(dl>a){s.sx+=dvx/dl*a;s.sy+=dvy/dl*a}else{s.sx+=dvx;s.sy+=dvy}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
   const turn=(.5/(1+T.L*.8))*dt;s.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
   s.vx=s.sx;s.vy=s.sy;
+  // высота (псевдо-3D)
+  const zt=F.zl+(s.zo==null?(s.zo=R(-5,5)):s.zo);if(s.zset==null){s.z=zt;s.zset=1}else s.z+=Math.max(-1.5*dt,Math.min(1.5*dt,zt-s.z));
 }
-
 function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.car||o.side!==c.side)continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d<bd){bd=d;b=o}}return b}
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
 function killCraft(c,why){if(c.state==='dead')return;c.state='dead';(stat.why=stat.why||{})[why||'combat']=((stat.why||{})[why||'combat']||0)+1;stat[c.type==='F'?'lostF':'lostB'][c.side]++;fx.push({x:c.x,y:c.y,t0:t,d:6,r:1.2})}
@@ -251,21 +288,21 @@ function craftStep(c,d){
 // armor: a hit pierces one layer in the zone it comes from; with no layers left it destroys modules behind
 function hitShip(o,kind,vx,vy,x,y,dmg){
   if(!o.alive)return;
-  if(o.T.defl&&Math.random()<o.T.defl){fx.push({x,y,t0:t,d:3,r:0.8});return}
+  if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.9,0.9),ab=Math.abs(a);
   const zi=ab<0.785?0:ab>2.356?2:(a>0?1:3);let z=o.zones[zi];
   let dm=kind==='torp'?1:dmg;dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
-  if(z.arm>0&&dm>0){const c=Math.min(z.arm,dm);z.arm-=c;dm-=c;fx.push({x,y,t0:t,d:4,r:1});if(dm<=0)return}
-  else if(dm<=0){fx.push({x,y,t0:t,d:2,r:0.5});return}
+  if(z.arm>0&&dm>0){const c=Math.min(z.arm,dm);z.arm-=c;dm-=c;fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(dm<=0)return}
+  else if(dm<=0){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
   if(!z.mods.some(m=>m.alive)){const cand=o.zones.filter(q=>q.mods.some(m=>m.alive));if(!cand.length)return;z=cand[(Math.random()*cand.length)|0]}
   const k=kind==='torp'?TORP.mod:dm;
   for(let i=0;i<k;i++){const al=z.mods.filter(m=>m.alive);if(!al.length)break;const m=al[(Math.random()*al.length)|0];m.alive=false;o.aliveN--;if(m.k==='E')o.engN--}
-  fx.push({x,y,t0:t,d:10,r:3});
-  if(!o.core.alive||o.aliveN<o.total*0.3){o.alive=false;fx.push({x:o.x,y:o.y,t0:t,d:40,r:26})}
+  fx.push({z:o.z,x,y,t0:t,d:10,r:3});
+  if(!o.core.alive||o.aliveN<o.total*0.3){o.alive=false;fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:40,r:26})}
 }
 function flakBurst(s,m){
   const F=m.cfg,cand=[];for(const c of fly[1-s.side])if(Math.hypot(c.x-s.x,c.y-s.y)<F.rng)cand.push(c);
-  const tp=torps.filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng);
+  const tp=torps.concat(mis).filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng);
   if(!cand.length&&!tp.length){m.cd=2;return false}
   const e=tp.length&&Math.random()<0.5?tp[(Math.random()*tp.length)|0]:(cand.length?cand[(Math.random()*cand.length)|0]:tp[0]);
   const d=Math.hypot(e.x-s.x,e.y-s.y),err=(0.25+0.012*d)*(1.4-0.08*m.sk);
@@ -273,47 +310,102 @@ function flakBurst(s,m){
   m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
   for(const c of fly[1-s.side])if(c.state==='fly'&&Math.hypot(c.x-bx,c.y-by)<F.blast){c.hp--;if(c.hp<=0){killCraft(c);stat.flakKill[s.side]++}}
   for(let i=torps.length-1;i>=0;i--){const p=torps[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5&&Math.random()<0.7){torps.splice(i,1);stat.torpPd[p.side]++;stat.flakKill[s.side]++}}
+  for(let i=mis.length-1;i>=0;i--){const p=mis[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5+1&&Math.random()<0.7){p.hp--;if(p.hp<=0){mis.splice(i,1);stat.misShot[p.side]++;stat.flakKill[s.side]++;boom(p,null)}}}
   return true;
 }
 // осечка: орудие клинит на 4 минуты, иногда взрывается
 function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3){s.alive=false;fx.push({x:s.x,y:s.y,t0:t,d:40,r:26})}}}
+function fireShell(s,m,o0,C,lag){
+  let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
+  const VPc=C.vp;let T=Math.hypot(o.x-s.x,o.y-s.y)/VPc;
+  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y)/VPc}
+  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*T*T)*(1.4-0.08*m.sk)*C.sig;
+  const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
+  m.fa=Math.atan2(ay,ax);m.rt=performance.now();
+  proj.push({x:s.x+ax/l*VPc*lag,y:s.y+ay/l*VPc*lag,z:s.z,vz:(o.z-s.z)/Math.max(.5,T),vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg,max:C.rng,src:s});
+  stat.shots[s.side]++;
+}
+// взрыв ракеты: бьёт всех рядом, в том числе своих
+function boom(p,direct){
+  fx.push({x:p.x,y:p.y,t0:t,d:12,r:p.blast*1.4});fx.push({x:p.x,y:p.y,t0:t,d:4,r:p.blast*.6});
+  if(direct)stat.misHit[p.side]++;
+  for(const side of [0,1]){for(const o of around(side,p.x,p.y,p.blast+2)){
+    if(!o.alive||Math.abs(o.z-p.z)>p.blast*1.5+10)continue;
+    const d=Math.hypot(o.x-p.x,o.y-p.y),f=o===direct?1:Math.max(0,1-d/(p.blast+2)*.75);
+    if(f>0)hitShip(o,'mis',o.x-p.x,o.y-p.y,p.x,p.y,p.dmg*f*(o===direct?1.3:1))}}
+  for(const c of fly[0].concat(fly[1]))if(c.state==='fly'&&Math.hypot(c.x-p.x,c.y-p.y)<p.blast){c.hp-=2;if(c.hp<=0)killCraft(c)}
+}
 function step(dt){
   t+=dt;
 
   buildGrids();fleetsUpdate();
   for(const s of ships){if(!s.alive)continue;steer(s,dt);}
   for(const s of ships){if(!s.alive)continue;
-    s.maxR=s.maxR||Math.max(60,...s.tur.filter(m=>m.cfg&&m.cfg.rng).map(m=>m.cfg.rng));
+    s.maxR=s.maxR||Math.max(60,...s.tur.filter(m=>m.cfg&&m.cfg.rng&&m.k!=='L'&&m.k!=='M').map(m=>m.cfg.rng));
     let foes=null;
     for(const m of s.tur){
       if(!m.alive)continue;m.cd-=dt;if(m.cd>0)continue;
       const C=m.cfg;
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
+      if(m.k==='L'||m.k==='M'){
+        if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
+        const rg=C.rng,ok=q=>q&&q.alive&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
+        let o=ok(s.F.focus)?s.F.focus:ok(s.tg)?s.tg:null;
+        if(!o&&s.tg===null){m.cd=3;continue}
+        if(!o){m.cd=m.k==='L'?4:6;continue}
+        const d=Math.hypot(o.x-s.x,o.y-s.y);
+        m.fa=Math.atan2(o.y-s.y,o.x-s.x)-0;m.rt=performance.now();
+        if(m.k==='L'){
+          const cost=C.dmg*(.4+(d/120)*(d/120));
+          beams.push({x1:s.x,y1:s.y,z1:s.z,x2:o.x,y2:o.y,z2:o.z,rt:m.rt,side:s.side,w:C.dmg});
+          stat.las[s.side]++;stat.lasHit[s.side]++;hitShip(o,'laser',o.x-s.x,o.y-s.y,o.x,o.y,C.dmg);
+          m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1);
+        }else{
+          if(d<18){m.cd=4;continue}
+          const hd=Math.atan2(o.y-s.y,o.x-s.x);
+          mis.push({x:s.x,y:s.y,z:s.z,h:s.hd,side:s.side,tgt:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.rng/C.spd*1.2,tr:[],trT:0,vx:0,vy:0,src:s});
+          m.ammo--;stat.mis[s.side]++;m.cd=REL*C.rel*.6*R(.75,1.25)*(1.3-.06*m.sk);
+        }
+        continue}
       foes=s.near||[];
       const fl=(s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<C.rng&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<C.rng);
       if(!fl.length){m.cd=5;continue}
-      const VPc=C.vp;
-      for(let b=0;b<C.shells;b++){
-      const o=fl[(Math.random()*fl.length)|0];
-      let T=Math.hypot(o.x-s.x,o.y-s.y)/VPc;
-      for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y)/VPc}
-      const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*T*T)*(1.4-0.08*m.sk)*C.sig;
-      const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay);
-      m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-      proj.push({x:s.x,y:s.y,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:0,dmg:C.dmg,max:C.rng});
-      stat.shots[s.side]++}
-      m.cd=REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C);
+      // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся
+      {const o0=fl[0],ux=o0.x-s.x,uy=o0.y-s.y,ul=Math.hypot(ux,uy)||1;let bl=false;
+        for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
+        if(bl&&Math.random()<.7){m.cd=2+Math.random()*3;continue}}
+      const B=BURST[C.cal]||8;
+      for(let b=0;b<C.shells;b++)bursts.push({s,m,o:fl[(Math.random()*fl.length)|0],C,n:B,i:0,t0:t+b*.03});
+      m.cd=REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25)*B*.8;jamChk(s,m,C);
     }
   }
+  // очереди рельсотронов: выстрелы с задержкой 0,1 с
+  for(let i=bursts.length-1;i>=0;i--){const q=bursts[i];
+    if(!q.s.alive||!q.m.alive){bursts[i]=bursts[bursts.length-1];bursts.pop();continue}
+    while(q.i<q.n&&t>=q.t0+.1*q.i){fireShell(q.s,q.m,q.o,q.C,t-(q.t0+.1*q.i));q.i++}
+    if(q.i>=q.n){bursts[i]=bursts[bursts.length-1];bursts.pop()}}
   for(let i=proj.length-1;i>=0;i--){
-    const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null;
-    {const dx=nx-p.x,dy=ny-p.y,l2=dx*dx+dy*dy||1,g=GR[1-p.side],x0=Math.floor(Math.min(p.x,nx)/CS)-1,x1=Math.floor(Math.max(p.x,nx)/CS)+1,y0=Math.floor(Math.min(p.y,ny)/CS)-1,y1=Math.floor(Math.max(p.y,ny)/CS)+1;
-      outer:for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=g.get(ckey(gx,gy));if(!a)continue;
-        for(const o of a){if(!o.alive)continue;let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
-          if(Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.25){hit=o;break outer}}}}
-    if(hit){stat.hits[p.side]++;hitShip(hit,'rail',p.vx,p.vy,nx,ny,p.dmg);proj[i]=proj[proj.length-1];proj.pop();continue}
-    p.x=nx;p.y=ny;p.dist+=Math.hypot(p.vx,p.vy)*dt;
+    const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null,fr=false;
+    const dx=nx-p.x,dy=ny-p.y,l2=dx*dx+dy*dy||1,x0=Math.floor(Math.min(p.x,nx)/CS)-1,x1=Math.floor(Math.max(p.x,nx)/CS)+1,y0=Math.floor(Math.min(p.y,ny)/CS)-1,y1=Math.floor(Math.max(p.y,ny)/CS)+1;
+    const scan=(g,self)=>{for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=g.get(ckey(gx,gy));if(!a)continue;
+      for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+12)continue;let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
+        if(Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.25)return o}}return null};
+    hit=scan(GR[1-p.side],null);if(!hit&&p.dist>3){hit=scan(GR[p.side],p.src);fr=!!hit}
+    if(hit){if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;hitShip(hit,'rail',p.vx,p.vy,nx,ny,p.dmg);proj[i]=proj[proj.length-1];proj.pop();continue}
+    p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){proj[i]=proj[proj.length-1];proj.pop()}
+  }
+  // ракеты
+  for(let i=mis.length-1;i>=0;i--){
+    const p=mis[i];let tg=p.tgt;
+    if(!tg||!tg.alive){const nn=nearestShip(p.x,p.y,1-p.side);tg=p.tgt=nn&&nn.s}
+    if(!tg){mis.splice(i,1);continue}
+    const d=Math.hypot(tg.x-p.x,tg.y-p.y),T0=d/p.spd,ax=tg.x+tg.sx*T0-p.x,ay=tg.y+tg.sy*T0-p.y;
+    p.h+=Math.max(-1.6*dt,Math.min(1.6*dt,adiff(p.h,Math.atan2(ay,ax))));
+    p.vx=Math.cos(p.h)*p.spd;p.vy=Math.sin(p.h)*p.spd;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
+    p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>24)p.tr.splice(0,3)}
+    if(Math.hypot(tg.x-p.x,tg.y-p.y)<tg.T.L*.3+1.2){boom(p,tg);mis.splice(i,1);continue}
+    if(p.life<=0)mis.splice(i,1);
   }
   stepFlights();assign();
   const n=Math.min(12,Math.max(1,Math.ceil(dt/SUB))),d=dt/n;
@@ -342,7 +434,7 @@ function smokeStep(dt){
     const rate=s.alive?Math.min(6,dead*.5):4;let n=Math.min(6,Math.floor(rate*dt+Math.random()));
     const ms=[];for(const z of s.zones)for(const m of z.mods)if(!m.alive)ms.push(m);
     while(n-->0){const m=ms.length?ms[(Math.random()*ms.length)|0]:{u:0,v:0},c=Math.cos(s.hd),sn=Math.sin(s.hd),L=s.T.L,lu=m.u*L,lv=m.v*L*(WR[s.cls]||.3)*1.4;
-      smoke.push({x:s.x+lu*c-lv*sn,y:s.y+lu*sn+lv*c,vx:R(-.15,.15)*L,vy:R(-.15,.15)*L,t0:t,d:R(8,18)*(s.alive?1:1.8),r0:L*.025,L,fire:Math.random()<(s.alive?.35:.55)})}
+      smoke.push({z:s.z,x:s.x+lu*c-lv*sn,y:s.y+lu*sn+lv*c,vx:R(-.15,.15)*L,vy:R(-.15,.15)*L,t0:t,d:R(8,18)*(s.alive?1:1.8),r0:L*.025,L,fire:Math.random()<(s.alive?.35:.55)})}
   }
 }
 const C=['#4fc3ff','#ff8a4f'],CL=['#c6ecff','#ffd5bd'],CD=['#1d4f73','#7a3b1a'];
@@ -360,8 +452,8 @@ function drawShip(g,s,x,y,k,dp){
     g.restore();return}
   const moving=Math.hypot(s.vx,s.vy)>.02;
   if(moving||true){for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive&&moving){
-      const fl=len*(.14+.06*Math.random()),ex=m.u*len,ey=m.v*wid*.7;
-      const gr=g.createLinearGradient(ex,0,ex-fl,0);gr.addColorStop(0,'rgba(255,230,160,.95)');gr.addColorStop(1,'rgba(255,120,40,0)');
+      const bo=s.bst>1.15,fl=len*(.14+.06*Math.random())*(1+(s.bst-1)*1.8),ex=m.u*len,ey=m.v*wid*.7;
+      const gr=g.createLinearGradient(ex,0,ex-fl,0);gr.addColorStop(0,bo?'rgba(200,230,255,.98)':'rgba(255,230,160,.95)');gr.addColorStop(1,'rgba(255,120,40,0)');
       g.fillStyle=gr;g.beginPath();g.moveTo(ex,ey-wid*.06);g.lineTo(ex-fl,ey);g.lineTo(ex,ey+wid*.06);g.fill()}}
   hull();let gr=C[s.side];if(det){gr=g.createLinearGradient(0,-wid/2,0,wid/2);gr.addColorStop(0,CD[s.side]);gr.addColorStop(.5,C[s.side]);gr.addColorStop(1,CD[s.side])}
   g.fillStyle=gr;g.fill();g.strokeStyle=CL[s.side];g.lineWidth=Math.max(.6,dp*.8);g.globalAlpha=.8;g.stroke();g.globalAlpha=1;
@@ -375,6 +467,13 @@ function drawShip(g,s,x,y,k,dp){
         g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.15,0,6.283);g.fill();g.fillStyle=m.k==='T'?CL[s.side]:'#ffe08a';g.beginPath();g.arc(mx,my,mr*.7,0,6.283);g.fill();
         const aim=(m.fa!=null?m.fa-s.hd:0),bl=mr*(m.k==='T'?2.4:1.5);g.strokeStyle=m.k==='T'?'#e8f3ff':'#ffd27a';g.lineWidth=Math.max(dp,mr*.5);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke();
         if(m.rt&&now-m.rt<130){g.fillStyle='rgba(255,245,200,'+(1-(now-m.rt)/130)+')';g.beginPath();g.arc(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl,mr*1.05,0,6.283);g.fill()}}
+      else if(m.k==='L'){
+        const aim=(m.fa!=null?m.fa-s.hd:0),bl=mr*3.2,hot=m.rt&&now-m.rt<380;
+        g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.3,0,6.283);g.fill();g.fillStyle=hot?'#fff':(s.side?'#ff7ad9':'#6af0ff');g.beginPath();g.arc(mx,my,mr*.85,0,6.283);g.fill();
+        g.strokeStyle='#d8f6ff';g.lineWidth=Math.max(dp,mr*.45);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke()}
+      else if(m.k==='M'){
+        g.fillStyle='#0d1219';g.fillRect(mx-mr*1.4,my-mr*1.1,mr*2.8,mr*2.2);g.fillStyle=m.ammo>0?'#ffb36b':'#554';
+        g.fillRect(mx-mr*1.1,my-mr*.8,mr*.9,mr*.6);g.fillRect(mx+mr*.2,my-mr*.8,mr*.9,mr*.6);g.fillRect(mx-mr*1.1,my+mr*.2,mr*.9,mr*.6);g.fillRect(mx+mr*.2,my+mr*.2,mr*.9,mr*.6)}
       else if(m.k==='E'){g.fillStyle='#2a323f';g.fillRect(mx-mr*1.2,my-mr*.9,mr*2,mr*1.8);g.fillStyle=moving?'#ffd27a':'#6f7b8c';g.fillRect(mx-mr*1.5,my-mr*.5,mr*.5,mr)}
     }
     const c=s.core;g.fillStyle=c.alive?'#9ff0b4':'#ef6a5e';g.beginPath();g.moveTo(c.u*len,-mr*1.3);g.lineTo(c.u*len+mr*1.3,0);g.lineTo(c.u*len,mr*1.3);g.lineTo(c.u*len-mr*1.3,0);g.closePath();g.fill();
@@ -383,10 +482,10 @@ function drawShip(g,s,x,y,k,dp){
   const f=s.aliveN/s.total,by=y+Math.max(wid/2,r*0.5)+4*dp;g.fillStyle='#1b2433';g.fillRect(x-r,by,len,2*dp);g.fillStyle=f>.55?'#6fdc8c':f>.35?'#f0c14b':'#ef6a5e';g.fillRect(x-r,by,len*f,2*dp);
 }
 function draw(g,ox,oy,k,dp){
-  vw={ox,oy,kk:k};const X=x=>ox+x*k,Y=y=>oy+y*k;
+  vw={ox,oy,kk:k};const X=x=>ox+x*k,Y=y=>oy+y*k,Z=z=>d3?-z*k*TILT:0;
   if(projMode<2)for(const side of [0,1]){
     g.strokeStyle=C[side];g.fillStyle=C[side];g.globalAlpha=projMode?.4:.55;g.lineWidth=1.1*dp;g.beginPath();
-    for(const p of proj){if(p.side!==side)continue;const x=X(p.x),y=Y(p.y);
+    for(const p of proj){if(p.side!==side)continue;const x=X(p.x),y=Y(p.y)+Z(p.z);
       if(projMode){g.moveTo(x,y);g.lineTo(x-p.vx/VP*9*dp,y-p.vy/VP*9*dp)}else{g.moveTo(x+1.6*dp,y);g.arc(x,y,1.6*dp,0,6.283)}}
     if(projMode)g.stroke();else g.fill();
   }
@@ -394,27 +493,42 @@ function draw(g,ox,oy,k,dp){
   for(const side of [0,1]){g.strokeStyle=CL[side];g.lineWidth=2*dp;g.beginPath();
     for(const p of torps){if(p.side!==side||!p.tgt)continue;const x=X(p.x),y=Y(p.y),dx=p.tgt.x-p.x,dy=p.tgt.y-p.y,l=Math.hypot(dx,dy)||1,tl2=Math.max(10*dp,40*k);g.moveTo(x,y);g.lineTo(x-dx/l*tl2,y-dy/l*tl2)}
     g.stroke()}
-  for(const s of ships)drawShip(g,s,X(s.x),Y(s.y),k,dp);
-  for(const q of smoke){const u=(t-q.t0)/q.d,x=X(q.x+q.vx*(t-q.t0)),y=Y(q.y+q.vy*(t-q.t0)),rr=Math.max(1.2*dp,(q.r0+u*q.L*.035)*k);
+  const ord=d3?ships.slice().sort((a,b)=>a.z-b.z):ships;
+  if(d3){g.lineWidth=dp;for(const s of ord){if(Math.abs(s.z)<.8)continue;const x=X(s.x),y=Y(s.y);if(x<-30||x>W+30||y<-200||y>H+200)continue;
+    g.strokeStyle=C[s.side];g.globalAlpha=s.alive?.35:.15;g.beginPath();g.moveTo(x,y);g.lineTo(x,y+Z(s.z));g.stroke();
+    g.beginPath();g.ellipse(x,y,Math.max(2*dp,s.T.L*k*.3),Math.max(1*dp,s.T.L*k*.12),0,0,6.283);g.stroke()}g.globalAlpha=1}
+  for(const s of ord)drawShip(g,s,X(s.x),Y(s.y)+Z(s.z),k,dp);
+  // ракеты
+  for(const side of [0,1]){g.strokeStyle=CL[side];g.fillStyle='#ffd27a';g.lineWidth=1.2*dp;g.globalAlpha=.5;g.beginPath();
+    for(const p of mis){if(p.side!==side||p.tr.length<6)continue;g.moveTo(X(p.tr[0]),Y(p.tr[1])+Z(p.tr[2]));for(let i=3;i<p.tr.length;i+=3)g.lineTo(X(p.tr[i]),Y(p.tr[i+1])+Z(p.tr[i+2]));g.lineTo(X(p.x),Y(p.y)+Z(p.z))}
+    g.stroke();g.globalAlpha=1;g.beginPath();
+    for(const p of mis){if(p.side!==side)continue;const x=X(p.x),y=Y(p.y)+Z(p.z),sz=3.4*dp,a=p.h;
+      g.moveTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz);g.lineTo(x+Math.cos(a+2.6)*sz,y+Math.sin(a+2.6)*sz);g.lineTo(x+Math.cos(a-2.6)*sz,y+Math.sin(a-2.6)*sz);g.closePath()}
+    g.fillStyle='#fff';g.fill()}
+  for(const q of smoke){const u=(t-q.t0)/q.d,x=X(q.x+q.vx*(t-q.t0)),y=Y(q.y+q.vy*(t-q.t0))+Z(q.z||0),rr=Math.max(1.2*dp,(q.r0+u*q.L*.035)*k);
     g.globalAlpha=Math.max(0,.3*(1-u));g.fillStyle=u<.2&&q.fire?'#ffb347':'#5a606b';g.beginPath();g.arc(x,y,rr,0,6.283);g.fill();
     if(q.fire&&u<.3){g.globalAlpha=.8*(1-u/.3);g.fillStyle='#ff6a2a';g.beginPath();g.arc(x,y,rr*.5,0,6.283);g.fill()}}
   g.globalAlpha=1;
   g.lineWidth=dp;
   for(const side of [0,1]){g.strokeStyle=CL[side];g.globalAlpha=.25;g.beginPath();
-    for(const c of air){if(c.side!==side||c.state!=='fly'||c.tr.length<4)continue;g.moveTo(X(c.tr[0]),Y(c.tr[1]));for(let i=2;i<c.tr.length;i+=2)g.lineTo(X(c.tr[i]),Y(c.tr[i+1]));g.lineTo(X(c.x),Y(c.y))}
+    for(const c of air){if(c.side!==side||c.state!=='fly'||c.tr.length<4)continue;const zz=Z(c.home.z);g.moveTo(X(c.tr[0]),Y(c.tr[1])+zz);for(let i=2;i<c.tr.length;i+=2)g.lineTo(X(c.tr[i]),Y(c.tr[i+1])+zz);g.lineTo(X(c.x),Y(c.y)+zz)}
     g.stroke()}
   g.globalAlpha=1;
   for(const side of [0,1])for(const type of ['F','B']){
     g.fillStyle=CL[side];g.beginPath();const sz=(type==='F'?3.8:5.2)*dp;
     for(const c of air){if(c.side!==side||c.type!==type||c.state!=='fly')continue;
-      const x=X(c.x),y=Y(c.y),a=c.h;
+      const x=X(c.x),y=Y(c.y)+Z(c.home.z),a=c.h;
       g.moveTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz);g.lineTo(x+Math.cos(a+2.5)*sz,y+Math.sin(a+2.5)*sz);g.lineTo(x+Math.cos(a-2.5)*sz,y+Math.sin(a-2.5)*sz);g.closePath()}
     g.fill()}
   const now=performance.now();shots=shots.filter(s=>now-s.rt<140);
   g.lineWidth=1.4*dp;
   for(const sh of shots){g.strokeStyle='#fff';g.globalAlpha=1-(now-sh.rt)/140;g.beginPath();g.moveTo(X(sh.x1),Y(sh.y1));g.lineTo(X(sh.x1+(sh.x2-sh.x1)*.7),Y(sh.y1+(sh.y2-sh.y1)*.7));g.stroke()}
+  beams=beams.filter(b=>now-b.rt<380);
+  for(const b of beams){const u=(now-b.rt)/380,a=1-u;g.lineCap='round';
+    g.strokeStyle=b.side?'#ff7ad9':'#6af0ff';g.globalAlpha=.35*a;g.lineWidth=(3+b.w*.8)*dp;g.beginPath();g.moveTo(X(b.x1),Y(b.y1)+Z(b.z1));g.lineTo(X(b.x2),Y(b.y2)+Z(b.z2));g.stroke();
+    g.strokeStyle='#fff';g.globalAlpha=a;g.lineWidth=(1+b.w*.15)*dp;g.stroke();g.lineCap='butt'}
   g.globalAlpha=1;
-  for(const f of fx){const u=(t-f.t0)/f.d;g.globalAlpha=Math.max(0,1-u);g.strokeStyle='#fff3c4';g.lineWidth=2*dp;g.beginPath();g.arc(X(f.x),Y(f.y),Math.max(3*dp,f.r*k*u*3),0,6.283);g.stroke()}
+  for(const f of fx){const u=(t-f.t0)/f.d;g.globalAlpha=Math.max(0,1-u);g.strokeStyle='#fff3c4';g.lineWidth=2*dp;g.beginPath();g.arc(X(f.x),Y(f.y)+Z(f.z||0),Math.max(3*dp,f.r*k*u*3),0,6.283);g.stroke();if(f.r>=5&&u<.25){g.globalAlpha=.5*(1-u/.25);g.fillStyle='#ffb347';g.beginPath();g.arc(X(f.x),Y(f.y)+Z(f.z||0),Math.max(3*dp,f.r*k*u*2),0,6.283);g.fill()}}
   g.globalAlpha=1;
 }
 const SHORT={cv:'ав',hc:'тк',dd:'эс',fr:'фр'};
@@ -440,13 +554,13 @@ function hud(){
     const F=air.filter(c=>c.side===s&&c.type==='F'&&c.state!=='dead').length,Bm=air.filter(c=>c.side===s&&c.type==='B'&&c.state!=='dead').length;
     const acc=stat.shots[s]?(100*stat.hits[s]/stat.shots[s]).toFixed(1)+'%':'—';
     const sh=['cv','hc','dd','fr'].map(ty=>SHORT[ty]+' '+ships.filter(o=>o.side===s&&o.cls===ty&&o.alive).length).join(' · ');
-    h+=`<span class="c${'ab'[s]}"><b>${(cfgNow&&cfgNow.names||['Ваш флот','Налётчики'])[s]}</b>${sh} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]}</span>`;
+    h+=`<span class="c${'ab'[s]}"><b>${(cfgNow&&cfgNow.names||['Ваш флот','Налётчики'])[s]}</b>${sh} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]} · лазеры ${stat.las[s]} · ракеты ${stat.mis[s]}→${stat.misHit[s]} (сбито ${stat.misShot[1-s]}) · сломано двиг. ${stat.bfail[s]}</span>`;
   }
   if(done)h+=`<span class="${al[0]?'ca':'cb'}"><b>Итог</b>${!al[1]&&al[0]?'победа':!al[0]&&al[1]?'поражение':!al[0]?'взаимное уничтожение':'враг отступил'}</span>`;
   $b('bstats').innerHTML=h;
   const inf=$b('binfo');
   if(sel){inf.hidden=false;const s=sel,tur=s.tur.filter(m=>m.alive).length,sk=s.tur.length?(s.tur.reduce((a,m)=>a+m.sk,0)/s.tur.length).toFixed(1):'—';
-    inf.innerHTML=`<b class="c${'ab'[s.side]}">${s.T.n}</b>${s.alive?'':' <span class="muted">(уничтожен)</span>'}<br>Длина ${Math.round(s.T.L*1000)} м · модули: ${s.aliveN}/${s.total} · ядро ${s.core.alive?'цело':'уничтожено'}<br>Турели: ${tur}/${s.tur.length} · ср. навык ${sk}<br>Двигатели: ${s.engN}/${s.T.eng}<br>Броня (слоёв): ${s.zones.map((z,i)=>ZN[i]+' '+z.arm+'/'+s.T.arm).join(' · ')}`}
+    inf.innerHTML=`<b class="c${'ab'[s.side]}">${s.T.n}</b>${s.alive?'':' <span class="muted">(уничтожен)</span>'}<br>Длина ${Math.round(s.T.L*1000)} м · модули: ${s.aliveN}/${s.total} · ядро ${s.core.alive?'цело':'уничтожено'}<br>Турели: ${tur}/${s.tur.length} · ср. навык ${sk}<br>Двигатели: ${s.engN}/${s.T.eng}${s.bst>1.1?' · форсаж '+Math.round(s.bst*100)+'%':''}${s.lrp?' · дальний бой '+s.lrp.toFixed(0):''}<br>Высота: ${s.z.toFixed(0)}<br>Броня (слоёв): ${s.zones.map((z,i)=>ZN[i]+' '+z.arm+'/'+s.T.arm).join(' · ')}`}
   else inf.hidden=true;
 }
 const PM=['точки','короткие линии','скрыть'];
@@ -474,12 +588,13 @@ function bind(){
   $b('bfol').onclick=e=>{ui.bship=!ui.bship;e.target.classList.toggle('on',ui.bship)};
   $b('bstop').onclick=()=>{if(cfgNow&&cfgNow.demo){abort();state.demo=false}};
   $b('bgo').onclick=()=>{ui.bfollow=true;focusBattle()};
+  $b('b3d').onclick=e=>{d3=!d3;e.target.classList.toggle('on',d3)};
   $b('bpm').onclick=e=>{projMode=(projMode+1)%3;e.target.textContent='Снаряды: '+PM[projMode]};
 }
 function pick(mx,my){let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
+return {stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
 })();
 
 /* ===== НАЛЁТЫ ===== */
@@ -499,7 +614,7 @@ export function specFromShip(s) {
   const st = s.st, cmd = effSkill(s, 'cmd');
   return {name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (st.L < 1 ? 1.25 : 1),
-    railCfg: st.railList, flakCfg: st.flakList, defl: st.defl, fq: st.fq, bq: st.bq};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, defl: st.defl, fq: st.fq, bq: st.bq};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }

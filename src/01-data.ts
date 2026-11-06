@@ -35,6 +35,8 @@ export const COMP = {
   armor: {name:'Броневая плита', desc:'+1 слой брони на каждом секторе корабля', armor:1, mass:20, cost:{fe:40, ti:10}},
   rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:10, cu:8, ti:4}},
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
+  lgun:  {name:'Боевой лазер', desc:'Бьёт мгновенно на огромное расстояние, но жрёт много энергии и долго заряжается', lgun:1, mass:16, cost:{fe:20, cu:24, si:16, ree:4}},
+  missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:14, cu:10, ti:6, si:6}},
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
   hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, ni:5}},
@@ -292,15 +294,23 @@ export function objPos(id, t) {
   let r = _opC.get(id); if (r) return r;
   r = objPos0(id, t); if (!isSh(id)) _opC.set(id, r); return r;
 }
+const _hz = id => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h / 4294967296; };
+// наклон орбиты для псевдо-3D: высота над плоскостью эклиптики
+function zOf(b, x, y) {
+  if (!b || b.id === 'earth' || b.id === 'sun' || b.lp) return 0;
+  const inc = (b.comet ? 0.5 : b.kind === 'ast' ? 0.14 : 0.05) * (_hz(b.id + 'i') * 2 - 1), node = _hz(b.id) * 6.283;
+  return Math.hypot(x, y) * Math.sin(inc) * Math.sin(Math.atan2(y, x) - node);
+}
 function objPos0(id, t) {
   if (isSt(id)) { const s = stById(id); if (!s) return {x: 0, y: 0}; return s.at ? objPos(s.at, t) : {x: s.x, y: s.y}; }
   if (isSh(id)) { const s = shById(id); return s ? {x: s.x, y: s.y} : {x: 0, y: 0}; }
   const b = BODY[id];
-  if (b && b.parent) { const pp = objPos(b.parent, t), a = b.ang + 2 * Math.PI * t / b.per; return {x: pp.x + b.r * Math.cos(a), y: pp.y + b.r * Math.sin(a)}; }
+  if (b && b.parent) { const pp = objPos(b.parent, t), a = b.ang + 2 * Math.PI * t / b.per; return {x: pp.x + b.r * Math.cos(a), y: pp.y + b.r * Math.sin(a), z: (pp.z || 0) + (b.id === 'luna' ? 0 : b.r * 0.4 * Math.sin(a - _hz(b.id) * 6.283))}; }
   if (!b || (b.a === 0 && !b.lp)) return {x: 0, y: 0};
   if (b.lp) { const a = earthAng(t) + b.lp.da; return {x: b.lp.r * Math.cos(a), y: b.lp.r * Math.sin(a)}; }
   const ang = b.ang + 2 * Math.PI * t / (365.25 * Math.pow(b.a, 1.5));
-  return {x: b.a * Math.cos(ang), y: b.a * Math.sin(ang)};
+  const px = b.a * Math.cos(ang), py = b.a * Math.sin(ang);
+  return {x: px, y: py, z: zOf(b, px, py)};
 }
 export function nameOf(id) {
   if (isSt(id)) { const s = stById(id); return s ? s.name : 'станция'; }
@@ -342,13 +352,36 @@ export function rec(k, dir, v, cat) {
   const key = (dir === 'in' ? 'i:' : 'o:') + (cat || 'old'); a[key] = (a[key] || 0) + v;
 }
 export const STAT_IN = {ship: 'Добыча кораблями', mine: 'Добыча шахтами', plant: 'Заводы (выпуск)', loot: 'Трофеи', corp: 'Покупка у корпораций', old: 'Прочее'};
+// --- боевой лазер ---
+export const LAS_D = {s: {dmg: 2, m: 9}, m: {dmg: 4, m: 16}, l: {dmg: 8, m: 30}};
+export const LAS_R = {n: 150, m: 250, f: 400};
+export const mkLas = (pw, fr) => ({dmg: LAS_D[pw].dmg, rng: LAS_R[fr], chg: 0.05 * LAS_D[pw].dmg});
+COMP.lgun.opts = [O('pw', 'Мощность', 'm', [['s', 'малая ×½'], ['m', 'средняя'], ['l', 'большая ×2']]), O('fr', 'Фокусировка', 'm', [['n', 'ближняя 150 км'], ['m', 'средняя 250 км'], ['f', 'дальняя 400 км']])];
+COMP.lgun.ap = (c, s) => {
+  const D = LAS_D[s.pw.v], k = D.dmg / 4; c.mass = D.m * (s.fr.v === 'f' ? 1.3 : s.fr.v === 'n' ? 0.85 : 1);
+  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * k * (s.fr.v === 'f' ? 1.4 : 1)));
+  c.lcfg = mkLas(s.pw.v, s.fr.v); c.name = `Лазер ${D.dmg} ед. / ${c.lcfg.rng} км`;
+  c.desc = `урон ${D.dmg}, дальность ${c.lcfg.rng} км, мгновенный; выстрел на дальности стоит энергии ~ квадрат расстояния (на 150 км ≈ ${Math.round(D.dmg * (0.4 + 1.56))}, перезарядка ${Math.round(D.dmg * (0.4 + 1.56) / c.lcfg.chg)} с)`;
+};
+// --- ракеты ---
+export const MIS_A = {l: {hp: 1, m: 0.7, n: 'лёгкая'}, m: {hp: 2, m: 1, n: 'средняя'}, h: {hp: 3, m: 1.5, n: 'тяжёлая'}};
+export const MIS_S = {s: {spd: 2, n: 'медленная'}, m: {spd: 3.2, n: 'обычная'}, f: {spd: 5, n: 'быстрая'}};
+export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}, l: {dmg: 7, blast: 10, m: 1.5}};
+export const mkMis = (a, sp, w, ammo) => ({hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
+COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая']]), O('am', 'Боезапас', '8', [['4', '4 ракеты'], ['8', '8 ракет'], ['16', '16 ракет']])];
+COMP.missile.ap = (c, s) => {
+  const am = +s.am.v; c.mass = Math.round(10 * (0.6 + 0.05 * am * MIS_A[s.ar.v].m * MIS_W[s.wh.v].m)) / 1; c.mcfg = mkMis(s.ar.v, s.sp.v, s.wh.v, am);
+  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * (0.5 + am / 16) * MIS_W[s.wh.v].m));
+  addCost(c, 'si', am); c.name = `Ракеты ×${am}`;
+  c.desc = `${am} шт., броня ${MIS_A[s.ar.v].n}, ${MIS_S[s.sp.v].n}, взрыв ${c.mcfg.blast} км / урон ${c.mcfg.dmg}, лёт до ${c.mcfg.rng} км; задевает и соседей`;
+};
 export const STAT_OUT = {build: 'Строительство', yard: 'Судостроение', plant: 'Заводы (сырьё)', fuel: 'Заправка кораблей', spares: 'Тех. изделия кораблям', raid: 'Потери от налётов', pop: 'Продажа сырья заводам Земли', old: 'Прочее'};
 
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
 export function designStats(parts, flags) {
   flags = flags || {};
-  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
+  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
     cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, hangF:0, hangB:0, hangars:0, engines:0};
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
@@ -366,6 +399,9 @@ export function designStats(parts, flags) {
     if (c.lab) { r.labs[c.lab] += n * (c.labw || 1); r.labsTotal += n; }
     if (c.rcfg) for (let i = 0; i < n; i++) r.railList.push(c.rcfg);
     if (c.fcfg) for (let i = 0; i < n; i++) r.flakList.push(c.fcfg);
+    if (c.lcfg) for (let i = 0; i < n; i++) r.lasList.push(c.lcfg);
+    if (c.mcfg) for (let i = 0; i < n; i++) r.misList.push(c.mcfg);
+    r.lgun += (c.lgun || 0) * n; r.msl += (c.msl || 0) * n;
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) { r.fqS.hp += c.fq.hp * c.hangF * n; r.fqS.v += c.fq.v * c.hangF * n; r.fqS.am += c.fq.am * c.hangF * n; }
     if (c.bq) { r.bqS.hp += c.bq.hp * c.hangB * n; r.bqS.v += c.bq.v * c.hangB * n; }
@@ -384,8 +420,8 @@ export function designStats(parts, flags) {
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.bspd = r.power ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35)) : 1;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
-  r.crewNeed = 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak) / 10) + 2 * r.hangars;
-  r.warship = r.rail + r.flak + r.hangF + r.hangB > 0;
+  r.crewNeed = 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
+  r.warship = r.rail + r.flak + r.lgun + r.msl + r.hangF + r.hangB > 0;
   r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.buildDays = Math.max(1, Math.round(r.dry * 0.4));
   const massFull = r.dry + r.fuelCap;

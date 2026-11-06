@@ -86,7 +86,8 @@ export function resizeMap() {
   if (!ui.camInit && W > 50) { fitMap(); ui.camInit = true; }
 }
 export function fitMap() { ui.follow = false; ui.cam.x = 0; ui.cam.y = 0; ui.cam.k = Math.min(W, H) / 2 / 3.4; }
-export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k + H / 2]; }
+export const ZK = 0.55;
+export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k + H / 2 - (ui.d3 && p.z ? p.z * ui.cam.k * ZK : 0)]; }
 export function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / ui.cam.k + ui.cam.y}; }
 
 export function shipScreen(s, i) {
@@ -131,7 +132,8 @@ export function drawMap() {
   cx.font = '11px "IBM Plex Sans",sans-serif'; cx.textBaseline = 'middle';
   for (const b of BODIES) {
     if (b.kind === 'sun' || (b.kind === 'moon' && b.r * ui.cam.k < 6)) continue;
-    const [x, y] = w2s(objPos(b.id, state.t));
+    const bp = objPos(b.id, state.t), [x, y] = w2s(bp);
+    if (ui.d3 && bp.z && Math.abs(bp.z * ui.cam.k * ZK) > 4 && b.kind !== 'moon' && (b.kind !== 'ast' || selB === b.id || b.sci || ui.cam.k > 150)) { cx.strokeStyle = 'rgba(130,170,230,.22)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + bp.z * ui.cam.k * ZK); cx.stroke(); cx.beginPath(); cx.ellipse(x, y + bp.z * ui.cam.k * ZK, 2.5, 1.2, 0, 0, 7); cx.stroke(); }
     let r = b.kind === 'moon' ? 2 : 2.6, col = '#8f8878';
     if (b.kind === 'ast' && selB !== b.id) r = Math.min(2.6, Math.max(.7, .8 + .5 * Math.log10(Math.max(1, ui.cam.k / 30))));
     if (b.kind === 'lagrange') {
@@ -176,6 +178,7 @@ export function drawMap() {
     if (ui.labels) { cx.fillStyle = '#e3a94f'; cx.fillText(st.name, x + 10, y + 1); }
   }
   // корабли
+  state.ships.forEach(s => { const zt = s.at && !s.inB ? (objPos(s.at, state.t).z || 0) : 0; s.z = (s.z || 0) + (zt - (s.z || 0)) * .2; });
   state.ships.forEach((s, i) => {
     if (s.inB) return;
     const [x, y] = shipScreen(s, i);
@@ -284,7 +287,8 @@ export function select(sel) {
     if (a === 'belts') { ui.belts = !ui.belts; $('btnBelts').classList.toggle('on', ui.belts); }
     if (a === 'fit') { fitMap(); $('btnFollow').classList.remove('on'); }
     if (a === 'earth') { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; ui.cam.k = Math.max(ui.cam.k, 220); }
-    if (a === 'labels') { ui.labels = !ui.labels; $('btnLabels').classList.toggle('on', ui.labels); }
+    if (a === 'd3') { ui.d3 = !ui.d3; $('btnD3').classList.toggle('on', ui.d3); }
+    else if (a === 'labels') { ui.labels = !ui.labels; $('btnLabels').classList.toggle('on', ui.labels); }
   });
 })();
 

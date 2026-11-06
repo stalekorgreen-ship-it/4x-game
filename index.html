@@ -19,6 +19,7 @@
       <button class="btn sm" data-map="earth">К Земле</button>
       <button class="btn sm" data-map="fit">Вся система</button>
       <button class="btn sm" data-map="labels" id="btnLabels">Подписи</button>
+      <button class="btn sm on" data-map="d3" id="btnD3">3D</button>
       <button class="btn sm" data-map="in" aria-label="Приблизить">+</button><button class="btn sm" data-map="out" aria-label="Отдалить">−</button>
       <button class="btn sm" data-map="sel">На объекте</button><button class="btn sm" data-map="follow" id="btnFollow">Следить</button><button class="btn sm on" data-map="belts" id="btnBelts">Пояса</button>
     </div>
@@ -51,7 +52,7 @@
 </main>
 
 <div id="battle" hidden>
-  <div class="bhead"><h3 id="btitle">Бой</h3><button class="btn" id="bgo">К бою</button><button class="btn" id="bfol">Следить за кораблём</button><button class="btn" id="bstop">Закончить</button><button class="btn" id="bpm">Снаряды: точки</button></div>
+  <div class="bhead"><h3 id="btitle">Бой</h3><button class="btn" id="bgo">К бою</button><button class="btn" id="bfol">Следить за кораблём</button><button class="btn" id="bstop">Закончить</button><button class="btn on" id="b3d">3D</button><button class="btn" id="bpm">Снаряды: точки</button></div>
   <div class="row" id="bspd"><button class="btn" data-v="4">4×</button><button class="btn" data-v="12">12×</button><button class="btn on" data-v="30">30×</button><button class="btn" data-v="80">80×</button><button class="btn" data-v="200">200×</button></div><div id="bstats"></div><div id="binfo" hidden></div>
   <div class="help">Бой идёт на карте у Земли: приблизьте Землю колесом мыши или нажмите «К бою». Клик по кораблю — броня и модули.</div>
 </div>
