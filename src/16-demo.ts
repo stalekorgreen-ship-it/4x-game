@@ -13,7 +13,7 @@ const TYPES = {
   cruiser: n => ({name: 'Крейсер', rails: RI(14, 24), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(3, 4), spd: .9}),
   battleship: n => ({name: 'Линкор', rails: RI(30, 40), flak: 6, eng: 5, L: R(2.8, 3.4), arm: 5, spd: .7, defl: .1}),
   carrier: n => ({name: 'Авианосец', rails: 4, flak: 6, eng: 4, L: R(2.2, 2.8), arm: 3, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
-  freighter: n => ({name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
+  freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
 const MIXES = {
@@ -40,7 +40,7 @@ export const SCENARIOS = {
 };
 export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
-  const ang0 = R(0, TAU), E = R(650, 950), late = [], fleets = [[], []];
+  const ang0 = R(0, TAU), E = R(320, 480), late = [], fleets = [[], []];
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
   const mixFor = n => n < 12 ? MIXES.light : n < 40 ? (Math.random() < .5 ? MIXES.line : MIXES.carrier) : (Math.random() < .5 ? MIXES.heavy : MIXES.line);
   let title = SCENARIOS[kind].split(':')[0];
@@ -65,7 +65,7 @@ export function makeScenario(kind, size) {
 export function startDemo(kind, size) {
   if (Battle.active()) return;
   const cfg = makeScenario(kind, size);
-  state.demo = true; Battle.begin(cfg); ui.bfollow = true; focusBattle();
+  state.demo = true; state.paused = false; Battle.begin(cfg); ui.bfollow = true; focusBattle(); ui.bfollow = false;
   log(cfg.title + '.');
 }
 export function refreshDemo() {
