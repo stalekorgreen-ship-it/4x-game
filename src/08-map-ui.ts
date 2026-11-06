@@ -14,7 +14,7 @@ export function setHtml(el, html) {
   el.querySelectorAll('[data-sc]').forEach((e, i) => { e.scrollLeft = sc[i] || 0; });
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-export const ui = {dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
+export const ui = {skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
 export function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }
@@ -42,7 +42,7 @@ export const BELTS = [mkBelt(2600, 2.1, 3.3, 'rgba(150,160,175,0.55)', 0, 12345)
 /* ===== ШАПКА ===== */
 export function buildHeader() {
   $('speeds').innerHTML = `<button class="btn" id="bpause" title="Пауза (пробел)"></button>` +
-    SPEEDS.map((s, i) => `<button class="btn" data-sp="${i}" title="Клавиша ${i + 1}">${s.l}/с</button>`).join('');
+    SPEEDS.map((s, i) => `<button class="btn" data-sp="${i}" title="Клавиша ${i + 1}">${s.l}/с</button>`).join('') + `<button class="btn" id="bskip" title="Перемотать 5 суток вперёд">+5 сут</button>`;
 }
 export function refreshHeader() {
   $('clock').textContent = fmtDate(state.t);

@@ -9,6 +9,7 @@ import { rpPrice, labRP } from './10-civil.ts';
 import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
 import { buildShell, refreshComp, refreshWork, syncShell } from './11-shell.ts';
+import { setHtml } from './08-map-ui.ts';
 import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
 /* ===== ПАНЕЛЬ «ПРИКАЗЫ» ===== */
@@ -500,6 +501,7 @@ document.addEventListener('keydown', e => {
 });
 $('speeds').addEventListener('click', e => {
   if (e.target.id === 'bpause') state.paused = !state.paused;
+  else if (e.target.id === 'bskip') ui.skip += 5;
   else if (e.target.dataset.sp) { state.speedIdx = +e.target.dataset.sp; state.paused = false; }
   refreshHeader();
 });
@@ -521,6 +523,7 @@ export function frame(now) {
     if (Battle.active()) days = Math.min(days, (Battle.hot() ? 4 : 300) * dt / 86400);
     advance(days);
   }
+  if (ui.skip > 0 && !Battle.active()) { const t0 = performance.now(); while (ui.skip > 1e-9 && performance.now() - t0 < 14) { const d = Math.min(0.25, ui.skip); advance(d); ui.skip -= d; } }
   if (Battle.active()) { if (ui.bfollow) { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; Battle.hud(); } }
   if (ui.follow) { const sp = selPos(); if (sp) { ui.cam.x = sp.x; ui.cam.y = sp.y; } }
   drawMap();

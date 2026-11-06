@@ -6,6 +6,7 @@ const D = await import('../src/01-data.ts');
 const E = await import('../src/04-engine.ts'); const B = await import('../src/03-build.ts');
 const P = await import('../src/07-population.ts');
 await import('../src/06-corps.ts');
+const U = await import('../src/09-orders-ui.ts');
 const g = { newGame: D.newGame, advance: E.advance, totals: P.totals, popTick: P.popTick, get state() { return D.state; } };
 const run = (c) => { if (c === 'newGame()') D.newGame(); };
 let fail = 0;
@@ -49,5 +50,9 @@ s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.effdrive || s().tprog.effdrive > 0, 'очки по контракту лаборатории идут игроку');
 
 ok(s().money > 5e7, 'налоги капают');
+// 4. Все панели интерфейса открываются без ошибок
+for (const t of ['obj', 'orders', 'yard', 'earth', 'corp', 'pop', 'comp', 'work', 'find', 'sci', 'off', 'fleet', 'log']) {
+  try { U.showTab(t); ok(true, 'панель «' + t + '» открывается'); } catch (e) { ok(false, 'панель «' + t + '» падает: ' + e.message); }
+}
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');
 process.exit(fail ? 1 : 0);

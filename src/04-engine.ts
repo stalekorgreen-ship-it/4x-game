@@ -7,13 +7,19 @@ import { PRICE, corpBuyFuel, corpById, corpChargeLoad, corpMine, corpSellToEarth
 import { initPop } from './07-population.ts';
 
 /* ===== СИМУЛЯЦИЯ ===== */
+export const CORP_LOD = 0.5; // сутки между шагами корабля корпорации
 export function advance(days) {
   while (days > 1e-9) {
     const h = Math.min(days, Battle.active() ? 1 / 86400 : 1 / 48);
     state.t += h;
     yardTick(h); buildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
     while (state.t >= state.nextOfficer) { graduate(); state.nextOfficer += academyInterval(); }
-    for (const s of state.ships) shipTick(s, h);
+    const bat = Battle.active();
+    for (const s of state.ships) {
+      // Корабли ИИ вдали от боя считаются крупными шагами (LOD): это в десятки раз дешевле, а результат тот же.
+      if (s.corp && !bat) { s.lod = (s.lod === undefined ? (s.id % 50) / 100 : s.lod) + h; if (s.lod < CORP_LOD) continue; const hh = s.lod; s.lod = 0; shipTick(s, hh); }
+      else shipTick(s, h);
+    }
     days -= h;
   }
 }
