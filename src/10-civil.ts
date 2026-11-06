@@ -216,7 +216,7 @@ function tryExpand(c) {
   const cs = state.cols; if (!cs) return false;
   let best = null, bs = 0;
   for (const id in cs) {
-    if (id === 'earth') continue; const P = cs[id].pop; if ((P.n || 0) < 3e4) continue;
+    if (id === 'earth') continue; const P = cs[id].pop; if ((P.n || 0) < 2000) continue;
     let imp = P.n; for (const g in P.gImp) imp += P.gImp[g] * 10;
     const mine = (c.civs && c.civs[id]) ? 1 : 0, sc = imp / (1 + 3 * mine) * (1 + (c.id * 7 + id.length) % 5 * .1);
     if (sc > bs) { bs = sc; best = id; }

@@ -78,6 +78,7 @@ ok(P.foundColony('mars') && s().cols.mars, 'колония на Марсе ос�
 ok(g.totals().n === e0 || g.totals().n < e0, 'Земля отдала поселенцев');
 ok(P.foundColony('ceres') === false, 'без корабля у Цереры не основать');
 s().ships[0].at = 'ceres'; ok(P.foundColony('ceres') && s().cols.ceres, 'колония на астероиде основана');
+{ const CL = await import('../src/14-climate.ts'); const mc = s().cols.mars; mc.infra = 200; mc.pop.hab = Math.round(200 * CL.colonyCost('mars').per); }
 const mn0 = s().cols.mars.pop.n || 20000;
 const FRt = await import('../src/13-freight.ts');
 for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); FRt.freightTick(30); }
