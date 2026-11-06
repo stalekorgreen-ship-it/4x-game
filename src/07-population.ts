@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { RES, fmtN, rec, state } from './01-data.ts';
 import { PRICE } from './06-corps.ts';
-import { MINE_MIX, civJobs, goodsMarket, settleEconomy } from './10-civil.ts';
+import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy } from './10-civil.ts';
 import { $, H, W, cv, setHtml } from './08-map-ui.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
@@ -127,15 +127,17 @@ export function stepEcon(dt, init) {
   P.wbill = wb; P.tax = wb * TAXK;
   // 3) спрос, выпуск, удовлетворённость: покупают у самого дешёвого продавца
   let sn = 0, sw = 0; for (const g in GOODS) { sw += GOODS[g].need; }
-  P.mfill = MINE_MIX.reduce((a, m, s) => a + m * fill[s], 0);
+  P.mfill = MINE_MIX.reduce((a, m, s) => a + m * fill[s], 0); P.fill = fill;
   const rawNeed = {}, mk = {}; P.staff = P.staff || {};
+  rawNeed.si = rawNeed.si || {};
+  for (const c of state.corps || []) if (c.civ.labs) rawNeed.si[c.id] = (rawNeed.si[c.id] || 0) + c.civ.labs * LAB_SI;
   for (const g in GOODS) {
     let D = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) D += P.c[s][a].n * needOf(g, a);
     let staff = 0; for (let s = 0; s < 4; s++) staff += GOODS[g].mix[s] * fill[s];
     const R = goodsMarket(g, D, P.fac[g] * FACT_W * PROD * staff, staff); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;
     const r = GOODS[g].raw; rawNeed[r] = rawNeed[r] || {};
-    for (const s of R.S) { const id = s.id === 'leg' ? 'leg:' + g : s.id; rawNeed[r][id] = (rawNeed[r][id] || 0) + s.sold / GOODS[g].need * RAW_PER; }
+    for (const s of R.S) { const id = s.id === 'leg' ? 'leg:' + g : s.id; rawNeed[r][id] = (rawNeed[r][id] || 0) + s.sold / GOODS[g].need * RAW_PER * (s.c ? rawMult(s.c) : 1); }
   }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     let ws = 0; for (const g in GOODS) ws += P.sat[g] * GOODS[g].need;

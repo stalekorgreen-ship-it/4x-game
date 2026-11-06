@@ -53,13 +53,26 @@ export const TECH = [
   {id: 'reliable', f: 'eng', cost: 500, name: 'Надёжные узлы', desc: 'Шанс отказа узлов −30%.'},
   {id: 'fastbuild', f: 'eng', cost: 600, name: 'Быстрая сборка', desc: 'Корабли и здания строятся на 20% быстрее.'},
   {id: 'fieldrepair', f: 'eng', cost: 400, name: 'Ремонт на месте', desc: 'Ремонт идёт в 1,5 раза быстрее.'},
+  {id: 'xfer', f: 'eng', cost: 900, name: 'Передача топлива и припасов в космосе', desc: 'Открывает систему передачи топлива и припасов: основа станций дозаправки и танкеров.'},
   {id: 'train', f: 'bio', cost: 400, name: 'Ускоренное обучение', desc: 'Навыки офицеров растут вдвое быстрее.'},
   {id: 'select', f: 'bio', cost: 700, name: 'Отбор кандидатов', desc: 'Новые офицеры в среднем на 1 сильнее.'},
 ];
-export function techBuy(id) {
-  const t = TECH.find(x => x.id === id);
-  if (!t || state.tech[id] || state.sci[t.f] < t.cost) return;
-  state.sci[t.f] -= t.cost; state.tech[id] = true; log(`Изучено: «${t.name}».`);
+// Исследование идёт постепенно: выбранной теме достаются очки области и очки по контрактам лабораторий.
+export function techSet(id) {
+  const t = TECH.find(x => x.id === id); if (!t || state.tech[id]) return;
+  state.research = state.research || {}; state.research[t.f] = state.research[t.f] === id ? null : id;
+}
+export function researchTick(h) {
+  state.research = state.research || {}; state.tprog = state.tprog || {}; state.rp = state.rp || 0;
+  const act = Object.keys(state.research).filter(f => state.research[f]);
+  for (const f of act) {
+    const t = TECH.find(x => x.id === state.research[f]); if (!t) { state.research[f] = null; continue; }
+    let add = state.sci[f]; state.sci[f] = 0;
+    if (state.rp > 0) { add += state.rp / act.length; }
+    state.tprog[t.id] = (state.tprog[t.id] || 0) + add;
+    if (state.tprog[t.id] >= t.cost) { state.tech[t.id] = true; state.research[f] = null; log(`Изучено: «${t.name}».`); }
+  }
+  if (act.length) state.rp = 0;
 }
 // наука от лабораторий корабля или станции на теле с аномалией
 export function produceSci(ent, bodyId, h) {

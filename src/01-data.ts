@@ -23,7 +23,7 @@ export const COMP = {
   laser: {name:'Шахтёрский лазер', desc:'5 т/сутки, нужно 2 человека экипажа', mine:5, mass:6, cost:{pt:3, ree:3, si:8}},
   cabin: {name:'Каюты экипажа', desc:'5 мест', crew:5, mass:4, cost:{fe:6, c:6}},
   life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, cu:6, si:4}},
-  xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям', xfer:1, mass:5, cost:{cu:8, si:6, ti:4}},
+  xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{cu:8, si:6, ti:4}, tech:'xfer'},
   repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:30, cu:15, si:10, pt:1}},
   spares:{name:'Склад тех. изделий', desc:'Хранит 100 тех. изделий', spares:100, mass:6, cost:{fe:10, ti:4}},
   lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, cu:8, ree:2}},
@@ -367,7 +367,7 @@ export function newGame() {
     t: 0, speedIdx: 1, paused: true,
     counters: {id: 0, ship: {}, station: {}},
     stock: {fe: 3000, ni: 800, ti: 600, cu: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100},
-    bld: {mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 1, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, sites: {}, marks: {},
+    bld: {mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 1, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
     designs: [], groups: [], ships: [], stations: [], yard: [], log: [], ast: {}, officers: [], nextOfficer: 30,
     raid: {eta: 150, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),
   };

@@ -3,7 +3,7 @@
 const stub = () => new Proxy(function () {}, { get: (_, k) => (k === Symbol.toPrimitive ? () => 0 : stub()), apply: () => stub(), construct: () => stub(), set: () => true });
 Object.assign(globalThis, { document: stub(), window: stub(), localStorage: { getItem: () => null, setItem() {} }, requestAnimationFrame() {}, ResizeObserver: function () { return stub(); } });
 const D = await import('../src/01-data.ts');
-const E = await import('../src/04-engine.ts');
+const E = await import('../src/04-engine.ts'); const B = await import('../src/03-build.ts');
 const P = await import('../src/07-population.ts');
 await import('../src/06-corps.ts');
 const g = { newGame: D.newGame, advance: E.advance, totals: P.totals, popTick: P.popTick, get state() { return D.state; } };
@@ -27,14 +27,27 @@ ok(Object.values(s().pop.sat).every((x) => x > 0.8), 'товаров хвата�
 // 2. Корпорации: растут сами, первый строит верфь, потом выходят в космос
 D.newGame();
 s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
-ok(s().corps.length === 4 && s().ships.filter((x) => x.corp).length === 0, 'старт: 4 корпорации, кораблей нет');
+ok(s().corps.length === 20 && s().ships.filter((x) => x.corp).length === 0, 'старт: 20 корпораций, кораблей нет');
 ok(s().corps.every((c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0) === 2), 'у каждой по 2 завода');
 for (let i = 0; i < 3000; i++) g.advance(2);
 const tot = (c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0);
 ok(s().corps.every((c) => tot(c) > 30), 'заводы корпораций растут на выручку: ' + s().corps.map(tot).join('/'));
 ok(s().t > 360 * 6 && s().corps.some((c) => c.civ.yard), 'кто-то построил коммерческую верфь (не раньше 6 лет)');
 ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
+ok(s().corps.some((c) => c.civ.labs > 0) && s().corps.some((c) => c.civ.tech.out1), 'корпорации строят лаборатории и изучают свои технологии');
+ok(s().corps.some((c) => c.civ.tech.xfer), 'кто-то освоил передачу топлива в космосе');
 ok(Object.values(s().pop.sat).every((x) => x > 0.9), 'товаров по-прежнему хватает');
+// 3. Наука игрока: изучается постепенно, контракт с лабораторией отдаёт очки игроку
+const lab = s().corps.find((c) => c.civ.labs > 0);
+s().research.eng = 'reliable'; s().sci.eng = 100; s().tprog = {};
+B.researchTick(1);
+ok(s().tprog.reliable === 100 && !s().tech.reliable, 'исследование идёт постепенно (100/500)');
+s().sci.eng = 450; B.researchTick(1);
+ok(s().tech.reliable === true, 'тема изучена, когда набрались очки');
+s().contracts[lab.id] = true; s().money = 1e9; const rp0 = s().rp;
+s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
+ok(s().tech.effdrive || s().tprog.effdrive > 0, 'очки по контракту лаборатории идут игроку');
+
 ok(s().money > 5e7, 'налоги капают');
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');
 process.exit(fail ? 1 : 0);

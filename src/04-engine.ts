@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
-import { academyInterval, buildTick, produceSci, sciTick, yardSlots, yardSpeed } from './03-build.ts';
+import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
 import { PRICE, corpBuyFuel, corpById, corpChargeLoad, corpMine, corpSellToEarth, corpTank, corpTick, initCorps, wipeCorps } from './06-corps.ts';
 import { initPop } from './07-population.ts';
@@ -11,7 +11,7 @@ export function advance(days) {
   while (days > 1e-9) {
     const h = Math.min(days, Battle.active() ? 1 / 86400 : 1 / 48);
     state.t += h;
-    yardTick(h); buildTick(h); sciTick(h); raidTick(h); corpTick(h);
+    yardTick(h); buildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
     while (state.t >= state.nextOfficer) { graduate(); state.nextOfficer += academyInterval(); }
     for (const s of state.ships) shipTick(s, h);
     days -= h;
@@ -463,6 +463,7 @@ export function loadGame() {
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 5e7; initCorps(); }
     if (!state.pop) initPop();
+    state.research = state.research || {}; state.tprog = state.tprog || {}; state.contracts = state.contracts || {}; state.rp = state.rp || 0;
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }
     for (const b of BODIES) if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores};
     return true;
