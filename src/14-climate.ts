@@ -23,26 +23,31 @@ export function climateOf(id) {
   const mass = t.mass || b.mass || 0, d = t.d || b.d || 0, r = d * 500;
   const fk = Math.pow(1 - alb, .25) / Math.sqrt(a);
   const c = {id, a, alb, d, mass, day: t.day || Math.round((2 + 38 * hash01(id)) * 10) / 10,
-    mean: t.mean != null ? t.mean : Math.round(278.6 * fk - 273.15), max: t.max != null ? t.max : Math.round(394 * fk - 273.15), min: t.min != null ? t.min : Math.round(Math.max(3, 79 * fk) - 273.15),
+    mean: t.mean != null ? t.mean : Math.round(278.6 * fk - 273.15), max: 0, min: 0,
     p: t.p || 0, atmT: t.atmT || 0, gas: t.gas || {}, water: t.water != null ? t.water : ((b.ores && (b.ores.ice || 0)) || 0), wcov: t.wcov || 0,
     rad: t.rad != null ? t.rad : Math.round(120 + 80 / (a * a)), mag: !!t.mag, g: r > 0 && mass ? GGRAV * mass / (r * r) / G0 : 0};
   c.under = t.under != null ? t.under : c.mean;
+  // суточный размах: чем длиннее сутки и тоньше атмосфера, тем сильнее средняя температура «размазывается» по циклу
+  const A0 = .5 * (394 - 79) * fk, tau = 50 + 610 * Math.pow(c.p, 1.1), A = A0 * c.day / (c.day + tau);
+  c.amp = Math.round(A); c.max = Math.round(c.mean + A); c.min = Math.round(c.mean - A);
   // массовые доли газов из объёмных
   let mm = 0; for (const k in c.gas) mm += c.gas[k] * (MOLAR[k] || 30);
   c.gasT = {}; for (const k in c.gas) c.gasT[k] = mm > 0 ? c.atmT * c.gas[k] * (MOLAR[k] || 30) / mm : 0;
   return cache[id] = c;
 }
-// Стоимость колонии: 0 — инфраструктура не нужна (Земля)
+// Стоимость колонии: 0 — инфраструктура не нужна (Земля). Считаем два режима: на поверхности и под землёй, берём дешевле.
+// Под землёй нет радиации и суточных перепадов, но нужны закрытые помещения и раскопки; со временем (терраформинг) выгоднее станет поверхность.
 export function colonyCost(id) {
-  const c = climateOf(id), rows = [];
-  const dT = Math.max(0, Math.abs(c.mean - 15) - 10) / 20; rows.push(['Температура', dT]);
+  const c = climateOf(id), sr = [], ur = [];
+  const hot = Math.max(0, c.max - 35) / 20, cold = Math.max(0, -10 - c.min) / 20; sr.push(['Жара днём', hot], ['Холод ночью', cold]);
   const pO2 = (c.gas.o2 || 0) * c.p, pCO2 = (c.gas.co2 || 0) * c.p;
-  const press = c.p < .5 ? (.5 - c.p) / .5 * 8 : c.p > 2 ? Math.sqrt(c.p - 2) : 0; rows.push(['Давление', press]);
-  const air = c.p >= .05 && (pO2 < .12 || pCO2 > .02) ? 5 : 0; rows.push(['Непригодный воздух', air]);
-  const rad = c.mag && c.rad <= 3 ? 0 : Math.log10(Math.max(1, c.rad)) * 2.5; rows.push(['Радиация', rad]);
-  const grav = c.g < 1 ? (1 - c.g) * 6 : (c.g - 1) * 8; rows.push(['Гравитация', grav]);
-  const wat = c.water > 1e6 ? 0 : 3; rows.push(['Нет воды', wat]);
-  const day = Math.min(4, Math.max(0, (c.day - 100) / 100 * .5)); rows.push(['Долгие сутки', day]);
-  const cc = rows.reduce((a, r) => a + r[1], 0);
-  return {cc: id === 'earth' ? 0 : Math.round(cc * 10) / 10, rows, per: 10000 / (1 + (id === 'earth' ? 0 : cc))};
+  sr.push(['Давление', c.p < .5 ? (.5 - c.p) / .5 * 8 : c.p > 2 ? Math.sqrt(c.p - 2) : 0]);
+  sr.push(['Непригодный воздух', c.p >= .05 && (pO2 < .12 || pCO2 > .02) ? 5 : 0]);
+  sr.push(['Радиация', c.mag && c.rad <= 3 ? 0 : Math.log10(Math.max(1, c.rad)) * 2.5]);
+  const grav = c.g < 1 ? (1 - c.g) * 6 : (c.g - 1) * 8, wat = c.water > 1e6 ? 0 : 3;
+  sr.push(['Гравитация', grav], ['Нет воды', wat]);
+  ur.push(['Закрытые помещения и раскопки', 3], ['Температура недр', Math.max(0, Math.abs(c.under - 15) - 10) / 20], ['Гравитация', grav], ['Нет воды', wat]);
+  const sum = r => r.reduce((a, x) => a + x[1], 0), S = sum(sr), U = sum(ur), under = U < S;
+  const cc = id === 'earth' ? 0 : Math.round(Math.min(S, U) * 10) / 10;
+  return {cc, surf: Math.round(S * 10) / 10, und: Math.round(U * 10) / 10, mode: id === 'earth' ? 'surface' : under ? 'under' : 'surface', rows: id === 'earth' ? sr : under ? ur : sr, srows: sr, urows: ur, per: 10000 / (1 + cc)};
 }

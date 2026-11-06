@@ -44,7 +44,7 @@ export function refreshClimate() {
   const col = state.cols && state.cols[id];
   let h = `<div class="box"><h2>Климат: ${esc(b.name)}</h2><div class="stats">
     <span>Смена дня и ночи</span><span>${f(c.day)} ч</span><span>Альбедо</span><span>${f(c.alb, 2)}</span>
-    <span>Средняя температура</span><span>${f(c.mean, 0)} °C</span><span>Максимальная</span><span>${f(c.max, 0)} °C</span><span>Минимальная</span><span>${f(c.min, 0)} °C</span>
+    <span>Средняя температура</span><span>${f(c.mean, 0)} °C</span><span>Днём (максимум)</span><span>${f(c.max, 0)} °C</span><span>Ночью (минимум)</span><span>${f(c.min, 0)} °C</span>
     <span>Температура под землёй</span><span>${f(c.under, 0)} °C</span><span>Атмосферное давление</span><span>${c.p >= .01 ? f(c.p, 2) : c.p.toExponential(1)} атм</span>
     <span>Масса атмосферы</span><span>${c.atmT ? c.atmT.toExponential(2) + ' т' : 'нет'}</span>
     <span>Вода (запас)</span><span>${c.water ? c.water.toExponential(2) + ' т' : 'нет'}</span><span>Гидросфера</span><span>${f(c.wcov * 100, 0)} % поверхности</span>
@@ -53,7 +53,7 @@ export function refreshClimate() {
     <span>Удалённость от звезды</span><span>${f(c.a, 2)} а.е.</span></div>`;
   const gk = Object.keys(c.gas).sort((x, y) => c.gas[y] - c.gas[x]);
   h += gk.length ? `<h3>Газы атмосферы</h3><div class="stats">${gk.map(k => `<span>${GAS_NAME[k] || k}</span><span>${f(c.gas[k] * 100, c.gas[k] < .01 ? 3 : 1)} % · ${c.gasT[k].toExponential(2)} т</span>`).join('')}</div>` : '<div class="muted">Атмосферы нет.</div>';
-  h += `</div><div class="box"><h2>Стоимость колонии: ${f(K.cc, 1)}</h2><div class="help">Это не цена в кредитах, а показатель эффективности жизнеобеспечения. Одна единица инфраструктуры обеспечивает 10000 / (1 + стоимость) человек.</div><div class="stats">${K.rows.filter(r => r[1] >= .05).map(r => `<span>${r[0]}</span><span>+${f(r[1], 1)}</span>`).join('') || '<span>Всё в норме</span><span>0</span>'}<span><b>Человек на 1 ед. инфраструктуры</b></span><span><b>${fmtN(K.per)}</b></span>`;
+  h += `</div><div class="box"><h2>Стоимость колонии: ${f(K.cc, 1)} — ${K.mode === 'under' ? 'под землёй' : 'на поверхности'}</h2><div class="help">Это не цена в кредитах, а показатель эффективности жизнеобеспечения. Одна единица инфраструктуры обеспечивает 10000 / (1 + стоимость) человек.</div><div class="stats"><span>На поверхности</span><span>${f(K.surf, 1)}</span><span>Под землёй</span><span>${f(K.und, 1)}</span></div><div class="help">Берётся дешевле. Если поверхность убийственна, люди живут в подземельях; терраформинг со временем делает выгодной поверхность.</div><div class="stats">${K.rows.filter(r => r[1] >= .05).map(r => `<span>${r[0]}</span><span>+${f(r[1], 1)}</span>`).join('') || '<span>Всё в норме</span><span>0</span>'}<span><b>Человек на 1 ед. инфраструктуры</b></span><span><b>${fmtN(K.per)}</b></span>`;
   if (col) h += `<span>Инфраструктуры в колонии</span><span>${fmtN(col.infra || 0)} ед.</span><span>Вместимость</span><span>${col.pop.hab ? fmtN(col.pop.hab) : 'без ограничений'}</span>`;
   h += '</div></div>';
   setHtml(p, h);
