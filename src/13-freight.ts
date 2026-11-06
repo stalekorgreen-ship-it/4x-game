@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Грузовые заказы: игрок заказывает доставку на любое тело, корпорации со свободным грузовым флотом берутся за работу и зарабатывают.
 // Колонисты возят корпорации сами, без контроля игрока.
+import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODIES, BODY, RES, dist, fmtN, log, objPos, rec, state } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
@@ -12,7 +13,7 @@ export const ITEMS = () => [['infra', 'Инфраструктура'], ...Object
 export const itemName = k => k === 'infra' ? 'Инфраструктура' : k === 'col' ? 'Колонисты' : (RES[k] || k);
 export const cargoBodies = () => BODIES.filter(b => ['hub', 'planet', 'moon', 'ast'].includes(b.kind) && !b.comet && !b.strange);
 const bdist = (a, b) => dist(objPos(a, state.t), objPos(b, state.t));
-export const fareOf = (a, b) => Math.max(1, FARE * bdist(a, b));
+export const fareOf = (a, b) => Math.max(1, FARE * bdist(a, b) * tm('fare'));
 const FR = () => state.freight || (state.freight = {orders: [], flights: [], acc: 0, n: 0});
 const depot = id => (state.depot || (state.depot = {}))[id] || (state.depot[id] = {});
 const facs = c => { const v = c.home || c.civ; let n = 0; if (v) for (const g in v.fac) n += v.fac[g]; return n; };
@@ -26,7 +27,7 @@ export function orderCargo(item, amt, from, to) {
 }
 export function dispatchColonists(to, q) { // игрок не управляет: корпорация везёт поселенцев с Земли
   const F = FR(), cs = state.corps || []; if (!cs.length) return false;
-  const c = cs[F.n++ % cs.length], d = Math.max(2, bdist('earth', to) / SPEED);
+  const c = cs[F.n++ % cs.length], d = Math.max(2, bdist('earth', to) / (SPEED * tm('fspeed')));
   F.flights.push({corp: c.id, item: 'col', amt: q, to, arrive: state.t + d, oid: 0}); c.credits += q * TICKET;
   const P = state.cols[to].pop; P.inflight = (P.inflight || 0) + q; return true;
 }
@@ -45,12 +46,12 @@ export function freightTick(h) {
       const c = cs.find(x => capOf(x) - usedBy(x) >= Math.min(o.left, 20)); if (!c) break;
       let chunk = Math.min(o.left, capOf(c) - usedBy(c)); const fr = fareOf(o.from, o.to) * cf(c);
       const stock = o.from === 'earth' && o.item !== 'infra' ? (state.stock[o.item] || 0) : o.item === 'infra' ? Infinity : ((state.depot && state.depot[o.from] && state.depot[o.from][o.item]) || 0);
-      chunk = Math.min(chunk, stock, state.money / (fr + (o.item === 'infra' ? INFRA_PRICE : 0)));
+      chunk = Math.min(chunk, stock, state.money / (fr + (o.item === 'infra' ? INFRA_PRICE * tm('infra') : 0)));
       if (!(chunk >= 1) && !(chunk > 0 && chunk >= o.left)) break;
       chunk = chunk >= o.left ? o.left : Math.floor(chunk);
-      const pay = chunk * fr + (o.item === 'infra' ? chunk * INFRA_PRICE : 0); state.money -= pay; c.credits += chunk * fr; o.paid = (o.paid || 0) + pay;
+      const pay = chunk * fr + (o.item === 'infra' ? chunk * INFRA_PRICE * tm('infra') : 0); state.money -= pay; c.credits += chunk * fr; o.paid = (o.paid || 0) + pay;
       if (o.item !== 'infra') { if (o.from === 'earth') { state.stock[o.item] -= chunk; rec(o.item, 'out', chunk, 'freight'); } else state.depot[o.from][o.item] -= chunk; }
-      F.flights.push({corp: c.id, item: o.item, amt: chunk, to: o.to, arrive: state.t + Math.max(2, bdist(o.from, o.to) / SPEED), oid: o.id}); o.left -= chunk;
+      F.flights.push({corp: c.id, item: o.item, amt: chunk, to: o.to, arrive: state.t + Math.max(2, bdist(o.from, o.to) / (SPEED * tm('fspeed'))), oid: o.id}); o.left -= chunk;
     }
   }
   F.orders = F.orders.filter(o => o.left > 1e-6 || F.flights.some(f => f.oid === o.id));
@@ -68,7 +69,7 @@ export function refreshCargo() {
     <div class="box"><h2>Заказы и рейсы</h2><div id="cg-list"></div></div><div class="box"><h2>Склады тел</h2><div id="cg-dp"></div></div>`;
     const bs = cargoBodies().map(b => [b.id, b.name]);
     $('cg-item').innerHTML = opt(ITEMS(), 'infra'); $('cg-from').innerHTML = opt(bs, 'earth'); $('cg-to').innerHTML = opt(bs, 'luna');
-    const est = () => { const a = $('cg-from').value, b = $('cg-to').value, n = +$('cg-amt').value || 0, f = fareOf(a, b), inf = $('cg-item').value === 'infra' ? INFRA_PRICE : 0; $('cg-est').textContent = `Фрахт ≈ ${fmtN(f)} кр/т, всего ≈ ${fmtN(n * (f + inf))} кр. В пути ≈ ${fmtN(Math.max(2, bdist(a, b) / SPEED), 0)} сут.`; };
+    const est = () => { const a = $('cg-from').value, b = $('cg-to').value, n = +$('cg-amt').value || 0, f = fareOf(a, b), inf = $('cg-item').value === 'infra' ? INFRA_PRICE * tm('infra') : 0; $('cg-est').textContent = `Фрахт ≈ ${fmtN(f)} кр/т, всего ≈ ${fmtN(n * (f + inf))} кр. В пути ≈ ${fmtN(Math.max(2, bdist(a, b) / SPEED), 0)} сут.`; };
     p.addEventListener('input', est); est();
     $('cg-go').onclick = () => { if (orderCargo($('cg-item').value, $('cg-amt').value, $('cg-from').value, $('cg-to').value)) refreshCargo(); };
   }

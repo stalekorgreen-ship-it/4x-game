@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { PRICE } from './06-corps.ts';
@@ -132,7 +133,7 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
-  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = 1 + Math.max(0, L.hours - 40) * .01;
+  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = tm('death') * (1 + Math.max(0, L.hours - 40) * .01);
   let b = 0, d = 0;
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
@@ -197,7 +198,7 @@ export function stepEcon(dt, init) {
     else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * incomeOf(s, a, 'un') + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
     inc[s][a] = i * (1 - (L.tax - 20) / 100); wel[s][a] = null;
   }
-  P.wbill = wb; P.tax = wb * TAXK * L.tax / 20; P.n = t.n;
+  P.wbill = wb; P.tax = wb * TAXK * L.tax / 20 * tm('tax'); P.n = t.n;
   // 3) спрос, выпуск, удовлетворённость: покупают у самого дешёвого продавца
   let sn = 0, sw = 0; for (const g in GOODS) { sw += GOODS[g].need; }
   P.mfill = MINE_MIX.reduce((a, m, s) => a + m * fill[s], 0); P.fill = fill;
@@ -208,7 +209,7 @@ export function stepEcon(dt, init) {
     let D = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) D += P.c[s][a].n * needOf(g, a);
     D *= (P.evDem && P.evDem[g]) || 1;
     let staff = 0; for (let s = 0; s < 4; s++) staff += GOODS[g].mix[s] * fill[s];
-    const R = goodsMarket(g, D, P.fac[g] * FW() * PROD * hoursK() * staff, staff); mk[g] = R;
+    const R = goodsMarket(g, D, P.fac[g] * FW() * PROD * tm('prod') * hoursK() * staff, staff); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;
     const r = GOODS[g].raw; rawNeed[r] = rawNeed[r] || {};
     for (const s of R.S) { const id = s.id === 'leg' ? 'leg:' + g : s.id; rawNeed[r][id] = (rawNeed[r][id] || 0) + s.sold / GOODS[g].need * RAW_PER * (s.c ? rawMult(s.c) : 1); }

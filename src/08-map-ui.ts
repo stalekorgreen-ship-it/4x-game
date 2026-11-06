@@ -109,6 +109,7 @@ export function drawMap() {
     if (b.kind === 'sun' || (b.kind === 'moon' && b.r * ui.cam.k < 6)) continue;
     const [x, y] = w2s(objPos(b.id, state.t));
     let r = b.kind === 'moon' ? 2 : 2.6, col = '#8f8878';
+    if (b.kind === 'ast' && selB !== b.id) r = Math.min(2.6, Math.max(.7, .8 + .5 * Math.log10(Math.max(1, ui.cam.k / 30))));
     if (b.kind === 'lagrange') {
       cx.strokeStyle = selB === b.id ? '#fff' : '#4d6a8f'; cx.beginPath();
       cx.moveTo(x - 4, y); cx.lineTo(x + 4, y); cx.moveTo(x, y - 4); cx.lineTo(x, y + 4); cx.stroke();

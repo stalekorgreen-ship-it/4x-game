@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { tm } from './15-techs.ts';
 import { bindCrew, eqFor, genOfficer, pilFuel, pilSpeed, staffFor } from './02-crew.ts';
 import { initCorps } from './06-corps.ts';
 import { initPop } from './07-population.ts';
@@ -335,7 +336,7 @@ export function designStats(parts, flags) {
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
     r.dry += c.mass * n;
-    r.power += (c.power || 0) * n;
+    r.power += (c.power || 0) * n * tm('thrust');
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
@@ -389,6 +390,7 @@ export function designStats(parts, flags) {
     if (!r.cargoCap && !r.tanker && !r.warship) r.warns.push('Нет грузового отсека: добытое некуда класть.');
     if (!r.lasers && !r.tow && !r.tanker && r.cargoCap === 0 && !r.warship) r.warns.push('У корабля нет назначения: ни лазеров, ни сцепки, ни груза.');
   }
+  r.cargoCap *= tm('cargo');
   return r;
 }
 export const stockOK = cost => Object.entries(cost).every(([k, v]) => (state.stock[k] || 0) >= v);

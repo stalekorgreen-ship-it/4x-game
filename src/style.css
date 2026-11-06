@@ -136,3 +136,5 @@ table.mono td,table.mono th{padding-top:1px!important;padding-bottom:1px!importa
 #top{position:relative;z-index:41}
 
 .panel>*{flex-shrink:0}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.tcard{border:1px solid;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.03)}.tcard.on{background:rgba(74,163,255,.12)}

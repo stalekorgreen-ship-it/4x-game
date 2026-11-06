@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Климат и условия жизни любого тела. От них считается «стоимость колонии» — показатель того, сколько
 // инфраструктуры жизнеобеспечения нужно на человека: одна единица инфраструктуры кормит 10000 / (1 + стоимость) человек.
+import { ta } from './15-techs.ts';
 import { BODY } from './01-data.ts';
 
 export const G0 = 9.80665, GGRAV = 6.674e-11;
@@ -48,6 +49,6 @@ export function colonyCost(id) {
   sr.push(['Гравитация', grav], ['Нет воды', wat]);
   ur.push(['Закрытые помещения и раскопки', 3], ['Температура недр', Math.max(0, Math.abs(c.under - 15) - 10) / 20], ['Гравитация', grav], ['Нет воды', wat]);
   const sum = r => r.reduce((a, x) => a + x[1], 0), S = sum(sr), U = sum(ur), under = U < S;
-  const cc = id === 'earth' ? 0 : Math.round(Math.min(S, U) * 10) / 10;
-  return {cc, surf: Math.round(S * 10) / 10, und: Math.round(U * 10) / 10, mode: id === 'earth' ? 'surface' : under ? 'under' : 'surface', rows: id === 'earth' ? sr : under ? ur : sr, srows: sr, urows: ur, per: 10000 / (1 + cc)};
+  const cc = id === 'earth' ? 0 : Math.max(0, Math.round((Math.min(S, U) - ta('ccred')) * 10) / 10);
+  return {cc, surf: Math.round(S * 10) / 10, und: Math.round(U * 10) / 10, mode: id === 'earth' ? 'surface' : under ? 'under' : 'surface', rows: id === 'earth' ? sr : under ? ur : sr, srows: sr, urows: ur, per: 10000 / (1 + cc) * (1 + ta('hab'))};
 }

@@ -1,5 +1,6 @@
 // @ts-nocheck
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
+import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN } from './01-data.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
 import { bldJobs } from './03-build.ts';
@@ -21,7 +22,7 @@ export const outMult = c => 1 + .05 * tk(c, 'out');
 export const laborMult = c => Math.pow(.95, tk(c, 'lab'));
 export const rawMult = c => Math.pow(.9, tk(c, 'raw'));
 export const hasXfer = c => !!(c.civ && c.civ.tech && c.civ.tech.xfer);
-export const rpPrice = c => c.civ.rpPrice || (c.civ.rpPrice = 8000 + (c.id % 7) * 600);
+export const rpPrice = c => (c.civ.rpPrice || (c.civ.rpPrice = 8000 + (c.id % 7) * 600)) * tm('rpcost');
 export const labRP = c => (c.civ.labs || 0) * LAB_RP * ((state.pop && state.pop.fill) ? LAB_MIX.reduce((a, m, s) => a + m * state.pop.fill[s], 0) : 1);
 export const newCiv = (spec) => ({fac: {[spec]: 2}, mines: {[GOODS[spec].raw]: 1}, yard: 0, pr: {}, mp: {}, sold: {}, cap: {}, unitc: {}, comp: {}, month: 0, built: 0, labs: 0, tech: {}, cur: null, prog: 0, rpPool: 0, hired: 0});
 const corpsAll = () => (state.corps || []).filter(c => c.civ);

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
+import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
 import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
@@ -352,11 +353,13 @@ export function refreshScience() {
   const S = state.sci, act = state.research || {}, prog = state.tprog || {};
   let h = `<div class="box"><h2>Очки науки (поступают в текущее исследование)</h2><div class="stats">${Object.entries(FIELDS).map(([f, n]) => `<span>${n}</span><span>${fmtN(S[f], 1)}</span>`).join('')}<span>Купленные очки</span><span>${fmtN(state.rp || 0, 1)}</span></div>
     <div class="help">Выберите тему в каждой области: очки области идут в неё сами, пока тема не изучена. Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. Купленные очки лабораторий делятся между активными темами.</div></div>`;
+  ensureOffers(Object.keys(FIELDS));
   for (const f in FIELDS) {
-    h += `<div class="box"><h2>${FIELDS[f]}</h2>` + TECH.filter(t => t.f === f).map(t => {
-      const done = state.tech[t.id], cur = act[f] === t.id, p = prog[t.id] || 0;
-      return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${t.name}</b>${done ? '<span class="ok">изучено</span>' : `<span class="mono muted">${fmtN(p)} / ${t.cost}</span><button class="btn sm ${cur ? 'on' : ''}" data-a="buytech" data-t="${t.id}">${cur ? 'Изучается' : 'Изучать'}</button>`}</div>${done ? '' : bar(p / t.cost)}<div class="help">${t.desc}</div></div>`;
-    }).join('') + '</div>';
+    const offer = state.offers[f], rr = (state.rerolls && state.rerolls[f]) || 0, nDone = TECH.filter(t => t.f === f && state.tech[t.id]).length, nAll = TECH.filter(t => t.f === f).length;
+    h += `<div class="box"><div class="row"><h2 class="grow">${FIELDS[f]} <span class="muted">${nDone}/${nAll}</span></h2><button class="btn sm" data-a="reroll" data-f="${f}"${rr > 0 ? '' : ' disabled'}>Сменить карточки (${rr})</button></div>` +
+      (offer.length ? `<div class="cards">` + offer.map(id => { const t = techById(id), R = RARITY[t.r], cur = act[f] === t.id, p = prog[t.id] || 0;
+        return `<div class="tcard${cur ? ' on' : ''}" style="border-color:${R.col}"><div class="row"><b class="grow">${t.name}</b></div><div class="muted" style="color:${R.col}">${R.n}</div><div class="help">${t.desc}</div>${bar(p / t.cost)}<div class="row"><span class="mono muted grow">${fmtN(p)} / ${t.cost}</span><button class="btn sm ${cur ? 'on' : ''}" data-a="buytech" data-t="${t.id}">${cur ? 'Изучается' : 'Изучать'}</button></div></div>`; }).join('') + '</div>' : '<div class="muted">Все технологии области изучены.</div>') +
+      `<details><summary class="muted">Изучено (${nDone})</summary><div class="help">${TECH.filter(t => t.f === f && state.tech[t.id]).map(t => `<b style="color:${RARITY[t.r].col}">${t.name}</b>: ${t.desc}`).join('<br>') || 'пока ничего'}</div></details></div>`;
   }
   h += '<div class="box"><h2>Научные объекты</h2>' + BODIES.filter(b => b.sci).map(b => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow" style="color:#b794e8">${b.name}</b><button class="btn sm" data-a="selbody" data-id="${b.id}">На карте</button></div>` +
     Object.entries(b.sci).map(([f, m]) => `<div class="row"><span style="width:110px">${FIELDS[f]} ×${m}</span>${bar(state.sites[b.id][f] / b.pool[f])}<span class="mono">${fmtN(state.sites[b.id][f])}</span></div>`).join('') + '</div>').join('') + '</div>';
@@ -490,6 +493,7 @@ export function sideAction(a, d) {
   if (['bbuild', 'bcancel'].includes(a)) return earthClick(a, d);
   if (a === 'mark') { toggleMark(d.k); refreshObj(); return renderFindIfOpen(); }
   if (a === 'focus') { const k = d.k; select(isSt(k) ? {kind: 'station', id: +k.slice(3)} : isSh(k) ? {kind: 'ship', id: +k.slice(3)} : {kind: 'body', id: k}); focusSel(); return; }
+  if (a === 'reroll') { reroll(d.f); return refreshScience(); }
   if (a === 'buytech') { techSet(d.t); return refreshScience(); }
   if (a === 'editship') { ui.edit = {kind: 'ship', id: ui.sel.id}; return showTab('orders'); }
   if (a === 'addmine') { const t = ui.sel.id; return addOrderTo($('actGroup').value, {type: 'mine', target: t, res: $('actRes').value, pct: 100}); }

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { baseOf, log, state, sumVals, uid } from './01-data.ts';
+import { tm } from './15-techs.ts';
 import { academyBonus, academyClass, techOn } from './03-build.ts';
 import { releaseTow } from './04-engine.ts';
 
@@ -63,14 +64,14 @@ export function effSkill(ent, role) {
   return v;
 }
 export function train(ent, role, h, days) {
-  const o = ent.crew && officerById(ent.crew[role]); if (o) o.sk[role] = Math.min(10, o.sk[role] + h * (techOn('train') ? 2 : 1) / (days || 300));
+  const o = ent.crew && officerById(ent.crew[role]); if (o) o.sk[role] = Math.min(10, o.sk[role] + h * (techOn('train') ? 2 : 1) * tm('train') / (days || 300));
 }
 export const pilSpeed = s => 0.9 + 0.02 * effSkill(s, 'pil');
-export const pilFuel = s => (1.1 - 0.02 * effSkill(s, 'pil')) * (techOn('effdrive') ? 0.85 : 1);
-export const minRate = s => 0.7 + 0.06 * effSkill(s, 'min');
-export const sciMult = s => 0.7 + 0.06 * effSkill(s, 'sci');
-export const failMult = s => Math.max(0.3, 1.5 - 0.1 * effSkill(s, 'eng')) * (techOn('reliable') ? 0.7 : 1);
-export const repMult = s => (0.6 + 0.08 * effSkill(s, 'eng')) * (techOn('fieldrepair') ? 1.5 : 1);
+export const pilFuel = s => (1.1 - 0.02 * effSkill(s, 'pil')) * (techOn('effdrive') ? 0.85 : 1) * tm('fuel');
+export const minRate = s => (0.7 + 0.06 * effSkill(s, 'min')) * tm('mining');
+export const sciMult = s => (0.7 + 0.06 * effSkill(s, 'sci')) * tm('sci');
+export const failMult = s => Math.max(0.3, 1.5 - 0.1 * effSkill(s, 'eng')) * (techOn('reliable') ? 0.7 : 1) * tm('fail');
+export const repMult = s => (0.6 + 0.08 * effSkill(s, 'eng')) * (techOn('fieldrepair') ? 1.5 : 1) * tm('repair');
 
 export const GROUP_OF = {ion: 'engine', chem: 'engine', laser: 'laser', laser2: 'laser', fusion: 'engine', life: 'life', hook: 'hook', xfer: 'xfer'};
 export const GROUP_NAME = {engine: 'Двигатели', laser: 'Лазеры', life: 'Жизнеобеспечение', hook: 'Сцепка', xfer: 'Передача топлива'};
