@@ -369,7 +369,7 @@ export function refreshObj() {
     if (b.mass) rows.push(['Масса', cn(b.mass) + ' кг']);
     if (b.d) rows.push(['Диаметр', fmtN(b.d, b.d < 10 ? 2 : 0) + ' км']);
     if (b.mass && b.d) rows.push(['Гравитация', fmtN(6.674e-11 * b.mass / Math.pow(b.d * 500, 2), 4) + ' м/с²']);
-    if (COLONIZABLE(b.id)) { const I = colInfo(b.id); rows.push(['Колонизация', state.cols && state.cols[b.id] ? 'колония основана' : `${fmtN(I.cost)} кр, ${fmtN(I.settlers)} поселенцев`]); rows.push(['Вместимость тела', fmtN(I.hab) + ' чел.']); rows.push(['Надбавка к ввозу', '×' + fmtN(I.dist, 2)]); }
+    if (COLONIZABLE(b.id)) { const I = colInfo(b.id); rows.push(['Колонизация', state.cols && state.cols[b.id] ? 'колония основана' : `${fmtN(I.cost)} кр, ${fmtN(I.settlers)} поселенцев`]); rows.push(['Стоимость колонии', fmtN(I.cc, 1) + ' (1 ед. инфраструктуры = ' + fmtN(I.per) + ' чел.)']); rows.push(['Надбавка к ввозу', '×' + fmtN(I.dist, 2)]); }
     h += `<div class="stats" style="margin-top:4px">${rows.map(r => `<span>${r[0]}</span><span>${r[1]}</span>`).join('')}</div>`;
   }
   if (b.d) h += `<div class="muted">Диаметр ${fmtN(b.d, b.d < 10 ? 2 : 0)} км · ${canShipMine(b.id) ? 'доступен корабельным лазерам' : 'слишком велик для корабельных лазеров (лимит ' + shipMineLimit() + ' км, растёт с технологиями): нужны шахты и население'}</div>`;

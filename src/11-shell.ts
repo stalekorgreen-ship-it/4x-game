@@ -9,7 +9,7 @@ import { $, bar, esc, setHtml, ui } from './08-map-ui.ts';
 
 const I = (p) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 export const SECTIONS = [
-  {id: 'planets', name: 'Планеты', icon: I('<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/>'), subs: [['obj', 'Обзор'], ['pop', 'Население'], ['comp', 'Состав'], ['work', 'Работа'], ['col', 'Колонии'], ['earth', 'Постройки']]},
+  {id: 'planets', name: 'Планеты', icon: I('<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/>'), subs: [['obj', 'Обзор'], ['pop', 'Население'], ['comp', 'Состав'], ['climate', 'Климат'], ['work', 'Работа'], ['col', 'Колонии'], ['earth', 'Постройки']]},
   {id: 'fleet', name: 'Флот', icon: I('<path d="M12 3l4 9v6l-4-2-4 2v-6z"/><path d="M8 12l-4 4M16 12l4 4"/>'), subs: [['fleet', 'Корабли'], ['off', 'Офицеры']]},
   {id: 'orders', name: 'Приказы', icon: I('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), subs: [['orders', 'Приказы и правила']]},
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
@@ -36,6 +36,28 @@ export function syncShell(tab) {
 }
 
 const endTxt = (id, k, max) => { const n = id === 'earth' ? state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1) : 0; if (!(n > 0)) return 'нет шахт'; const y = depleteYears(id, k, max, n); return '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет'; };
+/* --- Климат и стоимость колонии --- */
+import { climateOf, colonyCost, GAS_NAME } from './14-climate.ts';
+export function refreshClimate() {
+  const p = $('p-climate'); if (!p) return;
+  const id = ui.sel.kind === 'body' ? ui.sel.id : 'earth', b = BODY[id], c = climateOf(id), K = colonyCost(id), f = (v, d = 1) => fmtN(v, d);
+  const col = state.cols && state.cols[id];
+  let h = `<div class="box"><h2>Климат: ${esc(b.name)}</h2><div class="stats">
+    <span>Смена дня и ночи</span><span>${f(c.day)} ч</span><span>Альбедо</span><span>${f(c.alb, 2)}</span>
+    <span>Средняя температура</span><span>${f(c.mean, 0)} °C</span><span>Максимальная</span><span>${f(c.max, 0)} °C</span><span>Минимальная</span><span>${f(c.min, 0)} °C</span>
+    <span>Температура под землёй</span><span>${f(c.under, 0)} °C</span><span>Атмосферное давление</span><span>${c.p >= .01 ? f(c.p, 2) : c.p.toExponential(1)} атм</span>
+    <span>Масса атмосферы</span><span>${c.atmT ? c.atmT.toExponential(2) + ' т' : 'нет'}</span>
+    <span>Вода (запас)</span><span>${c.water ? c.water.toExponential(2) + ' т' : 'нет'}</span><span>Гидросфера</span><span>${f(c.wcov * 100, 0)} % поверхности</span>
+    <span>Радиация</span><span>${f(c.rad, 1)} × Земли</span><span>Магнитное поле</span><span>${c.mag ? 'есть' : 'нет'}</span>
+    <span>Диаметр</span><span>${c.d ? fmtN(c.d, c.d < 10 ? 2 : 0) + ' км' : '—'}</span><span>Гравитация</span><span>${f(c.g, 3)} g</span>
+    <span>Удалённость от звезды</span><span>${f(c.a, 2)} а.е.</span></div>`;
+  const gk = Object.keys(c.gas).sort((x, y) => c.gas[y] - c.gas[x]);
+  h += gk.length ? `<h3>Газы атмосферы</h3><div class="stats">${gk.map(k => `<span>${GAS_NAME[k] || k}</span><span>${f(c.gas[k] * 100, c.gas[k] < .01 ? 3 : 1)} % · ${c.gasT[k].toExponential(2)} т</span>`).join('')}</div>` : '<div class="muted">Атмосферы нет.</div>';
+  h += `</div><div class="box"><h2>Стоимость колонии: ${f(K.cc, 1)}</h2><div class="help">Это не цена в кредитах, а показатель эффективности жизнеобеспечения. Одна единица инфраструктуры обеспечивает 10000 / (1 + стоимость) человек.</div><div class="stats">${K.rows.filter(r => r[1] >= .05).map(r => `<span>${r[0]}</span><span>+${f(r[1], 1)}</span>`).join('') || '<span>Всё в норме</span><span>0</span>'}<span><b>Человек на 1 ед. инфраструктуры</b></span><span><b>${fmtN(K.per)}</b></span>`;
+  if (col) h += `<span>Инфраструктуры в колонии</span><span>${fmtN(col.infra || 0)} ед.</span><span>Вместимость</span><span>${col.pop.hab ? fmtN(col.pop.hab) : 'без ограничений'}</span>`;
+  h += '</div></div>';
+  setHtml(p, h);
+}
 /* --- Состав: недра, руды, газы выбранного тела --- */
 export function refreshComp() {
   const p = $('p-comp'); if (!p) return;

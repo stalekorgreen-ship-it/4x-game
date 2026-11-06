@@ -10,7 +10,7 @@ import { refreshLaws } from './12-state.ts';
 import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
 import { refreshCargo } from './13-freight.ts';
-import { buildShell, refreshTrade, refreshCol, refreshComp, refreshWork, syncShell } from './11-shell.ts';
+import { buildShell, refreshTrade, refreshCol, refreshClimate, refreshComp, refreshWork, syncShell } from './11-shell.ts';
 import { setHtml } from './08-map-ui.ts';
 import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
@@ -452,7 +452,7 @@ export function showTab(name) {
   ui.tab = name;
   const side = $('side'); if (side) { side.classList.toggle('modal', name !== 'obj'); side.classList.toggle('card', name === 'obj'); const v = $('veil'); if (v) v.hidden = name === 'obj'; }
   syncShell(name);
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();
@@ -466,6 +466,7 @@ export function showTab(name) {
   if (name === 'col') refreshCol();
   if (name === 'trade') refreshTrade();
   if (name === 'cargo') refreshCargo();
+  if (name === 'climate') refreshClimate();
   if (name === 'sci') refreshScience();
   if (name === 'find') renderFind();
   if (name === 'fleet') refreshFleet();
@@ -570,6 +571,7 @@ export function frame(now) {
     else if (ui.tab === 'col') refreshCol();
     else if (ui.tab === 'trade') refreshTrade();
     else if (ui.tab === 'cargo') refreshCargo();
+    else if (ui.tab === 'climate') refreshClimate();
     else if (ui.tab === 'sci') refreshScience();
   }
   requestAnimationFrame(frame);

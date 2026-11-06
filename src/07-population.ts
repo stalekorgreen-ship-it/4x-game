@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
@@ -77,9 +78,9 @@ export function mkCol(id, name, T0, o) {
 // --- колонии: любое тело можно заселить ---
 export const COLONIZABLE = id => { const b = BODY[id]; return !!b && ['planet', 'moon', 'ast'].includes(b.kind); };
 export function colInfo(id) {
-  const b = BODY[id], a = b.a != null ? b.a : (BODY[b.parent] || {a: 1}).a, d = Math.abs(a - 1);
-  const hab = b.kind === 'planet' ? (id === 'venus' ? 5e6 : 2e7) : b.kind === 'moon' ? 3e6 : (b.d && b.d > 300 ? 1e6 : 2e5);
-  return {hab, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: 20000};
+  const b = BODY[id], a = b.a != null ? b.a : (BODY[b.parent] || {a: 1}).a, d = Math.abs(a - 1), K = colonyCost(id);
+  const infra = 2, hab = Math.round(infra * K.per);
+  return {hab, infra, per: K.per, cc: K.cc, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: Math.min(20000, hab)};
 }
 export function foundWhy(id) {
   if (!COLONIZABLE(id)) return 'Это тело нельзя заселить';
@@ -93,6 +94,7 @@ export function foundColony(id) {
   const I = colInfo(id), b = BODY[id]; state.money -= I.cost;
   takeEarth(I.settlers);
   mkCol(id, b.name, I.settlers, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6, kind: b.kind});
+  state.cols[id].infra = I.infra;
   log(`Основана колония: ${b.name}. Прибыло ${fmtN(I.settlers)} поселенцев. Здесь действуют те же законы экономики, что и на Земле.`); return true;
 }
 function takeEarth(q) { // переселенцы уходят из когорт 22–38 лет

@@ -119,7 +119,7 @@ Object.assign(L, F.LAW_DEFAULT);
   for (let i = 0; i < 40; i++) { ss.t += 1; Fr.freightTick(1); }
   ok(ss.freight.flights.length > 0 || ss.freight.orders.length === 0, 'корпорации взяли заказы в рейс');
   for (let i = 0; i < 120; i++) { ss.t += 1; Fr.freightTick(1); }
-  ok(ss.cols.luna.pop.hab === hab0 + 20000, 'инфраструктура доставлена: вместимость колонии выросла');
+  ok(ss.cols.luna.pop.hab === Math.round(ss.cols.luna.infra * (await import('../src/14-climate.ts')).colonyCost('luna').per), 'инфраструктура доставлена: вместимость = инфра × чел. на единицу');
   ok((ss.depot.eros && ss.depot.eros.fe) === 800 && ss.stock.fe === 4200, 'железо доставлено на склад Эроса');
   ok(ss.money < m0 && ss.corps.some((c) => c.credits > 1.2e9), 'корпорации заработали на фрахте');
   ss.cols.luna.pop.n = 5000; ss.cols.luna.pop.mfill = 0.5; ss.cols.luna.pop.hab = 1e6; const fl0 = ss.freight.flights.length;

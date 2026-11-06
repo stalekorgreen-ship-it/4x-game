@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Грузовые заказы: игрок заказывает доставку на любое тело, корпорации со свободным грузовым флотом берутся за работу и зарабатывают.
 // Колонисты возят корпорации сами, без контроля игрока.
+import {colonyCost} from './14-climate.ts';
 import { BODIES, BODY, RES, dist, fmtN, log, objPos, rec, state } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 import { addSettlers } from './07-population.ts';
@@ -32,7 +33,7 @@ export function dispatchColonists(to, q) { // игрок не управляет
 function deliver(f) {
   if (f.item === 'col') { addSettlers(f.to, f.amt); return; }
   const col = state.cols && state.cols[f.to];
-  if (f.item === 'infra' && col) { const P = col.pop; P.hab = (P.hab || 0) + 20 * f.amt; for (const g in P.cap) P.cap[g] += f.amt * 4000; col.infra = (col.infra || 0) + f.amt; log(`Инфраструктура (${fmtN(f.amt)} т) доставлена на «${BODY[f.to].name}»: вместимость колонии +${fmtN(20 * f.amt)}.`); return; }
+  if (f.item === 'infra' && col) { const P = col.pop, per = colonyCost(f.to).per; for (const g in P.cap) P.cap[g] += f.amt * 4000; col.infra = (col.infra || 0) + f.amt; P.hab = Math.round(col.infra * per); log(`Инфраструктура (${fmtN(f.amt)} ед.) доставлена на «${BODY[f.to].name}»: вместимость колонии ${fmtN(P.hab)} чел.`); return; }
   const d = depot(f.to); d[f.item] = (d[f.item] || 0) + f.amt; log(`На «${BODY[f.to].name}» доставлено: ${fmtN(f.amt)} т (${itemName(f.item).toLowerCase()}).`);
 }
 export function freightTick(h) {
