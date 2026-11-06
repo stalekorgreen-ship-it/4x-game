@@ -6,6 +6,7 @@ import './04-engine.ts';
 import './05-battle.ts';
 import './06-corps.ts';
 import './07-population.ts';
+import './10-civil.ts';
 import './08-map-ui.ts';
 import './09-orders-ui.ts';
 import './99-debug.ts';

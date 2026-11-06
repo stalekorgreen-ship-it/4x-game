@@ -6,6 +6,13 @@ import { hooks } from './00-hooks.ts';
 
 /* ===== UI: ОБЩЕЕ ===== */
 export const $ = id => document.getElementById(id);
+// Обновляет содержимое, только если оно изменилось, и сохраняет горизонтальную прокрутку таблиц
+export function setHtml(el, html) {
+  if (!el || el._h === html) return; el._h = html;
+  const sc = [...el.querySelectorAll('[data-sc]')].map(e => e.scrollLeft);
+  el.innerHTML = html;
+  el.querySelectorAll('[data-sc]').forEach((e, i) => { e.scrollLeft = sc[i] || 0; });
+}
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 export const ui = {dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};

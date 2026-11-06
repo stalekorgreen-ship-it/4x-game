@@ -460,7 +460,7 @@ export function loadGame() {
     if (!s || !s.ships || !s.designs || !s.stations) return false;
     setState(s); state.inBattle = false; state.terra = state.terra || {};
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
-    if (state.corps && (state.corpVer || 1) < 2) wipeCorps();
+    if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 5e7; initCorps(); }
     if (!state.pop) initPop();
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }

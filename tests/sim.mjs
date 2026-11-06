@@ -24,13 +24,17 @@ ok(t1.n > 7.5e9 && t1.n < 12e9, `население через 40 лет в ра
 ok(ur > 0.02 && ur < 0.15, `безработица в разумных пределах (${(ur * 100).toFixed(1)}%)`);
 ok(Object.values(s().pop.sat).every((x) => x > 0.8), 'товаров хватает (≥80% спроса)');
 
-// 2. Корпорации: 800 дней игры, у них растёт число кораблей
+// 2. Корпорации: растут сами, первый строит верфь, потом выходят в космос
 D.newGame();
 s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
-for (let i = 0; i < 1600; i++) g.advance(0.5);
-const ships = s().ships.filter((x) => x.corp).length;
-ok(s().corps.length === 4, '4 корпорации');
-ok(ships >= 4, `корабли корпораций живы (${ships})`);
+ok(s().corps.length === 4 && s().ships.filter((x) => x.corp).length === 0, 'старт: 4 корпорации, кораблей нет');
+ok(s().corps.every((c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0) === 2), 'у каждой по 2 завода');
+for (let i = 0; i < 1800; i++) g.advance(2);
+const tot = (c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0);
+ok(s().corps.every((c) => tot(c) > 30), 'заводы корпораций растут на выручку: ' + s().corps.map(tot).join('/'));
+ok(s().corps.some((c) => c.civ.yard), 'кто-то построил коммерческую верфь');
+ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
+ok(Object.values(s().pop.sat).every((x) => x > 0.9), 'товаров по-прежнему хватает');
 ok(s().money > 5e7, 'налоги капают');
 console.log(fail ? `\nПровалено: ${fail}` : '\nВсе тесты пройдены');
 process.exit(fail ? 1 : 0);

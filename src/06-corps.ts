@@ -2,8 +2,9 @@
 import { BODIES, BODY, RES, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
-import { popTaxDay, popTick } from './07-population.ts';
-import { $, esc } from './08-map-ui.ts';
+import { GOODS, popTaxDay, popTick } from './07-population.ts';
+import { SPECIALTY, canBuildShips, newCiv, payBuild } from './10-civil.ts';
+import { $, esc, setHtml } from './08-map-ui.ts';
 /* ===== КОРПОРАЦИИ: конкуренты, начинающие с Земли ===== */
 export const PRICE = {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500};
 export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000;
@@ -40,14 +41,14 @@ export function createCorpStation(c, bodyId) {
   return s;
 }
 export function initCorps() {
-  state.corps = []; state.money = state.money || 5e7; state.corpVer = 2;
-  for (const d of CORP_DEF) {
-    const c = {id: uid(), name: d.name, tpl: d.tpl, aggr: d.aggr, parts: d.parts, credits: 60000, buy: {all: true}, sold: 0, last: 0, g: {}, lost: 0};
+  state.corps = []; state.money = state.money || 5e7; state.corpVer = 3;
+  for (const [i, d] of CORP_DEF.entries()) {
+    const c = {id: uid(), name: d.name, tpl: d.tpl, aggr: d.aggr, parts: d.parts, credits: 1.2e9, civ: newCiv(SPECIALTY[i]), buy: {all: true}, sold: 0, last: 0, g: {}, lost: 0};
     for (const role of ['m', 't']) {
       const g = {id: uid(), name: `${c.name}: ${role === 'm' ? 'рудокопы' : 'танкеры'}`, orders: [{type: role === 'm' ? 'corpmine' : 'corptank'}], rules: [], loop: true, corp: c.id, color: '#6e7b92'};
       state.groups.push(g); c.g[role] = g.id;
     }
-    state.corps.push(c); createCorpShip(c, 'm');
+    state.corps.push(c);
   }
 }
 export function wipeCorps() {
@@ -141,15 +142,14 @@ export function corpTick(h) {
         repairParts(s, 12, dt * 0.25, n => { c.credits -= n * PRICE.spares * 1.0; return n; }, false);
       }
     }
-    if (!state.ships.some(s => s.corp === c.id) && c.credits < costCr(c.parts) * 1.1 + 20000) { c.credits = costCr(c.parts) * 1.1 + 40000; c.lost++; log(`«${c.name}» реструктурирована после банкротства.`); createCorpShip(c, 'm'); }
-    if (state.t - c.last < 6) continue;
+    if (state.t - c.last < 6 || !canBuildShips(c) || c.credits < 3e7) continue;
     const mine = state.ships.filter(s => s.corp === c.id), nM = mine.filter(s => s.role === 'm').length, nT = mine.filter(s => s.role === 't').length, sts = ownStations(c), nS = sts.length;
     const mc = costCr(c.parts) * 1.1, tc = costCr(CORP_TANKER), sc = stationCr();
-    if (nM < 3 + 3 * nS && c.credits >= mc * c.aggr) { c.credits -= mc; c.last = state.t; createCorpShip(c, 'm'); }
+    if (nM < 3 + 3 * nS && c.credits >= mc * c.aggr) { if (payBuild(c, mc)) { c.last = state.t; createCorpShip(c, 'm'); } }
     else if (nM >= 3 && nS < 5 && c.credits >= (sc + tc) * 1.5 * c.aggr) {
       const spot = pickStationSpot(c);
-      if (spot) { c.credits -= sc; c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1) { c.credits -= tc; createCorpShip(c, 't'); } }
-    } else if (nS && nT < nS && c.credits >= tc * 1.2) { c.credits -= tc; c.last = state.t; createCorpShip(c, 't'); }
+      if (spot && payBuild(c, sc)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc)) createCorpShip(c, 't'); }
+    } else if (nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc)) { c.last = state.t; createCorpShip(c, 't'); } }
   }
 }
 export function pickStationSpot(c) {
@@ -202,15 +202,18 @@ export function corpChargeLoad(s, before, st) {
 /* --- вкладка «Корпорации» --- */
 export function refreshCorp() {
   const p = $('p-corp'); if (!p || !state.corps) return;
-  let h = `<div class="box"><h2>Корпорации</h2><div class="help">Корпорации стартуют с Земли с одним рудокопом и соревнуются, у кого выгоднее шаблон корабля. Добыча продаётся вам: отмеченное вы покупаете по полной цене, остальное они сбывают на общем рынке за 30%. Когда денег хватает, строят новые рудокопы, потом станции дозаправки и танкеры, которые возят туда топливо. Чужие корабли на станции платят владельцу за топливо. Налоги Земли: +${fmtN(popTaxDay())} кр/сут.</div><div class="row"><b>Кредиты игрока: ${fmtN(state.money)}</b></div></div>`;
+  const P = state.pop, fm = (n, d = 2) => fmtN(n, d);
+  let h = `<div class="box"><h2>Корпорации</h2><div class="help">Корпорации начинают с Земли с двумя заводами и своей шахтой. Они сами строят новые заводы на выручку, торгуют на рынке по самой низкой цене, а лишнее сырьё продают. Когда копят достаточно, строят коммерческую верфь (очень дорого). Остальные покупают у владельца постройку кораблей и станций с наценкой 50%, и он зарабатывает на этом. Кто первым строит новое, тот получает преимущество в цене. Налоги Земли: +${fmtN(popTaxDay())} кр/сут. Кредиты игрока: <b>${fmtN(state.money)}</b></div></div>`;
+  if (P && P.price) h += `<div class="box"><h2>Рынок товаров</h2><div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr><th style="text-align:left">Товар</th><th style="text-align:left">Цена ×</th><th style="text-align:left">Лучшая цена корпорации</th></tr>${Object.keys(GOODS).map(g => { const prs = state.corps.filter(c => c.civ && c.civ.pr[g] && c.civ.fac[g]).map(c => c.civ.pr[g]); return `<tr><td>${GOODS[g].n}</td><td>${fm(P.price[g])}</td><td>${prs.length ? fm(Math.min(...prs)) : '—'}</td></tr>`; }).join('')}</table></div></div>`;
   for (const c of [...state.corps].sort((a, b) => b.sold - a.sold)) {
     const sts = ownStations(c), ships = state.ships.filter(s => s.corp === c.id);
     h += `<div class="box"><h2>${esc(c.name)} <span class="muted">· шаблон «${c.tpl}»</span></h2><div class="stats"><span>Рудокопов / танкеров</span><span>${ships.filter(s => s.role === 'm').length} / ${ships.filter(s => s.role === 't').length}</span><span>Станции</span><span>${sts.length ? sts.map(s => `${esc(nameOf(s.at))} (топл. ${fmtN(s.fuel)} т)`).join(', ') : 'нет'}</span><span>Капитал</span><span>${fmtN(c.credits)} кр.</span><span>Продано всего</span><span>${fmtN(c.sold)} кр.</span><span>Потеряно кораблей</span><span>${c.lost}</span></div>
+      <div class="help">Заводы: ${Object.keys(c.civ.fac).filter(g => c.civ.fac[g] > 0).map(g => GOODS[g].n + ' ' + fmtN(c.civ.fac[g]) + ' (цена ' + fm(c.civ.pr[g] || 0) + ')').join(', ') || 'нет'}. Шахты: ${Object.keys(c.civ.mines).filter(r => c.civ.mines[r] > 0).map(r => RES[r].toLowerCase() + ' ×' + c.civ.mines[r]).join(', ') || 'нет'}. ${c.civ.yard ? '<b>Есть коммерческая верфь</b>, доход от чужих заказов: ' + fmtN(c.civ.fees || 0) + ' кр.' : 'Верфи нет.'}</div>
       <label class="row"><input type="checkbox" data-corp="${c.id}" data-all="1"${c.buy.all ? ' checked' : ''}> <b>Покупать всё</b></label>
       <div class="res">${Object.keys(RES).filter(k => k !== 'spares').map(k => `<label><input type="checkbox" data-corp="${c.id}" data-res="${k}"${c.buy.all || c.buy[k] ? ' checked' : ''}${c.buy.all ? ' disabled' : ''}> ${RES[k]}</label><span class="mono muted">${PRICE[k]} кр/т</span>`).join('')}</div>
       ${sts.length ? `<div class="help">Топливо на станциях: ${fmtN(svcPrice(sts[0], 'fuel'))} кр/т у «${esc(nameOf(sts[0].at))}».</div>` : ''}</div>`;
   }
-  if (p._h !== h) { p.innerHTML = h; p._h = h; }
+  setHtml(p, h);
 }
 (function corpEvents() {
   const p = document.getElementById('p-corp');
