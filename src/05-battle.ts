@@ -27,7 +27,7 @@ function mkShip(side,sp,x,y){
   const tur=[];for(let i=0;i<sp.rails;i++){const m=add('T',i%4);m.cfg=(sp.railCfg&&sp.railCfg[i])||RC0;tur.push(m)}for(let i=0;i<sp.flak;i++){const m=add('A',(i+2)%4);m.cfg=(sp.flakCfg&&sp.flakCfg[i])||FC0;tur.push(m)}
   for(let i=0;i<T.eng;i++)add('E',2);
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+T.eng+1;
-  const sh={side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp};
+  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp};
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
     if(zi===0){m.u=.3+.06*(i%2);m.v=(i-(n-1)/2)*.16}else if(zi===2){m.u=-.4;m.v=(i-(n-1)/2)*.2}
     else{m.u=-.26+.52*(i+.5)/n;m.v=(zi===1?1:-1)*.2}});});
@@ -47,7 +47,7 @@ function addFlights(sh,ty,total){
     flights.push(fl)}
 }
 function reset(cfg){
-  ships=[];smoke=[];proj=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;sel=null;done=false;pend=(cfg.late||[]).map(x=>({t:x.t,spec:x.spec}));lastFriend=0;
+  ships=[];smoke=[];proj=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;sel=null;done=false;pend=(cfg.late||[]).map(x=>({...x}));lastFriend=0;
   stat={shots:[0,0],hits:[0,0],torp:[0,0],torpHit:[0,0],torpPd:[0,0],flak:[0,0],flakKill:[0,0],lostF:[0,0],lostB:[0,0]};
   const X={dd:8,hc:2,fr:-4,cv:-12};
   cfg.fleets.forEach((list,side)=>{
@@ -190,7 +190,7 @@ function step(dt){
     let cx=0,cy=0,cn=0;
     for(const o of ships){if(o===s||!o.alive||o.side!==s.side)continue;
       const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy)||1e-6;
-      if(!o.car){cx+=o.x;cy+=o.y;cn++}
+      if(!o.car&&o.fid===s.fid){cx+=o.x;cy+=o.y;cn++}
       if(d<5){const f=0.15*(5-d)/5/d;vx+=dx*f;vy+=dy*f}}
     if(!s.car&&cn){cx/=cn;cy/=cn;const dc=Math.hypot(cx-s.x,cy-s.y);if(dc>12){const m=Math.min(0.08,(dc-12)*0.01);vx+=(cx-s.x)/dc*m;vy+=(cy-s.y)/dc*m}}
     const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
@@ -228,7 +228,7 @@ function step(dt){
     if(p.dist>=p.max){proj[i]=proj[proj.length-1];proj.pop()}
   }
   stepFlights();assign();
-  const n=Math.max(1,Math.ceil(dt/SUB)),d=dt/n;
+  const n=Math.min(12,Math.max(1,Math.ceil(dt/SUB))),d=dt/n;
   for(let k=0;k<n;k++)for(const c of air)if(c.state==='fly')craftStep(c,d);
   for(let i=torps.length-1;i>=0;i--){
     const p=torps[i];let tg=p.tgt;
@@ -332,7 +332,7 @@ const aliveBy=s=>ships.filter(o=>o.side===s&&o.alive).length;
 function checkEnd(){
   if(done)return;
   if(aliveBy(0))lastFriend=t;
-  if((!aliveBy(1)&&!pend.length)||(!aliveBy(0)&&t-lastFriend>1800)||t>14400)done=true;
+  if((!aliveBy(1)&&!pend.length)||(!aliveBy(0)&&t-lastFriend>1800)||t>((cfgNow&&cfgNow.maxT)||14400))done=true;
 }
 function result(){
   const mine=ships.filter(s=>s.side===0).map(s=>({ref:s.spec.ref,alive:s.alive,lost:1-s.aliveN/s.total,
@@ -348,7 +348,7 @@ function hud(){
     const F=air.filter(c=>c.side===s&&c.type==='F'&&c.state!=='dead').length,Bm=air.filter(c=>c.side===s&&c.type==='B'&&c.state!=='dead').length;
     const acc=stat.shots[s]?(100*stat.hits[s]/stat.shots[s]).toFixed(1)+'%':'—';
     const sh=['cv','hc','dd','fr'].map(ty=>SHORT[ty]+' '+ships.filter(o=>o.side===s&&o.cls===ty&&o.alive).length).join(' · ');
-    h+=`<span class="c${'ab'[s]}"><b>${s?'Налётчики':'Ваш флот'}</b>${sh} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]}</span>`;
+    h+=`<span class="c${'ab'[s]}"><b>${(cfgNow&&cfgNow.names||['Ваш флот','Налётчики'])[s]}</b>${sh} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]}</span>`;
   }
   if(done)h+=`<span class="${al[0]?'ca':'cb'}"><b>Итог</b>${!al[1]&&al[0]?'победа':!al[0]&&al[1]?'поражение':!al[0]?'взаимное уничтожение':'враг отступил'}</span>`;
   $b('bstats').innerHTML=h;
@@ -360,20 +360,23 @@ function hud(){
 const PM=['точки','короткие линии','скрыть'];
 function tick(dt){
   if(done)return;
-  while(pend.length&&pend[0].t<=t){const p=pend.shift();join(1,p.spec,1500)}
+  while(pend.length&&pend[0].t<=t){const p=pend.shift();join(p.side==null?1:p.side,p.spec,p.edge||1500,p.ang)}
   step(dt);checkEnd();
 }
-function join(side,spec,edge){
+function join(side,spec,edge,ang){
   spec.cls=classify(spec);spec.dopt=DOPT[spec.cls];
-  const sh=mkShip(side,spec,(side?1:-1)*edge+R(-80,80),R(-150,150));ships.push(sh);
+  const sh=ang==null?mkShip(side,spec,(side?1:-1)*edge+R(-80,80),R(-150,150)):mkShip(side,spec,Math.cos(ang)*edge+R(-40,40),Math.sin(ang)*edge+R(-40,40));
+  if(ang!=null)sh.hd=ang+Math.PI;ships.push(sh);
   if(sh.car){if(spec.F>0)addFlights(sh,'F',spec.F);if(spec.B>0)addFlights(sh,'B',spec.B)}
   return sh;
 }
 function begin(cfg){cfgNow=cfg;reset(cfg);active=true;acc=0;
   $b('btitle').textContent=cfg.title||'Бой';$b('battle').hidden=false;bind();}
+function abort(){active=false;$b('battle').hidden=true;cfgNow=null}
 function finish(){active=false;$b('battle').hidden=true;const r=result(),cb=cfgNow.onEnd;cfgNow=null;cb(r)}
 function bind(){
   if(bound)return;bound=true;
+  $b('bstop').onclick=()=>{if(cfgNow&&cfgNow.demo){abort();state.demo=false}};
   $b('bgo').onclick=()=>{ui.bfollow=true;focusBattle()};
   $b('bas').onclick=e=>{autoSlow=!autoSlow;e.target.classList.toggle('on',autoSlow)};
   $b('bpm').onclick=e=>{projMode=(projMode+1)%3;e.target.textContent='Снаряды: '+PM[projMode]};
@@ -381,7 +384,7 @@ function bind(){
 function pick(mx,my){let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
+return {abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
 })();
 
 /* ===== НАЛЁТЫ ===== */
@@ -456,7 +459,7 @@ export function applyRaid(res) {
 }
 export function raidTick(h) {
   const r = state.raid; if (!r) return;
-  if (r.active) { battleTick(h); return; }
+  if (state.demo && Battle.active()) { Battle.tick(h * 86400); if (Battle.isDone()) { Battle.finish(); state.demo = false; } return; }
   for (const s of state.ships) {
     if (s.at !== 'earth' || !s.st.warship) continue;
     if (s.hullDmg > 0) s.hullDmg = Math.max(0, s.hullDmg - 0.1 * h);
@@ -471,15 +474,9 @@ export function raidTick(h) {
       if (s.air.F >= s.st.hangF && s.air.B >= s.st.hangB) s.airAcc = 0;
     }
   }
-  if (!r.warned && state.t >= r.eta - 30) {
-    r.warned = true; const n = raidSpecs(r.k).length;
-    log(`Радары видят флот налётчиков: ${n} кораблей. Прибытие на Землю через ~30 суток. Держите боевые корабли у Земли или будьте готовы привести подкрепление.`);
-  }
-  if (state.t >= r.eta) startRaid();
 }
 export function raidChip() {
   const r = state.raid; if (!r) return '';
   if (r.active) return `<span class="chip" style="border-color:var(--bad);color:var(--bad)"><b>⚔ Бой у Земли</b>${Math.floor(Battle.time() / 60)} мин</span>`;
-  if (r.warned) return `<span class="chip" style="border-color:var(--bad);color:var(--bad)"><b>Налёт</b>через ${fmtN(Math.max(0, r.eta - state.t))} сут</span>`;
-  return `<span class="chip"><b>След. налёт</b>~${fmtN(Math.max(0, r.eta - state.t))} сут</span>`;
+  return '';
 }

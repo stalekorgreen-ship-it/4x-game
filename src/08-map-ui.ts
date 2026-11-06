@@ -2,6 +2,7 @@
 import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
+import { nebula } from './17-art.ts';
 import { hooks } from './00-hooks.ts';
 
 /* ===== UI: ОБЩЕЕ ===== */
@@ -95,6 +96,7 @@ export function shipScreen(s, i) {
 export function drawMap() {
   cx.clearRect(0, 0, W, H);
   { const g = cx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * .75); g.addColorStop(0, '#0b1220'); g.addColorStop(1, '#04060b'); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
+  { const nb = nebula(Math.round(W), Math.round(H)); const ox = ((ui.cam.x * ui.cam.k * .004) % 40 + 40) % 40, oy = ((ui.cam.y * ui.cam.k * .004) % 40 + 40) % 40; cx.drawImage(nb, -ox, -oy, W + 40, H + 40); }
   { const k = ui.cam.k; for (const q of STARS) { const x = ((q[0] * W - ui.cam.x * k * q[3]) % W + W) % W, y = ((q[1] * H - ui.cam.y * k * q[3]) % H + H) % H; cx.globalAlpha = q[2] * (.75 + .25 * Math.sin(performance.now() / 900 + q[0] * 50)); cx.fillStyle = q[4]; cx.fillRect(x, y, q[5], q[5]); } cx.globalAlpha = 1; }
   const [sx, sy] = w2s({x: 0, y: 0});
   // орбиты

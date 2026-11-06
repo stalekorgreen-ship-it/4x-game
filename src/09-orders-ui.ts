@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
+import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
 import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
@@ -455,7 +456,7 @@ export function showTab(name) {
   ui.tab = name;
   const side = $('side'); if (side) { side.classList.toggle('modal', name !== 'obj'); side.classList.toggle('card', name === 'obj'); const v = $('veil'); if (v) v.hidden = name === 'obj'; }
   syncShell(name);
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'log']) $('p-' + n).hidden = n !== name;
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'demo', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();
@@ -469,6 +470,7 @@ export function showTab(name) {
   if (name === 'col') refreshCol();
   if (name === 'trade') refreshTrade();
   if (name === 'cargo') refreshCargo();
+  if (name === 'demo') refreshDemo();
   if (name === 'climate') refreshClimate();
   if (name === 'sci') refreshScience();
   if (name === 'find') renderFind();

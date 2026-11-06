@@ -7,3 +7,4 @@ import { Battle, startRaid } from './05-battle.ts';
 import { focusBattle } from './08-map-ui.ts';
 window.__game.Battle = Battle; window.__game.startRaid = startRaid; window.__game.focusBattle = focusBattle;
 import { ui } from './08-map-ui.ts'; window.__game.ui = ui;
+import { startDemo } from './16-demo.ts'; window.__game.startDemo = startDemo;

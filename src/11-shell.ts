@@ -10,7 +10,7 @@ import { $, bar, esc, setHtml, ui } from './08-map-ui.ts';
 const I = (p) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 export const SECTIONS = [
   {id: 'planets', name: 'Планеты', icon: I('<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/>'), subs: [['obj', 'Обзор'], ['pop', 'Население'], ['comp', 'Состав'], ['climate', 'Климат'], ['work', 'Работа'], ['col', 'Колонии'], ['earth', 'Постройки']]},
-  {id: 'fleet', name: 'Флот', icon: I('<path d="M12 3l4 9v6l-4-2-4 2v-6z"/><path d="M8 12l-4 4M16 12l4 4"/>'), subs: [['fleet', 'Корабли'], ['off', 'Офицеры']]},
+  {id: 'fleet', name: 'Флот', icon: I('<path d="M12 3l4 9v6l-4-2-4 2v-6z"/><path d="M8 12l-4 4M16 12l4 4"/>'), subs: [['fleet', 'Корабли'], ['demo', 'Бой-демо'], ['off', 'Офицеры']]},
   {id: 'orders', name: 'Приказы', icon: I('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), subs: [['orders', 'Приказы и правила']]},
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
   {id: 'sci', name: 'Наука', icon: I('<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>'), subs: [['sci', 'Исследования']]},
