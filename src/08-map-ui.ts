@@ -17,7 +17,7 @@ export function setHtml(el, html) {
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 import { COLONIZABLE, colInfo } from './07-population.ts';
-export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true,
+export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true, tilt: 0,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
 export function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }
@@ -86,9 +86,11 @@ export function resizeMap() {
   if (!ui.camInit && W > 50) { fitMap(); ui.camInit = true; }
 }
 export function fitMap() { ui.follow = false; ui.cam.x = 0; ui.cam.y = 0; ui.cam.k = Math.min(W, H) / 2 / 3.4; }
-export const ZK = 0.55;
-export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k + H / 2 - (ui.d3 && p.z ? p.z * ui.cam.k * ZK : 0)]; }
-export function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / ui.cam.k + ui.cam.y}; }
+export const tc = () => Math.cos(ui.tilt || 0), tsn = () => Math.sin(ui.tilt || 0);
+export const zlift = z => z * ui.cam.k * tsn() * 1.6;
+export function setTilt(deg) { ui.tilt = deg * Math.PI / 180; for (const id of ['mtilt', 'btilt']) { const e = document.getElementById(id); if (e) e.value = String(deg); } }
+export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k * tc() + H / 2 - (p.z ? zlift(p.z) : 0)]; }
+export function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / (ui.cam.k * tc()) + ui.cam.y}; }
 
 export function shipScreen(s, i) {
   const [x, y] = w2s(s);
@@ -106,7 +108,7 @@ export function drawMap() {
     if (!b.a || b.gen) continue;
     if (b.a * ui.cam.k > 2e6) continue;
     cx.strokeStyle = b.kind === 'ast' ? '#151f2e' : '#1f2d42';
-    cx.beginPath(); cx.arc(sx, sy, b.a * ui.cam.k, 0, 7); cx.stroke();
+    cx.beginPath(); cx.ellipse(sx, sy, b.a * ui.cam.k, b.a * ui.cam.k * tc(), 0, 0, 7); cx.stroke();
   }
   // пояса астероидов
   if (ui.belts) for (const bt of BELTS) {
@@ -114,7 +116,7 @@ export function drawMap() {
     cx.fillStyle = bt.col;
     for (const q of bt.p) {
       const a = q.ang + 6.2832 * state.t / (365.25 * Math.pow(q.a, 1.5));
-      const x = (q.a * Math.cos(a) - ui.cam.x) * ui.cam.k + W / 2, y = (q.a * Math.sin(a) - ui.cam.y) * ui.cam.k + H / 2;
+      const x = (q.a * Math.cos(a) - ui.cam.x) * ui.cam.k + W / 2, y = (q.a * Math.sin(a) - ui.cam.y) * ui.cam.k * tc() + H / 2;
       if (x > -2 && y > -2 && x < W + 2 && y < H + 2) cx.fillRect(x, y, q.s, q.s);
     }
   }
@@ -122,7 +124,7 @@ export function drawMap() {
   for (const b of BODIES) {
     if (b.kind !== 'moon' || b.r * ui.cam.k < 8 || b.r * ui.cam.k > 20000) continue;
     const [px, py] = w2s(objPos(b.parent, state.t));
-    cx.strokeStyle = '#1b2a40'; cx.beginPath(); cx.arc(px, py, b.r * ui.cam.k, 0, 7); cx.stroke();
+    cx.strokeStyle = '#1b2a40'; cx.beginPath(); cx.ellipse(px, py, b.r * ui.cam.k, b.r * ui.cam.k * tc(), 0, 0, 7); cx.stroke();
   }
   // солнце
   { const sr = Math.max(5, Math.min(300, 696000 / AU_KM * ui.cam.k)), g = cx.createRadialGradient(sx, sy, sr * .5, sx, sy, sr * 5); g.addColorStop(0, 'rgba(255,200,90,.55)'); g.addColorStop(.3, 'rgba(255,170,60,.16)'); g.addColorStop(1, 'rgba(255,150,40,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(sx, sy, sr * 5, 0, 7); cx.fill();
@@ -133,7 +135,7 @@ export function drawMap() {
   for (const b of BODIES) {
     if (b.kind === 'sun' || (b.kind === 'moon' && b.r * ui.cam.k < 6)) continue;
     const bp = objPos(b.id, state.t), [x, y] = w2s(bp);
-    if (ui.d3 && bp.z && Math.abs(bp.z * ui.cam.k * ZK) > 4 && b.kind !== 'moon' && (b.kind !== 'ast' || selB === b.id || b.sci || ui.cam.k > 150)) { cx.strokeStyle = 'rgba(130,170,230,.22)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + bp.z * ui.cam.k * ZK); cx.stroke(); cx.beginPath(); cx.ellipse(x, y + bp.z * ui.cam.k * ZK, 2.5, 1.2, 0, 0, 7); cx.stroke(); }
+    if (tsn() > .02 && bp.z && Math.abs(zlift(bp.z)) > 4 && b.kind !== 'moon' && (b.kind !== 'ast' || selB === b.id || b.sci || ui.cam.k > 150)) { cx.strokeStyle = 'rgba(130,170,230,.22)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + zlift(bp.z)); cx.stroke(); cx.beginPath(); cx.ellipse(x, y + zlift(bp.z), 2.5, 1.2, 0, 0, 7); cx.stroke(); }
     let r = b.kind === 'moon' ? 2 : 2.6, col = '#8f8878';
     if (b.kind === 'ast' && selB !== b.id) r = Math.min(2.6, Math.max(.7, .8 + .5 * Math.log10(Math.max(1, ui.cam.k / 30))));
     if (b.kind === 'lagrange') {
@@ -287,8 +289,7 @@ export function select(sel) {
     if (a === 'belts') { ui.belts = !ui.belts; $('btnBelts').classList.toggle('on', ui.belts); }
     if (a === 'fit') { fitMap(); $('btnFollow').classList.remove('on'); }
     if (a === 'earth') { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; ui.cam.k = Math.max(ui.cam.k, 220); }
-    if (a === 'd3') { ui.d3 = !ui.d3; $('btnD3').classList.toggle('on', ui.d3); }
-    else if (a === 'labels') { ui.labels = !ui.labels; $('btnLabels').classList.toggle('on', ui.labels); }
+    if (a === 'labels') { ui.labels = !ui.labels; $('btnLabels').classList.toggle('on', ui.labels); }
   });
 })();
 

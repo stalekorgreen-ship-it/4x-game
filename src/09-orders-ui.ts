@@ -13,7 +13,7 @@ import { refreshPop } from './07-population.ts';
 import { hooks } from './00-hooks.ts';
 import { refreshCargo } from './13-freight.ts';
 import { buildShell, refreshTrade, refreshCol, refreshClimate, refreshComp, refreshWork, syncShell } from './11-shell.ts';
-import { setHtml } from './08-map-ui.ts';
+import { setHtml, setTilt } from './08-map-ui.ts';
 import { $, bar, baseOpts, bodyOpts, buildHeader, drawMap, esc, focusSel, groupOpts, refreshFleet, refreshHeader, refreshLog, refreshObj, renderObj, resizeMap, selPos, select, stOpts, targetOpts, ui } from './08-map-ui.ts';
 
 /* ===== ПАНЕЛЬ «ПРИКАЗЫ» ===== */
@@ -586,7 +586,7 @@ export function frame(now) {
 (function init() {
   if (!loadGame()) newGame();
   buildHeader(); addNewGameButton();
-  $('btnLabels').classList.add('on'); ui.d3 = true;
+  $('btnLabels').classList.add('on'); $('mtilt').oninput = e => setTilt(+e.target.value);
   new ResizeObserver(resizeMap).observe($('mapwrap')); resizeMap();
   buildShell(); showTab('obj'); refreshHeader();
   setInterval(saveGame, 5000);

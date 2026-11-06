@@ -21,8 +21,8 @@ const TYPES = {
   carrier: n => ({name: 'Авианосец', rails: 4, flak: 6, eng: 4, L: R(2.2, 2.8), arm: 3, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
   laserCruiser: n => { const k = RI(3, 6), fr = Math.random() < .5 ? 'f' : 'm'; return {name: 'Лазерный крейсер', rails: RI(4, 8), flak: 4, lasers: k, laserCfg: LC(k, 'm', fr), eng: 4, L: R(1.6, 2), arm: 3, spd: .9}; },
   laserBattleship: n => { const k = RI(4, 7); return {name: 'Лазерный линкор', rails: RI(8, 14), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 5, L: R(2.8, 3.4), arm: 5, spd: .7, defl: .1}; },
-  missileFrigate: n => { const k = RI(3, 6); return {name: 'Ракетный фрегат', rails: 2, flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 8), eng: 3, L: R(.5, .7), arm: 2, spd: 1.1}; },
-  missileCruiser: n => { const k = RI(4, 8); return {name: 'Ракетный крейсер', rails: RI(6, 12), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 16), eng: 4, L: R(1.5, 1.9), arm: 3, spd: .9}; },
+  missileFrigate: n => { const k = RI(3, 6); return {name: 'Ракетный фрегат', rails: 2, flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 4), eng: 3, L: R(.5, .7), arm: 2, spd: 1.1}; },
+  missileCruiser: n => { const k = RI(4, 8); return {name: 'Ракетный крейсер', rails: RI(6, 12), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), eng: 4, L: R(1.5, 1.9), arm: 3, spd: .9}; },
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
