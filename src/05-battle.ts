@@ -483,7 +483,7 @@ function step(dt){
       if((m.k==='T'||m.k==='L')&&(s.fine||s.rdOn)&&fly[1-s.side].length){let e=null,bd=Math.min(C.rng,m.k==='L'?150:110)**2;for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c}}
         if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();Sfx.shot('rail');s.flash=t;s.heat+=.002;
           shots.push({x1:s.x,y1:s.y,x2:e.x,y2:e.y,rt:performance.now(),s:s.side,a:s,b:e});stat.pdRail=(stat.pdRail||0)+1;
-          const dd=Math.sqrt(bd),pk=(.5+.015*(m.sk||5))*(1-Math.min(.5,dd/110*.5));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.3:1)){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}m.cd=(m.k==='L'?2:R(1.2,2.8))*(1.3-.06*m.sk);continue}}
+          const dd=Math.sqrt(bd),pk=(.07+.006*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
@@ -685,7 +685,7 @@ const HULLV=[HULL,
   [[-.5,-.15],[-.2,-.4],[.2,-.4],[.5,-.08],[.5,.08],[.2,.4],[-.2,.4],[-.5,.15]]];
 const hullOf=s=>HULLV[s.hv||0];
 function drawShip(g,s,x,y,k,dp){
-  const HL=hullOf(s),len=Math.min(Math.max(10*s.T.L*dp,s.T.L*k*1.8),220*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
+  const HL=hullOf(s),len=Math.min(Math.max(8*s.T.L*dp,s.T.L*k*1.8),150*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
   if(x<-len||x>W+len||y<-len||y>H+len)return;
   if(len<14*dp&&s.alive&&s!==sel){const q=Math.max(5*dp,len*.62),c2=Math.cos(s.hd),s2=Math.sin(s.hd);g.save();g.translate(x,y);g.scale(1,curCT);
     g.globalAlpha=.28;g.fillStyle=CL[s.side];g.beginPath();g.arc(0,0,q*1.35,0,6.283);g.fill();g.globalAlpha=1;
