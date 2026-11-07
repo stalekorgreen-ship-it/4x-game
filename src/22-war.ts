@@ -237,7 +237,7 @@ function goFleet(f: any) { War.camAnim = {x: f.x, y: f.y, k: Math.max(ui.cam.k, 
 function buildUi() {
   if (ui_el) ui_el.remove();
   const el = document.createElement('div'); ui_el = el; el.id = 'warui';
-  el.style.cssText = 'position:fixed;left:16px;top:184px;z-index:45;width:min(300px,calc(100vw - 32px));max-height:26vh;overflow:auto;background:rgba(17,24,35,.94);border:1px solid #243247;border-radius:8px;padding:8px 10px;font:12px/1.35 system-ui;color:#d3dbe8';
+  el.style.cssText = 'position:fixed;left:16px;top:184px;z-index:45;width:min(300px,calc(100vw - 32px));max-height:40vh;overflow:auto;background:rgba(17,24,35,.94);border:1px solid #243247;border-radius:8px;padding:8px 10px;font:12px/1.35 system-ui;color:#d3dbe8';
   el.addEventListener('click', e => {
     const t = e.target as HTMLElement, a = t.dataset.a, id = +(t.dataset.id || 0);
     if (a === 'speed') War.minPerSec = +t.dataset.v; else if (a === 'pause') War.paused = !War.paused; else if (a === 'auto') War.auto = !War.auto;
