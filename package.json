@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node tests/sim.mjs",
+    "test:long": "node tests/long.mjs",
     "check": "tsc --noEmit"
   },
   "devDependencies": {

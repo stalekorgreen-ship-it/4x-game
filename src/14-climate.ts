@@ -27,10 +27,11 @@ export function climateOf(id) {
     mean: t.mean != null ? t.mean : Math.round(278.6 * fk - 273.15), max: 0, min: 0,
     p: t.p || 0, atmT: t.atmT || 0, gas: t.gas || {}, water: t.water != null ? t.water : ((b.ores && (b.ores.ice || 0)) || 0), wcov: t.wcov || 0,
     rad: t.rad != null ? t.rad : Math.round(120 + 80 / (a * a)), mag: !!t.mag, g: r > 0 && mass ? GGRAV * mass / (r * r) / G0 : 0};
+  if (!Number.isFinite(c.mean)) { c.mean = 5500; c.rad = 1e6; } // Солнце: a = 0, формула равновесной температуры неприменима
   c.under = t.under != null ? t.under : c.mean;
   // суточный размах: чем длиннее сутки и тоньше атмосфера, тем сильнее средняя температура «размазывается» по циклу
   const A0 = .5 * (394 - 79) * fk, tau = 50 + 610 * Math.pow(c.p, 1.1), A = A0 * c.day / (c.day + tau);
-  c.amp = Math.round(A); c.max = Math.round(c.mean + A); c.min = Math.round(c.mean - A);
+  c.amp = Number.isFinite(A) ? Math.round(A) : 0; c.max = Math.round(c.mean + c.amp); c.min = Math.round(c.mean - c.amp);
   // массовые доли газов из объёмных
   let mm = 0; for (const k in c.gas) mm += c.gas[k] * (MOLAR[k] || 30);
   c.gasT = {}; for (const k in c.gas) c.gasT[k] = mm > 0 ? c.atmT * c.gas[k] * (MOLAR[k] || 30) / mm : 0;
