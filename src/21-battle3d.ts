@@ -169,7 +169,7 @@ if (wrap && bgo) {
     const finI: any[] = [];
     // жёсткий корпус: ступенчатые призмы с фасками (сечение — прямоугольник со срезанными углами), никаких сглаживаний
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
-    { const NS = 90, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [], NR = RING.length;
+    { const NS = 56, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [], NR = RING.length;
       for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS; let d: any = dimsAt(Math.min(xx, x1)), k = 1;
         if (xx > x1) { const t = Math.min(1, (xx - x1) / (xe - x1)); k = Math.max(.06, 1 - t * .94) }
         const c = new THREE.Color(d.col); const rib = Math.abs(Math.sin(xx / L * 38)) > .93 ? .72 : 1; c.multiplyScalar(rib);
@@ -234,10 +234,11 @@ if (wrap && bgo) {
     const g = mergeGeometries(parts, false)!; (g as any).userData = { finV, armorT: mp.armor, x1, x0v: x0, tiles, mounts, cell, nozz, W, H, x0, Lk, gridRows, gridCols, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy, col: q.col })) }; return g;
   }
   const flatCol = (g: THREE.BufferGeometry) => { const c = g.attributes.color as THREE.BufferAttribute, a = c.array as Float32Array; for (let t = 0; t + 8 < a.length; t += 9) { a[t + 3] = a[t]; a[t + 4] = a[t + 1]; a[t + 5] = a[t + 2]; a[t + 6] = a[t]; a[t + 7] = a[t + 1]; a[t + 8] = a[t + 2] } return g };
+  const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false });
   let sid = 1;
-  // шаблон сечения: прямоугольник со срезанными углами (8 рёбер), 64 точки; u — вдоль высоты, v — вдоль ширины (−1..1)
+  // шаблон сечения: прямоугольник со срезанными углами (8 рёбер), 48 точек; u — вдоль высоты, v — вдоль ширины (−1..1)
   const RING: { u: number; v: number; nu: number; nv: number }[] = (() => { const C: number[][] = [[.5, 1], [-.5, 1], [-1, .5], [-1, -.5], [-.5, -1], [.5, -1], [1, -.5], [1, .5]], N: number[][] = [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], o: any[] = [];
-    for (let e = 0; e < 8; e++) { const A = C[e], B = C[(e + 1) % 8], n = e % 2 ? 4 : 12; for (let m = 0; m < n; m++) { const t = m / n; o.push({ u: A[1] + (B[1] - A[1]) * t, v: A[0] + (B[0] - A[0]) * t, nu: N[e][1], nv: N[e][0] }) } } return o })();
+    for (let e = 0; e < 8; e++) { const A = C[e], B = C[(e + 1) % 8], n = e % 2 ? 4 : 8; for (let m = 0; m < n; m++) { const t = m / n; o.push({ u: A[1] + (B[1] - A[1]) * t, v: A[0] + (B[0] - A[0]) * t, nu: N[e][1], nv: N[e][0] }) } } return o })();
   const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
   // дальний LOD: один склеенный низкополигональный силуэт на сторону (единичной длины)
   const simpleGeo = PAL.map(P => mergeGeometries([
@@ -383,10 +384,11 @@ if (wrap && bgo) {
       const t = new THREE.Group(), lift = r * .3, zA = (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
-      const dome = new THREE.Mesh(geoDome, matTur[s.side]); dome.scale.set(r * .95, r * .8, r * .95); dome.position.y = lift; head.add(dome); // сферическая башня
-      const nb = m.k === 'T' ? 2 : 1, tips: THREE.Object3D[] = []; for (let b = 0; b < nb; b++) { const zb = (b - (nb - 1) / 2) * r * .55, len = r * 2.1; const br = new THREE.Mesh(geoCyl, matDark); br.scale.set(len, r * .13, r * .13); br.position.set(r * .5 + len / 2, lift + r * .1, zb); head.add(br);
-        const mz = new THREE.Mesh(geoCyl, matDark); mz.scale.set(r * .22, r * .19, r * .19); mz.position.set(r * .5 + len, lift + r * .1, zb); head.add(mz); const tp = new THREE.Object3D(); tp.position.set(r * .5 + len + r * .12, lift + r * .1, zb); head.add(tp); tips.push(tp) }
-      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * .5); fl.position.copy(tips[0].position); fl.position.z = 0; fl.visible = false; head.add(fl);
+      const nb = m.k === 'T' ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
+      hp.push(piece(geoDome, cT, 0, lift, 0, r * .95, r * .8, r * .95)); // сферическая башня + стволы одним мешем (меньше вызовов отрисовки)
+      for (let b = 0; b < nb; b++) { const zb = (b - (nb - 1) / 2) * r * .55, len = r * 2.1; hp.push(piece(geoCyl, cD, r * .5 + len / 2, lift + r * .1, zb, len, r * .13, r * .13)); hp.push(piece(geoCyl, cD, r * .5 + len, lift + r * .1, zb, r * .22, r * .19, r * .19)); const tp = new THREE.Object3D(); tp.position.set(r * .5 + len + r * .12, lift + r * .1, zb); head.add(tp); tips.push(tp) }
+      { const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); head.add(hm) }
+      const fl = new THREE.Mesh(geoSph, flashMat); fl.scale.setScalar(r * .5); fl.position.copy(tips[0].position); fl.position.z = 0; fl.visible = false; head.add(fl);
       // основание ориентируем по нормали грани
       t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), N[f]); t.position.set(best.x, best.y, best.z);
       (t as any).userData = { m, fl, head, n: N[f], r: r * 1.6, lr: 0, tips }; tg.add(t); u.mods.push(m); (u.turMap = u.turMap || new Map()).set(m, t);
@@ -515,7 +517,7 @@ if (wrap && bgo) {
     const now = performance.now(); if (u.shellDirty && now - (u.shellT || 0) > 90) { u.shellT = now; u.shellDirty = false; updateShell(s, u) }
   }
   function buildShell(s: any, g: THREE.Group, u: any) {
-    tileInit(s, u); const L = u.L, seg: any[] = u.seg, xe = u.x1 + L * .2, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, NR = RING.length, NS = Math.min(260, Math.ceil((xe - x0) / (Lk / cols) * 2)), nv = (NS + 1) * NR;
+    tileInit(s, u); const L = u.L, seg: any[] = u.seg, xe = u.x1 + L * .2, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, NR = RING.length, NS = Math.min(170, Math.ceil((xe - x0) / (Lk / cols) * 2)), nv = (NS + 1) * NR;
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
     const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), base = new Float32Array(nv * 3), dir = new Float32Array(nv * 3), map = new Float32Array(nv * 5), paint = new Float32Array(nv * 3), idx: number[] = [];
     const c = new THREE.Color();
@@ -702,9 +704,9 @@ if (wrap && bgo) {
           q.p.addScaledVector(q.v, dts); q.v.multiplyScalar(.985); const k = Math.pow(1 - a, 1.4); dummy.position.copy(q.p); dummy.quaternion.identity(); dummy.scale.setScalar(q.a + (q.b - q.a) * a); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix); exMesh.setColorAt(ek, _cc2.setRGB(q.c[0] * k, q.c[1] * k, q.c[2] * k)); ek++ } }
       exMesh.count = ek; exMesh.instanceMatrix.needsUpdate = true; if (exMesh.instanceColor) exMesh.instanceColor.needsUpdate = true }
     { const trs = Battle.tracers() as any[]; for (const q of trs) { if (q.id <= lastTr) continue; lastTr = q.id; if (streaks.length > 900) streaks.shift(); const ex = Math.hypot(q.x2 - q.x1, q.y2 - q.y1); if (ex < 1e-3) continue; const A0 = new THREE.Vector3(q.x1, q.z1, q.y1); { const gs = q.src && models.get(q.src), tt = gs && gs.userData.turMap && q.m ? gs.userData.turMap.get(q.m) : null; if (tt && gs.userData.det && gs.visible) { gs.updateMatrixWorld(true); tt.updateMatrixWorld(true); const tip = tt.userData.tips && tt.userData.tips[0]; if (tip) tip.getWorldPosition(A0) } else if (q.src && q.src.T) { const dl = new THREE.Vector3(q.x2 - q.x1, q.z2 - q.z1, q.y2 - q.y1).normalize(); A0.addScaledVector(dl, q.src.T.L * (gs ? gs.scale.x : 1) * .4) } }
-      streaks.push({ a: A0, b: new THREE.Vector3(q.x2, q.z2, q.y2), t0: performance.now(), dur: 1400, slow: 1, side: q.side }) } }
+      const B0 = new THREE.Vector3(q.x2, q.z2, q.y2), ln0 = A0.distanceTo(B0), tail = Math.min(ln0, Math.max(((q.src && q.src.T) ? q.src.T.L : .5) * 6, cam.position.distanceTo(A0) * .03)), V = 3000; streaks.push({ a: A0, b: B0, t0: performance.now(), dur: Math.max(250, (ln0 + tail) / V * 1000), bolt: 1, k: (ln0 + tail) / Math.max(1e-6, ln0), tl: tail / Math.max(1e-6, ln0), side: q.side }) } }
     { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / (st.dur || 140); if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
-        const hh = st.slow ? Math.min(1, u / .12) : Math.min(1, u / .55), tt = st.slow ? Math.max(0, (u - .1) / .9) : Math.max(0, (u - .3) / .7), o = pc * 6, f = st.slow ? Math.pow(1 - u, .7) : st.dur ? Math.pow(1 - u, 1.3) : 1 - u * .5;
+        const hh = st.bolt ? Math.min(1, u * st.k) : st.slow ? Math.min(1, u / .12) : Math.min(1, u / .55), tt = st.bolt ? Math.max(0, u * st.k - st.tl) : st.slow ? Math.max(0, (u - .1) / .9) : Math.max(0, (u - .3) / .7), o = pc * 6, f = st.bolt ? 1 - u * .35 : st.slow ? Math.pow(1 - u, .7) : st.dur ? Math.pow(1 - u, 1.3) : 1 - u * .5;
         pa[o] = st.a.x + (st.b.x - st.a.x) * hh; pa[o + 1] = st.a.y + (st.b.y - st.a.y) * hh; pa[o + 2] = st.a.z + (st.b.z - st.a.z) * hh; pa[o + 3] = st.a.x + (st.b.x - st.a.x) * tt; pa[o + 4] = st.a.y + (st.b.y - st.a.y) * tt; pa[o + 5] = st.a.z + (st.b.z - st.a.z) * tt;
         tmp.setHSL(st.side ? .08 : .52, .9, .65); pcol[o] = tmp.r * f; pcol[o + 1] = tmp.g * f; pcol[o + 2] = tmp.b * f; pcol[o + 3] = tmp.r * f * .25; pcol[o + 4] = tmp.g * f * .25; pcol[o + 5] = tmp.b * f * .25; pc++ } }
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
