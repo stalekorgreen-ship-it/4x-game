@@ -65,8 +65,9 @@ const DOCT = {
   swarm: {n: 'рой малых кораблей', mix: 'swarm'},
   light: {n: 'лёгкий флот', mix: 'light'},
   convoy: {n: 'конвой', mix: 'convoy'},
+  assault: {n: 'десантный флот', mix: {frigate: 3, destroyer: 3, cruiser: 2, carrier: 1, brawler: 1}, mod: sp => { sp.mar = Math.round(({cv: 20, hc: 10, dd: 8, fr: 4}[sp.cls] || 4) * 4); }},
 };
-const BYSIZE = n => { const r = Math.random();  if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
+const BYSIZE = n => { const r = Math.random();  if (r < .08) return 'assault'; if (r < .3) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
   if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
 // оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
 function outfit(specs) {
