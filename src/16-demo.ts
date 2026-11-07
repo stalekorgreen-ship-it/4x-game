@@ -108,7 +108,7 @@ export const warFleet = (n, fid, speed) => fleet(n, BYSIZE(n), fid, speed);
 export const warStrength = specs => fleetW(specs);
 export const rockField = (n, cx, cy, sx, sy, r0, r1) => Array.from({length: n}, () => ({t: 'rock', x: cx + R(-sx, sx), y: cy + R(-sy, sy), r: R(r0, r1)}));
 // стреляющая станция: неподвижна, много орудий, толстая броня
-export function stationSpec(fid) { return {name: 'Орбитальная станция', role: 'station', rails: 14, railCfg: Array.from({length: 14}, () => RCf(15, 2)), flak: 8, lasers: 2, laserCfg: LC(2, 3, 1), arm: 7, eng: 1, L: .9, spd: 0, tons: 90000, sk: 6, fid, station: 1, F: 0, B: 0, dmg: 0}; }
+export function stationSpec(fid) { return {name: 'Орбитальная станция', role: 'station', rails: 14, railCfg: Array.from({length: 14}, () => RCf(15, 2)), flak: 8, lasers: 2, laserCfg: LC(2, 'l', 'f'), arm: 7, eng: 1, L: .9, spd: 0, tons: 90000, sk: 6, fid, station: 1, F: 0, B: 0, dmg: 0}; }
 export const SCENARIOS = {
   line: 'Линия фронта: два флота лоб в лоб',
   pincer: 'Клещи: один флот против нескольких с разных сторон',
