@@ -430,11 +430,23 @@ export const MIS_S = {s: {spd: 6, n: 'медленная (6 км/с)'}, m: {spd:
 export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}, l: {dmg: 7, blast: 10, m: 1.5}, x: {dmg: 15, blast: 16, m: 3.5}, g: {dmg: 30, blast: 26, m: 7}};
 export const misTons = (a, w) => Math.round(0.5 * MIS_W[w].m * MIS_A[a].m * 100) / 100;
 export const mkMis = (a, sp, w, ammo) => ({tons: misTons(a, w), hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
-COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая'], ['x', 'тяжёлая (урон 15)'], ['g', 'сверхтяжёлая (урон 30)']]), O('mt', 'Объём погреба, т', '10', [['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100']])];
+const MS_PW = [1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 70, 100], MS_EN = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 100, 300, 1000], MS_FU = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 1000, 10000];
+const MS_SN = [['0', 'нет'], ['1', 'низкое'], ['2', 'среднее'], ['3', 'высокое']], MS_SM = [0, 0.03, 0.08, 0.2];
+// ракета проектируется отдельно: мощность 1–100 (суммарный урон по броне; чем больше, тем шире воронка), двигатель (тонны) → скорость, топливо (тонны) → дальность, сенсоры, самонаведение
+export const mkMis2 = (pw, en, fu, em, ir, ac, hm, mt) => {
+  const wh = 0.05 * pw, sn = MS_SM[em] + MS_SM[ir] + MS_SM[ac] * 1.5, dry = wh + en + sn + 0.05, tons = dry + fu, spd = Math.round((3 + 15 * en / (en + 0.6 * (tons - en))) * 10) / 10;
+  const r = fu / dry, rng = Math.max(1, Math.min(1e6, Math.round(1000 * r * r))), am = Math.max(1, Math.floor(mt / tons));
+  return {tons: Math.round(tons * 1000) / 1000, hp: 1 + Math.floor(Math.log10(1 + dry * 2)), spd, dmg: pw, blast: Math.round((3 + 2.3 * Math.sqrt(pw)) * 10) / 10, ammo: am, rng, rel: 0.5 * (1 + pw / 6), fl: 1, hm: !!hm && (em + ir + ac) > 0, sl: {em, ir, ac}, pw, en, fu};
+};
+COMP.missile.opts = [O('pw', 'Мощность боеголовки (1–100)', '10', MS_PW.map(v => [String(v), String(v)])), O('en', 'Двигатель, т', '1', MS_EN.map(v => [String(v), v + ' т'])), O('fu', 'Топливо, т', '1', MS_FU.map(v => [String(v), v + ' т'])),
+  O('em', 'ЭМ-сенсор', '1', MS_SN), O('ir', 'Тепловой сенсор', '1', MS_SN), O('ac', 'Активный (радар)', '0', MS_SN), O('hm', 'Самонаведение', '1', [['1', 'есть'], ['0', 'нет (летит по прямой)']]),
+  O('mt', 'Объём погреба, т', '20', [['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100'], ['500', '500'], ['2000', '2000']])];
 COMP.missile.ap = (c, s) => {
-  const mt = +s.mt.v, tn = misTons(s.ar.v, s.wh.v), am = Math.max(1, Math.floor(mt / tn)); c.mass = Math.round(mt * 1.2 * 10) / 10; c.mcfg = mkMis(s.ar.v, s.sp.v, s.wh.v, am);
-  c.cost = {fe: Math.round(mt * 1.2), cu: Math.round(mt * .8), ti: Math.round(mt * .4), si: Math.round(mt * .4 + am)}; c.name = `Ракеты ×${am}`;
-  c.desc = `погреб ${mt} т, ракета ${tn} т → ${am} шт., броня ${MIS_A[s.ar.v].n}, ${MIS_S[s.sp.v].n}, взрыв ${c.mcfg.blast} км / урон ${c.mcfg.dmg}, лёт до ${c.mcfg.rng} км; чем тяжелее ракета, тем меньше их влезает`;
+  const mt = +s.mt.v, M = mkMis2(+s.pw.v, +s.en.v, +s.fu.v, +s.em.v, +s.ir.v, +s.ac.v, s.hm.v === '1', mt);
+  c.mcfg = M; c.mass = Math.round(mt * 1.2 * 10) / 10;
+  c.cost = {fe: Math.round(mt * 1.2), cu: Math.round(mt * .8), ti: Math.round(mt * .4), si: Math.round(mt * .4 + M.ammo)}; c.name = `Ракеты ${M.pw} ед. ×${M.ammo}`;
+  const rn = n => n >= 1e3 ? Math.round(n / 1e3) + ' тыс.' : n;
+  c.desc = `ракета ${M.tons} т (в погребе ${mt} т → ${M.ammo} шт.), мощность ${M.pw}, воронка ~${Math.round(M.blast)}, скорость ${M.spd}, дальность ${rn(M.rng)} км, ${M.hm ? 'самонаведение: ЭМ ' + MS_SN[+s.em.v][1] + ', тепло ' + MS_SN[+s.ir.v][1] + ', радар ' + MS_SN[+s.ac.v][1] : 'без самонаведения — летит по прямой в расчётную точку'}`;
 };
 export const STAT_OUT = {build: 'Строительство', yard: 'Судостроение', plant: 'Заводы (сырьё)', fuel: 'Заправка кораблей', spares: 'Тех. изделия кораблям', raid: 'Потери от налётов', pop: 'Продажа сырья заводам Земли', old: 'Прочее'};
 
