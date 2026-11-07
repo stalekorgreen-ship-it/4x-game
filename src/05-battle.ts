@@ -350,12 +350,12 @@ function craftStep(c,d){
   if(c.type==='F'&&!c.ret&&!c.tg&&c.fl.tsh&&c.fl.ph==='in'&&c.ammo>0&&t>(c.nf||0)){const sh=c.fl.tsh;
     if(Math.hypot(sh.x-c.x,sh.y-c.y)<sh.T.L*.8+1.2){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
       for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x,y2:sh.y,rt:performance.now(),s:c.side,a:c,b:sh});
-      hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.07*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
+      hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.035*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
   // ракеты истребителей: «против крупных» бьют по кораблю, «против мелких» — по вражеским истребителям
   if(c.type==='F'&&c.ms>0&&!c.ret&&c.state==='fly'&&t>(c.nm||0)){
-    if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:8,dmg:6,blast:4,life:45,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
+    if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:8,dmg:4,blast:3,life:45,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
     else if(c.mk==='small'){const e=foeCraft(c,35,0,false);
-      if(!e){const sh=c.fl.tsh;if(sh&&sh.alive&&sh.T.tons<14000&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:sh.x,y2:sh.y,rt:performance.now(),s:c.side,a:c,b:sh});stat.mis[c.side]++;hitShip(sh,'mis',sh.x-c.x,sh.y-c.y,sh.x,sh.y,10)}}
+      if(!e){const sh=c.fl.tsh;if(sh&&sh.alive&&sh.T.tons<14000&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:sh.x,y2:sh.y,rt:performance.now(),s:c.side,a:c,b:sh});stat.mis[c.side]++;hitShip(sh,'mis',sh.x-c.x,sh.y-c.y,sh.x,sh.y,6)}}
       if(e&&e.state==='fly'){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});stat.mis[c.side]++;if(Math.random()<.55){killCraft(e,'missile');stat.misShot[c.side]++}}}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
@@ -489,7 +489,7 @@ function step(dt){
       if((m.k==='T'||m.k==='L')&&fly[1-s.side].length){let e=null,bd=Math.min(C.rng,m.k==='L'?150:110)**2;for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c}}
         if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();Sfx.shot('rail');s.flash=t;s.heat+=.002;
           shots.push({x1:s.x,y1:s.y,x2:e.x,y2:e.y,rt:performance.now(),s:s.side,a:s,b:e});stat.pdRail=(stat.pdRail||0)+1;
-          const dd=Math.sqrt(bd),pk=(.012+.001*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){e.hp-=m.k==='L'?4:3;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
+          const dd=Math.sqrt(bd),pk=(.02+.0015*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){e.hp-=m.k==='L'?4:3;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}

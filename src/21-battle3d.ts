@@ -174,7 +174,8 @@ if (wrap && bgo) {
       const dome = new THREE.Mesh(geoBox, matTur[s.side]); dome.scale.set(r * 1.5, r * .6, r * 1.5); dome.position.y = r * .55; t.add(dome);
       const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 3.2, r * .28, r * .28); br.position.set(r * 1.9, r * .6, (b - (nb - 1) / 2) * r * .6); t.add(br) }
       const px = (m.u || 0) * u.L * .8; let sg = u.seg && u.seg[0]; if (u.seg) for (const q of u.seg) if (Math.abs(q.cx - px) < Math.abs(sg.cx - px)) sg = q;
-      t.position.set(px, (sg ? sg.top : u.h * .5) + r * .35, sg ? Math.max(-sg.w * .42, Math.min(sg.w * .42, (m.v || 0) * u.w * 1.3)) : 0);
+      const y0 = sg ? sg.top : u.h * .5, lift = u.h * .55; const ped = new THREE.Mesh(geoBox, matDark); ped.scale.set(r * 1.5, lift + r * .35, r * 1.5); ped.position.y = -(lift + r * .35) / 2 - r * .1; t.add(ped);
+      t.position.set(px, y0 + lift + r * .35, sg ? Math.max(-sg.w * .42, Math.min(sg.w * .42, (m.v || 0) * u.w * 1.3)) : 0);
       const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.6); fl.position.set(r * 3.6, r * .6, 0); fl.visible = false; t.add(fl);
       (t as any).userData = { m, fl, r, lr: 0 }; tg.add(t); u.mods.push(m);
     }
