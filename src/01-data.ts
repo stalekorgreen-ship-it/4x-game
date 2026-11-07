@@ -499,7 +499,7 @@ export function designStats(parts, flags) {
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
     r.dry += c.mass * n; r.armW = (r.armW || 0) + (c.armW || 0) * n;
-    r.power += (c.power || 0) * n * tm('thrust');
+    r.power += (c.power || 0) * n * tm('thrust'); r.engDraw = (r.engDraw || 0) + (c.power || 0) * n * 0.5;
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
@@ -527,6 +527,10 @@ export function designStats(parts, flags) {
     r.spareCap += (c.spares || 0) * n;
     for (const [rk, rv] of Object.entries(c.cost)) r.cost[rk] = (r.cost[rk] || 0) + rv * n;
   }
+  // боевые корабли: двигатели питаются от реактора (0,5 МВт на единицу тяги) и берут энергию первыми, остаток идёт орудиям
+  { const ws = r.rail + r.flak + r.gat + r.lgun + r.msl + r.hangF + r.hangB > 0, ed = r.engDraw || 0; r.engFactor = 1;
+    if (ws && ed > 0) { r.engFactor = Math.max(0.2, Math.min(1, (r.energy || 0) / ed)); effSum *= r.engFactor; r.power *= r.engFactor; }
+    r.energyLeft = ws ? Math.max(0, (r.energy || 0) - ed) : (r.energy || 0); }
   r.eff = r.power ? effSum / r.power : 1;
   r.defl = r.armor ? r.defl / r.armor : 0;
   if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; }
@@ -537,7 +541,8 @@ export function designStats(parts, flags) {
   r.crewNeed = (r.scCrew||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
   { const draw = r.railList.reduce((a, q) => a + (q.draw || 0), 0) + (r.lgun ? 800 : 0); r.draw = draw;
     if ((r.rail || r.gat) && !r.ammoCap) r.warns.push('Нет погреба боеприпасов: рельсотроны и пулемёты не смогут стрелять.');
-    if (draw > 0 && (r.energy || 0) < draw) r.warns.push(`Реакторов мало: нужно ${draw} МВт, есть ${r.energy || 0} — орудия будут перезаряжаться в ${Math.round(Math.max(.1, (r.energy || 0) / draw) * 100)}% темпа.`); }
+    if (r.engFactor < 1) r.warns.push(`Реакторов не хватает двигателям: нужно ${r.engDraw} МВт, есть ${r.energy || 0} — тяга ${Math.round(r.engFactor * 100)}%, орудиям энергии не остаётся.`);
+    else if (draw > 0 && (r.energyLeft || 0) < draw) r.warns.push(`После двигателей (${r.engDraw} МВт) на орудия остаётся ${r.energyLeft || 0} из ${draw} МВт — орудия будут перезаряжаться в ${Math.round(Math.max(.1, (r.energyLeft || 0) / draw) * 100)}% темпа.`); }
   if (r.lgun > 1) r.errors.push('Боевой лазер встраивается в центр корпуса: на корабль можно только один.');
   r.warship = r.rail + r.flak + r.gat + r.lgun + r.msl + r.hangF + r.hangB > 0;
   if (r.rail + r.flak + r.lgun + r.msl > 0) {
