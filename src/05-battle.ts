@@ -163,8 +163,14 @@ function assignSlots(F){ // строй: впереди крепкие, за ни
   for(const s of F.ships){if(s.cls==='cv'||s.T.role==='freight'||s.cls==='fr')r2.push(s);else fight.push(s)}
   fight.sort((a,b)=>b.T.arm*(1+b.T.L)-a.T.arm*(1+a.T.L));
   const nt=Math.max(1,Math.round(fight.length*.38));fight.forEach((s,i)=>(i<nt?r0:r1).push(s));
-  let back=0;
+  // дальность орудий: каждый ряд встаёт позади переднего ровно на разницу дальностей, чтобы все вступали в огонь одновременно
+  const rgOf=o=>{if(o.maxR)return o.maxR;let m=0;for(const q of o.tur)if(q.cfg&&q.cfg.rng&&q.k!=='L'&&q.k!=='M')m=Math.max(m,q.cfg.rng);return m||60};
+  for(const o of fight)o.T.dopt=Math.max(14,Math.min(120,rgOf(o)*.8));
+  F.rng=F.ships.reduce((a,o)=>a+o.T.dopt,0)/F.n;
+  let back=0,frontD=0;
   [[r0,0],[r1,1],[r2,2]].forEach(([row,ri])=>{if(!row.length)return;
+    if(ri===0)frontD=row.reduce((a,o)=>a+o.T.dopt,0)/row.length;
+    else if(ri===1){const rd=row.reduce((a,o)=>a+o.T.dopt,0)/row.length;back=Math.max(back,rd-frontD)}
     row.sort((a,b)=>b.T.L-a.T.L);const per=Math.min(16,Math.max(4,Math.ceil(Math.sqrt(row.length*2.4)))),lines=Math.ceil(row.length/per);
     row.forEach((s,i)=>{const line=Math.floor(i/per),col=i%per,n=Math.min(per,row.length-line*per),sp=Math.max(.5,s.T.L*2.6+.35);
       s.slotLat=(col-(n-1)/2)*sp+(ri===1||line%2?sp*.5:0);s.slotBack=back+line*1.6;s.row=ri});
