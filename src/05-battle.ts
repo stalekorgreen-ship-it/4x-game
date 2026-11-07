@@ -52,7 +52,7 @@ function addFlights(sh,ty,total){
   for(let f=0;f<nfl;f++){const n=Math.min(per,left);left-=n;
     const fl={side:sh.side,type:ty,home:sh,cr:[],mode:'bay',svc:0,t0:0,leader:null,lane:(f-(nfl-1)/2)*(ty==='F'?18:30)};
     for(let k=0;k<n;k++){const c={side:sh.side,type:ty,fl,home:sh,own:sh,x:sh.x,y:sh.y,vx:0,vy:0,h:sh.side?Math.PI:0,P,hp:P.hp,ammo:ty==='F'?P.ammo:1,fuel:P.fuel,
-      state:'bay',launched:false,launchAt:0,ret:false,cd:R(0,.5),jx:0,jy:0,jt:0,tg:null,goal:null,sh:null,slot:k,eng:-99,tr:[],trT:0,na:0};fl.cr.push(c);air.push(c)}
+      ms:sh.spec.fmis&&ty==='F'?sh.spec.fmis.n:0,mk:sh.spec.fmis&&sh.spec.fmis.k,state:'bay',launched:false,launchAt:0,ret:false,cd:R(0,.5),jx:0,jy:0,jt:0,tg:null,goal:null,sh:null,slot:k,eng:-99,tr:[],trT:0,na:0};fl.cr.push(c);air.push(c)}
     flights.push(fl)}
 }
 function reset(cfg){
@@ -236,7 +236,7 @@ function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.c
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
 function killCraft(c,why){if(c.state==='dead')return;c.state='dead';(stat.why=stat.why||{})[why||'combat']=((stat.why||{})[why||'combat']||0)+1;stat[c.type==='F'?'lostF':'lostB'][c.side]++;fx.push({x:c.x,y:c.y,t0:t,d:6,r:1.2})}
 function reloadCraft(c){const P=c.P,p=c.home.pool;c.fuel=P.fuel;c.hp=P.hp;c.ret=false;
-  if(c.type==='F'){const k=Math.min(P.ammo-c.ammo,p.ammo);c.ammo+=k;p.ammo-=k}else{const k=Math.min(1-c.ammo,p.torp);c.ammo+=k;p.torp-=k}}
+  if(c.type==='F'){const k=Math.min(P.ammo-c.ammo,p.ammo);c.ammo+=k;p.ammo-=k;if(c.home.spec.fmis&&c.ms<c.home.spec.fmis.n&&p.ammo>=10){c.ms=c.home.spec.fmis.n;p.ammo-=10}}else{const k=Math.min(1-c.ammo,p.torp);c.ammo+=k;p.torp-=k}}
 function stepFlights(){
   for(const fl of flights){
     const live=fl.cr.filter(c=>c.state!=='dead');if(!live.length)continue;
@@ -325,6 +325,10 @@ function craftStep(c,d){
     if(Math.hypot(sh.x-c.x,sh.y-c.y)<12){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
       for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x+R(-1,1),y2:sh.y+R(-1,1),rt:performance.now(),s:c.side,a:c,b:sh});
       hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.07*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
+  // ракеты истребителей: «против крупных» бьют по кораблю, «против мелких» — по вражеским истребителям
+  if(c.type==='F'&&c.ms>0&&!c.ret&&c.state==='fly'&&t>(c.nm||0)){
+    if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:3.2,dmg:6,blast:4,life:40,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
+    else if(c.mk==='small'){const e=foeCraft(c,35,0,false);if(e&&e.state==='fly'){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});stat.mis[c.side]++;if(Math.random()<.55){killCraft(e,'missile');stat.misShot[c.side]++}}}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
   const bm=c.bm||1,al=Math.hypot(ax,ay);if(al>P.a*bm){ax*=P.a*bm/al;ay*=P.a*bm/al}
@@ -516,9 +520,11 @@ function updVis(){
   // ИИ радара: включает при контакте с врагом рядом, молчит в режиме «тишина»
   for(const s of ships){if(!s.alive||s.st==='surr')continue;const rd=s.scl.filter(q=>q.k==='rad');if(!rd.length)continue;
     const m=s.side===0?mode:'auto';if(m==='silent'||m==='pass')continue;
+    if(s.spec.reserve&&ships.some(q=>q.alive&&q.side===s.side&&!q.spec.reserve&&q.sc.some(z=>z.k==='rad')&&hpf(q)>=.3))continue;
     let on=m==='active';
     if(!on){const R2=Math.max(2.2*(s.maxR||60),160);for(const o of around(1-s.side,s.x,s.y,R2))if(o.seen[s.side]>t-8){on=true;break}}
     if(on){s.rdOn=true;s.fine=rd.some(q=>q.fine)}}
+  for(const s of ships){if(!s.alive||!s.rdOn||!s.fine)continue;for(const q of around(s.side,s.x,s.y,45))q.fine=true}
   for(const s of ships){if(!s.alive||t<s.blk)continue;
     let mx=1;for(const q of s.scl)mx=Math.max(mx,q.k==='rad'?(s.rdOn?q.rng:0):q.rng*2);
     for(const o of around(1-s.side,s.x,s.y,mx*1.6)){const d=Math.hypot(o.x-s.x,o.y-s.y);
@@ -642,6 +648,17 @@ function draw(g,ox,oy,k,dp){
     for(const p of torps){if(p.side!==side||!p.tgt)continue;const x=X(p.x),y=Y(p.y),dx=p.tgt.x-p.x,dy=p.tgt.y-p.y,l=Math.hypot(dx,dy)||1,tl2=Math.max(10*dp,40*k);g.moveTo(x,y);g.lineTo(x-dx/l*tl2,y-dy/l*tl2)}
     g.stroke()}
   const ord=d3?ships.slice().sort((a,b)=>a.z-b.z):ships;
+  // зоны сканеров: у выбранного корабля — радиусы, у всех с включённым радаром — тонкие импульсы
+  {const ellip=(x,y,r)=>{g.beginPath();g.ellipse(x,y,r*k,r*k*(vw.cT||1),0,0,6.283);g.stroke()};
+   g.lineWidth=1*dp;
+   for(const s of ord){if(!s.alive)continue;const x=X(s.x),y=Y(s.y)+Z(s.z);
+     if(s.rdOn&&(s===sel||projMode<2)){const ph=((performance.now()/1400+s.x*.01)%1),rr=(s.scl||[]).filter(q=>q.k==='rad').reduce((a,q)=>Math.max(a,q.rng),0);
+       g.setLineDash([]);g.strokeStyle=s.side?'#ff5fd0':'#4fe6ff';g.globalAlpha=.35*(1-ph);ellip(x,y,rr*ph);if(s===sel){g.globalAlpha=.25;g.setLineDash([6*dp,6*dp]);ellip(x,y,rr)}}
+     if(s===sel){g.setLineDash([2*dp,5*dp]);for(const q of s.scl||[]){if(q.k==='rad')continue;g.strokeStyle=q.k==='ir'?'#ff9a4f':'#a98cff';g.globalAlpha=.3;ellip(x,y,q.rng)}}}
+   g.setLineDash([]);g.globalAlpha=1}
+  // контакты врага: есть засечка, но нет захвата — размытая метка
+  for(const s of ord){if(s.side!==1||!s.alive)continue;const sn=s.seen[0]>t-5,lk=s.lock[0]>t-5;
+    if(sn&&!lk){const x=X(s.x),y=Y(s.y)+Z(s.z);g.strokeStyle='#ffd24f';g.globalAlpha=.55;g.setLineDash([3*dp,3*dp]);g.beginPath();g.arc(x,y,Math.max(8*dp,s.T.L*k*.9),0,6.283);g.stroke();g.setLineDash([]);g.globalAlpha=1}}
   for(const s of ord)drawShip(g,s,X(s.x),Y(s.y)+Z(s.z),k,dp);
   // ракеты
   for(const side of [0,1]){g.strokeStyle=CL[side];g.lineWidth=dp;g.globalAlpha=.22;g.beginPath();

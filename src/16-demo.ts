@@ -46,11 +46,48 @@ const MIXES = {
   missiles: {missileFrigate: 4, missileCruiser: 2, destroyer: 2, frigate: 2, gunboat: 2},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
-function fleet(n, mix, fid, speed) {
-  const keys = Object.keys(mix), tot = keys.reduce((a, k) => a + mix[k], 0), out = [], sk = RI(4, 8);
-  for (let i = 0; i < n; i++) { let r = Math.random() * tot, k = keys[0]; for (const q of keys) { r -= mix[q]; if (r <= 0) { k = q; break; } } const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
-  return out;
+// ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
+const W3 = sp => Math.pow(sp.L || .5, 2.2) + (sp.F || 0) * 0.00008 + (sp.B || 0) * 0.0002;
+const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
+const DOCT = {
+  armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .85); sp.spd = (sp.spd || 1) * .92; }},
+  armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .9); sp.defl = (sp.defl || 0) + .08; sp.spd = (sp.spd || 1) * .92; }},
+  guns: {n: 'ставка на число орудий', mix: 'line', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 2); setRails(sp, 1.7); sp.spd = (sp.spd || 1) * 1.05; }},
+  gunsH: {n: 'ставка на число орудий', mix: 'heavy', mod: sp => { sp.arm = Math.max(2, (sp.arm || 2) - 2); setRails(sp, 1.6); }},
+  balanced: {n: 'сбалансированный флот', mix: 'line', mod: sp => setRails(sp, 1.2)},
+  split: {n: 'истребители и бомбардировщики', mix: 'carrier'},
+  fmBig: {n: 'истребители с противокорабельными ракетами', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'big'}; } }},
+  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'small'}; } }},
+  strike: {n: 'торпедный удар', mix: 'strike'},
+  lasers: {n: 'лазерная ставка', mix: 'lasers'},
+  missiles: {n: 'ракетная ставка', mix: 'missiles'},
+  brawl: {n: 'ближний бой', mix: 'brawl'},
+  swarm: {n: 'рой малых кораблей', mix: 'swarm'},
+  light: {n: 'лёгкий флот', mix: 'light'},
+  convoy: {n: 'конвой', mix: 'convoy'},
+};
+const BYSIZE = n => { const r = Math.random(); if (n >= 10 && r < .1) return 'lasers'; if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
+  if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
+// оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
+function outfit(specs) {
+  const el = specs.filter(sp => sp.L >= .6 && sp.role !== 'freight' && !sp.F).sort((a, b) => b.arm - a.arm || b.L - a.L), nP = Math.max(1, Math.ceil(el.length * .15)), nR = Math.max(1, Math.ceil(el.length * .1));
+  const IR = (res) => ({k: 'ir', rng: res === 'n' ? 120 : 225, res: res === 'n' ? 1 : .5}), EM = {k: 'em', rng: 270, res: .5}, RAD = (rng, fine) => ({k: 'rad', rng: fine ? rng * .4 : rng, res: fine ? 1 : .4, fine: fine ? 1 : 0});
+  const chOf = sp => Math.max(1, Math.min(8, Math.round((sp.rails + (sp.lasers || 0) * 2 + (sp.miss || 0)) / 6) + 1));
+  el.forEach((sp, i) => { if (i < nP) { sp.scList = [IR('w'), EM, RAD(330), RAD(330, 1)]; sp.fcsN = Math.max(4, chOf(sp)); setRails(sp, .88); sp.prim = 1; } else if (i < nP + nR) { sp.scList = [IR('w'), RAD(180), RAD(180, 1)]; sp.fcsN = chOf(sp); sp.reserve = 1; } });
+  for (const sp of specs) { if (sp.scList) continue; if (sp.name.includes('ПВО')) { sp.scList = [IR('n'), RAD(180, 1)]; sp.fcsN = 4; sp.reserve = 1; } else if (sp.F || sp.B) { sp.scList = [IR('w'), RAD(180, 1)]; sp.fcsN = 3; sp.reserve = 1; } else { sp.scList = sp.L < .6 ? [IR('n')] : [IR('w')]; sp.fcsN = sp.role === 'freight' ? 0 : chOf(sp); } }
+  return specs;
 }
+function pickType(mix, tot, keys) { let r = Math.random() * tot, k = keys[0]; for (const q of keys) { r -= mix[q]; if (r <= 0) { k = q; break; } } return k; }
+// флот по числу кораблей или (если задан вес W) по весу
+function fleet(n, mixOrDoc, fid, speed, W) {
+  const doc = typeof mixOrDoc === 'string' ? DOCT[mixOrDoc] : null, mix = doc ? (typeof doc.mix === 'string' ? MIXES[doc.mix] : doc.mix) : mixOrDoc;
+  const keys = Object.keys(mix), tot = keys.reduce((a, k) => a + mix[k], 0), out = [], sk = RI(4, 8);
+  let w = 0;
+  for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
+  if (!out.length) { const sp = TYPES[keys[0]](0); if (doc && doc.mod) doc.mod(sp); sp.name += ' №1'; sp.fid = fid; sp.sk = sk; out.push(sp); }
+  return outfit(out);
+}
+const fleetW = specs => specs.reduce((a, sp) => a + W3(sp), 0);
 // сколько кораблей: размер 1 — от 4 до 10, 2 — до 40, 3 — до 200 на сторону
 const total = size => size === 1 ? RI(4, 10) : size === 2 ? RI(12, 40) : RI(70, 200);
 const split = (n, parts) => { const w = Array.from({length: parts}, () => R(.5, 1.5)), s = w.reduce((a, b) => a + b, 0), r = w.map(x => Math.max(1, Math.round(n * x / s))); return r; };
@@ -65,16 +102,16 @@ export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
   const ang0 = R(0, TAU), E = R(320, 480), late = [], fleets = [[], []];
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
-  const mixFor = n => { const r = Math.random(); if (n >= 10 && r < .1) return MIXES.lasers; if (r < .26) return MIXES.missiles; if (r < .38) return MIXES.brawl; if (r < .48) return MIXES.swarm; if (r < .56) return MIXES.strike; return n < 12 ? MIXES.light : n < 40 ? (Math.random() < .5 ? MIXES.line : MIXES.carrier) : (Math.random() < .5 ? MIXES.heavy : MIXES.line); };
+  const mixFor = BYSIZE;
   let title = SCENARIOS[kind].split(':')[0];
   if (kind === 'line') {
-    for (const side of [0, 1]) { const n = total(size), m = mixFor(n); place(side, fleet(n, m, side, 1), ang0 + side * Math.PI, E, 0); }
+    const n = total(size), fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = Math.max(4, Math.round(n * 1.2)); place(0, fa, ang0, E, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
   } else if (kind === 'pincer') {
     const nA = total(size), mA = mixFor(nA); place(0, fleet(nA, mA, 0, 1), ang0, E, 0);
     const k = RI(2, 4), nB = Math.round(total(size) * 1.1); split(nB, k).forEach((n, i) => place(1, fleet(n, mixFor(n), 10 + i, R(.9, 1.2)), ang0 + Math.PI + (i - (k - 1) / 2) * (TAU / (k + 1)), E, 0));
   } else if (kind === 'convoy') {
     const nC = total(size), nR = Math.max(4, Math.round(nC * R(.6, 1.2)));
-    place(0, fleet(nC, MIXES.convoy, 0, 1), ang0, E * .8, 0);
+    place(0, fleet(nC, 'convoy', 0, 1), ang0, E * .8, 0);
     const k = RI(2, 3); split(nR, k).forEach((n, i) => place(1, fleet(n, mixFor(n), 10 + i, R(1, 1.3)), ang0 + Math.PI + (i - (k - 1) / 2) * 1.1, E, i * R(100, 500)));
   } else if (kind === 'chase') {
     for (const side of [0, 1]) { const w = RI(3, 5); split(total(size), w).forEach((n, i) => place(side, fleet(n, mixFor(n), side * 10 + i, R(.7, 1.3)), ang0 + side * Math.PI + R(-.7, .7), E + R(-100, 150), i * R(250, 900))); }
@@ -129,8 +166,8 @@ export function matureSystem() {
 }
 // контролируемый матч «состав против состава» (для проверки баланса)
 export function duelScenario(a, b, n) {
-  const late = [], ang0 = 0;
-  [a, b].forEach((m, side) => { for (const sp of fleet(n, MIXES[m], side * 10, 1)) late.push({t: R(0, 20), side, spec: sp, edge: 400, ang: ang0 + side * Math.PI + R(-.1, .1)}); });
-  return {title: 'duel', fleets: [[], []], late, demo: true, maxT: 14400, names: [a, b], onEnd: () => { state.demo = false; }};
+  const late = [], fa = fleet(n, a, 0, 1), W = fleetW(fa), fb = fleet(n, b, 10, 1, W);
+  [fa, fb].forEach((f, side) => { for (const sp of f) late.push({t: R(0, 20), side, spec: sp, edge: 400, ang: side * Math.PI + R(-.1, .1)}); });
+  return {title: 'duel', fleets: [[], []], late, demo: true, maxT: 14400, names: [DOCT[a].n, DOCT[b].n], W: [fleetW(fa), fleetW(fb)], onEnd: () => { state.demo = false; }};
 }
-export const MIXNAMES = Object.keys(MIXES).filter(k => k !== 'convoy');
+export const MIXNAMES = Object.keys(DOCT).filter(k => k !== 'convoy');
