@@ -13,7 +13,7 @@ const DOPT={hc:20,dd:20,fr:35,cv:100},JINK=0.0015,VP=6,LIFE=10,RANGE=VP*LIFE,SIG
 const FI={vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO={vmax:0.8,a:0.05,fuel:2200,hp:4};
 const TORP={sp:2.5,pd:0.02,pdr:35,launch:120,mod:2};
 const FLAK={range:60,blast:1.2};
-const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0={blast:1.2,rng:60,rel:1,fail:0},LC0={dmg:4,rng:250,chg:.08},MC0={hp:2,spd:3.2,dmg:4,blast:6,ammo:4,rng:220,rel:.83};
+const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0={blast:1.2,rng:60,rel:1,fail:0},LC0={dmg:4,rng:250,chg:.08},MC0={hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83};
 const BURST={5:10,10:8,15:6,20:5},RCT={5:70,10:130,15:200,20:290};
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
@@ -326,12 +326,12 @@ function craftStep(c,d){
       c.cd-=d;if(c.cd<=0&&dist<2.5){c.cd=0.6;shoot(c,e,0.03)}}
   }
   if(c.type==='F'&&!c.ret&&!c.tg&&c.fl.tsh&&c.fl.ph==='in'&&c.ammo>0&&t>(c.nf||0)){const sh=c.fl.tsh;
-    if(Math.hypot(sh.x-c.x,sh.y-c.y)<12){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
-      for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x+R(-1,1),y2:sh.y+R(-1,1),rt:performance.now(),s:c.side,a:c,b:sh});
+    if(Math.hypot(sh.x-c.x,sh.y-c.y)<6){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
+      for(let i=0;i<3;i++)shots.push({x1:c.x+R(-.5,.5),y1:c.y+R(-.5,.5),x2:sh.x,y2:sh.y,rt:performance.now(),s:c.side,a:c,b:sh});
       hitShip(sh,'fgt',sh.x-c.x,sh.y-c.y,sh.x,sh.y,.07*n);stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
   // ракеты истребителей: «против крупных» бьют по кораблю, «против мелких» — по вражеским истребителям
   if(c.type==='F'&&c.ms>0&&!c.ret&&c.state==='fly'&&t>(c.nm||0)){
-    if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:3.2,dmg:6,blast:4,life:40,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
+    if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:8,dmg:6,blast:4,life:45,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
     else if(c.mk==='small'){const e=foeCraft(c,35,0,false);if(e&&e.state==='fly'){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});stat.mis[c.side]++;if(Math.random()<.55){killCraft(e,'missile');stat.misShot[c.side]++}}}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
@@ -486,15 +486,22 @@ function step(dt){
   // ракеты
   for(let i=mis.length-1;i>=0;i--){
     const p=mis[i];let tg=p.tgt;
-    if(!tg||!tg.alive){const nn=nearestShip(p.x,p.y,1-p.side);tg=p.tgt=nn&&nn.s}
-    if(!tg){mis.splice(i,1);continue}
-    const d=Math.hypot(tg.x-p.x,tg.y-p.y),T0=d/p.spd,ax=tg.x+tg.sx*T0-p.x,ay=tg.y+tg.sy*T0-p.y;
+    if(tg&&!tg.alive){tg=p.tgt=null;p.rl=t+2.5}
+    if(!tg){ // цель потеряна: летит прямо, медленно ищет новую впереди (узкий конус), топливо тает
+      if(t>=(p.rl||0)){let b=null,bd=1e9;for(const o of around(1-p.side,p.x,p.y,90)){const a=Math.abs(adiff(p.h,Math.atan2(o.y-p.y,o.x-p.x)));if(a>1.1)continue;const dd=Math.hypot(o.x-p.x,o.y-p.y)*(1+a);if(dd<bd){bd=dd;b=o}}
+        if(b){tg=p.tgt=b;p.pd=null}else p.rl=t+1.5}
+      if(!tg){p.x+=Math.cos(p.h)*p.spd*dt;p.y+=Math.sin(p.h)*p.spd*dt;p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>24)p.tr.splice(0,3)}
+        if(p.life<=0){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:.8});mis.splice(i,1)}continue}}
+    const d=Math.hypot(tg.x-p.x,tg.y-p.y),T0=d/p.spd;
+    if(p.pd!=null&&d>p.pd&&p.pd<25){p.tgt=null;p.rl=t+3;p.pd=null;continue} // проскочила мимо
+    p.pd=d;
+    const ax=tg.x+tg.sx*T0-p.x,ay=tg.y+tg.sy*T0-p.y;
     if(d<45&&tg.jam>0&&t>=(p.blind||0)&&Math.random()<tg.jam*dt*.3){p.blind=t+4;stat.decoy++;fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:1});say(tg.side,'jam',tg)}
-    if(t>=(p.blind||0))p.h+=Math.max(-1.6*dt,Math.min(1.6*dt,adiff(p.h,Math.atan2(ay,ax))));
+    const TR=Math.min(1.2,3.2/p.spd);if(t>=(p.blind||0))p.h+=Math.max(-TR*dt,Math.min(TR*dt,adiff(p.h,Math.atan2(ay,ax))));
     p.vx=Math.cos(p.h)*p.spd;p.vy=Math.sin(p.h)*p.spd;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
     if(env.length&&los(p.x-p.vx*dt,p.y-p.vy*dt,p.x,p.y)){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:4,r:1.5});mis.splice(i,1);continue}
     p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>24)p.tr.splice(0,3)}
-    if(t>=(p.blind||0)&&Math.hypot(tg.x-p.x,tg.y-p.y)<tg.T.L*.3+1.2){boom(p,tg);mis.splice(i,1);continue}
+    if(t>=(p.blind||0)&&Math.hypot(tg.x-p.x,tg.y-p.y)<tg.T.L*.3+1.2+p.blast*.25){boom(p,tg);mis.splice(i,1);continue}
     if(p.life<=0)mis.splice(i,1);
   }
   stepFlights();assign();
