@@ -64,7 +64,8 @@ function addFlights(sh,ty,total){
 }
 function reset(cfg){
   hadContact=false;hitLog=[];impacts=[];sepT=0;lastDmgT=0;frags=[];pyro=[];pods=[];lands=[];ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];
-  if(cfg.env!==false&&(cfg.env||Math.random()<.55)){const cl=1+((Math.random()*2)|0);for(let c=0;c<cl;c++){const cx0=R(-220,220),cy0=R(-200,200),n=4+((Math.random()*8)|0);for(let i=0;i<n;i++)env.push({t:'rock',x:cx0+R(-70,70),y:cy0+R(-60,60),r:R(.6,3),vx:0,vy:0,ttl:1e9})}
+  if(cfg.envList)for(const e of cfg.envList)env.push(Object.assign({vx:0,vy:0,ttl:1e9},e));
+  if(!cfg.envList&&cfg.env!==false&&(cfg.env||Math.random()<.55)){const cl=1+((Math.random()*2)|0);for(let c=0;c<cl;c++){const cx0=R(-220,220),cy0=R(-200,200),n=4+((Math.random()*8)|0);for(let i=0;i<n;i++)env.push({t:'rock',x:cx0+R(-70,70),y:cy0+R(-60,60),r:R(.6,3),vx:0,vy:0,ttl:1e9})}
     if(Math.random()<.35)env.push({t:'planet',x:R(-120,120),y:(Math.random()<.5?-1:1)*R(120,230),r:R(10,22),vx:0,vy:0,ttl:1e9})}
   sel=null;done=false;pend=(cfg.late||[]).map(x=>({...x}));lastFriend=0;
   stat={las:[0,0],lasHit:[0,0],mis:[0,0],misHit:[0,0],misShot:[0,0],bfail:[0,0],shots:[0,0],hits:[0,0],torp:[0,0],torpHit:[0,0],torpPd:[0,0],flak:[0,0],flakKill:[0,0],lostF:[0,0],lostB:[0,0],cap:[0,0],surr:[0,0],fires:0,rep:0,lost:[0,0],blk:0,ovh:0,rock:0,decoy:0};
@@ -802,6 +803,8 @@ function draw(g,ox,oy,k,dp){
   const ord=d3?ships.slice().sort((a,b)=>a.z-b.z):ships;
   // препятствия: астероиды, обломки, планеты (за ними можно спрятаться, лазеры и снаряды в них упираются)
   for(const e of env){const x=X(e.x),y=Y(e.y),rr=Math.max(2*dp,e.r*k);
+    if(e.t==='planet'&&e.ring){g.strokeStyle='#b9a98a';g.globalAlpha=.28;g.lineWidth=Math.max(2*dp,(e.ring[1]-e.ring[0])*k);g.beginPath();g.ellipse(x,y,(e.ring[0]+e.ring[1])/2*k,(e.ring[0]+e.ring[1])/2*k*(vw.cT||1),0,0,6.283);g.stroke();g.globalAlpha=1}
+    if(e.t==='station'){g.fillStyle='#5a6577';g.globalAlpha=.95;g.beginPath();g.ellipse(x,y,rr*.18,rr*.18*(vw.cT||1),0,0,6.283);g.fill();g.strokeStyle='#9fb4d8';g.lineWidth=Math.max(1.5*dp,rr*.08);g.globalAlpha=.8;g.beginPath();g.ellipse(x,y,rr*.7,rr*.7*(vw.cT||1),0,0,6.283);g.stroke();g.lineWidth=1.5*dp;for(let q=0;q<4;q++){const a=q*1.5708+.4;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*rr*.7,y+Math.sin(a)*rr*.7*(vw.cT||1));g.stroke()}g.globalAlpha=1;continue}
     if(e.t==='planet'){const gr=g.createRadialGradient(x-rr*.3,y-rr*.3,rr*.1,x,y,rr);gr.addColorStop(0,'#7a8aa8');gr.addColorStop(1,'#1c2436');g.fillStyle=gr;g.globalAlpha=.95;g.beginPath();g.ellipse(x,y,rr,rr*(vw.cT||1),0,0,6.283);g.fill();g.strokeStyle='#9fb4d8';g.globalAlpha=.35;g.lineWidth=1.5*dp;g.stroke()}
     else{g.fillStyle=e.t==='debris'?'#4a3f38':'#6b625a';g.globalAlpha=.95;g.beginPath();g.ellipse(x,y,rr,rr*(vw.cT||1)*.9,e.x,0,6.283);g.fill();g.strokeStyle='#b3a699';g.globalAlpha=.5;g.lineWidth=1*dp;g.stroke()}}
   g.globalAlpha=1;
@@ -960,7 +963,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
+return {env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
 })();
 
 /* ===== НАЛЁТЫ ===== */

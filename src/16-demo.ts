@@ -110,10 +110,15 @@ export const SCENARIOS = {
   chase: 'Погоня: флоты подходят по очереди, догоняя друг друга',
   armada: 'Армады: по несколько флотов у каждой стороны',
   range: 'Полигон: по одному кораблю каждого типа, близко друг к другу',
+  station: 'Бой у станции: оборона орбитальной станции',
+  asteroid: 'Бой в поле астероидов: укрытия и тесные проходы',
+  planet: 'Бой у планеты: огромный диск закрывает сектор',
+  ring: 'Бой у кольцевого мира: планета с поясом обломков',
 };
 export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
   if (kind === 'range') return rangeScenario();
+  if (kind === 'station' || kind === 'asteroid' || kind === 'planet' || kind === 'ring') return envScenario(kind, size);
   const ang0 = R(0, TAU), E = R(320, 480), late = [], fleets = [[], []];
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
   const mixFor = BYSIZE;
@@ -191,4 +196,21 @@ export function rangeScenario() {
   const late = [], types = Object.keys(DOCT).filter(k => k !== 'convoy');
   for (const side of [0, 1]) for (const t of types) { const f = fleet(1, t, side * 20, 1); for (const sp of f) late.push({t: R(0, 5), side, spec: sp, edge: 160, ang: side * Math.PI + R(-.35, .35)}); }
   return {title: 'Полигон: все типы кораблей', fleets: [[], []], late, demo: true, maxT: 14400, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
+}
+
+// бои в особых условиях: те же флоты, но вокруг станция, астероиды, планета или кольцевой мир
+export function envScenario(kind, size) {
+  const ang0 = R(0, TAU), E = R(330, 450), late = [], rk = (n, cx, cy, sx, sy, r0, r1) => Array.from({length: n}, () => ({t: 'rock', x: cx + R(-sx, sx), y: cy + R(-sy, sy), r: R(r0, r1)}));
+  const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.15, .15)}); };
+  const n = total(size), mixFor = BYSIZE, a2 = ang0 + Math.PI / 2 * (Math.random() < .5 ? 1 : -1);
+  let envList = [], title = '', defE = E;
+  if (kind === 'station') { envList = [{t: 'station', x: 0, y: 0, r: 8}].concat(rk(10, 0, 0, 45, 45, .4, 1.3)); title = 'Бой у станции'; defE = E * .3 }
+  else if (kind === 'asteroid') { envList = rk(95, 0, 0, 240, 180, .5, 4.5).concat(rk(6, 0, 0, 120, 90, 5, 8)); title = 'Бой в поле астероидов' }
+  else if (kind === 'planet') { envList = [{t: 'planet', x: Math.cos(a2) * 120, y: Math.sin(a2) * 120, r: R(34, 44)}]; title = 'Бой у планеты' }
+  else { const cx = Math.cos(a2) * 105, cy = Math.sin(a2) * 105; envList = [{t: 'planet', x: cx, y: cy, r: 20, ring: [34, 58]}]; for (let i = 0; i < 130; i++) { const a = R(0, TAU), d = R(34, 58); envList.push({t: 'rock', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, r: R(.35, 1.6)}) } title = 'Бой у кольцевого мира' }
+  const fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = Math.max(4, Math.round(n * 1.2));
+  place(0, fa, ang0, defE, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
+  late.sort((a, b) => a.t - b.t);
+  const cnt = [late.filter(x => x.side === 0).length, late.filter(x => x.side === 1).length];
+  return {title: `Бой-демо: ${title} (${cnt[0]} против ${cnt[1]})`, fleets: [[], []], late, demo: true, envList, maxT: 14400, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
 }

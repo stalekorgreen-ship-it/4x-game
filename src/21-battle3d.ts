@@ -287,6 +287,46 @@ if (wrap && bgo) {
       if (!res) { const th = thL(u), lp = layerPos(q, q.cur, th, new THREE.Vector3()), nr = NRL[q.f]; lp.x += nr[0] * th * .5; lp.y += nr[1] * th * .5; lp.z += nr[2] * th * .5; res = { pos: g.localToWorld(lp), nrm: new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion) } } }
     u.armT = 0; return res;
   }
+
+  // ===== окружение боя: астероиды, планета (с кольцом), станция =====
+  let rockMesh: THREE.InstancedMesh | null = null; const envObj = new Map<any, THREE.Object3D>(); const MAXR = 700;
+  function cvTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t }
+  function makePlanet(e: any) {
+    const g = new THREE.Group(), hue = (Math.abs(e.x * 7 + e.y * 3) % 1);
+    const tex = cvTex(512, 256, c => { const gr = c.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6f86a8'); gr.addColorStop(.5, '#a8906c'); gr.addColorStop(1, '#4d5d7a'); c.fillStyle = gr; c.fillRect(0, 0, 512, 256);
+      for (let i = 0; i < 90; i++) { c.globalAlpha = .12 + Math.random() * .12; c.fillStyle = Math.random() < .5 ? '#d9c8a4' : '#34415a'; const y = Math.random() * 256, h = 3 + Math.random() * 14; c.fillRect(0, y, 512, h) }
+      for (let i = 0; i < 40; i++) { c.globalAlpha = .1; c.fillStyle = '#fff'; c.beginPath(); c.ellipse(Math.random() * 512, Math.random() * 256, 10 + Math.random() * 40, 3 + Math.random() * 8, 0, 0, 6.283); c.fill() } });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(e.r, 64, 48), new THREE.MeshStandardMaterial({ map: tex, roughness: .9, metalness: 0 })); g.add(body);
+    const atm = new THREE.Mesh(new THREE.SphereGeometry(e.r * 1.03, 48, 32), new THREE.MeshBasicMaterial({ color: 0x7fb4ff, transparent: true, opacity: .13, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(atm);
+    if (e.ring) { const rt = cvTex(512, 4, c => { for (let x = 0; x < 512; x++) { const a = .25 + .5 * Math.abs(Math.sin(x * .09) * Math.sin(x * .031 + 1)) + (Math.random() * .15); c.fillStyle = `rgba(${190 + (x % 40)},${170 + (x % 25)},${140},${Math.min(.85, a)})`; c.fillRect(x, 0, 1, 4) } }); const rg = new THREE.RingGeometry(e.ring[0], e.ring[1], 128, 1), pos = rg.attributes.position, uv = rg.attributes.uv;
+      for (let i = 0; i < pos.count; i++) uv.setXY(i, (Math.hypot(pos.getX(i), pos.getY(i)) - e.ring[0]) / (e.ring[1] - e.ring[0]), .5);
+      const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ map: rt, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity: .8 })); ring.rotation.x = -Math.PI / 2; g.add(ring) }
+    g.userData.spin = body; void hue; return g
+  }
+  function makeStation(e: any) {
+    const g = new THREE.Group(), r = e.r, mat = new THREE.MeshStandardMaterial({ color: 0x8b95a6, roughness: .5, metalness: .6, flatShading: true }), dark = new THREE.MeshStandardMaterial({ color: 0x3a4150, roughness: .6, metalness: .5, flatShading: true }), glow = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * .13, r * .13, r * .95, 16), mat); g.add(hub);
+    for (const sy of [-1, 1]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * .07, r * .17, r * .12, 16), dark); cap.position.y = sy * r * .52; if (sy < 0) cap.rotation.x = Math.PI; g.add(cap) }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * .72, r * .075, 10, 48), mat); ring.rotation.x = Math.PI / 2; g.add(ring);
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(r * .72, r * .02, 6, 48), glow); ring2.rotation.x = Math.PI / 2; ring2.position.y = r * .075; g.add(ring2);
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3, sp = new THREE.Mesh(new THREE.BoxGeometry(r * .72, r * .03, r * .03), dark); sp.position.set(Math.cos(a) * r * .36, 0, Math.sin(a) * r * .36); sp.rotation.y = -a; g.add(sp) }
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + .4, pan = new THREE.Mesh(new THREE.BoxGeometry(r * .5, r * .01, r * .22), new THREE.MeshStandardMaterial({ color: 0x24456e, roughness: .3, metalness: .7 })); pan.position.set(Math.cos(a) * r * .95, r * .36 * (i % 2 ? 1 : -1), Math.sin(a) * r * .95); pan.rotation.y = -a + Math.PI / 2; g.add(pan) }
+    for (let i = 0; i < 3; i++) { const dk = new THREE.Mesh(new THREE.BoxGeometry(r * .2, r * .06, r * .06), dark); const a = i * 2.1; dk.position.set(Math.cos(a) * (r * .72 + r * .12), 0, Math.sin(a) * (r * .72 + r * .12)); dk.rotation.y = -a; g.add(dk) }
+    g.rotation.x = .25; return g
+  }
+  function updateEnv() {
+    const list = (Battle.env && Battle.env() as any[]) || [], rocks = list.filter(e => e.t === 'rock' || e.t === 'debris'), seen = new Set<any>();
+    if (!rockMesh) { const ge = new THREE.IcosahedronGeometry(1, 1), pp = ge.attributes.position; for (let i = 0; i < pp.count; i++) { const k = 1 + .28 * Math.sin(pp.getX(i) * 4.1 + pp.getY(i) * 3.3) * Math.cos(pp.getZ(i) * 3.7); pp.setXYZ(i, pp.getX(i) * k, pp.getY(i) * k * .85, pp.getZ(i) * k) } ge.computeVertexNormals();
+      rockMesh = new THREE.InstancedMesh(ge, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .95, metalness: .05, flatShading: true }), MAXR); rockMesh.frustumCulled = false; rockMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(rockMesh) }
+    let k = 0; const nw = performance.now() / 1000;
+    for (const e of rocks) { if (k >= MAXR) break; if (e._s == null) e._s = Math.random() * 100; dummy.position.set(e.x, (e._s % 1 - .5) * e.r * 1.2, e.y); dummy.rotation.set(e._s, e._s * 1.7 + nw * .03 * (1 + e._s % 2), e._s * .6); dummy.scale.set(e.r * (1 + e._s % .3), e.r, e.r * (1.1 - e._s % .2)); dummy.updateMatrix(); rockMesh.setMatrixAt(k, dummy.matrix);
+      const sh = .55 + (e._s % 1) * .5; rockMesh.setColorAt(k, _cc2.setRGB(.42 * sh, .37 * sh, .33 * sh).multiplyScalar(e.t === 'debris' ? .7 : 1)); k++ }
+    rockMesh.count = k; rockMesh.instanceMatrix.needsUpdate = true; if (rockMesh.instanceColor) rockMesh.instanceColor.needsUpdate = true;
+    for (const e of list) { if (e.t !== 'planet' && e.t !== 'station') continue; seen.add(e); let o = envObj.get(e); if (!o) { o = e.t === 'planet' ? makePlanet(e) : makeStation(e); o.position.set(e.x, e.t === 'planet' ? -e.r * .02 : 0, e.y); scene.add(o); envObj.set(e, o) }
+      if (e.t === 'station') o.rotation.y += .0015; else if (o.userData.spin) o.userData.spin.rotation.y += .0003 }
+    for (const [e, o] of envObj) if (!seen.has(e)) { scene.remove(o); envObj.delete(e) }
+  }
+  const _cc2 = new THREE.Color();
   const streaks: any[] = []; // последний отрезок трассера: долетает до корпуса и гаснет на плите
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
     const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 200)) return; u.armT = now; const th = thL(u); let spawned = 0, chg = false; const im = u.arm[0] as THREE.InstancedMesh;
@@ -391,6 +431,7 @@ if (wrap && bgo) {
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;
     }
+    updateEnv();
     { const ea = (exLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, ec = (exLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3(), p0 = new THREE.Vector3(), p1 = new THREE.Vector3();
       for (const [sh, g] of models) { if (!sh.alive || !g.parent) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true);
         if (sp > .02) { st.set(-L * .56, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.p.distanceTo(st) > L * g.scale.x * .035) { h.push({ p: st.clone(), t: nE }); if (h.length > 30) h.shift() } }
