@@ -15,7 +15,7 @@ if (wrap && bgo) {
   let fitAll = true; let yaw = .6, pitch = .45, dist = 40, SC = 1.5, follow = true;
   const tgt = new THREE.Vector3();
   const models = new Map<any, THREE.Group>();
-  const geoBox = new RoundedBoxGeometry(1, 1, 1, 1, .12), geoCone = new THREE.ConeGeometry(.5, 1, 8), geoSph = new THREE.SphereGeometry(1, 8, 6);
+  const geoBox = new RoundedBoxGeometry(1, 1, 1, 1, .12), geoCone = new THREE.ConeGeometry(.5, 1, 8), geoSph = new THREE.SphereGeometry(1, 8, 6), geoDome = new THREE.SphereGeometry(1, 16, 10), geoCyl = new THREE.CylinderGeometry(1, 1, 1, 8).rotateZ(Math.PI / 2);
   const mats = [0x4aa8e8, 0xe8803a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .55, metalness: .35 }));
   const matDark = new THREE.MeshStandardMaterial({ color: 0x1a1d23, roughness: .8 });
   const matTur = [0xe8f3ff, 0xffd9b0].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .4, metalness: .5 }));
@@ -188,12 +188,13 @@ if (wrap && bgo) {
       const t = new THREE.Group(), lift = r * .3;
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, lift * 1.4, r * 1.8); base.position.y = lift * .2; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; t.add(head); // голова башни: поворачивается по полусфере
-      const dome = new THREE.Mesh(geoBox, matTur[s.side]); dome.scale.set(r * 1.3, r * .5, r * 1.3); dome.position.y = lift + r * .15; head.add(dome);
-      const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 2.6, r * .2, r * .2); br.position.set(r * 1.5, lift + r * .2, (b - (nb - 1) / 2) * r * .5); head.add(br) }
-      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.1); fl.position.set(r * 2.9, lift + r * .2, 0); fl.visible = false; head.add(fl);
+      const dome = new THREE.Mesh(geoDome, matTur[s.side]); dome.scale.set(r * .95, r * .8, r * .95); dome.position.y = lift; head.add(dome); // сферическая башня
+      const nb = m.k === 'T' ? 2 : 1, tips: THREE.Object3D[] = []; for (let b = 0; b < nb; b++) { const zb = (b - (nb - 1) / 2) * r * .55, len = r * 2.1; const br = new THREE.Mesh(geoCyl, matDark); br.scale.set(len, r * .13, r * .13); br.position.set(r * .5 + len / 2, lift + r * .1, zb); head.add(br);
+        const mz = new THREE.Mesh(geoCyl, matDark); mz.scale.set(r * .22, r * .19, r * .19); mz.position.set(r * .5 + len, lift + r * .1, zb); head.add(mz); const tp = new THREE.Object3D(); tp.position.set(r * .5 + len + r * .12, lift + r * .1, zb); head.add(tp); tips.push(tp) }
+      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * .5); fl.position.copy(tips[0].position); fl.position.z = 0; fl.visible = false; head.add(fl);
       // основание ориентируем по нормали грани
       t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), N[f]); t.position.set(best.x, best.y, best.z);
-      (t as any).userData = { m, fl, head, n: N[f], r: r * 1.6, lr: 0 }; tg.add(t); u.mods.push(m);
+      (t as any).userData = { m, fl, head, n: N[f], r: r * 1.6, lr: 0, tips }; tg.add(t); u.mods.push(m);
     }
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
@@ -227,7 +228,7 @@ if (wrap && bgo) {
           const lq = t.quaternion.clone().invert(), dl = d.clone().applyQuaternion(lq); // направление в системе основания, y — вверх
           const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.lengthSq() ? dl.normalize() : new THREE.Vector3(1, 0, 0)); t.userData.head.quaternion.slerp(q, .12);
           const fr = m.rt && np - m.rt < 130; t.userData.fl.visible = !!fr;
-          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
+          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; { const tp = t.userData.tips[(Math.random() * t.userData.tips.length) | 0], mp = new THREE.Vector3(); tp.updateWorldMatrix(true, false); tp.getWorldPosition(mp); const ev = (g.userData.muz = g.userData.muz || []); ev.push({ p: mp, t: np }); if (ev.length > 40) ev.shift() } if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
       { const u2 = g.userData; // следы повреждений на корпусе: подпалины и пробоины
         if (u2.lod === 1 && app > .05 && s.vd && s.vd.length && u2.seg) { if (!u2.dmg) { u2.dmg = new THREE.InstancedMesh(decalGeo, decalMat, MAXD); u2.dmg.frustumCulled = false; u2.dmg.setColorAt(0, new THREE.Color(1, 1, 1)); g.add(u2.dmg) }
           const nowT = Battle.time(), q = new THREE.Quaternion(), nrm = new THREE.Vector3(), pos = new THREE.Vector3(), sc3 = new THREE.Vector3(), mt = new THREE.Matrix4(), col3 = new THREE.Color(); let k = 0;
@@ -261,7 +262,10 @@ if (wrap && bgo) {
     const tmp = new THREE.Color();
     for (const p of Battle.proj() as any[]) {
       if (pc >= MAXP) break; const o = pc * 6, l = Math.max(.15, dist * .0007) * 10;
-      pa[o] = p.x; pa[o + 1] = p.z; pa[o + 2] = p.y; pa[o + 3] = p.x - p.vx * l * .1; pa[o + 4] = p.z - (p.vz || 0) * l * .1; pa[o + 5] = p.y - p.vy * l * .1;
+      let ox = 0, oy = 0, oz = 0;
+      if (p._m === undefined) { p._m = null; const gs = p.src && models.get(p.src); const ev = gs && gs.userData.muz; if (ev && ev.length) { const nw = performance.now(), fresh = ev.filter((q: any) => nw - q.t < 250); if (fresh.length) { const q = fresh[(Math.random() * fresh.length) | 0]; p._m = { x: q.p.x - p.x, y: q.p.y - p.z, z: q.p.z - p.y, d0: p.dist, F: (gs.userData.L || 1) * .5 + .3 } } } }
+      if (p._m) { const w = Math.max(0, 1 - (p.dist - p._m.d0) / p._m.F); ox = p._m.x * w; oy = p._m.y * w; oz = p._m.z * w }
+      pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; pa[o + 3] = p.x + ox - p.vx * l * .1; pa[o + 4] = p.z + oy - (p.vz || 0) * l * .1; pa[o + 5] = p.y + oz - p.vy * l * .1;
       const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12; pc++;
