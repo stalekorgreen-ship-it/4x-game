@@ -42,9 +42,10 @@ if (wrap && bgo) {
   hud.innerHTML = 'ЛКМ: вращать · колесо: зум · ПКМ: сдвиг · [ ] размер · F: следить за выбранным · A: вписать всё поле · T: камера на башню · V: камера на истребитель';
   wrap.appendChild(hud);
   // F3 — оверлей производительности: FPS, время кадра (JS / отправка отрисовки), вызовы, треугольники, число объектов, качество
-  const perf = document.createElement('div'); perf.style.cssText = 'position:absolute;right:10px;top:44px;z-index:6;color:#9f9;font:12px monospace;background:rgba(0,0,0,.75);padding:6px 8px;border-radius:6px;display:none;pointer-events:none;white-space:pre'; wrap.appendChild(perf);
-  let perfOn = false, pfT = 0, pfFrames = 0, pfJs = 0, pfRen = 0, pfShown = '';
-  addEventListener('keydown', e => { if (e.key === 'F3') { e.preventDefault(); perfOn = !perfOn; perf.style.display = perfOn ? 'block' : 'none' } });
+  const perf = document.createElement('div'); perf.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483000;color:#9f9;font:12px monospace;background:rgba(0,0,0,.75);padding:6px 8px;border-radius:6px;display:none;pointer-events:none;white-space:pre'; document.body.appendChild(perf);
+  let perfOn = false, pfT = 0, pfFrames = 0, pfJs = 0, pfRen = 0, pfExtra = '', pfX = 0, pfN = 0, pfX0 = 0;
+  const pfLoop = () => { if (!perfOn) return; requestAnimationFrame(pfLoop); const nn = performance.now(); pfN++; if (nn - pfX0 > 500) { perf.textContent = 'FPS ' + (pfN * 1000 / (nn - pfX0)).toFixed(0) + (pfExtra && nn - pfX < 1500 ? '\n' + pfExtra : '\n(3D-бой не открыт)') + '\nF3 — скрыть'; pfX0 = nn; pfN = 0 } };
+  addEventListener('keydown', e => { if (e.key === 'F3' || e.code === 'F3') { e.preventDefault(); perfOn = !perfOn; perf.style.display = perfOn ? 'block' : 'none'; if (perfOn) { pfX0 = performance.now(); pfN = 0; requestAnimationFrame(pfLoop) } } }, true);
 
   function init() {
     const cv = document.createElement('canvas');
@@ -791,7 +792,7 @@ if (wrap && bgo) {
     const rT0 = performance.now(); ren.render(scene, cam);
     if (perfOn) { const nn = performance.now(); pfFrames++; pfJs += rT0 - jsT0; pfRen += nn - rT0;
       if (nn - pfT > 500) { const inf = ren.info.render, sh = Battle.ships() as any[]; let alive = 0; for (const q of sh) if (q.alive) alive++;
-        perf.textContent = 'FPS ' + (pfFrames * 1000 / (nn - pfT)).toFixed(0) + '  (кадр ' + (dtEma).toFixed(0) + ' мс)\nJS обновление ' + (pfJs / pfFrames).toFixed(1) + ' мс\nrender() CPU ' + (pfRen / pfFrames).toFixed(1) + ' мс\nвызовы ' + inf.calls + ' · треуг. ' + (inf.triangles / 1000).toFixed(0) + 'k\nкорабли ' + alive + ' · авиа ' + (Battle.air() as any[]).length + '\nснаряды ' + (Battle.proj() as any[]).length + ' · искры ' + sparks.length + ' · обломки ' + tdeb.length + '\nкачество ' + (qual * 100).toFixed(0) + '%  (F3 — скрыть)'; pfT = nn; pfFrames = 0; pfJs = 0; pfRen = 0 } }
+        pfExtra = 'кадр ' + (dtEma).toFixed(0) + ' мс\nJS обновление ' + (pfJs / pfFrames).toFixed(1) + ' мс\nrender() CPU ' + (pfRen / pfFrames).toFixed(1) + ' мс\nвызовы ' + inf.calls + ' · треуг. ' + (inf.triangles / 1000).toFixed(0) + 'k\nкорабли ' + alive + ' · авиа ' + (Battle.air() as any[]).length + '\nснаряды ' + (Battle.proj() as any[]).length + ' · искры ' + sparks.length + ' · обломки ' + tdeb.length + ''; pfX = nn; pfT = nn; pfFrames = 0; pfJs = 0; pfRen = 0 } }
   }
   // небо боя: настоящие направления и угловые размеры тел относительно места боя на карте; Солнце задаёт свет и фазы
   let sunL: THREE.DirectionalLight, skyG: THREE.Group | null = null, curSky: any = undefined;
