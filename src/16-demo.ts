@@ -61,7 +61,7 @@ const DOCT = {
   fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.75); sp.fmis = {n: 2, k: 'small'}; } }},
   strike: {n: 'торпедный удар', mix: 'strike', mod: sp => { if (sp.B) sp.B = Math.round(sp.B * 1.3); if (sp.F) sp.F = Math.round(sp.F * 1.2); }},
   lasers: {n: 'лазерная ставка', mix: 'lasers'},
-  missiles: {n: 'ракетная ставка', mix: 'missiles', mod: sp => { if (sp.miss) { sp.miss = Math.max(2, Math.round(sp.miss * .7)); sp.missCfg = sp.missCfg.slice(0, sp.miss); } }},
+  missiles: {n: 'ракетная ставка', mix: 'missiles', mod: sp => { if (sp.miss) { sp.miss = Math.max(2, Math.round(sp.miss * .55)); sp.missCfg = sp.missCfg.slice(0, sp.miss); } }},
   brawl: {n: 'ближний бой', mix: 'brawl'},
   swarm: {n: 'рой малых кораблей', mix: 'swarm'},
   light: {n: 'лёгкий флот', mix: 'light', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 1); sp.spd = (sp.spd || 1) * .92; }},

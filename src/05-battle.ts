@@ -387,11 +387,12 @@ function hitShip(o,kind,vx,vy,x,y,dmg){lastDmgT=t;
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.9,0.9),ab=Math.abs(a);
   const zi=ab<0.785?0:ab>2.356?2:(a>0?1:3);let z=o.zones[zi];
-  let dm=kind==='torp'?1:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
+  const sc=Math.pow(8000/Math.max(2000,o.T.tons||8000),.8); // живучесть растёт с тоннажем: большой корабль получает меньше урона за попадание
+  let dm=kind==='torp'?1:dmg*sc*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
   if(z.arm>0&&dm>0){const c=Math.min(z.arm,dm);z.arm-=c;dm-=c;fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(frags.length<300&&Math.random()<.5)spawnShards(x,y,o.z,2,3);o.mor-=.002;if(dm<=0)return}
   else if(dm<=0){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
   if(!z.mods.some(m=>m.alive)){const cand=o.zones.filter(q=>q.mods.some(m=>m.alive));if(!cand.length)return;z=cand[(Math.random()*cand.length)|0]}
-  const k=kind==='torp'?TORP.mod:dm;
+  const tk=TORP.mod*sc,k=kind==='torp'?Math.floor(tk)+(Math.random()<tk%1?1:0):dm;
   for(let i=0;i<k;i++){const al=z.mods.filter(m=>m.alive);if(!al.length)break;const m=al[(Math.random()*al.length)|0];m.alive=false;o.aliveN--;if(m.k==='E'){o.engN--;say(o.side,'eng',o)}else if(m.k!=='C')say(o.side,'mod',o)}
   fx.push({z:o.z,x,y,t0:t,d:10,r:3});Sfx.boom(3);
   o.crew=Math.max(0,o.crew-.012*k-.004);o.mor-=.012+.01*k;
@@ -534,7 +535,7 @@ function step(dt){
     p.vx=Math.cos(p.h)*p.spd;p.vy=Math.sin(p.h)*p.spd;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
     if(env.length&&los(p.x-p.vx*dt,p.y-p.vy*dt,p.x,p.y)){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:4,r:1.5});mis.splice(i,1);continue}
     p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>12)p.tr.splice(0,3)}
-    if(t>=(p.blind||0)&&Math.hypot(tg.x-p.x,tg.y-p.y)<tg.T.L*.3+1.2+p.blast*.25){boom(p,tg);mis.splice(i,1);continue}
+    if(t>=(p.blind||0)&&Math.hypot(tg.x-p.x,tg.y-p.y)<Math.max(.3,tg.T.L*.8)+p.blast*.25){boom(p,tg);mis.splice(i,1);continue}
     if(p.life<=0)mis.splice(i,1);
   }
   for(let i=frags.length-1;i>=0;i--){const f=frags[i];if(t-f.t0>f.d){frags[i]=frags[frags.length-1];frags.pop();continue}f.x+=f.vx*dt;f.y+=f.vy*dt;f.rot+=f.vr*dt;if(f.ln)f.vx*=1-.4*dt,f.vy*=1-.4*dt}
