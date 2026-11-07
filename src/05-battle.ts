@@ -332,7 +332,9 @@ function craftStep(c,d){
   // ракеты истребителей: «против крупных» бьют по кораблю, «против мелких» — по вражеским истребителям
   if(c.type==='F'&&c.ms>0&&!c.ret&&c.state==='fly'&&t>(c.nm||0)){
     if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:8,dmg:6,blast:4,life:45,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
-    else if(c.mk==='small'){const e=foeCraft(c,35,0,false);if(e&&e.state==='fly'){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});stat.mis[c.side]++;if(Math.random()<.55){killCraft(e,'missile');stat.misShot[c.side]++}}}}
+    else if(c.mk==='small'){const e=foeCraft(c,35,0,false);
+      if(!e){const sh=c.fl.tsh;if(sh&&sh.alive&&sh.T.tons<14000&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:sh.x,y2:sh.y,rt:performance.now(),s:c.side,a:c,b:sh});stat.mis[c.side]++;hitShip(sh,'mis',sh.x-c.x,sh.y-c.y,sh.x,sh.y,10)}}
+      if(e&&e.state==='fly'){c.ms--;c.nm=t+2;shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});stat.mis[c.side]++;if(Math.random()<.55){killCraft(e,'missile');stat.misShot[c.side]++}}}}
   let ax=2*(vdx-c.vx)+(fight?c.jx:0),ay=2*(vdy-c.vy)+(fight?c.jy:0);
   if(fight)for(const m of c.fl.cr){if(m===c||m.state!=='fly')continue;const sx=c.x-m.x,sy=c.y-m.y,sd=Math.hypot(sx,sy);if(sd<1.2&&sd>1e-6){const f=0.15*(1.2-sd)/sd;ax+=sx*f;ay+=sy*f}}
   const bm=c.bm||1,al=Math.hypot(ax,ay);if(al>P.a*bm){ax*=P.a*bm/al;ay*=P.a*bm/al}
