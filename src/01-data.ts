@@ -34,6 +34,8 @@ export const COMP = {
   laser2:{name:'Тяжёлый лазер', desc:'2 т/сутки на каждую жилу (нужна технология)', mine:2, mass:9, cost:{pt:5, ree:5, si:12}, tech:'laser2'},
   armor: {name:'Броневая плита', desc:'+1 слой брони на каждом секторе корабля', armor:1, mass:20, cost:{fe:40, ti:10}},
   rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:10, cu:8, ti:4}},
+  ammo:  {name:'Погреб боеприпасов', desc:'Хранит боеприпасы для рельсотронов и пулемётов; без него орудия молчат', ammoCap:100, mass:110, cost:{fe:60, cu:20, ti:10}},
+  reactor:{name:'Боевой реактор', desc:'Вырабатывает энергию для конденсаторов рельсотронов и лазера', reactor:1, en:100, mass:60, cost:{fe:40, cu:50, u:2, ti:10}},
   gat:   {name:'Пулемёт Гатлинга', desc:'ПВО и оружие против истребителей: 6000 выстр/мин, дальность 15 км, перегрев 40%/мин, остывание 20%/мин, бронепробитие 2%, 5 т боеприпасов в час', gat:1, mass:25, cost:{fe:20, cu:14, si:8}},
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
   lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:240, cu:290, si:190, ree:48}},
@@ -135,6 +137,10 @@ COMP.rail.ap = (c, s) => {
 };
 // --- зенитка ---
 export const FLK = {20: {blast: 0.8, rng: 45, rel: 0.7, m: 3}, 40: {blast: 1.2, rng: 60, rel: 1, m: 5}, 76: {blast: 1.8, rng: 75, rel: 1.4, m: 9}};
+COMP.ammo.opts = [O('t', 'Ёмкость, т', '100', [['20', '20'], ['50', '50'], ['100', '100'], ['200', '200'], ['500', '500'], ['1000', '1000']])];
+COMP.ammo.ap = (c, s) => { const t = +s.t.v; c.ammoCap = t; c.mass = Math.round(t * 1.1); c.cost = {fe: Math.round(t * .6), cu: Math.round(t * .2), ti: Math.max(1, Math.round(t * .1))}; c.name = `Погреб ${t} т`; c.desc = `${t} т боеприпасов: рельсотрон тратит 2 т/ч на ствол, пулемёт Гатлинга 5 т/ч`; };
+COMP.reactor.opts = [O('p', 'Мощность, МВт', '100', [['20', '20'], ['50', '50'], ['100', '100'], ['300', '300'], ['1000', '1000'], ['5000', '5000']])];
+COMP.reactor.ap = (c, s) => { const p = +s.p.v; c.en = p; c.mass = Math.round(p * 0.6); c.cost = {fe: Math.round(p * .4), cu: Math.round(p * .5), u: Math.max(1, Math.round(p / 50)), ti: Math.max(1, Math.round(p / 10))}; c.name = `Реактор ${p} МВт`; c.desc = `${p} МВт: питает конденсаторы рельсотронов (2 МВт на конденсатор) и лазер (800 МВт на подзарядку)`; };
 COMP.gat.opts = [O('tw', 'Установка', '0', [['0', 'одиночный'], ['1', 'спаренный']])];
 COMP.gat.ap = (c, s) => { const tw = +s.tw.v; c.mass = tw ? 45 : 25; c.cost = {fe: tw ? 36 : 20, cu: tw ? 26 : 14, si: tw ? 14 : 8};
   c.gcfg = {tw, rpm: 6000 * (tw ? 2 : 1), heat: 0.40, cool: 0.20, pen: 0.02, rng: 15, ammoH: 5 * (tw ? 2 : 1), mass: c.mass}; };
@@ -422,13 +428,13 @@ COMP.lgun.ap = (c, s) => {
 export const MIS_A = {l: {hp: 1, m: 0.7, n: 'лёгкая'}, m: {hp: 2, m: 1, n: 'средняя'}, h: {hp: 3, m: 1.5, n: 'тяжёлая'}};
 export const MIS_S = {s: {spd: 6, n: 'медленная (6 км/с)'}, m: {spd: 8, n: 'обычная (8 км/с)'}, f: {spd: 10, n: 'быстрая (10 км/с)'}};
 export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}, l: {dmg: 7, blast: 10, m: 1.5}, x: {dmg: 15, blast: 16, m: 3.5}, g: {dmg: 30, blast: 26, m: 7}};
-export const mkMis = (a, sp, w, ammo) => ({hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
-COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая'], ['x', 'тяжёлая (урон 15)'], ['g', 'сверхтяжёлая (урон 30)']]), O('am', 'Боезапас', '8', [['4', '4 ракеты'], ['8', '8 ракет'], ['16', '16 ракет']])];
+export const misTons = (a, w) => Math.round(0.5 * MIS_W[w].m * MIS_A[a].m * 100) / 100;
+export const mkMis = (a, sp, w, ammo) => ({tons: misTons(a, w), hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
+COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая'], ['x', 'тяжёлая (урон 15)'], ['g', 'сверхтяжёлая (урон 30)']]), O('mt', 'Объём погреба, т', '10', [['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100']])];
 COMP.missile.ap = (c, s) => {
-  const am = +s.am.v; c.mass = Math.round(10 * (0.6 + 0.05 * am * MIS_A[s.ar.v].m * MIS_W[s.wh.v].m)) / 1; c.mcfg = mkMis(s.ar.v, s.sp.v, s.wh.v, am);
-  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * (0.5 + am / 16) * MIS_W[s.wh.v].m));
-  addCost(c, 'si', am); c.name = `Ракеты ×${am}`;
-  c.desc = `${am} шт., броня ${MIS_A[s.ar.v].n}, ${MIS_S[s.sp.v].n}, взрыв ${c.mcfg.blast} км / урон ${c.mcfg.dmg}, лёт до ${c.mcfg.rng} км; задевает и соседей`;
+  const mt = +s.mt.v, tn = misTons(s.ar.v, s.wh.v), am = Math.max(1, Math.floor(mt / tn)); c.mass = Math.round(mt * 1.2 * 10) / 10; c.mcfg = mkMis(s.ar.v, s.sp.v, s.wh.v, am);
+  c.cost = {fe: Math.round(mt * 1.2), cu: Math.round(mt * .8), ti: Math.round(mt * .4), si: Math.round(mt * .4 + am)}; c.name = `Ракеты ×${am}`;
+  c.desc = `погреб ${mt} т, ракета ${tn} т → ${am} шт., броня ${MIS_A[s.ar.v].n}, ${MIS_S[s.sp.v].n}, взрыв ${c.mcfg.blast} км / урон ${c.mcfg.dmg}, лёт до ${c.mcfg.rng} км; чем тяжелее ракета, тем меньше их влезает`;
 };
 export const STAT_OUT = {build: 'Строительство', yard: 'Судостроение', plant: 'Заводы (сырьё)', fuel: 'Заправка кораблей', spares: 'Тех. изделия кораблям', raid: 'Потери от налётов', pop: 'Продажа сырья заводам Земли', old: 'Прочее'};
 
@@ -443,7 +449,7 @@ export const HULLK = 4.5, ENGF = .049;
 export function fitSpec(sp) {
   if (sp.tons) return sp;
   sp.L0 = sp.L;
-  if (sp.role === 'freight') { sp.tons = Math.round(TON_L * sp.L * .6 / 100) * 100; sp.L = Math.max(.06, sp.tons / TON_L); return sp; }
+  if (sp.role === 'freight' || sp.role === 'supply') { sp.tons = Math.round(TON_L * sp.L * .6 / 100) * 100; sp.L = Math.max(.06, sp.tons / TON_L); return sp; }
   const rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1}, rm = (RAIL_CAL[rc.cal] || RAIL_CAL[10]).m * (1 + 1.03 * (rc.bar - 1)) * 1.25;
   let T = 0;
   for (let pass = 0; pass < 6; pass++) {
@@ -495,6 +501,7 @@ export function designStats(parts, flags) {
     if (c.fcfg) for (let i = 0; i < n; i++) r.flakList.push(c.fcfg);
     if (c.gcfg) for (let i = 0; i < n; i++) r.gatList.push(c.gcfg);
     if (c.lcfg) for (let i = 0; i < n; i++) r.lasList.push(c.lcfg);
+    r.ammoCap = (r.ammoCap || 0) + (c.ammoCap || 0) * n; r.energy = (r.energy || 0) + (c.en || 0) * n;
     if (c.mcfg) for (let i = 0; i < n; i++) r.misList.push(c.mcfg);
     r.lgun += (c.lgun || 0) * n; r.msl += (c.msl || 0) * n;
     if (c.defl) r.defl += c.defl * c.armor * n;
@@ -515,6 +522,9 @@ export function designStats(parts, flags) {
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
   r.crewNeed = (r.scCrew||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
+  { const draw = r.railList.reduce((a, q) => a + (q.draw || 0), 0) + (r.lgun ? 800 : 0); r.draw = draw;
+    if ((r.rail || r.gat) && !r.ammoCap) r.warns.push('Нет погреба боеприпасов: рельсотроны и пулемёты не смогут стрелять.');
+    if (draw > 0 && (r.energy || 0) < draw) r.warns.push(`Реакторов мало: нужно ${draw} МВт, есть ${r.energy || 0} — орудия будут перезаряжаться в ${Math.round(Math.max(.1, (r.energy || 0) / draw) * 100)}% темпа.`); }
   if (r.lgun > 1) r.errors.push('Боевой лазер встраивается в центр корпуса: на корабль можно только один.');
   r.warship = r.rail + r.flak + r.gat + r.lgun + r.msl + r.hangF + r.hangB > 0;
   if (r.rail + r.flak + r.lgun + r.msl > 0) {

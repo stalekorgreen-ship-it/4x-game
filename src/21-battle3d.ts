@@ -33,7 +33,7 @@ if (wrap && bgo) {
   const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
    const dbg: any = { n: 0, m: 0, off: 0 }; const MAXTD = 1500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 3000, MAXFL = 200; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
    function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,230,170,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) }
-   let misMesh: THREE.InstancedMesh, misFl: THREE.InstancedMesh, misTr: THREE.LineSegments; const MAXMIS = 1500;
+   let shutMesh: THREE.InstancedMesh, shutGl: THREE.InstancedMesh, misMesh: THREE.InstancedMesh, misFl: THREE.InstancedMesh, misTr: THREE.LineSegments; const MAXMIS = 1500;
   let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
@@ -86,6 +86,9 @@ if (wrap && bgo) {
     { const body = new THREE.CylinderGeometry(.09, .09, .7, 8).rotateZ(-Math.PI / 2).translate(-.05, 0, 0), nose = new THREE.ConeGeometry(.09, .3, 8).rotateZ(-Math.PI / 2).translate(.45, 0, 0), parts2: THREE.BufferGeometry[] = [body.toNonIndexed(), nose.toNonIndexed()];
       for (let i = 0; i < 4; i++) parts2.push(new THREE.BoxGeometry(.2, .02, .22).translate(-.3, 0, 0).rotateX(i * Math.PI / 2).toNonIndexed());
       misMesh = new THREE.InstancedMesh(mergeGeometries(parts2.map(g2 => { g2.deleteAttribute('uv'); return g2 }), false)!, new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: .4, metalness: .6, emissive: 0x552200, flatShading: true }), MAXMIS); misMesh.frustumCulled = false; misMesh.count = 0; scene.add(misMesh);
+      { const sg = mergeGeometries([new THREE.BoxGeometry(.8, .3, .3).toNonIndexed(), new THREE.BoxGeometry(.3, .55, .55).translate(-.25, 0, 0).toNonIndexed()].map(g2 => { g2.deleteAttribute('uv'); return g2 }), false)!;
+        shutMesh = new THREE.InstancedMesh(sg, new THREE.MeshStandardMaterial({ color: 0xc9d3dc, roughness: .5, metalness: .5, emissive: 0x223344, flatShading: true }), 128); shutMesh.frustumCulled = false; shutMesh.count = 0; scene.add(shutMesh);
+        shutGl = new THREE.InstancedMesh(geoSph, new THREE.MeshBasicMaterial({ color: 0x80d0ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 }), 128); shutGl.frustumCulled = false; shutGl.count = 0; scene.add(shutGl) }
       misFl = new THREE.InstancedMesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 }), MAXMIS); misFl.frustumCulled = false; misFl.count = 0; scene.add(misFl);
       const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setDrawRange(0, 0);
       misTr = new THREE.LineSegments(tg2, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); misTr.frustumCulled = false; scene.add(misTr) }
@@ -381,6 +384,12 @@ if (wrap && bgo) {
     const placed: any[] = [], free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: !!q.sm })), r = Math.max((u.cell || u.L * .02) * .42, .004);
     const N = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1)];
     for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'G' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
+      if (m.k === 'L' && m.cfg && m.cfg.dur) { // боевой лазер встроен в центр корпуса: ствол по оси корабля, линза на носу
+        if (!(g as any).userData.laser) { const Lh = u.L, r = Math.max(Math.min((m.cfg.lens || 20) / 1000 * .5, Lh * .12), Lh * .012), cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
+          const hp = [piece(geoCyl, cD, Lh * .3, 0, 0, Lh * .55, r * .75, r * .75), piece(geoCyl, cT, Lh * .5, 0, 0, r * .35, r * 1.15, r * 1.15), piece(geoCyl, cD, Lh * .5 + r * .3, 0, 0, r * .25, r * .95, r * .95)];
+          const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); g.add(hm);
+          const lens = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0x7fe3ff, toneMapped: false })); lens.scale.set(r * .25, r * .85, r * .85); lens.position.set(Lh * .5 + r * .45, 0, 0); g.add(lens); (g as any).userData.laser = { lens, m } }
+        continue }
       const f = m.face || 0, px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
       for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
       if (!best) continue; best.used = true; placed.push(best);
@@ -761,14 +770,20 @@ if (wrap && bgo) {
         const fl = len * (.5 + Math.random() * .35); const pf = pm.clone().addScaledVector(dm, -len * .55); sm.set(fl, len * .22, len * .22); mt.compose(pf, qm, sm); misFl.setMatrixAt(mk, mt); mk++;
         const tr = p.tr as number[]; let px = p.x, py = p.z, pz = p.y; for (let i = tr.length - 3; i >= 0 && ts < MAXMIS * 12; i -= 3) { const f = 1 - (tr.length - 3 - i) / Math.max(3, tr.length) * .9, o = ts * 6; tp[o] = px; tp[o + 1] = py; tp[o + 2] = pz; px = tr[i]; py = tr[i + 2]; pz = tr[i + 1]; tp[o + 3] = px; tp[o + 4] = py; tp[o + 5] = pz; tc[o] = f; tc[o + 1] = f * .55; tc[o + 2] = f * .18; tc[o + 3] = f * .5; tc[o + 4] = f * .25; tc[o + 5] = f * .08; ts++ } }
       misMesh.count = mk; misFl.count = mk; misMesh.instanceMatrix.needsUpdate = true; misFl.instanceMatrix.needsUpdate = true; misTr.geometry.setDrawRange(0, ts * 2); (misTr.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (misTr.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true; mc = 0 }
+    { const mt = new THREE.Matrix4(), qm = new THREE.Quaternion(), dm = new THREE.Vector3(), pm = new THREE.Vector3(), sm = new THREE.Vector3(), ax1 = new THREE.Vector3(1, 0, 0); let k = 0;
+      for (const q of ((Battle as any).shuttles ? (Battle as any).shuttles() : []) as any[]) { if (k >= 128) break; const tg = q.st ? q.from : q.to; if (!tg) continue; pm.set(q.x, q.z, q.y); const cd = cam.position.distanceTo(pm); if (cd > 4000) continue; const len = Math.max(.04, Math.min(cd * .02, .25));
+        dm.set(tg.x - q.x, 0, tg.y - q.y); if (dm.lengthSq() < 1e-9) dm.set(1, 0, 0); dm.normalize(); qm.setFromUnitVectors(ax1, dm); sm.set(len, len, len); mt.compose(pm, qm, sm); shutMesh.setMatrixAt(k, mt);
+        const pf = pm.clone().addScaledVector(dm, -len * .6); sm.set(len * .7, len * .25, len * .25); mt.compose(pf, qm, sm); shutGl.setMatrixAt(k, mt); k++ }
+      shutMesh.count = k; shutGl.count = k; shutMesh.instanceMatrix.needsUpdate = true; shutGl.instanceMatrix.needsUpdate = true }
     misPts.geometry.setDrawRange(0, mc); (misPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const ba = (beamLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let bc = 0; const nowp = performance.now();
     // лазерный выстрел — летящий яркий импульс с хвостом, а не постоянная линия через всё поле
     { let bi = bolts.count; const nwb = performance.now();
       for (const b of Battle.beams() as any[]) { if (bi >= MAXP - 1 || !b.a) continue; const dur = Math.max(1, b.rt - b.c0), a = (nwb - b.c0) / dur; if (a < 0 || a > 1.15) continue;
         const sx = b.a.x, sy = b.a.z, sz = b.a.y, ex = b.tx, ey = (b.tz != null ? b.tz : (b.b && b.b.z) || 0), ez = b.ty, len = Math.hypot(ex - sx, ey - sy, ez - sz) || 1e-6, cd2 = cam.position.distanceTo(_p.set((sx + ex) / 2, (sy + ey) / 2, (sz + ez) / 2));
-        const hp = Math.min(1, a * 1.25), tail = Math.min(.5, Math.max(.02, cd2 * .03 / len)), tp = Math.max(0, hp - tail), fade = a > 1 ? Math.max(0, 1 - (a - 1) / .15) : 1;
-        const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0005, cd2 * .0006);
+        let hp = Math.min(1, a * 1.25), tail = Math.min(.5, Math.max(.02, cd2 * .03 / len)), tp = Math.max(0, hp - tail), fade = a > 1 ? Math.max(0, 1 - (a - 1) / .15) : 1;
+        if (b.ld) { hp = Math.min(1, (nwb - b.c0) / 250); tp = 0; fade = Math.max(0, Math.min(1, (b.rt - nwb) / 400)) }
+        const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0005, cd2 * .0006) * (b.ld ? 2.5 : 1);
         _sc.set(ln, rad, rad); _bq.setFromUnitVectors(vX, _bd.set((hx - tx) / ln, (hy - ty) / ln, (hz - tz) / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(bi, _m4);
         bolts.setColorAt(bi, _cc.setRGB(b.side ? 1 : .35, b.side ? .45 : .9, b.side ? .8 : 1).multiplyScalar(fade * 1.8)); bi++ }
       bolts.count = bi; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true }

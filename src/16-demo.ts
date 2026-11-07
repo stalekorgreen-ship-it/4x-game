@@ -15,36 +15,40 @@ const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, 
 // шаблоны кораблей: [название, генератор спецификации]
 const _rc = {};
 const RCf = (cal, bar, ld) => _rc[cal + '/' + bar] || (_rc[cal + '/' + bar] = compOf(mkKey('rail', {cal, bar, ld: ld || 'a', saf: 1})).rcfg);
+const _gc = {};
+const GAT = (n, tw) => ({gat: n, gatCfg: Array.from({length: n}, () => _gc[tw || 0] || (_gc[tw || 0] = compOf(mkKey('gat', {tw: String(tw || 0)})).gcfg))});
+const LZR = (lens, dur, caps) => compOf(mkKey('lgun', {lens: String(lens), dur: String(dur), caps: String(caps)})).lcfg;
 const gun = (n, cal, bar) => ({rails: n, railCfg: Array.from({length: n}, () => RCf(cal, bar || 1))});
 const TYPES = {
-  corvette: n => ({name: 'Корвет', ...gun(RI(2, 4), 5), flak: 1, eng: 2, L: R(.3, .45), arm: 1, spd: 1.5}),
-  gunboat: n => ({name: 'Штурмовой катер', ...gun(RI(3, 5), 20), flak: 0, eng: 3, L: R(.4, .55), arm: 3, spd: 1.35, dopt0: 8}),
-  destroyer: n => ({name: 'Эсминец', ...gun(RI(5, 8), Math.random() < .5 ? 10 : 15), flak: 2, eng: 3, L: R(.6, .8), arm: 4, spd: 1.15}),
-  frigate: n => ({name: 'Фрегат ПВО', ...gun(2, 10), flak: RI(6, 10), eng: 3, L: R(.85, 1), arm: 2, spd: 1.1}),
-  cruiser: n => ({name: 'Крейсер', ...gun(RI(14, 24), 15, 2), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(6, 8), spd: .9}),
-  brawler: n => ({name: 'Броненосец', ...gun(RI(12, 20), 20, 2), flak: 3, eng: 5, L: R(1.5, 1.9), arm: RI(8, 10), spd: .8, dopt0: 9}),
-  battleship: n => ({name: 'Линкор', ...gun(RI(30, 40), 20, 2), flak: 6, eng: 5, L: R(2.8, 3.4), arm: RI(9, 10), spd: .7, defl: .1}),
-  carrier: n => ({name: 'Авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(4, 10), flak: 6, eng: 4, L: R(2.2, 2.8), arm: 5, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
-  swarmcarrier: n => ({name: 'Лёгкий авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
+  corvette: n => ({name: 'Корвет', ...gun(RI(2, 4), 5), ...GAT(1), flak: 1, eng: 2, L: R(.3, .45), arm: 1, spd: 1.5}),
+  gunboat: n => ({name: 'Штурмовой катер', ...gun(RI(3, 5), 20), ...GAT(1), flak: 0, eng: 3, L: R(.4, .55), arm: 3, spd: 1.35, dopt0: 8}),
+  destroyer: n => ({name: 'Эсминец', ...gun(RI(5, 8), Math.random() < .5 ? 10 : 15), ...GAT(2), flak: 2, eng: 3, L: R(.6, .8), arm: 4, spd: 1.15}),
+  frigate: n => ({name: 'Фрегат ПВО', ...gun(2, 10), ...GAT(RI(4, 8), 1), flak: RI(4, 6), eng: 3, L: R(.85, 1), arm: 2, spd: 1.1}),
+  cruiser: n => ({name: 'Крейсер', ...gun(RI(14, 24), 15, 2), ...GAT(3, 1), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(6, 8), spd: .9}),
+  brawler: n => ({name: 'Броненосец', ...gun(RI(12, 20), Math.random() < .5 ? 20 : 25, 2), ...GAT(3), flak: 3, eng: 5, L: R(1.5, 1.9), arm: RI(8, 10), spd: .8, dopt0: 9}),
+  battleship: n => ({name: 'Линкор', ...gun(RI(30, 40), Math.random() < .5 ? 25 : 30, 2), ...GAT(6, 1), flak: 6, eng: 5, L: R(2.8, 3.4), arm: RI(9, 10), spd: .7, defl: .1}),
+  carrier: n => ({name: 'Авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(4, 10), ...GAT(5, 1), flak: 6, eng: 4, L: R(2.2, 2.8), arm: 5, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
+  swarmcarrier: n => ({name: 'Лёгкий авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), ...GAT(3, 1), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
   bomber: n => ({name: 'Торпедоносец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), flak: 2, eng: 3, L: R(1.2, 1.6), arm: 2, spd: .9, F: 2, B: RI(6, 12)}),
   // лазеры редки и огромны: один-два на огромном корабле
-  laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: LC(k, 'm', Math.random() < .5 ? 'f' : 'm'), eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
-  laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
+  laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: [Math.random() < .5 ? LZR(30, 4, 300) : LZR(20, 5, 200)], eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
+  laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), ...GAT(4, 1), flak: 6, lasers: k, laserCfg: [LZR(50, 6, 600)], eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
   missileFrigate: n => { const k = RI(2, 4); return {name: 'Ракетный фрегат', ...gun(2, 10), flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 4), eng: 3, L: R(.9, 1.1), arm: 2, spd: 1.1}; },
   missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; },
+  supply: n => ({role: 'supply', name: 'Транспорт снабжения', rails: 0, flak: 2, ...GAT(2), eng: 3, L: R(.8, 1.1), arm: 1, spd: .85}),
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
 const MIXES = {
   light: {corvette: 5, destroyer: 3, frigate: 1, gunboat: 2},
-  line: {destroyer: 4, cruiser: 3, frigate: 2, battleship: 1, gunboat: 1},
-  heavy: {cruiser: 3, battleship: 3, carrier: 1, destroyer: 2, frigate: 1, brawler: 2},
-  carrier: {carrier: 2, frigate: 3, destroyer: 3, cruiser: 1, swarmcarrier: 2, bomber: 1},
+  line: {supply: 1, destroyer: 4, cruiser: 3, frigate: 2, battleship: 1, gunboat: 1},
+  heavy: {supply: 1, cruiser: 3, battleship: 3, carrier: 1, destroyer: 2, frigate: 1, brawler: 2},
+  carrier: {supply: 1, carrier: 2, frigate: 3, destroyer: 3, cruiser: 1, swarmcarrier: 2, bomber: 1},
   brawl: {brawler: 3, gunboat: 4, corvette: 4, destroyer: 2},
   swarm: {corvette: 12, gunboat: 4, frigate: 1, swarmcarrier: 1},
   strike: {bomber: 3, swarmcarrier: 2, frigate: 3, corvette: 3},
-  lasers: {laserCruiser: 1, destroyer: 5, frigate: 2, brawler: 2, cruiser: 2, laserBattleship: 1},
-  missiles: {missileFrigate: 5, missileCruiser: 3, frigate: 2},
+  lasers: {supply: 1, laserCruiser: 1, destroyer: 5, frigate: 2, brawler: 2, cruiser: 2, laserBattleship: 1},
+  missiles: {supply: 1, missileFrigate: 5, missileCruiser: 3, frigate: 2},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
