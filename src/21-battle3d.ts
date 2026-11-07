@@ -121,7 +121,7 @@ if (wrap && bgo) {
     }
     // верхние блоки и рубка
     for (let i = 0; i < 9; i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
-      parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() - .5) * sg.w * .3, len, h, w)) }
+      parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() < .5 ? -1 : 1) * sg.w * .38, len, h * .7, w * .22)) }
     const bs = seg[Math.floor(seg.length * .66)], bh = H * 1.4, bx = bs.cx;
     parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
@@ -131,14 +131,19 @@ if (wrap && bgo) {
     parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3));
     // грибы мелкой фурнитуры
     for (let i = 0; i < 50; i++) { const sg = seg[Math.floor(R() * seg.length)], a = R() < .6, r = L * (.003 + R() * .006);
-      parts.push(piece(unitBox, shade(R() < .5 ? P.acc : 0x6a707c, .8 + R() * .4), sg.cx + (R() - .5) * sg.len, a ? sg.cy + sg.h / 2 + r / 2 : sg.cy + (R() - .5) * sg.h, a ? (R() - .5) * sg.w : (R() < .5 ? -1 : 1) * (sg.w / 2 + r / 2), r * (1 + R() * 2), r, r * (1 + R() * 1.5))) }
+      parts.push(piece(unitBox, shade(R() < .5 ? P.acc : 0x6a707c, .8 + R() * .4), sg.cx + (R() - .5) * sg.len, a ? sg.cy + sg.h / 2 + r / 2 : sg.cy + (R() - .5) * sg.h, a ? (R() < .5 ? -1 : 1) * sg.w * (.3 + R() * .15) : (R() < .5 ? -1 : 1) * (sg.w / 2 + r / 2), r * (1 + R() * 2), r, r * (1 + R() * 1.5))) }
     // кормовой блок и сопла
     const ne = Math.max(2, Math.min(5, s.engN || 3));
     parts.push(piece(unitBox, P.dark, x0 - L * .02, 0, 0, L * .06, H * 1.15, W * 1.05));
     const nozz: any[] = [];
     for (let i = 0; i < ne; i++) { const zz = (i - (ne - 1) / 2) * (W * .8 / Math.max(1, ne - 1)) * (ne > 1 ? 1 : 0), r = Math.min(H * .38, W * .5 / ne * 1.5);
       parts.push(piece(unitCyl, 0x16181d, x0 - L * .075, 0, zz, L * .05, r * 2, r * 2)); nozz.push({ z: zz, r }) }
-    const g = mergeGeometries(parts, false)!; (g as any).userData = { nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len })) }; return g;
+    // 200 жёстких точек крепления башен по палубе (не пересекаются, кроме рубки), размер ячейки задаёт размер башни
+    const usable = seg.filter(q => Math.abs(q.cx - bx) > L * .06); let area = 0; for (const q of usable) area += q.len * q.w * .7;
+    const cell = Math.sqrt(area / 200), mounts: { x: number; y: number; z: number }[] = [];
+    for (const q of usable) { const cols = Math.max(1, Math.floor(q.len / cell)), rows = Math.max(1, Math.floor(q.w * .7 / cell));
+      for (let a = 0; a < cols; a++) for (let b = 0; b < rows; b++) mounts.push({ x: q.cx - q.len / 2 + (a + .5) * q.len / cols, y: q.cy + q.h / 2, z: (b + .5 - rows / 2) * (q.w * .7 / rows) }) }
+    const g = mergeGeometries(parts, false)!; (g as any).userData = { mounts: mounts.slice(0, 200), cell, nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len })) }; return g;
   }
   let sid = 1;
   const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
@@ -157,7 +162,7 @@ if (wrap && bgo) {
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — полный корпус
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 1) {
-      if (!u.full) { if (builds >= 3) return; builds++; u.full = hullGeo(s, u.seed); const ud = (u.full as any).userData; u.W = ud.W; u.H = ud.H; u.seg = ud.seg;
+      if (!u.full) { if (builds >= 3) return; builds++; u.full = hullGeo(s, u.seed); const ud = (u.full as any).userData; u.W = ud.W; u.H = ud.H; u.seg = ud.seg; u.mounts = ud.mounts; u.cell = ud.cell;
         for (const n of ud.nozz) { const f = new THREE.Mesh(geoSph, glowMats[s.side]); f.scale.set(u.L * .018, n.r * 1.5, n.r * 1.5); f.position.set(ud.x0 - u.L * .095, 0, n.z); u.eng.add(f) } }
       u.body.geometry = u.full; u.body.scale.setScalar(1);
     } else { u.body.geometry = simpleGeo[s.side]; u.body.scale.setScalar(u.L) }
@@ -167,17 +172,18 @@ if (wrap && bgo) {
     const u = g.userData; if (u.det === want) return; u.det = want;
     const tg: THREE.Group = u.tur; while (tg.children.length) tg.remove(tg.children[0]); u.mods = [];
     if (!want) return;
-    const R = rng(Math.round(u.L * 7919));
-    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 70) {
-      const r = Math.max(u.L * .011, .008), t = new THREE.Group();
-      const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 2, r * .7, r * 2); t.add(base);
-      const dome = new THREE.Mesh(geoBox, matTur[s.side]); dome.scale.set(r * 1.5, r * .6, r * 1.5); dome.position.y = r * .55; t.add(dome);
-      const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 3.2, r * .28, r * .28); br.position.set(r * 1.9, r * .6, (b - (nb - 1) / 2) * r * .6); t.add(br) }
-      const px = (m.u || 0) * u.L * .8; let sg = u.seg && u.seg[0]; if (u.seg) for (const q of u.seg) if (Math.abs(q.cx - px) < Math.abs(sg.cx - px)) sg = q;
-      const y0 = sg ? sg.top : u.h * .5, lift = u.h * .55; const ped = new THREE.Mesh(geoBox, matDark); ped.scale.set(r * 1.5, lift + r * .35, r * 1.5); ped.position.y = -(lift + r * .35) / 2 - r * .1; t.add(ped);
-      t.position.set(px, y0 + lift + r * .35, sg ? Math.max(-sg.w * .42, Math.min(sg.w * .42, (m.v || 0) * u.w * 1.3)) : 0);
-      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.6); fl.position.set(r * 3.6, r * .6, 0); fl.visible = false; t.add(fl);
-      (t as any).userData = { m, fl, r, lr: 0 }; tg.add(t); u.mods.push(m);
+    const free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: false })), r = Math.max((u.cell || u.L * .02) * .42, .004);
+    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
+      const px = (m.u || 0) * u.L * .8, pz = (m.v || 0) * u.w * 1.3; let best: any = null, bd = 1e18;
+      for (const q of free) if (!q.used) { const d = (q.x - px) ** 2 + (q.z - pz) ** 2; if (d < bd) { bd = d; best = q } }
+      if (!best) break; best.used = true;
+      const t = new THREE.Group(), lift = r * .3;
+      const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, lift * 1.4, r * 1.8); base.position.y = lift * .2; t.add(base);
+      const dome = new THREE.Mesh(geoBox, matTur[s.side]); dome.scale.set(r * 1.3, r * .5, r * 1.3); dome.position.y = lift + r * .15; t.add(dome);
+      const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 2.6, r * .2, r * .2); br.position.set(r * 1.5, lift + r * .2, (b - (nb - 1) / 2) * r * .5); t.add(br) }
+      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.1); fl.position.set(r * 2.9, lift + r * .2, 0); fl.visible = false; t.add(fl);
+      t.position.set(best.x, best.y, best.z);
+      (t as any).userData = { m, fl, r: r * 1.6, lr: 0 }; tg.add(t); u.mods.push(m);
     }
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3();
