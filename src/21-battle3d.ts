@@ -24,7 +24,7 @@ if (wrap && bgo) {
   const matDead = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 1 });
   const MAXPL = 900, MAXD = 160; let plateMesh: THREE.InstancedMesh; const decalGeo = new THREE.CircleGeometry(1, 10), decalMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: .92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
-   const dbg: any = { n: 0, m: 0, off: 0 }; const MAXTD = 500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 3000, MAXFL = 200; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
+   const dbg: any = { n: 0, m: 0, off: 0 }; const MAXTD = 1500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 3000, MAXFL = 200; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
    function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,230,170,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) }
    let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
@@ -158,18 +158,20 @@ if (wrap && bgo) {
     // броневая обшивка: сетка секций по всем четырём граням без щелей; часть секций с отверстием (центральным или смещённым) под башни и малые модули
     const nT = (s.spec ? (s.spec.rails || 0) + (s.spec.flak || 0) + (s.spec.lasers || 0) + (s.spec.miss || 0) : 40) || 1, smalls: { k: string; D: number }[] = [];
     { const sm = mp.smalls as any; for (const k of Object.keys(sm)) if (sm[k] > 0) { const n = k === 'rad' ? Math.max(1, Math.round(sm[k] / 700)) : 1; for (let i = 0; i < n; i++) smalls.push({ k, D: Math.max(sm[k] / n / TON_L, L * .002) }) } }
-    const needH = Math.ceil((nT + smalls.length) * 1.5) + 4, NT = Math.max(Math.max(24, Math.min(500, Math.round(mp.armor / 50))), Math.round(needH * 2.3)), pf = NT / 4, tiles: any[] = [];
+    const needH = Math.ceil((nT + smalls.length) * 1.5) + 4, tiles: any[] = [];
+    // мелкие плиты: ячейка ≈ L/75, не больше ~2600 плит на корабль; слои кладутся в 3D друг на друга
+    const area = Lk * (W + H) * 1.6, cellT = Math.max(L * .0105, Math.sqrt(area / 1800));
     for (let f = 0; f < 4; f++) {
-      const fw = (f % 2 === 0 ? W : H) * .8, cols = Math.max(1, Math.round(Math.sqrt(pf * Lk / fw))), rows = Math.max(1, Math.ceil(pf / cols));
+      const fw = f % 2 === 0 ? W : H, cols = Math.max(2, Math.round(Lk / cellT)), rows = Math.max(1, Math.round(fw / cellT));
       for (let a = 0; a < cols; a++) { const x = x0 + (a + .5) * Lk / cols; let sg = seg[0]; for (const e of seg) if (Math.abs(e.cx - x) < Math.abs(sg.cx - x)) sg = e;
         for (let b = 0; b < rows; b++) { const sw = f % 2 === 0 ? sg.w : sg.h, off = (b + .5 - rows / 2) * (sw / rows);
-          tiles.push({ f, px: x, py: f === 0 ? sg.cy + sg.h / 2 : f === 2 ? sg.cy - sg.h / 2 : sg.cy + off, pz: f === 1 ? sg.w / 2 : f === 3 ? -sg.w / 2 : off, len: Lk / cols, cs: sw / rows, c0: a / cols, c1: (a + 1) / cols, v: 0, wp: sg.weapon ? 1 : 0, sh: .85 + R() * .3 }) } }
+          tiles.push({ f, px: x, py: f === 0 ? sg.cy + sg.h / 2 : f === 2 ? sg.cy - sg.h / 2 : sg.cy + off, pz: f === 1 ? sg.w / 2 : f === 3 ? -sg.w / 2 : off, len: Lk / cols, cs: sw / rows, c0: a / cols, c1: (a + 1) / cols, v: 0, wp: sg.weapon ? 1 : 0, sh: .85 + R() * .3, jit: R(), dx: (R() - .5) * .5, dz: (R() - .5) * .5 }) } }
     }
-    const HV: [number, number][] = [[0, 0], [.22, .2], [-.22, -.2], [.22, -.2]], order = tiles.map((q, i) => i).filter(i => !(tiles[i].f === 0 && Math.abs(tiles[i].px - bx) < L * .06)).sort((a, b) => (tiles[b].wp - tiles[a].wp) + (R() - .5) * 1.4);
-    const mounts: any[] = [];
-    for (let k = 0; k < Math.min(needH, order.length); k++) { const q = tiles[order[k]], v = R() < .5 ? 1 : 2 + Math.floor(R() * 3); q.v = v; const [hx, hz] = HV[v - 1]; q.hx = hx; q.hz = hz;
-      const wx = q.px + hx * q.len, cz = hz * q.cs, my = q.f % 2 === 0 ? q.py : q.py - cz, mzv = q.f % 2 === 0 ? q.pz + cz : q.pz;
-      mounts.push({ x: wx, y: my, z: mzv, face: q.f, sm: false }) }
+    const order = tiles.map((q, i) => i).filter(i => !(tiles[i].f === 0 && Math.abs(tiles[i].px - bx) < L * .06)).sort((a, b) => (tiles[b].wp - tiles[a].wp) + (R() - .5) * 1.4);
+    const mounts: any[] = [], hole = new Set<number>();
+    for (const i of order) { if (mounts.length >= needH) break; const q = tiles[i]; let ok = true; for (const m of mounts) if (m.face === q.f && Math.abs(m.x - q.px) < q.len * 1.6 && Math.hypot(m.y - q.py, m.z - q.pz) < cellT * 1.6) { ok = false; break } if (!ok) continue;
+      hole.add(i); mounts.push({ x: q.px, y: q.py, z: q.pz, face: q.f, sm: false }) }
+    for (let i = tiles.length - 1; i >= 0; i--) if (hole.has(i)) tiles.splice(i, 1); // в дырах башни и малые модули стоят прямо на обшивке
     // малые модули берут первые отверстия: размер = масса / 50 т на метр
     const NRM = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]];
     smalls.forEach((q, i) => { const m = mounts[i * 3 % Math.max(1, mounts.length)]; if (!m || m.sm) return; m.sm = true; const n = NRM[m.face], D = q.D, cx = m.x + n[0] * D * .5, cy = m.y + n[1] * D * .5, cz = m.z + n[2] * D * .5;
@@ -229,44 +231,46 @@ if (wrap && bgo) {
   // броня секциями: одна секция = 50 т; сплошные, с центральным и со смещёнными отверстиями; толщина по слоям и тает по мере разрушения
   const tileGeos: THREE.BufferGeometry[] = []; function tileGeo(v: number) {
     if (tileGeos[v]) return tileGeos[v]; let g: THREE.BufferGeometry;
-    if (v === 0) g = new RoundedBoxGeometry(1, 1, 1, 1, .06); else { const HV2: [number, number][] = [[0, 0], [.22, .2], [-.22, -.2], [.22, -.2]], [hx, hz] = HV2[v - 1], sh = new THREE.Shape(), hs = .34;
+    if (v === 0) g = new THREE.BoxGeometry(1, 1, 1); else { const HV2: [number, number][] = [[0, 0], [.22, .2], [-.22, -.2], [.22, -.2]], [hx, hz] = HV2[v - 1], sh = new THREE.Shape(), hs = .34;
       sh.moveTo(-.5, -.5); sh.lineTo(.5, -.5); sh.lineTo(.5, .5); sh.lineTo(-.5, .5); sh.lineTo(-.5, -.5); const ho = new THREE.Path(); ho.moveTo(hx - hs / 2, hz - hs / 2); ho.lineTo(hx - hs / 2, hz + hs / 2); ho.lineTo(hx + hs / 2, hz + hs / 2); ho.lineTo(hx + hs / 2, hz - hs / 2); ho.lineTo(hx - hs / 2, hz - hs / 2); sh.holes.push(ho);
       g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: true, bevelThickness: .03, bevelSize: .015, bevelSegments: 1 }); g.translate(0, 0, -.5); g.rotateX(Math.PI / 2) }
     return (tileGeos[v] = g) }
   const tileMat = new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true });
-  const thL = (u: any) => Math.max(.001, u.L * .0004); // один слой брони ≈ 1 м
+  const thL = (u: any) => Math.max(.001, u.L * .0016); // толщина слоя (преувеличена, чтобы слои были видны)
   function buildTiles(s: any, g: THREE.Group, _placed: any[]) {
     const u = g.userData; if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } if (!u.tilesL || !u.tilesL.length) return;
-    const tiles = u.tilesL as any[], PALc = PAL[s.side], cnt = [0, 0, 0, 0, 0]; u.arm = []; const col = new THREE.Color();
-    for (const q of tiles) { q.n = Math.max(1, Math.min(12, Math.round((s.zones[q.f] || s.zones[0]).arm || 1))); cnt[q.v] += q.n; q.cur = q.n }
-    const ims = cnt.map((c, v) => { if (!c) return null; const im = new THREE.InstancedMesh(tileGeo(v), tileMat, c); im.frustumCulled = false; im.userData.k = 0; u.arm.push(im); g.add(im); return im });
-    for (const q of tiles) { const im = ims[q.v]!; q.ent = []; for (let l = 0; l < q.n; l++) { const i = im.userData.k++; q.ent.push({ im, ii: i });
-      im.setColorAt(i, col.set(q.f === 0 ? PALc.main : PALc.dark).multiplyScalar(q.sh * (q.f === 0 ? 1.15 : 1.5) * (l % 2 ? 1.12 : .88) * (.95 + (l / q.n) * .12))) } }
-    for (const im of ims) if (im && im.instanceColor) im.instanceColor.needsUpdate = true;
+    const tiles = u.tilesL as any[], PALc = PAL[s.side]; let cnt = 0; u.arm = []; const col = new THREE.Color();
+    for (const q of tiles) { q.n = Math.max(1, Math.min(10, Math.round((s.zones[q.f] || s.zones[0]).arm || 1))); cnt += q.n; q.cur = q.n; q.dirty = true }
+    const im = new THREE.InstancedMesh(tileGeo(0), tileMat, cnt); im.frustumCulled = false; u.arm.push(im); g.add(im); let k = 0;
+    for (const q of tiles) { q.ent = []; for (let l = 0; l < q.n; l++) { q.ent.push(k); im.setColorAt(k++, col.set(q.f === 0 ? PALc.main : PALc.dark).multiplyScalar(q.sh * (q.f === 0 ? 1.15 : 1.5) * (.82 + ((l * 7 + (q.jit * 9 | 0)) % 5) * .07))) } }
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
     u.armT = 0; updateTiles(s, g, true);
   }
   const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3();
-  const _cc = new THREE.Color(), _bq = new THREE.Quaternion(), _bd = new THREE.Vector3(), _qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-  // слой брони, сорванный с места: летит от корпуса по нормали грани, кувыркается и гаснет
+  const _qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  const NRL = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]];
+  // положение слоя l плитки q в системе корабля (кирпичная кладка: слои сдвинуты друг относительно друга)
+  function layerPos(q: any, l: number, th: number, out: THREE.Vector3) {
+    const c = (l + .5) * th, sx = q.dx * q.len * (l % 2 ? 1 : -1) * .5, sz = q.dz * q.cs * (l % 2 ? -1 : 1) * .5;
+    if (q.f === 0) out.set(q.px + sx, q.py + c, q.pz + sz); else if (q.f === 2) out.set(q.px + sx, q.py - c, q.pz + sz);
+    else if (q.f === 1) out.set(q.px + sx, q.py + sz, q.pz + c); else out.set(q.px + sx, q.py + sz, q.pz - c); return out }
+  // плита сорвана: тот же размер, цвет и место, что были на корпусе; отлетает по нормали и кувыркается
   function spawnLayerDebris(s: any, g: THREE.Group, q: any, l: number) {
-    if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = thL(u), off = (l + .5) * th, nrl = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]][q.f];
-    g.updateMatrixWorld(true); const pos = g.localToWorld(new THREE.Vector3(q.px + (Math.random() - .5) * q.len * .3, q.py + (q.f === 0 ? off : q.f === 2 ? -off : 0), q.pz + (q.f === 1 ? off : q.f === 3 ? -off : 0))), nw = new THREE.Vector3(nrl[0], nrl[1], nrl[2]).applyQuaternion(g.quaternion);
-    const sp = u.L * (.0005 + Math.random() * .0012), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .6)); v.x += s.sx || 0; v.z += s.sy || 0;
-    const sz = new THREE.Vector3(q.len * (.3 + Math.random() * .6), th, q.cs * (.3 + Math.random() * .6)), qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
-    tdeb.push({ p: pos, v, q: qq, w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .35), sz, t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f });
+    if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = thL(u), lp = layerPos(q, l, th, new THREE.Vector3()); g.updateMatrixWorld(true);
+    const pos = g.localToWorld(lp), nr = NRL[q.f], nw = new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion);
+    const sp = u.L * (.0002 + Math.random() * .0009), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .5)); v.x += s.sx || 0; v.z += s.sy || 0;
+    const qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
+    tdeb.push({ p: pos, v, q: qq, w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .5), sz: new THREE.Vector3(q.len * .94, th * .95, q.cs * .94), t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f });
   }
-  const _qx2 = _qx;
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
-    const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 250)) return; u.armT = now; const th = thL(u); let spawned = 0;
-    const tiles = u.tilesL as any[]; for (const q of tiles) { const z = s.zones[q.f]; if (!z || !q.ent) continue; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k];
-      const cur = Math.max(0, Math.min(q.n, Math.ceil(sum / (i1 - i0) - .03))); // по слою на единицу брони
-      if (cur < q.cur) { if (!force) for (let l = cur; l < q.cur && spawned < 80; l++) { spawnLayerDebris(s, g, q, l); spawned++ } q.cur = cur }
-      for (let l = 0; l < q.n; l++) { const e = q.ent[l], c = (l + .5) * th;
-        if (l >= q.cur) { _sc.set(0, 0, 0); _p.set(q.px, q.py, q.pz); _m4.compose(_p, _q.identity(), _sc) }
-        else if (q.f % 2 === 0) { _sc.set(q.len * 1.03, th * 1.02, q.cs * 1.03); _p.set(q.px, q.py + (q.f === 0 ? c : -c), q.pz); _m4.compose(_p, _q.identity(), _sc) }
-        else { _sc.set(q.len * 1.03, th * 1.02, q.cs * 1.03); _p.set(q.px, q.py, q.pz + (q.f === 1 ? c : -c)); _m4.compose(_p, _qx, _sc) }
-        e.im.setMatrixAt(e.ii, _m4) } }
-    for (const m of u.arm) m.instanceMatrix.needsUpdate = true;
+    const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 200)) return; u.armT = now; const th = thL(u); let spawned = 0, chg = false; const im = u.arm[0] as THREE.InstancedMesh;
+    for (const q of u.tilesL as any[]) { const z = s.zones[q.f]; if (!z || !q.ent) continue; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k];
+      const cur = Math.max(0, Math.min(q.n, Math.floor(sum / (i1 - i0) + q.jit))); // у каждой плитки свой порог: повреждения рвут обшивку пятнами
+      if (cur < q.cur) { if (!force && !u.fresh) for (let l = cur; l < q.cur && spawned < 300; l++) { spawnLayerDebris(s, g, q, l); spawned++ } q.cur = cur; q.dirty = true }
+      if (!q.dirty) continue; q.dirty = false; chg = true;
+      for (let l = 0; l < q.n; l++) { if (l >= q.cur) { _sc.set(0, 0, 0); _p.set(q.px, q.py, q.pz); _m4.compose(_p, _q.identity(), _sc) }
+        else { layerPos(q, l, th, _p); _sc.set(q.len * .94, th * .95, q.cs * .94); _m4.compose(_p, q.f % 2 ? _qx : _q.identity(), _sc) } im.setMatrixAt(q.ent[l], _m4) } }
+    if (chg) im.instanceMatrix.needsUpdate = true; u.fresh = false;
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
   function frame() {
