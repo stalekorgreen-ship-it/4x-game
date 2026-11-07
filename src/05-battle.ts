@@ -229,8 +229,9 @@ function steer(s,dt){
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+T.L*.25+8;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
     if(d<e.r+T.L*.2&&t>(s.rockT||0)){s.rockT=t+4;s.sx*=.4;s.sy*=.4;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,5);say(s.side,'rock',s)}}}
   // разлёт: не стоять друг за другом на линии огня и не кучковаться
-  for(const o of around(s.side,s.x,s.y,6)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy)||1e-6,sr=Math.max(.9,(s.T.L+o.T.L)*1.1);
-    if(d<sr){const f=.2*(sr-d)/sr/d;vx+=dx*f;vy+=dy*f}
+  for(const o of around(s.side,s.x,s.y,6)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,dz=s.z-o.z,d0=Math.hypot(dx,dy)||1e-6,sr=Math.max(.9,(s.T.L+o.T.L)*1.1),d=Math.hypot(d0,dz*1.5);
+    if(d<sr){const f=.2*(sr-d)/sr/d;vx+=dx*f;vy+=dy*f;s.zpush=(s.zpush||0)+(dz>=0?1:-1)*(sr-d)/sr*(1+Math.abs(dz)*0)}
+    if(Math.abs(dz)>sr*.8)continue;
     if(tg&&!formed){const al=(-dx)*ux+(-dy)*uy,pp=(-dx)*(-uy)+(-dy)*ux; // o перед нами на линии на врага
       if(al>0&&Math.abs(pp)<o.T.L*.5+.8){const sg=pp>=0?-1:1,f=.12*vm*(1-Math.abs(pp)/(o.T.L*.5+.8));vx+=-uy*sg*f*3;vy+=ux*sg*f*3}}}
   {const kf=Math.min(1,dt*.35);s.dvx=s.dvx==null?vx:s.dvx+(vx-s.dvx)*kf;s.dvy=s.dvy==null?vy:s.dvy+(vy-s.dvy)*kf;vx=s.dvx;vy=s.dvy}
@@ -251,7 +252,7 @@ function steer(s,dt){
   s.vx=s.sx;s.vy=s.sy;
   // высота (псевдо-3D)
   if(t>=(s.zn||0)){s.zn=t+R(40,90);const r=Math.random();s.zo=r<.4?R(10,28):r<.75?R(-28,-10):R(-5,5)}
-  const zt=Math.max(-36,Math.min(36,F.zl+s.zo));if(s.zset==null){s.z=zt;s.zset=1}else s.z+=Math.max(-.6*dt,Math.min(.6*dt,zt-s.z));
+  const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4));s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1}else s.z+=Math.max(-1.2*dt,Math.min(1.2*dt,zt-s.z));
 }
 function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.car||o.side!==c.side)continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d<bd){bd=d;b=o}}return b}
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
@@ -484,7 +485,7 @@ function step(dt){
       if((m.k==='T'||m.k==='L')&&(s.fine||s.rdOn)&&fly[1-s.side].length){let e=null,bd=Math.min(C.rng,m.k==='L'?150:110)**2;for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c}}
         if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();Sfx.shot('rail');s.flash=t;s.heat+=.002;
           shots.push({x1:s.x,y1:s.y,x2:e.x,y2:e.y,rt:performance.now(),s:s.side,a:s,b:e});stat.pdRail=(stat.pdRail||0)+1;
-          const dd=Math.sqrt(bd),pk=(.07+.006*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
+          const dd=Math.sqrt(bd),pk=(.07+.006*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){e.hp-=m.k==='L'?4:2.5;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
@@ -688,7 +689,7 @@ const HULLV=[HULL,
   [[-.5,-.15],[-.2,-.4],[.2,-.4],[.5,-.08],[.5,.08],[.2,.4],[-.2,.4],[-.5,.15]]];
 const hullOf=s=>HULLV[s.hv||0];
 function drawShip(g,s,x,y,k,dp){
-  const HL=hullOf(s),len=Math.min(Math.max(8*s.T.L*dp,s.T.L*k*1.8),150*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
+  const HL=hullOf(s),len=Math.min(Math.max(9*dp*Math.pow(s.T.L,.6),s.T.L*k*1.8),150*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
   if(x<-len||x>W+len||y<-len||y>H+len)return;
   if(len<14*dp&&s.alive&&s!==sel){const q=Math.max(5*dp,len*.62),c2=Math.cos(s.hd),s2=Math.sin(s.hd);g.save();g.translate(x,y);g.scale(1,curCT);
     g.globalAlpha=.28;g.fillStyle=CL[s.side];g.beginPath();g.arc(0,0,q*1.35,0,6.283);g.fill();g.globalAlpha=1;
