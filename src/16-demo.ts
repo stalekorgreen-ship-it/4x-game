@@ -127,3 +127,10 @@ export function matureSystem() {
   log(`Демо «зрелая система»: заселено тел ${ids.length}, население ~100 млрд, кораблей корпораций ${n}.`);
   return {cols: ids.length, ships: n};
 }
+// контролируемый матч «состав против состава» (для проверки баланса)
+export function duelScenario(a, b, n) {
+  const late = [], ang0 = 0;
+  [a, b].forEach((m, side) => { for (const sp of fleet(n, MIXES[m], side * 10, 1)) late.push({t: R(0, 20), side, spec: sp, edge: 400, ang: ang0 + side * Math.PI + R(-.1, .1)}); });
+  return {title: 'duel', fleets: [[], []], late, demo: true, maxT: 14400, names: [a, b], onEnd: () => { state.demo = false; }};
+}
+export const MIXNAMES = Object.keys(MIXES).filter(k => k !== 'convoy');

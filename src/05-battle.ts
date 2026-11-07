@@ -17,7 +17,7 @@ const BURST={5:10,10:8,15:6,20:5},RCT={5:70,10:130,15:200,20:290};
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
 let mis=[],beams=[],bursts=[],curCT=1,curST=0,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
-let env=[],ORD={st:null,focus:null},nextVis=0,nextCrew=0,lastCrewT=0,endSaid=false;
+let lastDmgT=0,env=[],ORD={st:null,focus:null},nextVis=0,nextCrew=0,lastCrewT=0,endSaid=false;
 const say=(side,key,s)=>{if(active&&!done)Sfx.radio(side,key,s)};
 const EW={fr:.12,cv:.05,dd:.02,hc:.02},RADAR={cv:420,hc:320,dd:260,fr:360},MARN={cv:20,hc:10,dd:8,fr:4};
 let pend=[],lastFriend=0,vw={ox:0,oy:0,kk:1},active=false;
@@ -34,7 +34,7 @@ function mkShip(side,sp,x,y){
   for(let i=0;i<(sp.miss||0);i++){const m=add('M',(i+3)%4);m.cfg=(sp.missCfg&&sp.missCfg[i])||MC0;m.ammo=m.cfg.ammo;tur.push(m)}
   for(let i=0;i<T.eng;i++)add('E',2);
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.lasers||0)+(sp.miss||0)+T.eng+1;
-  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
+  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*m.cfg.rng/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
   sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>m.cfg.rng));
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
@@ -56,7 +56,7 @@ function addFlights(sh,ty,total){
     flights.push(fl)}
 }
 function reset(cfg){
-  hadContact=false;sepT=0;ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];
+  hadContact=false;sepT=0;lastDmgT=0;ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];
   if(cfg.env!==false&&(cfg.env||Math.random()<.55)){const cl=1+((Math.random()*2)|0);for(let c=0;c<cl;c++){const cx0=R(-220,220),cy0=R(-200,200),n=4+((Math.random()*8)|0);for(let i=0;i<n;i++)env.push({t:'rock',x:cx0+R(-70,70),y:cy0+R(-60,60),r:R(.6,3),vx:0,vy:0,ttl:1e9})}
     if(Math.random()<.35)env.push({t:'planet',x:R(-120,120),y:(Math.random()<.5?-1:1)*R(120,230),r:R(10,22),vx:0,vy:0,ttl:1e9})}
   sel=null;done=false;pend=(cfg.late||[]).map(x=>({...x}));lastFriend=0;
@@ -141,7 +141,7 @@ function fleetsUpdate(){
     if(F.stance==='flank'){const a=F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
     if(F.stance==='retreat'||F.stance==='convoy'){F.tgx=F.cx-dx*160;F.tgy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.tgx=F.cx-(ne.cx-F.cx)/dl*200;F.tgy=F.cy-(ne.cy-F.cy)/dl*200}}
     else if(F.stance==='wait'){F.tgx=F.cx;F.tgy=F.cy}
-    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?14:Math.max(25,F.rng*(F.stance==='engage'?.9:1.3));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
+    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?14:Math.max(14,Math.max(25,F.rng*(F.stance==='engage'?.9:1.3))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
     // слои по высоте: в бою флоты сближаются по вертикали
     if(F.flank&&dist<420)F.zl+=((F.flank>0?24:-24)-F.zl)*.3;
     F.tdx=dx;F.tdy=dy;
@@ -338,7 +338,7 @@ function kill(o){if(!o.alive)return;o.alive=false;fx.push({z:o.z,x:o.x,y:o.y,t0:
   say(o.side,'lost',o);say(1-o.side,'kill',o)}
 function segHit(x1,y1,x2,y2,e,pad){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1e-9;let u=((e.x-x1)*dx+(e.y-y1)*dy)/l2;u=u<0?0:u>1?1:u;return Math.hypot(x1+dx*u-e.x,y1+dy*u-e.y)<e.r+(pad||0)}
 function los(x1,y1,x2,y2){for(const e of env)if(segHit(x1,y1,x2,y2,e))return e;return null}
-function hitShip(o,kind,vx,vy,x,y,dmg){
+function hitShip(o,kind,vx,vy,x,y,dmg){lastDmgT=t;
   if(!o.alive)return;o.hitT=t;
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.9,0.9),ab=Math.abs(a);
