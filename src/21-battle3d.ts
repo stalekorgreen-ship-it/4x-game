@@ -24,6 +24,8 @@ if (wrap && bgo) {
   const matDead = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 1 });
   const MAXPL = 900, MAXD = 160; let plateMesh: THREE.InstancedMesh; const decalGeo = new THREE.CircleGeometry(1, 10), decalMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: .92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
+   const MAXTD = 500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 3000, MAXFL = 200; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
+   function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,230,170,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) }
    let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
@@ -50,6 +52,9 @@ if (wrap && bgo) {
     const addMat = () => new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 6), 3)); pg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXP * 6), 3));
     projLines = new THREE.LineSegments(pg, addMat()); projLines.frustumCulled = false; scene.add(projLines);
+    { const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXSP * 6), 3)); sg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXSP * 6), 3)); sparkLines = new THREE.LineSegments(sg, addMat()); sparkLines.frustumCulled = false; scene.add(sparkLines);
+      const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXFL * 3), 3)); fg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXFL * 3), 3)); flashPts = new THREE.Points(fg, new THREE.PointsMaterial({ size: 18, sizeAttenuation: false, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, map: glowTex(), fog: false })); flashPts.frustumCulled = false; scene.add(flashPts) }
+    tdMesh = new THREE.InstancedMesh(geoBox, new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true }), MAXTD); tdMesh.frustumCulled = false; tdMesh.count = 0; tdMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdMesh);
     bolts = new THREE.InstancedMesh(geoCyl, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAXP); bolts.frustumCulled = false; bolts.count = 0; bolts.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(bolts);
     const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2000 * 3), 3));
     misPts = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xff8a50, size: 5, sizeAttenuation: false })); misPts.frustumCulled = false; scene.add(misPts);
@@ -237,10 +242,18 @@ if (wrap && bgo) {
   }
   const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3();
   const _cc = new THREE.Color(), _bq = new THREE.Quaternion(), _bd = new THREE.Vector3(), _qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  // отлетающие секции брони: летят от своего места на корпусе по нормали грани, кувыркаются и гаснут
+  function spawnTileDebris(s: any, g: THREE.Group, q: any) {
+    if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = Math.max(u.L * .0008, (s.zones[q.f].arm || 1) * u.L * .0006), nrl = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]][q.f];
+    g.updateMatrixWorld(true); const pos = g.localToWorld(new THREE.Vector3(q.px, q.py + (q.f === 0 ? th / 2 : q.f === 2 ? -th / 2 : 0), q.pz + (q.f === 1 ? th / 2 : q.f === 3 ? -th / 2 : 0))), nw = new THREE.Vector3(nrl[0], nrl[1], nrl[2]).applyQuaternion(g.quaternion);
+    const sp = u.L * (.0006 + Math.random() * .0012), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .5)); v.x += s.sx || 0; v.z += s.sy || 0;
+    const sz = new THREE.Vector3(q.len * .95, th, q.cs * .95), qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
+    tdeb.push({ p: pos, v, q: qq, w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .35), sz, t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f });
+  }
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
     const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 400)) return; u.armT = now;
     const tiles = u.tilesL as any[]; for (const q of tiles) { const z = s.zones[q.f]; if (!z || !q.im) continue; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k];
-      const fr = sum / ((i1 - i0) * Math.max(1, z.arm)), th = fr < .04 ? 0 : Math.max(u.L * .0008, z.arm * u.L * .0006 * fr), e = 1.03; // чуть внахлёст, чтобы не было щелей
+      const fr = sum / ((i1 - i0) * Math.max(1, z.arm)); if (!q.gone && fr < .85) { q.gone = true; if (!force) spawnTileDebris(s, g, q) } const th = q.gone ? 0 : Math.max(u.L * .0008, z.arm * u.L * .0006 * fr), e = 1.03; // чуть внахлёст, чтобы не было щелей
       if (q.f % 2 === 0) { _sc.set(q.len * e, th, q.cs * e); _p.set(q.px, q.py + (q.f === 0 ? th / 2 : -th / 2), q.pz); _m4.compose(_p, _q.identity(), _sc) } else { _sc.set(q.len * e, th, q.cs * e); _p.set(q.px, q.py, q.pz + (q.f === 1 ? th / 2 : -th / 2)); _m4.compose(_p, _qx, _sc) }
       if (th === 0) { _sc.set(0, 0, 0); _m4.compose(_p, _q.identity(), _sc) } q.im.setMatrixAt(q.ii, _m4) }
     for (const m of u.arm) m.instanceMatrix.needsUpdate = true;
@@ -322,6 +335,24 @@ if (wrap && bgo) {
       pc++;
     }
     bolts.count = pc; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+    // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
+    { const imp = Battle.impacts() as any[], nw = performance.now();
+      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; if (sparks.length > MAXSP - 40) break;
+        const cp = cam.position, pos = new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
+        flashes.push({ p: pos, t0: nw, life: 140 + q.pw * 25, sz: Math.min(34, 14 + q.pw * 3) });
+        const n = Math.min(26, 8 + Math.round(q.pw * 3)), nrm = new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();
+        for (let i = 0; i < n; i++) { const d = new THREE.Vector3().randomDirection().multiplyScalar(.9).add(nrm.clone().multiplyScalar(1.3)).normalize(), sp = cd * .055 * (.3 + Math.random() * .9) * (.7 + Math.min(1.2, q.pw * .1));
+          sparks.push({ p: pos.clone(), v: d.multiplyScalar(sp), t0: nw, life: 350 + Math.random() * 650, h: Math.random() }) } }
+      const spa = (sparkLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, sco = (sparkLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0;
+      for (let i = sparks.length - 1; i >= 0; i--) { const q = sparks[i], a = (nw - q.t0) / q.life; if (a >= 1) { sparks.splice(i, 1); continue } }
+      for (const q of sparks) { if (k >= MAXSP) break; const a = (nw - q.t0) / q.life, tt = (nw - q.t0) / 1000, o = k * 6, f = (1 - a) * (1 - a), vx = q.v.x, vy = q.v.y - tt * q.v.length() * .5, vz = q.v.z;
+        const hx = q.p.x + vx * tt, hy = q.p.y + vy * tt - 0, hz = q.p.z + vz * tt, tl = .07; spa[o] = hx; spa[o + 1] = hy; spa[o + 2] = hz; spa[o + 3] = hx - vx * tl; spa[o + 4] = hy - vy * tl; spa[o + 5] = hz - vz * tl;
+        sco[o] = 1 * f; sco[o + 1] = (.8 - .4 * a - q.h * .15) * f; sco[o + 2] = (.45 - .4 * a) * f; sco[o + 3] = .5 * f; sco[o + 4] = .2 * f; sco[o + 5] = 0; k++ }
+      sparkLines.geometry.setDrawRange(0, k * 2); (sparkLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (sparkLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+      const fa = (flashPts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, fcl = (flashPts.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let m = 0;
+      for (let i = flashes.length - 1; i >= 0; i--) if (nw - flashes[i].t0 > flashes[i].life) flashes.splice(i, 1);
+      for (const q of flashes) { if (m >= MAXFL) break; const a = 1 - (nw - q.t0) / q.life; fa[m * 3] = q.p.x; fa[m * 3 + 1] = q.p.y; fa[m * 3 + 2] = q.p.z; fcl[m * 3] = a; fcl[m * 3 + 1] = a * .85; fcl[m * 3 + 2] = a * .55; m++ }
+      flashPts.geometry.setDrawRange(0, m); (flashPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (flashPts.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true }
     // следы истребителей и бомбардировщиков
     {const ta = (trailLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, tc = (trailLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0;
       for (const c of Battle.air() as any[]) { if (c.state !== 'fly' || !c.tr || c.tr.length < 4) continue; const y0 = c.home ? c.home.z : 0, y = c._yv != null ? c._yv : y0, n2 = c.tr.length, base = c.side ? [1, .55, .25] : [.45, .8, 1];
@@ -343,7 +374,7 @@ if (wrap && bgo) {
     for (const b of Battle.beams() as any[]) { if (bc >= 400 || !b.a) continue; const o = bc * 6; ba[o] = b.a.x; ba[o + 1] = b.a.z; ba[o + 2] = b.a.y; ba[o + 3] = b.tx; ba[o + 4] = (b.tz != null ? b.tz : (b.b && b.b.z) || 0); ba[o + 5] = b.ty; bc++ }
     beamLines.geometry.setDrawRange(0, bc * 2); (beamLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     {const tb2 = Battle.time(); let k = 0; const cc = new THREE.Color();
-      for (const f of Battle.frags() as any[]) { if (f.ln || k >= MAXPL) continue; const life = (tb2 - f.t0) / f.d; if (life > 1) continue;
+      for (const f of Battle.frags() as any[]) { if (f.ln || f.plate || k >= MAXPL) continue; const life = (tb2 - f.t0) / f.d; if (life > 1) continue;
         dummy.position.set(f.x, f.z || 0, f.y); const fade = Math.min(1, (1 - life) / .35), sz = Math.max(f.sz, cam.position.distanceTo(dummy.position) * .0009) * (.35 + .65 * fade);
         dummy.rotation.set(f.rx || 0, -f.rot, f.ry || 0); dummy.scale.set(sz * 1.5, sz * .25, sz); dummy.updateMatrix(); plateMesh.setMatrixAt(k, dummy.matrix);
         const hot = Math.max(0, 1 - (tb2 - f.t0) / 4), base = f.side ? [.55, .32, .2] : [.28, .4, .5]; cc.setRGB(base[0] * fade + hot * .9, base[1] * fade + hot * .35, base[2] * fade); plateMesh.setColorAt(k, cc); k++ }
@@ -352,6 +383,12 @@ if (wrap && bgo) {
         c.x += c.vx * Battle.getSpeed() * .016; c.y += c.vy * Battle.getSpeed() * .016; c.z += c.vz * Battle.getSpeed() * .016; // медленно улетают и вращаются
         dummy.position.set(c.x, c.y, c.z); dummy.rotation.set(c.rx + age * c.rs, age * c.rs * .6, 0); const cz = Math.max(c.sz, cam.position.distanceTo(dummy.position) * .0012); dummy.scale.set(cz * 1.6, cz * .7, cz * .7); dummy.updateMatrix(); casings.setMatrixAt(k++, dummy.matrix) }
       casings.count = k; casings.instanceMatrix.needsUpdate = true}
+    { const nw = performance.now(), dtf = .016 * Battle.getSpeed(), cc = new THREE.Color(); let k = 0; const qd = new THREE.Quaternion(), ea = new THREE.Vector3();
+      for (let i = tdeb.length - 1; i >= 0; i--) if (nw - tdeb[i].t0 > tdeb[i].life) tdeb.splice(i, 1);
+      for (const d of tdeb) { if (k >= MAXTD) break; const a = (nw - d.t0) / d.life; d.p.addScaledVector(d.v, dtf); const wl = d.w.length(); if (wl > 1e-6) { qd.setFromAxisAngle(ea.copy(d.w).normalize(), wl * .016 * Math.max(1, Battle.getSpeed() * .2)); d.q.premultiply(qd) }
+        const fade = Math.min(1, (1 - a) / .35); _sc.set(d.sz.x * (.4 + .6 * fade), d.sz.y * (.4 + .6 * fade), d.sz.z * (.4 + .6 * fade)); _m4.compose(d.p, d.q, _sc); tdMesh.setMatrixAt(k, _m4);
+        const hot = Math.max(0, 1 - (nw - d.t0) / 1800), base = d.side ? [.55, .32, .2] : [.28, .4, .5]; cc.setRGB(base[0] * fade + hot * .9, base[1] * fade + hot * .35, base[2] * fade); tdMesh.setColorAt(k, cc); k++ }
+      tdMesh.count = k; tdMesh.instanceMatrix.needsUpdate = true; if (tdMesh.instanceColor) tdMesh.instanceColor.needsUpdate = true }
     {const tb = Battle.time(); let k = 0; const col2 = new THREE.Color();
       for (const f of Battle.fx() as any[]) { if (k >= MAXFX) break; const life = (tb - f.t0) / (f.d || 3); if (life < 0 || life > 1) continue;
         dummy.position.set(f.x, f.z || 0, f.y); const rr = Math.max((f.r || .6) * (.5 + life) * .12, cam.position.distanceTo(dummy.position) * .003); dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
