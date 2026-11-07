@@ -335,8 +335,9 @@ function assign(){
     }else c.tg=foeCraft(c,15,0,true);
   }
 }
-function shoot(c,e,p,dm){shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now(),s:c.side,a:c,b:e});
-  if(Math.random()<p){e.hp-=dm||1;fx.push({x:e.x,y:e.y,t0:t,d:3,r:0.5});if(e.hp<=0)killCraft(e)}}
+function shoot(c,e,p,dm){const h=Math.random()<p;let x2=e.x,y2=e.y,ext=1;if(!h){const an=Math.atan2(e.y-c.y,e.x-c.x)+Math.PI/2,of=R(.02,.07)*(Math.random()<.5?-1:1);x2+=Math.cos(an)*of;y2+=Math.sin(an)*of;ext=R(1.5,2.4)}
+  shots.push({x1:c.x,y1:c.y,x2,y2,rt:performance.now(),s:c.side,a:c,b:e,ext});
+  if(h){e.hp-=dm||1;fx.push({x:e.x,y:e.y,t0:t,d:3,r:0.5});if(e.hp<=0)killCraft(e)}}
 function craftStep(c,d){
   const P=c.P,home=c.home;
   if(c.type==='F'&&mis.length&&t>(c.pd||0)){let q=null,bd=200;for(const m of mis){if(m.side===c.side)continue;const dd=(m.x-c.x)*(m.x-c.x)+(m.y-c.y)*(m.y-c.y);if(dd<bd){bd=dd;q=m}}
@@ -401,7 +402,7 @@ function spawnPlates(o,x,y,n,big){const L=o.T.L,out=Math.atan2(y-o.y,x-o.x);
     frags.push({x,y,z:o.z,vx:o.sx*.85+Math.cos(a)*v,vy:o.sy*.85+Math.sin(a)*v,vz:R(-.012,.012)*(1+L),rot:Math.random()*6.283,vr:R(-2,2),rx:Math.random()*6,ry:Math.random()*6,vrx:R(-1.5,1.5),vry:R(-1.5,1.5),sz:L*R(.012,.03)*(big?2.2:1)+.003,t0:t,d:R(25,70),side:o.side,ln:0,hot:0,plate:1})}}
 function addDecal(o,x,y,vx,vy,sz,k){ // след повреждения на корпусе в системе корабля (для 3D): позиция по длине, угол сечения (сторона к стрелку), размер
   const L=o.T.L,dx=x-o.x,dy=y-o.y,ch=Math.cos(o.hd),sh=Math.sin(o.hd),u=Math.max(-.5,Math.min(.5,(dx*ch+dy*sh)/L)),lat=-dx*sh+dy*ch;
-  const ang=Math.atan2(R(-.7,.7),Math.sign(lat)||(Math.random()<.5?1:-1))-(o.roll||0);(o.vd||(o.vd=[])).push({u,ang,sz,k,t0:t,r:Math.random()});if(o.vd.length>160)o.vd.shift()}
+  const ang=Math.atan2(R(-.7,.7),Math.sign(lat)||(Math.random()<.5?1:-1))-(o.roll||0);(o.vd||(o.vd=[])).push({u,ang,sz,k,t0:t,r:Math.random()});if(o.vd.length>240)o.vd.shift()}
 function spawnShards(x,y,z,n,sp){for(let i=0;i<n&&frags.length<560;i++){const a=Math.random()*6.283,v=sp*R(.4,1);frags.push({x,y,z,vx:Math.cos(a)*v,vy:Math.sin(a)*v,rot:a,vr:0,sz:R(.5,1.6),t0:t,d:R(1.5,4),side:0,ln:1,hot:1})}}
 function launchPods(o,frac){const n=Math.round(o.pers*o.crew*frac);if(n<=0)return;o.crew=Math.max(0,o.crew*(1-frac));
   const np=Math.max(1,Math.min(14,Math.ceil(n/60))),per=n/np;
@@ -458,7 +459,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   }else
   for(let j=-half;j<w-half;j++){const cc=c+j;if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dm);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(j===0)pass=dm-tk}
   if(cut){fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(frags.length<300&&Math.random()<.5)spawnShards(x,y,o.z,2,3);o.mor-=.002;
-    if(cut>=3&&Math.random()<Math.min(.9,.15+cut*.04))spawnPlates(o,x,y,1+(cut>14?1:0)+(cut>40?1:0),false);addDecal(o,x,y,vx,vy,cut>20?.8:.5,0)}
+    if(cut>=3&&Math.random()<Math.min(.9,.15+cut*.04))spawnPlates(o,x,y,1+(cut>14?1:0)+(cut>40?1:0),false);addDecal(o,x,y,vx,vy,kind==='laser'?1.3:cut>20?.8:.5,kind==='laser'?2:cut<3?(Math.random()<.5?3:4):0)}
   if(pass<=0)return;
   const k=kind==='torp'?TORP.mod:pass,f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;
   for(let i=0;i<k;i++){let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
@@ -478,7 +479,7 @@ function flakBurst(s,m){
   const e=tp.length&&Math.random()<0.5?tp[(Math.random()*tp.length)|0]:(cand.length?cand[(Math.random()*cand.length)|0]:tp[0]);
   const d=Math.hypot(e.x-s.x,e.y-s.y),err=(0.25+0.012*d)*(1.4-0.08*m.sk);
   const bx=e.x+(e.vx||0)*1.5+gauss()*err,by=e.y+(e.vy||0)*1.5+gauss()*err;
-  m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();Sfx.shot('flak');stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
+  m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();Sfx.shot('flak');stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side,ext:1.7,src:s,m:m,o0:{x:s.x,y:s.y,z:s.z}});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
   for(const c of fly[1-s.side])if(c.state==='fly'&&Math.hypot(c.x-bx,c.y-by)<F.blast){c.hp--;if(c.hp<=0){killCraft(c);stat.flakKill[s.side]++}}
   for(let i=torps.length-1;i>=0;i--){const p=torps[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5&&Math.random()<0.7){torps.splice(i,1);stat.torpPd[p.side]++;stat.flakKill[s.side]++}}
   for(let i=mis.length-1;i>=0;i--){const p=mis[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5+1&&Math.random()<0.15){p.hp--;if(p.hp<=0){mis.splice(i,1);stat.misShot[p.side]++;stat.flakKill[s.side]++;boom(p,null)}}}
