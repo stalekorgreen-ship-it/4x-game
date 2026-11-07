@@ -403,12 +403,20 @@ export const STAT_IN = {ship: 'Добыча кораблями', mine: 'Добы
 export const LAS_D = {s: {dmg: 2, m: 150}, m: {dmg: 4, m: 450}, l: {dmg: 8, m: 1200}};
 export const LAS_R = {n: 1500, m: 2500, f: 4000}; // дальнобойная артиллерия: бьёт через всё поле боя
 export const mkLas = (pw, fr) => ({dmg: LAS_D[pw].dmg, rng: LAS_R[fr], chg: 0.02 * LAS_D[pw].dmg});
-COMP.lgun.opts = [O('pw', 'Мощность', 'm', [['s', 'малая ×½'], ['m', 'средняя'], ['l', 'большая ×2']]), O('fr', 'Фокусировка', 'm', [['n', 'ближняя 150 км'], ['m', 'средняя 250 км'], ['f', 'дальняя 400 км']])];
+const LAS_LENS = [1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 70, 100], LAS_CAPS = [1, 2, 5, 10, 20, 50, 100, 200, 300, 500, 750, 1000];
+COMP.lgun.opts = [O('lens', 'Линза, м', '20', LAS_LENS.map(v => [String(v), v + ' м'])), O('dur', 'Длительность луча, с', '5', Array.from({length: 10}, (_, i) => [String(i + 1), i + 1 + ' с'])),
+  O('caps', 'Конденсаторов (по 600 МДж)', '100', LAS_CAPS.map(v => [String(v), String(v)]))];
+// дальность: линза 1 м → 20 км, 100 м → 6000 км; запас энергии: 10 МВт на км за секунду луча, конденсатор 600 МДж
+export const mkLaser = (lens, dur, caps) => {
+  const lr = Math.min(6000, 20 * Math.pow(lens, 1.2386)), er = caps * 600 / (10 * dur), rng = Math.max(20, Math.round(Math.min(lr, er)));
+  const E = 10 * rng * dur; // МДж на выстрел
+  return {lens, dur, caps, rng, E, ap: 0.8, dmg: Math.round((2 + lens / 8) * 10) / 10, chg: 1, mass: Math.round(3.75 * lens * lens + 5 * caps)};
+};
 COMP.lgun.ap = (c, s) => {
-  const D = LAS_D[s.pw.v], k = D.dmg / 4; c.mass = Math.round(D.m * (s.fr.v === 'f' ? 1.6 : s.fr.v === 'n' ? 0.8 : 1));
-  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * k * 12 * (s.fr.v === 'f' ? 1.5 : 1)));
-  c.lcfg = mkLas(s.pw.v, s.fr.v); c.name = `Лазер ${D.dmg} ед. / ${c.lcfg.rng} км`;
-  c.desc = `урон ${D.dmg}, дальность ${c.lcfg.rng} км, линза ${{n: 30, m: 60, f: 100}[s.fr.v]} м, реактор и конденсаторы — сотни тонн; цена выстрела растёт как квадрат расстояния, перезарядка на полной дальности ${Math.round(D.dmg * (0.4 + Math.pow(c.lcfg.rng / 120, 2)) / c.lcfg.chg / 60)} мин`;
+  const L = mkLaser(+s.lens.v, +s.dur.v, +s.caps.v); c.lcfg = L; c.mass = L.mass;
+  c.cost = {fe: Math.round(L.mass * 0.5), cu: Math.round(L.mass * 0.6), si: Math.round(L.mass * 0.4), ree: Math.max(1, Math.round(L.mass * 0.1))};
+  c.name = `Лазер ${L.lens} м / ${L.rng} км`;
+  c.desc = `линза ${L.lens} м, луч ${L.dur} с, ${L.caps} конд., дальность ${L.rng} км (линза даёт ${Math.round(Math.min(6000, 20 * Math.pow(L.lens, 1.2386)))}, энергии хватает на ${Math.round(L.caps * 60 / L.dur)}), выстрел ${Math.round(L.E).toLocaleString('ru')} МДж, пробитие 80%/с, перезарядка ${Math.round(Math.max(180, L.E / 800) / 60 * 10) / 10} мин; встраивается в центр корпуса, не более одного на корабль`;
 };
 // --- ракеты ---
 export const MIS_A = {l: {hp: 1, m: 0.7, n: 'лёгкая'}, m: {hp: 2, m: 1, n: 'средняя'}, h: {hp: 3, m: 1.5, n: 'тяжёлая'}};
@@ -439,7 +447,7 @@ export function fitSpec(sp) {
   const rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1}, rm = (RAIL_CAL[rc.cal] || RAIL_CAL[10]).m * (1 + 1.03 * (rc.bar - 1)) * 1.25;
   let T = 0;
   for (let pass = 0; pass < 6; pass++) {
-    const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + gatMass(sp) + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass) + (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass) + (sp.mar || 0) * 56 + 800;
+    const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + gatMass(sp) + (sp.miss || 0) * 320 + ((sp.laserCfg && sp.laserCfg[0] && sp.laserCfg[0].mass) || 9000) * (sp.lasers || 0) + (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass) + (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass) + (sp.mar || 0) * 56 + 800;
     T = M * HULLK;
     for (let i = 0; i < 60; i++) { const L = T / TON_L; T = (M * HULLK + Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L)) / (1 - ENGF * (sp.spd || 1)); } // броня не тяжелее 70% остальной массы
     if (T <= SHIP_CAP || sp.super) break;
@@ -454,7 +462,7 @@ export const gatMass = sp => (sp.gatCfg && sp.gatCfg.length) ? sp.gatCfg.reduce(
 export function massParts(sp) {
   const T = sp.tons || specTons(sp), rc = sp.railCfg || []; let rails = 0;
   for (let i = 0; i < (sp.rails || 0); i++) { const c = rc[i] || {cal: 10, bar: 1}; rails += (RAIL_CAL[c.cal] || RAIL_CAL[10]).m * (1 + 1.03 * ((c.bar || 1) - 1)) * 1.25; }
-  const o = {rail: rails, flak: (sp.flak || 0) * 110, gat: gatMass(sp), miss: (sp.miss || 0) * 320, laser: (sp.lasers || 0) * 9000, hangF: (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass), hangB: (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass), mar: (sp.mar || 0) * 56, core: 800};
+  const o = {rail: rails, flak: (sp.flak || 0) * 110, gat: gatMass(sp), miss: (sp.miss || 0) * 320, laser: ((sp.laserCfg && sp.laserCfg[0] && sp.laserCfg[0].mass) || 9000) * (sp.lasers || 0), hangF: (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass), hangB: (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass), mar: (sp.mar || 0) * 56, core: 800};
   const sc = sp.scList || [], cnt = k => sc.filter(q => q.k === k).length, sm = {rad: cnt('rad') * 700, ir: cnt('ir') * 120, em: cnt('em') * 200, fcs: (sp.fcsN || 0) * 150, ew: (sp.ew || 0) * 300, dcon: (sp.dcon || 0) * 60, sink: (sp.sink || 0) * 120};
   const M = Object.values(o).reduce((a, b) => a + b, 0), S = M * (HULLK - 1); o.eng = T * ENGF * (sp.spd || 1);
   // оценочная раскладка несущей массы по баку, реактору, жилым отсекам и каркасу (в конструкторе точного списка нет)
@@ -507,6 +515,7 @@ export function designStats(parts, flags) {
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
   r.crewNeed = (r.scCrew||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
+  if (r.lgun > 1) r.errors.push('Боевой лазер встраивается в центр корпуса: на корабль можно только один.');
   r.warship = r.rail + r.flak + r.gat + r.lgun + r.msl + r.hangF + r.hangB > 0;
   if (r.rail + r.flak + r.lgun + r.msl > 0) {
     if (!r.fcsN) r.warns.push('Нет системы управления огнём: орудия не смогут вести цели (только стрельба вблизи на глаз).');
