@@ -1,5 +1,6 @@
 // Тестовый настоящий 3D-вид боя (three.js): поверх карты, корабли — объёмные модели, свободная орбитальная камера.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Battle } from './05-battle.ts';
 
@@ -11,16 +12,16 @@ if (wrap && bgo) {
   bgo.after(btn);
 
   let on = false, ren: THREE.WebGLRenderer | null = null, scene: THREE.Scene, cam: THREE.PerspectiveCamera, raf = 0;
-  let yaw = .6, pitch = .45, dist = 40, SC = 4, follow = true;
+  let yaw = .6, pitch = .45, dist = 40, SC = 1.5, follow = true;
   const tgt = new THREE.Vector3();
   const models = new Map<any, THREE.Group>();
-  const geoBox = new THREE.BoxGeometry(1, 1, 1), geoCone = new THREE.ConeGeometry(.5, 1, 8), geoSph = new THREE.SphereGeometry(1, 8, 6);
+  const geoBox = new RoundedBoxGeometry(1, 1, 1, 1, .12), geoCone = new THREE.ConeGeometry(.5, 1, 8), geoSph = new THREE.SphereGeometry(1, 8, 6);
   const mats = [0x4aa8e8, 0xe8803a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .55, metalness: .35 }));
   const matDark = new THREE.MeshStandardMaterial({ color: 0x1a1d23, roughness: .8 });
   const matTur = [0xe8f3ff, 0xffd9b0].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .4, metalness: .5 }));
   const matGlow = new THREE.MeshBasicMaterial({ color: 0xffd27a });
   const matDead = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 1 });
-  let fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
+  let ring: THREE.LineLoop | null = null; let fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXF = 4000, MAXP = 4000;
 
   const hud = document.createElement('div');
@@ -53,7 +54,15 @@ if (wrap && bgo) {
 
     let drag = 0, lx = 0, ly = 0;
     cv.addEventListener('contextmenu', e => e.preventDefault());
-    cv.addEventListener('mousedown', e => { drag = e.button === 2 ? 2 : 1; lx = e.clientX; ly = e.clientY });
+    let dx0 = 0, dy0 = 0;
+    cv.addEventListener('mousedown', e => { drag = e.button === 2 ? 2 : 1; lx = dx0 = e.clientX; ly = dy0 = e.clientY });
+    cv.addEventListener('mouseup', e => { // клик без перетаскивания — выбрать корабль
+      if (e.button !== 0 || Math.hypot(e.clientX - dx0, e.clientY - dy0) > 4) return;
+      const r = cv.getBoundingClientRect(), ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const rc = new THREE.Raycaster(); rc.setFromCamera(ndc, cam); const roots = [...models.values()].filter(g => g.visible);
+      const hit = rc.intersectObjects(roots, true)[0]; let o: any = hit && hit.object; while (o && !(o.userData && o.userData.s)) o = o.parent;
+      if (o) { Battle.select(o.userData.s); follow = true } else Battle.select(null);
+    });
     addEventListener('mouseup', () => { drag = 0 });
     addEventListener('mousemove', e => {
       if (!on || !drag) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
@@ -71,12 +80,12 @@ if (wrap && bgo) {
   ];
   function rng(seed: number) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
   function piece(geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, rz = 0) {
-    const g = geo.clone(); g.scale(sx, sy, sz); if (rz) g.rotateZ(rz); g.translate(x, y, z);
+    const g = geo.index ? geo.toNonIndexed() : geo.clone(); g.scale(sx, sy, sz); if (rz) g.rotateZ(rz); g.translate(x, y, z);
     const c = new THREE.Color(color), n = g.attributes.position.count, arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b }
     g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); return g;
   }
-  const unitBox = new THREE.BoxGeometry(1, 1, 1), unitCyl = new THREE.CylinderGeometry(.5, .5, 1, 10).rotateZ(Math.PI / 2);
+  const unitBox = new RoundedBoxGeometry(1, 1, 1, 1, .09), unitCyl = new THREE.CylinderGeometry(.5, .5, 1, 10).rotateZ(Math.PI / 2);
   function taper(len: number, h: number, w: number, k: number) { // клиновидный блок: сужается к носу (+x)
     const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position;
     for (let i = 0; i < p.count; i++) if (p.getX(i) > 0) { p.setY(i, p.getY(i) * k); p.setZ(i, p.getZ(i) * k) }
@@ -131,7 +140,7 @@ if (wrap && bgo) {
     const body = new THREE.Mesh(geo, hullMat); g.add(body);
     const eng = new THREE.Group(); eng.name = 'eng'; g.add(eng);
     for (const n of u.nozz) { const f = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: PAL[s.side].glow })); f.scale.set(L * .018, n.r * 1.5, n.r * 1.5); f.position.set(u.x0 - L * .095, 0, n.z); eng.add(f) }
-    g.userData = { L, w: u.W, h: u.H, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
+    g.userData = { s, L, w: u.W, h: u.H, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
     scene.add(g); return g;
   }
   function detail(s: any, g: THREE.Group, want: boolean) {
@@ -152,11 +161,14 @@ if (wrap && bgo) {
   function frame() {
     raf = requestAnimationFrame(frame); if (!ren) return;
     const r = wrap!.getBoundingClientRect(); if (ren.domElement.width !== Math.round(r.width * ren.getPixelRatio())) { ren.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix() }
+    const selS = Battle.anchorSel && Battle.anchorSel();
+    if (!ring) { ring = new THREE.LineLoop(new THREE.RingGeometry(.98, 1, 48).setFromPoints ? new THREE.BufferGeometry().setFromPoints(Array.from({ length: 49 }, (_, i) => new THREE.Vector3(Math.cos(i / 48 * 6.2832), 0, Math.sin(i / 48 * 6.2832)))) : undefined, new THREE.LineBasicMaterial({ color: 0xffffff })); scene.add(ring) }
+    ring.visible = !!(selS && selS.alive && models.get(selS)); if (ring.visible) { const g = models.get(selS)!; ring.position.copy(g.position); ring.scale.setScalar(Math.max(selS.T.L * SC * .75, dist * .02)) }
     const ships: any[] = Battle.ships(); let cx = 0, cy = 0, cz = 0, n = 0;
     for (const s of ships) {
       if (!s.alive) { const g = models.get(s); if (g) g.visible = false; continue }
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
-      g.position.set(s.x, s.z, s.y); g.rotation.y = -s.hd; g.scale.setScalar(SC);
+      g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; g.rotation.y = -s.hd; g.rotation.z = Math.max(-.5, Math.min(.5, (s.pz || 0) * 6)); g.scale.setScalar(SC);
       const dd = cam.position.distanceTo(g.position); detail(s, g, dd < 28 * g.userData.L * SC + 6);
       if (g.userData.det) { const tg: THREE.Group = g.userData.tur; tg.children.forEach((t: any, i) => { const m = t.userData.m; t.visible = m.alive; const a = (m.da != null ? m.da : 0); t.rotation.y = -a }) }
       const eg = g.getObjectByName('eng'); if (eg) eg.visible = Math.hypot(s.vx, s.vy) > .02;
@@ -190,5 +202,5 @@ if (wrap && bgo) {
     if (on) { if (!ren) init(); (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'block'; follow = true; const s = Battle.ships().find((q: any) => q.alive); if (s) { tgt.set(s.x, s.z, s.y); dist = Math.max(20, 12 * s.T.L * SC) } cancelAnimationFrame(raf); frame() }
     else { cancelAnimationFrame(raf); if (ren) (ren.domElement as HTMLElement).style.display = 'none'; hud.style.display = 'none' }
   };
-  (window as any).__b3d = { toggle: () => btn.click(), set: (o: any) => { if (o.yaw != null) yaw = o.yaw; if (o.pitch != null) pitch = o.pitch; if (o.dist != null) dist = o.dist; if (o.sc != null) SC = o.sc } };
+  (window as any).__b3d = { screenOf: (sh: any) => { const g = models.get(sh); if (!g || !ren) return null; const v = g.position.clone().project(cam), r = ren.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height] }, toggle: () => btn.click(), set: (o: any) => { if (o.yaw != null) yaw = o.yaw; if (o.pitch != null) pitch = o.pitch; if (o.dist != null) dist = o.dist; if (o.sc != null) SC = o.sc; if (o.follow != null) follow = o.follow } };
 }

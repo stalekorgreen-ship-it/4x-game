@@ -125,10 +125,10 @@ function fleetsUpdate(){
       else if(E.lrp>10&&E.lrp>F.lrp*1.3&&F.srp>0)st='assault';
       // ждём подходящих союзников, чтобы ударить вместе
       let waiting=false;
-      if(st!=='assault'||dist>F.rng*3)for(const A of all){if(A.side!==F.side||A===F||A.convoy||A.n<3)continue;
+      if(dist>F.rng*1.6)for(const A of all){if(A.side!==F.side||A===F||A.convoy||A.n<1)continue;
         const dA=Math.hypot(A.cx-bf.cx,A.cy-bf.cy);
-        if(dA<450&&dA>F.rng*2&&dA>dist+30&&dist<380&&dist>F.rng*1.8){waiting=true;break}}
-      if(waiting){if(F.wait0<0)F.wait0=t;if(t-F.wait0<50)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
+        if(dA<1000&&dA>F.rng*2&&dA>dist+20&&dist<700&&A.born<=t){waiting=true;break}}
+      if(waiting){if(F.wait0<0)F.wait0=t;if(t-F.wait0<260)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
       F.stance=st}
     F.ratio=ratio;
     if(F.side===0&&ORD.st&&!F.convoy){F.stance=ORD.st;if(ORD.st==='kite')F.hold=Math.max(60,F.lrR*.8,80);if(ORD.st==='retreat')F.until=t+6}
@@ -251,8 +251,8 @@ function steer(s,dt){
   const turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt; // 1 км — около минуты на разворот, 4 км — минутыs.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
   s.vx=s.sx;s.vy=s.sy;
   // высота (псевдо-3D)
-  if(t>=(s.zn||0)){s.zn=t+R(40,90);const r=Math.random();s.zo=r<.4?R(10,28):r<.75?R(-28,-10):R(-5,5)}
-  const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4));s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1}else s.z+=Math.max(-1.2*dt,Math.min(1.2*dt,zt-s.z));
+  if(t>=(s.zn||0)){s.zn=t+R(150,320);const r=Math.random();s.zo=r<.4?R(4,12):r<.75?R(-12,-4):R(-2,2)}
+  const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4));s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
 }
 function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.car||o.side!==c.side)continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d<bd){bd=d;b=o}}return b}
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
