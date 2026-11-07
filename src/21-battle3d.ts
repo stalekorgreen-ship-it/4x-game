@@ -21,7 +21,7 @@ if (wrap && bgo) {
   const matTur = [0xe8f3ff, 0xffd9b0].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .4, metalness: .5 }));
   const matGlow = new THREE.MeshBasicMaterial({ color: 0xffd27a });
   const matDead = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 1 });
-  let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
+  const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
    let fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
@@ -59,6 +59,7 @@ if (wrap && bgo) {
     trailLines = new THREE.LineSegments(tg2, addMat()); trailLines.frustumCulled = false; scene.add(trailLines);
     const MAXS = 600, sg2 = new THREE.BufferGeometry(); sg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3)); sg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3));
     shotLines = new THREE.LineSegments(sg2, addMat()); shotLines.frustumCulled = false; scene.add(shotLines);
+    casings = new THREE.InstancedMesh(geoBox, new THREE.MeshBasicMaterial({ color: 0xd9b24a }), MAXC); casings.frustumCulled = false; casings.count = 0; scene.add(casings);
     let drag = 0, lx = 0, ly = 0;
     cv.addEventListener('contextmenu', e => e.preventDefault());
     let dx0 = 0, dy0 = 0;
@@ -175,7 +176,7 @@ if (wrap && bgo) {
       const px = (m.u || 0) * u.L * .8; let sg = u.seg && u.seg[0]; if (u.seg) for (const q of u.seg) if (Math.abs(q.cx - px) < Math.abs(sg.cx - px)) sg = q;
       t.position.set(px, (sg ? sg.top : u.h * .5) + r * .35, sg ? Math.max(-sg.w * .42, Math.min(sg.w * .42, (m.v || 0) * u.w * 1.3)) : 0);
       const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.6); fl.position.set(r * 3.6, r * .6, 0); fl.visible = false; t.add(fl);
-      (t as any).userData = { m, fl, bar: t.children.filter(c => c !== fl) }; tg.add(t); u.mods.push(m);
+      (t as any).userData = { m, fl, r, lr: 0 }; tg.add(t); u.mods.push(m);
     }
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3();
@@ -199,7 +200,7 @@ if (wrap && bgo) {
       const app = L * sc / Math.max(dd, .01); // видимый размер
       setLod(s, g, app > .035 ? 1 : 0);
       detail(s, g, g.userData.lod === 1 && app > .09);
-      if (g.userData.det) { const tg: THREE.Group = g.userData.tur; { const np = performance.now(); tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return; t.rotation.y = -Battle.turAim(m, s, np); const fr = m.rt && np - m.rt < 130; t.userData.fl.visible = !!fr; if (fr) t.userData.fl.scale.setScalar(t.userData.fl.scale.x > 0 ? t.userData.fl.scale.x : 1) }) } }
+      if (g.userData.det) { const tg: THREE.Group = g.userData.tur; { const np = performance.now(); tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return; t.rotation.y = -Battle.turAim(m, s, np); const fr = m.rt && np - m.rt < 130; t.userData.fl.visible = !!fr; if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01, sd = Math.sign(m.v || (Math.random() - .5)); cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } if (fr) t.userData.fl.scale.setScalar(t.userData.fl.scale.x > 0 ? t.userData.fl.scale.x : 1) }) } }
       g.userData.eng.visible = g.userData.lod === 1 && Math.hypot(s.vx, s.vy) > .02;
     }
     for (const [s, g] of models) if (!alive.has(s) && !s.alive && !ships.includes(s) && g.parent) { scene.remove(g); models.delete(s) }
@@ -244,6 +245,10 @@ if (wrap && bgo) {
     const ba = (beamLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let bc = 0; const nowp = performance.now();
     for (const b of Battle.beams() as any[]) { if (bc >= 400 || !b.a) continue; const o = bc * 6; ba[o] = b.a.x; ba[o + 1] = b.a.z; ba[o + 2] = b.a.y; ba[o + 3] = b.tx; ba[o + 4] = (b.tz != null ? b.tz : (b.b && b.b.z) || 0); ba[o + 5] = b.ty; bc++ }
     beamLines.geometry.setDrawRange(0, bc * 2); (beamLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    {const np2 = performance.now(), dts = 1 / 60; let k = 0; for (let i = cas.length - 1; i >= 0; i--) { const c = cas[i], age = (np2 - c.t0) / 1000; if (age > 3) { cas.splice(i, 1); continue }
+        c.x += c.vx * Battle.getSpeed() * .016; c.y += c.vy * Battle.getSpeed() * .016; c.z += c.vz * Battle.getSpeed() * .016; // медленно улетают и вращаются
+        dummy.position.set(c.x, c.y, c.z); dummy.rotation.set(c.rx + age * c.rs, age * c.rs * .6, 0); const cz = Math.max(c.sz, cam.position.distanceTo(dummy.position) * .0012); dummy.scale.set(cz * 1.6, cz * .7, cz * .7); dummy.updateMatrix(); casings.setMatrixAt(k++, dummy.matrix) }
+      casings.count = k; casings.instanceMatrix.needsUpdate = true}
     {const tb = Battle.time(); let k = 0; const col2 = new THREE.Color();
       for (const f of Battle.fx() as any[]) { if (k >= MAXFX) break; const life = (tb - f.t0) / (f.d || 3); if (life < 0 || life > 1) continue;
         dummy.position.set(f.x, f.z || 0, f.y); const rr = Math.max((f.r || .6) * (.5 + life) * .12, cam.position.distanceTo(dummy.position) * .003); dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();

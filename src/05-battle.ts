@@ -188,13 +188,14 @@ function retarget(s){
   s.trk=sc2.slice(0,s.ch).map(q=>q[1]);if(best&&!s.trk.includes(best)&&s.ch>0){s.trk.pop();s.trk.unshift(best)}
   if(!s.ch){s.trk=s.near.filter(o=>Math.hypot(o.x-s.x,o.y-s.y)<1);if(s.tg&&!s.trk.includes(s.tg))s.tg=s.trk[0]||null}
 }
-function turAim(m,s,now){ // плавный поворот башни к цели (~1.6 рад/с)
+function turAim(m,s,now){ // плавный поворот башни к цели (~1.6 рад/с) в секторе обстрела: стволы не заходят в корпус
   const tg=s.tg&&s.tg.alive?Math.atan2(s.tg.y-s.y,s.tg.x-s.x):null;
   let want=(m.fa!=null&&m.rt&&now-m.rt<1800)?m.fa:tg!=null?tg:m.fa!=null?m.fa:s.hd;
-  want-=s.hd;if(m.da==null){m.da=want;m.dt=now;return m.da}
+  const v=m.v||0,side=Math.abs(v)>.28,ctr=side?Math.sign(v)*Math.PI/2:0,hw=side?2.0:2.6; // бортовые — наружу ±115°, осевые ±150°
+  let rel=want-s.hd-ctr;rel=Math.atan2(Math.sin(rel),Math.cos(rel));rel=Math.max(-hw,Math.min(hw,rel));const target=ctr+rel;
+  if(m.da==null){m.da=target;m.dt=now;return m.da}
   const dt=Math.min(.1,Math.max(0,(now-m.dt)/1000));m.dt=now;
-  let d=want-m.da;d=Math.atan2(Math.sin(d),Math.cos(d));const st=1.6*dt;
-  m.da+=Math.abs(d)<st?d:Math.sign(d)*st;return m.da}
+  const d=target-m.da,st=1.6*dt;m.da+=Math.abs(d)<st?d:Math.sign(d)*st;return m.da}
 function steer(s,dt){
   const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng)*(t<s.blk?.2:1),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;if(s.st==='surr')vm=0;
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
@@ -531,7 +532,7 @@ function step(dt){
   // очереди рельсотронов: выстрелы с задержкой 0,1 с
   for(let i=bursts.length-1;i>=0;i--){const q=bursts[i];
     if(!q.s.alive||!q.m.alive){bursts[i]=bursts[bursts.length-1];bursts.pop();continue}
-    while(q.i<q.n&&t>=q.t0+.1*q.i){fireShell(q.s,q.m,q.o,q.C,t-(q.t0+.1*q.i));q.i++}
+    while(q.i<q.n&&t>=q.t0+.3*q.i){fireShell(q.s,q.m,q.o,q.C,t-(q.t0+.3*q.i));q.i++}
     if(q.i>=q.n){bursts[i]=bursts[bursts.length-1];bursts.pop()}}
   for(let i=proj.length-1;i>=0;i--){
     const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null,fr=false;
