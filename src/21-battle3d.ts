@@ -144,8 +144,10 @@ if (wrap && bgo) {
     g.scale(len, h, w); return g;
   }
   // сечение корпуса зависит от двигателей: сопла стоят сеткой без наложения, при тяжёлых двигателях и малом тоннаже корабль выходит короче и «квадратнее»
-  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = Math.max(1, Math.min(24, s.engN || 3)), d = Math.max(L * .012, Math.min(L * .25, (mp.parts.eng || 0) / ne / TON_L * .55)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
-    return { W: Math.min(L * .6, Math.max(L * .17, cols * d * 1.2 / .95)), H: Math.min(L * .6, Math.max(L * .095, rows * d * 1.2 / 1.1)), ne, d, cols, rows } }
+  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = Math.max(1, Math.min(24, s.engN || 3)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
+    // поперечное сечение корабля задаёт масса двигателей: 1000 т → ~20 м в ширину и высоту, 5000 т → 100 м (те же 50 т на метр), независимо от длины корпуса
+    const S = Math.min(L * 3, Math.max(L * .008, (mp.parts.eng || 0) / TON_L)), d = S / Math.max(cols, rows) * .95;
+    return { W: S, H: S, ne, d, cols, rows } }
   function hullGeo(s: any, seed: number) {
     const R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
@@ -210,7 +212,7 @@ if (wrap && bgo) {
     const nozz: any[] = [];
     { const cols = D0.cols, rows = D0.rows, pz = W * .94 / cols, py = H * .94 / rows, r = Math.min(D0.d / 2, pz * .46, py * .46); let i = 0;
       for (let rw = 0; rw < rows && i < ne; rw++) for (let c = 0; c < cols && i < ne; c++, i++) { const zz = (c - (cols - 1) / 2) * pz, yy = (rw - (rows - 1) / 2) * py;
-        parts.push(piece(unitCyl, 0x16181d, x0 - L * .075, yy, zz, L * .05, r * 2, r * 2)); nozz.push({ z: zz, y: yy, r }) } }
+        parts.push(piece(unitCyl, 0x16181d, x0 - L * .06, yy, zz, L * .07, r * 2.1, r * 2.1)); parts.push(piece(unitCyl, 0x23262d, x0 - L * .105, yy, zz, L * .045, r * 2.5, r * 2.5)); nozz.push({ z: zz, y: yy, r }) } }
     // 200 жёстких точек крепления по всему корпусу: сверху, снизу и с обоих бортов (грани 0 верх, 1 правый, 2 низ, 3 левый)
     // броневая обшивка: сетка секций по всем четырём граням без щелей; часть секций с отверстием (центральным или смещённым) под башни и малые модули
     const nT = (s.spec ? (s.spec.rails || 0) + (s.spec.flak || 0) + (s.spec.gat || 0) + (s.spec.lasers || 0) + (s.spec.miss || 0) : 40) || 1, smalls: { k: string; D: number }[] = [];
@@ -290,7 +292,7 @@ if (wrap && bgo) {
       // шарнирные стыки и рёбра жёсткости на бортах
       for (const sd of [-1, 1]) for (let i = 0; i < 3; i++) if (R() < .6) parts.push(piece(unitBox, shade2(P.dark, 1.3), g.cx - g.len * .35 + i * g.len * .35, y0, sd * (wS + eps * .6), L * .0022, g.h * 1.02, eps * 1.2)) }
     // форсуночные кольца и колокола на корме
-    const nz = (u.full && (u.full as any).userData.nozz) || []; for (const q of nz) { parts.push(piece(new THREE.TorusGeometry(1, .14, 6, 14).rotateY(Math.PI / 2), 0x6a707c, u.x0v - L * .052, q.y || 0, q.z, q.r, q.r, q.r)); parts.push(piece(new THREE.CylinderGeometry(.5, .75, 1, 12).rotateZ(Math.PI / 2), 0x2a2e36, u.x0v - L * .1, q.y || 0, q.z, L * .04, q.r * 2.2, q.r * 2.2)) }
+    const nz = (u.full && (u.full as any).userData.nozz) || []; for (const q of nz) { parts.push(piece(new THREE.TorusGeometry(1, .14, 6, 14).rotateY(Math.PI / 2), 0x6a707c, u.x0v - L * .052, q.y || 0, q.z, q.r, q.r, q.r)); parts.push(piece(new THREE.CylinderGeometry(.5, .75, 1, 12).rotateZ(Math.PI / 2), 0x2a2e36, u.x0v - L * .14, q.y || 0, q.z, L * .05, q.r * 3, q.r * 3)) }
     // носовые маркировки
     for (let i = 0; i < 5; i++) parts.push(piece(unitBox, P.acc, u.x1 - L * .02 - i * L * .008, 0, (i % 2 ? 1 : -1) * L * .0005, L * .004, L * .0007, L * .014 + i * L * .002).translate(0, (u.H || L * .095) * .5 + zA + eps, 0));
     { let o = 0, k = 0; const wv: any[] = []; for (let i = 0; i < parts.length && k < wins.length; i++) { const n = parts[i].attributes.position.count; if (wins[k].pi === i) { wv.push({ v0: o, n, x: wins[k].x, sd: wins[k].sd, y: wins[k].y, cy: wins[k].cy, sh: wins[k].h, h: ((k * 2654435761) >>> 0) % 100 / 100 }); k++ } o += n } u.winV = wv }
@@ -328,7 +330,7 @@ if (wrap && bgo) {
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 2) {
       if (!u.full) { if (builds >= 3) return; builds++; u.full = hullGeo(s, u.seed); const ud = (u.full as any).userData; u.W = ud.W; u.H = ud.H; u.seg = ud.seg; u.mounts = ud.mounts; u.cell = ud.cell; u.armorT = ud.armorT; u.x1 = ud.x1; u.x0v = ud.x0v; u.tilesL = ud.tiles; u.Lk = ud.Lk; u.gridRows = ud.gridRows; u.gridCols = ud.gridCols; u.x0 = ud.x0;
-        for (const n of ud.nozz) { const f = new THREE.Mesh(geoSph, glowMats[s.side]); f.scale.set(u.L * .018, n.r * 1.5, n.r * 1.5); f.position.set(ud.x0 - u.L * .095, n.y || 0, n.z); u.eng.add(f) } }
+        for (const n of ud.nozz) { const f = new THREE.Mesh(geoSph, glowMats[s.side]); f.scale.set(u.L * .02, n.r * 1.15, n.r * 1.15); f.position.set(ud.x0 - u.L * .095, n.y || 0, n.z); u.eng.add(f) } }
       u.body.geometry = u.full; u.body.scale.setScalar(1);
     } else if (lod === 1) { u.body.geometry = midGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) }
     else { u.body.geometry = simpleGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) }
@@ -786,6 +788,8 @@ if (wrap && bgo) {
         const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0005, cd2 * .0006) * (b.ld ? 2.5 : 1);
         _sc.set(ln, rad, rad); _bq.setFromUnitVectors(vX, _bd.set((hx - tx) / ln, (hy - ty) / ln, (hz - tz) / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(bi, _m4);
         bolts.setColorAt(bi, _cc.setRGB(b.side ? 1 : .35, b.side ? .45 : .9, b.side ? .8 : 1).multiplyScalar(fade * 1.8)); bi++ }
+      { const tn = Battle.time(); for (const f of Battle.frags() as any[]) { if (!f.ric || bi >= MAXP - 1) continue; const life = (tn - f.t0) / f.d; if (life < 0 || life > 1) continue; const vl = Math.hypot(f.vx, f.vy) || 1, ln = Math.max(.02, vl * .07), cd2 = cam.position.distanceTo(_p.set(f.x, f.z || 0, f.y)), rad = Math.max(.0004, cd2 * .00045), fade = 1 - life;
+          _sc.set(ln, rad, rad); _bq.setFromUnitVectors(vX, _bd.set(f.vx / vl, 0, f.vy / vl)); _p.set(f.x - f.vx / vl * ln * .5, f.z || 0, f.y - f.vy / vl * ln * .5); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(bi, _m4); bolts.setColorAt(bi, _cc.setRGB(1, .8, .45).multiplyScalar(fade * 2)); bi++ } }
       bolts.count = bi; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true }
     for (const b of [] as any[]) { if (bc >= 400 || !b.a) continue; const o = bc * 6; bc++ }
     beamLines.geometry.setDrawRange(0, bc * 2); (beamLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;

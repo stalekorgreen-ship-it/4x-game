@@ -483,7 +483,7 @@ export function massParts(sp) {
   for (let i = 0; i < (sp.rails || 0); i++) { const c = rc[i] || {cal: 10, bar: 1}; rails += (RAIL_CAL[c.cal] || RAIL_CAL[10]).m * (1 + 1.03 * ((c.bar || 1) - 1)) * 1.25; }
   const o = {rail: rails, flak: (sp.flak || 0) * 110, gat: gatMass(sp), miss: (sp.miss || 0) * 320, laser: ((sp.laserCfg && sp.laserCfg[0] && sp.laserCfg[0].mass) || 9000) * (sp.lasers || 0), hangF: (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass), hangB: (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass), mar: (sp.mar || 0) * 56, core: 800};
   const sc = sp.scList || [], cnt = k => sc.filter(q => q.k === k).length, sm = {rad: cnt('rad') * 700, ir: cnt('ir') * 120, em: cnt('em') * 200, fcs: (sp.fcsN || 0) * 150, ew: (sp.ew || 0) * 300, dcon: (sp.dcon || 0) * 60, sink: (sp.sink || 0) * 120};
-  const M = Object.values(o).reduce((a, b) => a + b, 0), S = M * (HULLK - 1); o.eng = T * ENGF * (sp.spd || 1);
+  const M = Object.values(o).reduce((a, b) => a + b, 0), S = M * (HULLK - 1); o.eng = sp.engT > 0 ? sp.engT : T * ENGF * (sp.spd || 1);
   // оценочная раскладка несущей массы по баку, реактору, жилым отсекам и каркасу (в конструкторе точного списка нет)
   o.tank = S * .3; o.reactor = S * .14; o.crew = S * .16; o.frame = S * .4;
   const L = T / TON_L, armor = Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L);
@@ -499,7 +499,7 @@ export function designStats(parts, flags) {
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
     r.dry += c.mass * n; r.armW = (r.armW || 0) + (c.armW || 0) * n;
-    r.power += (c.power || 0) * n * tm('thrust'); r.engDraw = (r.engDraw || 0) + (c.power || 0) * n * 0.5;
+    r.power += (c.power || 0) * n * tm('thrust'); r.engDraw = (r.engDraw || 0) + (c.power || 0) * n * 0.5; if (c.power) r.engM = (r.engM || 0) + c.mass * n;
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;

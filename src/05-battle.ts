@@ -505,6 +505,13 @@ function fighterHit(o,dmg,x,y,vx,vy){
     if(m.ar>0&&Math.random()<.75){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.6});continue}
     mdead(o,m);ex.splice(j,1);o.crew=Math.max(0,o.crew-.006);o.mor-=.01;stat.fmod=(stat.fmod||0)+1;fx.push({z:o.z,x,y,t0:t,d:8,r:1.8});say(o.side,'mod',o)}
   addDecal(o,x,y,vx,vy,.4,3);if(o.alive&&o.aliveN<o.total*.22)kill(o)}
+// пуля не пробила броню: без вспышки — отскакивает от обшивки и улетает по отражённой траектории, пара искр
+function ricochet(o,x,y,vx,vy){
+  if(frags.length>520)return;let nx=x-o.x,ny=y-o.y;const nl=Math.hypot(nx,ny)||1;nx/=nl;ny/=nl;const vl=Math.hypot(vx,vy)||1,ux=vx/vl,uy=vy/vl,dn=ux*nx+uy*ny;
+  let rx=ux-2*dn*nx,ry=uy-2*dn*ny;const ja=R(-.35,.35),c=Math.cos(ja),sn=Math.sin(ja);[rx,ry]=[rx*c-ry*sn,rx*sn+ry*c];const sp=R(7,12);
+  frags.push({x,y,z:o.z,vx:rx*sp,vy:ry*sp,rot:Math.atan2(ry,rx),vr:0,sz:1.1,t0:t,d:R(.25,.45),side:0,ln:1,hot:1,ric:1});
+  for(let i=0;i<2;i++){const a=Math.atan2(ry,rx)+R(-.9,.9),v=R(2,5);frags.push({x,y,z:o.z,vx:Math.cos(a)*v,vy:Math.sin(a)*v,rot:a,vr:0,sz:.5,t0:t,d:R(.15,.3),side:0,ln:1,hot:1,ric:1})}
+}
 function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   if(!o.alive)return;o.hitT=t;
   {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy)||1;impacts.push({id:++impN,x,y,z:o.z,nx:-vx/dd,ny:-vy/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:kind,s:o});if(impacts.length>300)impacts.splice(0,100)}
@@ -515,7 +522,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   // у корабля нет хп: слои брони по колонкам, потом модули. Попадание снимает слои в случайном месте (воронка шире от тяжёлого снаряда),
   // пробитая колонка пропускает остаток урона к ближайшим модулям; после гибели модуля урон идёт к соседнему
   let dm=kind==='torp'?1:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
-  if(dm<=0){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
+  if(dm<=0){if(kind==='rail')ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
   const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5)))),w=Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
   if(kind==='rail'){const oz=o.zones[(zi+2)%4],oc=Math.max(0,Math.min(oz.nc-1,Math.round((c+.5)/nc*oz.nc-.5)));
     if(z.cols[c]<=0&&oz.cols[oc]<=0&&Math.random()<.5){fx.push({z:o.z,x,y,t0:t,d:3,r:.6});stat.through=(stat.through||0)+1;return}}
@@ -527,7 +534,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
     dm=Math.max(dm,1)
   }else
   for(let j=-half;j<w-half;j++){const cc=c+j;if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dm);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(j===0)pass=dm-tk}
-  if(cut){fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(frags.length<300&&Math.random()<.5)spawnShards(x,y,o.z,2,3);o.mor-=.002;
+  if(cut){if(kind==='rail'&&pass<=0)ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(frags.length<300&&Math.random()<.5)spawnShards(x,y,o.z,2,3);o.mor-=.002;
     if(cut>=3&&Math.random()<Math.min(.9,.15+cut*.04))spawnPlates(o,x,y,1+(cut>14?1:0)+(cut>40?1:0),false);{const rr=Math.random();addDecal(o,x,y,vx,vy,kind==='laser'?1.3:cut>20?.8:.5,kind==='laser'?(rr<.5?2:rr<.8?7:5):cut<3?(rr<.25?3:rr<.45?4:rr<.65?9:rr<.85?6:10):(rr<.3?0:rr<.5?5:rr<.65?8:rr<.8?10:rr<.9?7:6))}}
   if(pass<=0)return;
   const k=kind==='torp'?TORP.mod:pass,f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;
@@ -1131,7 +1138,7 @@ export function specFromShip(s) {
   const st = s.st, cmd = effSkill(s, 'cmd');
   return {name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L, tons: st.tons,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (st.L < 1 ? 1.25 : 1),
-    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, engT: st.engM || 0, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }
