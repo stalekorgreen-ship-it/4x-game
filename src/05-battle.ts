@@ -46,6 +46,8 @@ function mkShip(side,sp,x,y){
     else if(zi===2){m.u=-.42+.07*row;m.v=(col-(cc-1)/2)*Math.min(.12,.7/cc)}
     else{m.u=-.3+.6*(col+.5)/cc;m.v=(zi===1?1:-1)*(.1+.08*row)}});});
   core.u=.02;core.v=0;
+  {let ci=0;for(const z of zones)for(const m of z.mods)if(m.k==='T'||m.k==='A'||m.k==='L'||m.k==='M')m.face=[0,0,1,3,0,2,1,3,0,2][ci++%10]} // стороны башен: верх/правый/низ/левый
+  sh.roll=0;sh.rollT=0;sh.pOff=0;sh.pNext=0;
   const cand=[];for(const z of zones)for(const m of z.mods)if(m.k!=='C')cand.push(m);
   const kill=Math.floor((sp.dmg||0)*(total-1));
   for(let i=0;i<kill&&cand.length;i++){const m=cand.splice((Math.random()*cand.length)|0,1)[0];m.alive=false;sh.aliveN--;if(m.k==='E')sh.engN--}
@@ -176,13 +178,31 @@ function assignSlots(F){ // строй: впереди крепкие, за ни
       s.slotLat=(col-(n-1)/2)*sp+(ri===1||line%2?sp*.5:0);s.slotBack=back+line*1.6;s.row=ri});
     back+=lines*1.6+(ri===0?3:3.5)});
 }
+// может ли башня m корабля s (с креном roll, курсом hd+off) бить цель в направлении (ux,uy,vz): полусфера вокруг нормали площадки
+const FACE_A=[Math.PI/2,0,-Math.PI/2,Math.PI];
+function bearsDir(m,roll,a,vert){const th=FACE_A[m.face||0]+roll,hz=Math.sqrt(Math.max(0,1-vert*vert));return Math.cos(th)*Math.sin(a)*hz+Math.sin(th)*vert>-.25}
+function bears(s,m,o){const dx=o.x-s.x,dy=o.y-s.y,dd=Math.hypot(dx,dy,(o.z-s.z)*1)||1;return bearsDir(m,s.roll||0,Math.atan2(dy,dx)-s.hd,(o.z-s.z)/dd)}
+function armFrac(s,zi){const z=s.zones[zi];return z.armN/Math.max(1,z.nc*Math.min(255,z.arm))}
+function posture(s){ // выбор ракурса и крена: больше башен на цель, а у побитого корабля — самой целой бронёй к врагу
+  const o=s.tg;if(!o||!o.alive||t<s.pNext)return;s.pNext=t+R(5,9);
+  const dx=o.x-s.x,dy=o.y-s.y,dd=Math.hypot(dx,dy,o.z-s.z)||1,vert=(o.z-s.z)/dd,tur=s.tur.filter(m=>m.alive&&(m.k==='T'||m.k==='L'));if(tur.length<3)return;
+  const def=hpf(s)<.55,Q=Math.PI/2;let best=null,bs=-1,cur=-1;
+  const fr=[armFrac(s,0),armFrac(s,1),armFrac(s,2)];
+  for(const po of [0,Q,-Q,Math.PI])for(let k=0;k<4;k++){const roll=k*Q;let sc=0;
+    for(const m of tur)if(bearsDir(m,roll,-po,vert))sc++;sc/=tur.length;
+    if(def){const bow=Math.max(0,Math.cos(po)),str=Math.max(0,-Math.cos(po)),sid=1-Math.abs(Math.cos(po));sc=sc*.35+(fr[0]*bow+fr[2]*str+fr[1]*sid*1.0)*.65+ (po===0?.05:0)}
+    const rd=Math.abs(adiff(roll,s.rollT||0))/Math.PI,pd=Math.abs(adiff(po,s.pOff||0))/Math.PI;sc-=.08*rd+.06*pd; // менять ракурс невыгодно без причины
+    if(po===(s.pOff||0)&&roll===(s.rollT||0))cur=sc;
+    if(sc>bs){bs=sc;best={po,roll}}}
+  if(best&&bs>cur+.04){s.pOff=best.po;s.rollT=best.roll}
+}
 function retarget(s){
   s.nt=t+R(1.2,2.4);const C=s.F,maxR=s.maxR||60;
   s.near=around(1-s.side,s.x,s.y,maxR*1.25).filter(o=>o.lock[s.side]>t-5&&o.st!=='surr');
   let best=null,bs=-1e9;const big=s.spec.rails>=14;
   for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);if(sc>bs){bs=sc;best=o}}
   if(!best&&t<s.bdo&&s.tg&&s.tg.alive)best=s.tg;
-  s.tg=best||null;
+  s.tg=best||null;posture(s);
   // СУО: столько целей, сколько каналов
   const sc2=s.near.map(o=>[-Math.hypot(o.x-s.x,o.y-s.y)*.5+val(o)*8+(1-hpf(o))*20+(o===C.focus?30:0),o]).sort((a,b)=>b[0]-a[0]);
   s.trk=sc2.slice(0,s.ch).map(q=>q[1]);if(best&&!s.trk.includes(best)&&s.ch>0){s.trk.pop();s.trk.unshift(best)}
@@ -218,9 +238,8 @@ function steer(s,dt){
     if(T.role==='freight'||F.stance==='convoy'&&T.role){vx=fvx;vy=fvy}
     else if(tg&&(td<er*1.5||t<s.bdo)){
       const dd=td-dopt,k=Math.abs(dd)<10?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*10)/20)),lat=0,w=formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25;
-      let rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;want=Math.atan2(uy,ux);
-      if(s.cls==='hc'&&s.row===0&&F.stance!=='kite'&&F.stance!=='assault'&&td<er*1.2){ // тяжёлые идут бортом к врагу, как парусники в линии
-        const sd=F.bsd||(F.bsd=Math.random()<.5?1:-1);rx=ux*vm*k*.7;ry=uy*vm*k*.7;want=Math.atan2(uy,ux)+sd*Math.PI/2}
+      let rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;want=Math.atan2(uy,ux)+(td<er*.9?(s.pOff||0):0);
+      
       vx=w*fvx+(1-w)*rx;vy=w*fvy+(1-w)*ry;if(retreating)want=Math.atan2(vy,vx);
       if(F.stance==='assault'&&td>s.maxR*.7)boost=Math.max(boost,1.7);
       else if(F.stance==='kite'&&td<F.hold*.6)boost=Math.max(boost,1.4);
@@ -254,6 +273,7 @@ function steer(s,dt){
   s.x+=s.sx*dt;s.y+=s.sy*dt;
   const turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt; // 1 км — около минуты на разворот, 4 км — минутыs.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
   s.vx=s.sx;s.vy=s.sy;
+  { const rr=.14/(1+T.L)*dt,dr=adiff(s.roll||0,s.rollT||0);s.roll=(s.roll||0)+Math.max(-rr,Math.min(rr,dr)) } // крен вокруг продольной оси
   // высота (псевдо-3D)
   if(t>=(s.zn||0)){s.zn=t+R(150,320);const r=Math.random();s.zo=r<.4?R(4,12):r<.75?R(-12,-4):R(-2,2)}
   const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4));s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
@@ -519,6 +539,7 @@ function step(dt){
       foes=s.trk||[];
       const fl=(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<C.rng&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<C.rng);
       if(!fl.length){m.cd=5;continue}
+      if(!bears(s,m,fl[0])){m.cd=.7+Math.random();continue} // цель вне полусферы обстрела этой башни
       // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся
       {const o0=fl[0],ux=o0.x-s.x,uy=o0.y-s.y,ul=Math.hypot(ux,uy)||1;let bl=false;
         for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
