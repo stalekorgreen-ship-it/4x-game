@@ -51,14 +51,14 @@ const MIXES = {
 const W3 = sp => specTons(fitSpec(sp)) / TON_L;
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
-  armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .95); sp.spd = (sp.spd || 1) * .92; }},
+  armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .95); sp.spd = (sp.spd || 1) * .92; }},
   armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, 1.6); sp.defl = (sp.defl || 0) + .05; sp.spd = (sp.spd || 1) * 1.0; }},
   guns: {n: 'ставка на число орудий', mix: 'line', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 2); setRails(sp, 1.7); sp.spd = (sp.spd || 1) * 1.05; }},
   gunsH: {n: 'ставка на число орудий', mix: 'heavy', mod: sp => { sp.arm = Math.max(2, (sp.arm || 2) - 1); setRails(sp, 2.1); sp.spd = (sp.spd || 1) * 1.05; }},
   balanced: {n: 'сбалансированный флот', mix: 'line', mod: sp => setRails(sp, 1.2)},
   split: {n: 'истребители и бомбардировщики', mix: 'carrier', mod: sp => { if (sp.F) sp.F = Math.round(sp.F * 1.35); if (sp.B) sp.B = Math.round(sp.B * 1.35); }},
   fmBig: {n: 'истребители с противокорабельными ракетами', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'big'}; } }},
-  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.75); sp.fmis = {n: 2, k: 'small'}; } }},
+  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 2.1); sp.fmis = {n: 2, k: 'small'}; } }},
   strike: {n: 'торпедный удар', mix: 'strike', mod: sp => { if (sp.B) sp.B = Math.round(sp.B * 1.3); if (sp.F) sp.F = Math.round(sp.F * 1.2); }},
   lasers: {n: 'лазерная ставка', mix: 'lasers'},
   missiles: {n: 'ракетная ставка', mix: 'missiles', mod: sp => { if (sp.miss) { sp.miss = Math.max(2, Math.round(sp.miss * .55)); sp.missCfg = sp.missCfg.slice(0, sp.miss); } }},
