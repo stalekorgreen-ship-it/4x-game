@@ -99,7 +99,7 @@ if (wrap && bgo) {
     fxMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), MAXFX); fxMesh.frustumCulled = false; fxMesh.count = 0; fxMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(fxMesh);
     const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3));
     trailLines = new THREE.LineSegments(tg2, addMat()); trailLines.frustumCulled = false; scene.add(trailLines);
-    exMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .55 }), MAXEX); exMesh.frustumCulled = false; exMesh.count = 0; exMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(exMesh);
+    exMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .35 }), MAXEX); exMesh.frustumCulled = false; exMesh.count = 0; exMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(exMesh);
     const MAXS = 600, sg2 = new THREE.BufferGeometry(); sg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3)); sg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3));
     shotLines = new THREE.LineSegments(sg2, addMat()); shotLines.frustumCulled = false; scene.add(shotLines);
     plateMesh = new THREE.InstancedMesh(unitBox, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .7, metalness: .3, flatShading: true }), MAXPL); plateMesh.frustumCulled = false; plateMesh.count = 0; plateMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(plateMesh);
@@ -197,7 +197,7 @@ if (wrap && bgo) {
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
     parts.push(piece(unitBox, P.glow, bx + L * .006, bs.cy + bs.h / 2 + bh * .6, 0, L * .057, bh * .06, W * .52));
     parts.push(piece(unitBox, P.main, bx, bs.cy + bs.h / 2 + bh * .86, 0, L * .04, bh * .2, W * .36));
-    for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.35, z * W * .12, L * .004, bh * .75, L * .004));
+    for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.05, z * W * .12, L * .004, bh * .3, L * .004));
     parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3));
     if (s.T.role === 'station' || (s.spec && s.spec.role === 'station')) { // станция: вращающееся кольцо на спицах и солнечные панели
       const xc = x0 + Lk * .55, Rr = L * .3, tube = L * .022, ring = new THREE.TorusGeometry(Rr, tube, 8, 40).rotateY(Math.PI / 2);
@@ -533,11 +533,11 @@ if (wrap && bgo) {
     const now = performance.now(); if (u.shellDirty && now - (u.shellT || 0) > 90) { u.shellT = now; u.shellDirty = false; updateShell(s, u) }
   }
   function buildShell(s: any, g: THREE.Group, u: any) {
-    tileInit(s, u); const L = u.L, seg: any[] = u.seg, xe = u.x1 + L * .2, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, NR = RING.length, NS = Math.min(170, Math.ceil((xe - x0) / (Lk / cols) * 2)), nv = (NS + 1) * NR;
+    tileInit(s, u); const L = u.L, seg: any[] = u.seg, xe = u.x1 + L * .05, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, NR = RING.length, NS = Math.min(170, Math.ceil((xe - x0) / (Lk / cols) * 2)), nv = (NS + 1) * NR;
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
     const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), base = new Float32Array(nv * 3), dir = new Float32Array(nv * 3), map = new Float32Array(nv * 5), paint = new Float32Array(nv * 3), idx: number[] = [];
     const c = new THREE.Color();
-    for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS, d: any = dimsAt(Math.min(xx, u.x1)); let k = 1; if (xx > u.x1) { const t = Math.min(1, (xx - u.x1) / (xe - u.x1)); k = Math.max(.06, 1 - t * .94) }
+    for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS, d: any = dimsAt(Math.min(xx, u.x1)); let k = 1; if (xx > u.x1) { const t = Math.min(1, (xx - u.x1) / (xe - u.x1)); k = 1 - t * .4 }
       c.set(d.col || 0x5b86a8);
       for (let j = 0; j < NR; j++) { const v = i * NR + j, r = RING[j], hh = d.h / 2 * k, ww = d.w / 2 * k, y = d.cy + r.u * hh, z = r.v * ww;
         base[v * 3] = xx; base[v * 3 + 1] = y; base[v * 3 + 2] = z;
@@ -618,7 +618,7 @@ if (wrap && bgo) {
       if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
       const app = L * sc / Math.max(dd, .01); // видимый размер
       setLod(s, g, app > .035 ? 2 : app > .012 ? 1 : 0);
-      detail(s, g, g.userData.lod === 2 && app > .09); shell(s, g, g.userData.lod === 2); ultra(s, g, g.userData.lod === 2 && app > .22 && dd < 400);
+      detail(s, g, g.userData.lod === 2 && app > .04); shell(s, g, g.userData.lod === 2); ultra(s, g, g.userData.lod === 2 && app > .22 && dd < 400);
       if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
           // направление на цель в системе корабля, зажатое в полусферу вокруг нормали площадки
@@ -708,11 +708,11 @@ if (wrap && bgo) {
     { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
       for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
         const nz = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, y: 0, r: L * .04 }];
-        if (sp > .02) { st.set(-L * .67, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.c.distanceTo(st) > L * sc * .02) { h.push({ c: st.clone(), ps: nz.map((n: any) => { const q = new THREE.Vector3(-L * .67, n.y || 0, n.z); g.localToWorld(q); return q }), t: nE }); if (h.length > 26) h.shift() } }
-        while (h.length && nE - h[0].t > 3500) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1];
+        if (sp > .02) { st.set(-L * .67, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.c.distanceTo(st) > L * sc * .02) { h.push({ c: st.clone(), ps: nz.map((n: any) => { const q = new THREE.Vector3(-L * .67, n.y || 0, n.z); g.localToWorld(q); return q }), t: nE }); if (h.length > 18) h.shift() } }
+        while (h.length && nE - h[0].t > 2200) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1];
         // дым идёт из среза каждого сопла: сколько двигателей, столько и струй
-        for (let i = 0; i < h.length && ek < MAXEX; i++) { const age = (nE - h[i].t) / 3500, f = (1 - age) * (1 - age);
-          for (let j = 0; j < nz.length && j < h[i].ps.length && ek < MAXEX; j++) { const sz = nz[j].r * sc * (1.5 + 2.2 * age); dummy.position.copy(h[i].ps[j]); dummy.quaternion.identity(); dummy.scale.setScalar(sz); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix);
+        for (let i = 0; i < h.length && ek < MAXEX; i++) { const age = (nE - h[i].t) / 2200, f = (1 - age) * (1 - age) * .8;
+          for (let j = 0; j < nz.length && j < h[i].ps.length && ek < MAXEX; j++) { const sz = nz[j].r * sc * (.85 + 1.1 * age); dummy.position.copy(h[i].ps[j]); dummy.quaternion.identity(); dummy.scale.setScalar(sz); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix);
             exMesh.setColorAt(ek, _cc2.setRGB(base[0] * f * .9, base[1] * f * .9, base[2] * f * .9)); ek++ } } }
       // маневровые: короткие белые вспышки по бортам, пока корабль крутится (только живые РСУ)
       for (const [sh, g] of models) { if (!sh.alive || !g.visible || !sh.rcs0 || !(sh.rcsN > 0) || Math.abs(sh.trn || 0) < .08) continue; const u = g.userData, L = u.L, sc = g.scale.x, sg = Math.sign(sh.trn), fl = performance.now() % 160 < 100; if (!fl) continue;

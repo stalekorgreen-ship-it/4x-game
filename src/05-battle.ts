@@ -389,7 +389,7 @@ function endTr(p,x,y){if(!p.o0)return;tracers.push({id:++trId,x1:p.o0.x,y1:p.o0.
 function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
   const evx=e.vx!=null?e.vx:(e.sx||0),evy=e.vy!=null?e.vy:(e.sy||0),ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy)/V;
   for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy)/V}
-  const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy)),sig=Math.min(V<1000?.1:.35,.12/(2.5066*Math.max(.01,p))/d),an=Math.atan2(py-sy,px-sx)+gauss()*sig;
+  const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy)),sig=Math.min(V<1000?.05:.35,.12/(2.5066*Math.max(.01,p))/d),an=Math.atan2(py-sy,px-sx)+gauss()*sig;
   proj.push({x:sx,y:sy,z:sz,vz:(ez-sz)/Math.max(.001,T)*.0+gauss()*V*.004,vx:Math.cos(an)*V,vy:Math.sin(an)*V,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
   if(src){src.rt=performance.now()}}
 function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,2400,p,dm||1,600)}
