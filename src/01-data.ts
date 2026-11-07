@@ -37,6 +37,11 @@ export const COMP = {
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
   lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:240, cu:290, si:190, ree:48}},
   missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:14, cu:10, ti:6, si:6}},
+  radar:{name:'РЛС дальнего обнаружения', desc:'Видит врага дальше (до ×3 при 3 станциях). Нужны 2 человека', radar:1, mass:8, cost:{fe:10, cu:14, si:12}},
+  ew:{name:'Станция РЭБ', desc:'Помехи: сбивает вражескую наводку рядом с кораблём. Нужны 3 человека', ew:1, mass:12, cost:{fe:14, cu:20, si:16, ti:4}},
+  marines:{name:'Десантный отсек', desc:'10 морпехов для абордажа сдавшихся и обездвиженных кораблей. Морпехи занимают койки', mar:10, mass:14, cost:{fe:20, ti:6, si:4}},
+  dcon:{name:'Пост аварийной команды', desc:'Быстрее тушит пожары и чинит модули в бою. Нужны 3 человека', dcon:1, mass:6, cost:{fe:8, ti:6}},
+  sink:{name:'Радиатор', desc:'Отводит тепло: реже перегрев лазеров и форсажа', sink:1, mass:12, cost:{fe:16, cu:10}},
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
   hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, ni:5}},
@@ -392,6 +397,7 @@ export function designStats(parts, flags) {
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
     r.mine += (c.mine || 0) * n;
+    r.radar=(r.radar||0)+(c.radar||0)*n;r.ew=(r.ew||0)+(c.ew||0)*n;r.mar=(r.mar||0)+(c.mar||0)*n;r.dcon=(r.dcon||0)+(c.dcon||0)*n;r.sink=(r.sink||0)+(c.sink||0)*n;
     r.lasers += c.mine ? n : 0;
     r.crewCap += (c.crew || 0) * n;
     r.lifeCap += (c.life || 0) * n;
@@ -420,7 +426,7 @@ export function designStats(parts, flags) {
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.bspd = r.power ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35)) : 1;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
-  r.crewNeed = 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
+  r.crewNeed = 2 * (r.radar||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
   r.warship = r.rail + r.flak + r.lgun + r.msl + r.hangF + r.hangB > 0;
   r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.buildDays = Math.max(1, Math.round(r.dry * 0.4));
