@@ -372,7 +372,16 @@ if (wrap && bgo) {
     for (const p of Battle.mis() as any[]) { if (mc >= 2000) break; ma[mc * 3] = p.x; ma[mc * 3 + 1] = p.z; ma[mc * 3 + 2] = p.y; mc++ }
     misPts.geometry.setDrawRange(0, mc); (misPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const ba = (beamLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let bc = 0; const nowp = performance.now();
-    for (const b of Battle.beams() as any[]) { if (bc >= 400 || !b.a) continue; const o = bc * 6; ba[o] = b.a.x; ba[o + 1] = b.a.z; ba[o + 2] = b.a.y; ba[o + 3] = b.tx; ba[o + 4] = (b.tz != null ? b.tz : (b.b && b.b.z) || 0); ba[o + 5] = b.ty; bc++ }
+    // лазерный выстрел — летящий яркий импульс с хвостом, а не постоянная линия через всё поле
+    { let bi = bolts.count; const nwb = performance.now();
+      for (const b of Battle.beams() as any[]) { if (bi >= MAXP - 1 || !b.a) continue; const dur = Math.max(1, b.rt - b.c0), a = (nwb - b.c0) / dur; if (a < 0 || a > 1.15) continue;
+        const sx = b.a.x, sy = b.a.z, sz = b.a.y, ex = b.tx, ey = (b.tz != null ? b.tz : (b.b && b.b.z) || 0), ez = b.ty, len = Math.hypot(ex - sx, ey - sy, ez - sz) || 1e-6, cd2 = cam.position.distanceTo(_p.set((sx + ex) / 2, (sy + ey) / 2, (sz + ez) / 2));
+        const hp = Math.min(1, a * 1.25), tail = Math.min(.5, Math.max(.02, cd2 * .03 / len)), tp = Math.max(0, hp - tail), fade = a > 1 ? Math.max(0, 1 - (a - 1) / .15) : 1;
+        const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0008, cd2 * .0011);
+        _sc.set(ln, rad, rad); _bq.setFromUnitVectors(vX, _bd.set((hx - tx) / ln, (hy - ty) / ln, (hz - tz) / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(bi, _m4);
+        bolts.setColorAt(bi, _cc.setRGB(b.side ? 1 : .35, b.side ? .45 : .9, b.side ? .8 : 1).multiplyScalar(fade * 1.8)); bi++ }
+      bolts.count = bi; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true }
+    for (const b of [] as any[]) { if (bc >= 400 || !b.a) continue; const o = bc * 6; bc++ }
     beamLines.geometry.setDrawRange(0, bc * 2); (beamLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     {const tb2 = Battle.time(); let k = 0; const cc = new THREE.Color();
       for (const f of Battle.frags() as any[]) { if (f.ln || f.plate || k >= MAXPL) continue; const life = (tb2 - f.t0) / f.d; if (life > 1) continue;

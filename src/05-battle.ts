@@ -188,7 +188,8 @@ function posture(s){ // выбор ракурса и крена: больше б
   const dx=o.x-s.x,dy=o.y-s.y,dd=Math.hypot(dx,dy,o.z-s.z)||1,vert=(o.z-s.z)/dd,tur=s.tur.filter(m=>m.alive&&(m.k==='T'||m.k==='L'));if(tur.length<3)return;
   const def=hpf(s)<.55,Q=Math.PI/2;let best=null,bs=-1,cur=-1;
   const fr=[armFrac(s,0),armFrac(s,1),armFrac(s,2)];
-  for(const po of [0,Q,-Q,Math.PI])for(let k=0;k<4;k++){const roll=k*Q;let sc=0;
+  for(const po of def?[0,Q,-Q,Math.PI]:[0])for(let k=0;k<4;k++){const roll=k*Q;let sc=0; // здоровый корабль всегда носом к врагу, боком — только побитый, чтобы подставить целую броню
+
     for(const m of tur)if(bearsDir(m,roll,-po,vert))sc++;sc/=tur.length;
     if(def){const bow=Math.max(0,Math.cos(po)),str=Math.max(0,-Math.cos(po)),sid=1-Math.abs(Math.cos(po));sc=sc*.35+(fr[0]*bow+fr[2]*str+fr[1]*sid*1.0)*.65+ (po===0?.05:0)}
     const rd=Math.abs(adiff(roll,s.rollT||0))/Math.PI,pd=Math.abs(adiff(po,s.pOff||0))/Math.PI;sc-=.08*rd+.06*pd; // менять ракурс невыгодно без причины
