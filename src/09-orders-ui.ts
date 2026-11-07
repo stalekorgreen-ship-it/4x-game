@@ -282,7 +282,7 @@ export function renderDesigner(full) {
   }).join('');
   const s = dStats(d), aff = stockOK(s.cost);
   $('dstats').innerHTML = `<div class="stats">
-    <span>Масса (без топлива)</span><span>${fmtN(s.dry)} т</span><span>Мощность двигателей</span><span>${fmtN(s.power)}</span>
+    <span>Масса (без топлива)</span><span>${fmtN(s.dry)} т</span>${s.warship ? `<span>Водоизмещение (бронекорпус)</span><span>${fmtN(s.tons)} т</span>` : ''}<span>Мощность двигателей</span><span>${fmtN(s.power)}</span>
     <span>КПД двигателей</span><span>${fmtN(s.eff, 2)}</span><span>Скорость (полный бак)</span><span>${fmtN(s.speedFull, 3)} а.е./сут</span>
     <span>Дальность на баке</span><span>${fmtN(s.range, 1)} а.е.</span><span>Топливо</span><span>${fmtN(s.fuelCap)} т</span>
     <span>Груз</span><span>${fmtN(s.cargoCap)} т</span><span>Добыча</span><span>${fmtN(s.mine)} т/сут</span>

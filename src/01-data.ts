@@ -174,8 +174,10 @@ export function compOf(key) {
     for (const p of base.opts) sel[p.id] = p.range ? {v: String(snapPct(o[p.id] || p.def))} : (p.vals.find(v => v.v === o[p.id]) || p.vals.find(v => v.v === p.def));
     base.ap(c, sel);
   }
+  if (MIL_MODS.has(b)) { c = {...c, cost: {...c.cost}}; c.mass = Math.round(c.mass * TONS_K); c.mil = 1; }
   c.base = b; return _cc[key] = c;
 }
+const MIL_MODS = new Set(['rail', 'flak', 'armor', 'lgun', 'missile', 'irs', 'ems', 'radar', 'fcs', 'ew', 'marines', 'dcon', 'sink', 'hangar_f', 'hangar_b']);
 
 export const FIELDS = {phys: 'Физика', eng: 'Инженерия', bio: 'Биология'};
 export const RES = {fe:'Железо', ni:'Никель', ti:'Титан', cu:'Медь', si:'Кремний', c:'Углерод', ice:'Лёд', pt:'Платиноиды', ree:'Редкоземельные', n2:'Азот', co2:'Углекислый газ', ch4:'Метан', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
@@ -394,6 +396,14 @@ COMP.missile.ap = (c, s) => {
 };
 export const STAT_OUT = {build: 'Строительство', yard: 'Судостроение', plant: 'Заводы (сырьё)', fuel: 'Заправка кораблей', spares: 'Тех. изделия кораблям', raid: 'Потери от налётов', pop: 'Продажа сырья заводам Земли', old: 'Прочее'};
 
+/* ===== ВОДОИЗМЕЩЕНИЕ ===== */
+// боевой корабль: оборудование в тоннах ×150 (бронекорпус, переборки, реактор) + каркас корпуса ~4000·L³
+export const TONS_K = 150, HULL_K = 4000;
+export const tonsOf = (dry, L) => Math.round((dry * TONS_K + HULL_K * Math.pow(L, 3)) / 100) * 100;
+// оценка массы модулей у корабля ИИ (рельсы 6, зенитки 5, ракеты 10, лазер 450, двигатель 6, слой брони 20, ангары, десант)
+export const specDry = sp => (sp.rails || 0) * 6 + (sp.flak || 0) * 5 + (sp.miss || 0) * 10 + (sp.lasers || 0) * 450 + (sp.eng || 3) * 6 + (sp.arm || 0) * 20 + Math.ceil((sp.F || 0) / 10) * 30 + Math.ceil((sp.B || 0) / 5) * 30 + Math.ceil((sp.mar || 0) / 10) * 14;
+export const specTons = sp => sp.role === 'freight' ? Math.round((specDry(sp) + 4000 * Math.pow(sp.L || .5, 3) * .15) / 100) * 100 : tonsOf(specDry(sp), sp.L || .5);
+
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
 export function designStats(parts, flags) {
@@ -403,7 +413,7 @@ export function designStats(parts, flags) {
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
-    r.dry += c.mass * n;
+    r.dry += (c.mil ? c.mass / TONS_K : c.mass) * n;
     r.power += (c.power || 0) * n * tm('thrust');
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
@@ -447,6 +457,7 @@ export function designStats(parts, flags) {
   }
   r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.buildDays = Math.max(1, Math.round(r.dry * 0.4));
+  r.tons = r.warship ? tonsOf(r.dry, r.L) : r.dry;
   const massFull = r.dry + r.fuelCap;
   r.speedFull = r.power ? r.power / massFull * SPEED_K : 0;
   r.range = r.power && r.fuelCap ? r.fuelCap / (massFull * FUEL_K / r.eff) : 0;

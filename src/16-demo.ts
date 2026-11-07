@@ -51,21 +51,21 @@ const W3 = sp => Math.pow(sp.L || .5, 2.2) + (sp.F || 0) * 0.00008 + (sp.B || 0)
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .85); sp.spd = (sp.spd || 1) * .92; }},
-  armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .9); sp.defl = (sp.defl || 0) + .08; sp.spd = (sp.spd || 1) * .92; }},
+  armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, 1.25); sp.defl = (sp.defl || 0) + .05; sp.spd = (sp.spd || 1) * .97; }},
   guns: {n: 'ставка на число орудий', mix: 'line', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 2); setRails(sp, 1.7); sp.spd = (sp.spd || 1) * 1.05; }},
   gunsH: {n: 'ставка на число орудий', mix: 'heavy', mod: sp => { sp.arm = Math.max(2, (sp.arm || 2) - 2); setRails(sp, 1.6); }},
   balanced: {n: 'сбалансированный флот', mix: 'line', mod: sp => setRails(sp, 1.2)},
-  split: {n: 'истребители и бомбардировщики', mix: 'carrier'},
+  split: {n: 'истребители и бомбардировщики', mix: 'carrier', mod: sp => { if (sp.F) sp.F = Math.round(sp.F * 1.35); if (sp.B) sp.B = Math.round(sp.B * 1.35); }},
   fmBig: {n: 'истребители с противокорабельными ракетами', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'big'}; } }},
-  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'small'}; } }},
-  strike: {n: 'торпедный удар', mix: 'strike'},
+  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.4); sp.fmis = {n: 2, k: 'small'}; } }},
+  strike: {n: 'торпедный удар', mix: 'strike', mod: sp => { if (sp.B) sp.B = Math.round(sp.B * 1.3); if (sp.F) sp.F = Math.round(sp.F * 1.2); }},
   lasers: {n: 'лазерная ставка', mix: 'lasers'},
   missiles: {n: 'ракетная ставка', mix: 'missiles'},
   brawl: {n: 'ближний бой', mix: 'brawl'},
   swarm: {n: 'рой малых кораблей', mix: 'swarm'},
   light: {n: 'лёгкий флот', mix: 'light'},
   convoy: {n: 'конвой', mix: 'convoy'},
-  assault: {n: 'десантный флот', mix: {frigate: 3, destroyer: 3, cruiser: 2, carrier: 1, brawler: 1}, mod: sp => { sp.mar = Math.round(({cv: 20, hc: 10, dd: 8, fr: 4}[sp.cls] || 4) * 4); }},
+  assault: {n: 'десантный флот', mix: {frigate: 3, destroyer: 3, cruiser: 2, carrier: 1, brawler: 1}, mod: sp => { sp.mar = Math.round(({cv: 20, hc: 10, dd: 8, fr: 4}[sp.cls] || 4) * 4); setRails(sp, 1.3); sp.spd = (sp.spd || 1) * 1.08; }},
 };
 const BYSIZE = n => { const r = Math.random();  if (r < .08) return 'assault'; if (r < .3) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
   if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
