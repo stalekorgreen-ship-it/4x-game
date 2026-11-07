@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
@@ -133,14 +134,14 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
-  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = tm('death') * (1 + Math.max(0, L.hours - 40) * .01);
+  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = tm('death') * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
   let b = 0, d = 0;
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
     const w = (wel[s] && wel[s][a] != null) ? wel[s][a] : 1;
     const q = clampN(mortQ(a) * mk * (1 + 3 * (1 - w)) * f, 0, .5), dd = x.n * q; d += dd;
     const k = 1 - q; x.n *= k; x.un *= k; x.st *= k;
-    if (a >= 20 && a < 40) b += x.n * .056 * FERT[s] * (.6 + .4 * w) * f * bk * lg;
+    if (a >= 20 && a < 40) b += x.n * .056 * FERT[s] * (.6 + .4 * w) * f * bk * bk2 * lg;
   }
   P.c[0][0].n += b; P.c[0][0].st += b; P.birth = b / f; P.death = d / f; P.bornY += b; P.diedY += d;
 }
@@ -156,7 +157,7 @@ export function stepAge() {
     const x = nw[s][a]; if (x.st <= 0) continue;
     let up = 0;
     if (s < 3 && a <= 25) {
-      const aff = clampN(P.parInc[s] * 2 / (TUIT[s + 1] * (1 - laws().edu / 100) * 2 + 1e-9), 0, 1), prem = wage[s + 1] / wage[s], inc = clampN((prem - 1) / .3, 0, 1);
+      const aff = clampN((1 + .12 * colN(ctxId(), 'school')) * P.parInc[s] * 2 / (TUIT[s + 1] * (1 - laws().edu / 100) * 2 + 1e-9), 0, 1), prem = wage[s + 1] / wage[s], inc = clampN((prem - 1) / .3, 0, 1);
       up = aff * inc * CAPS[s];
     }
     const mv = x.st * up, leave = x.st - mv;

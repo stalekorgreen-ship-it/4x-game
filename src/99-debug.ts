@@ -12,3 +12,4 @@ import { advance } from './04-engine.ts'; import { drawMap } from './08-map-ui.t
 import { matureSystem } from './16-demo.ts'; window.__game.matureSystem = matureSystem;
 import { makeScenario } from './16-demo.ts'; window.__game.makeScenario = makeScenario;
 import { duelScenario, MIXNAMES } from './16-demo.ts'; window.__game.duelScenario = duelScenario; window.__game.MIXNAMES = MIXNAMES;
+import * as CB from './19-colbld.ts'; window.__game.CB = CB;

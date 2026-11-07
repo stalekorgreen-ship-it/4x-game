@@ -3,7 +3,7 @@ import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, T
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
+import { buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -336,7 +336,7 @@ export function refreshEarth() {
     return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.${gate ? ` <span class="warn">${gate}</span>` : ''}</div>
       <div class="row"><span class="grow muted">${costTxt(c)} · ${b.days} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
   }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
-  h += `<div class="box"><h2>Строится (2 бригады)</h2>` + (state.build.map(j => `<div class="row"><span style="min-width:120px">${BLD[j.type].name}</span>${j.started ? bar(1 - j.left / j.total) + `<span class="mono">${fmtDur(j.left)}</span>` : `<span class="warn grow">${stockOK(bldCost(j.type)) ? 'ждёт бригаду' : 'не хватает: ' + lackTxt(bldCost(j.type))}</span><button class="btn sm danger" data-a="bcancel" data-id="${j.id}">Отмена</button>`}</div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>';
+  h += `<div class="box"><h2>Строится (бригад: ${buildSlots()} · ${buildUnits()} ед./сут)</h2><div class="row"><span class="grow muted">Подрядчики корпораций: ${state.hire || 0} (+10 ед./сут каждый, ${fmtN(HIRE_PRICE)} кр/сут)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(j => `<div class="row"><span style="min-width:120px">${BLD[j.type].name}</span>${j.started ? bar(1 - j.left / j.total) + `<span class="mono">${fmtDur(j.left)}</span>` : `<span class="warn grow">${stockOK(bldCost(j.type)) ? 'ждёт бригаду' : 'не хватает: ' + lackTxt(bldCost(j.type))}</span><button class="btn sm danger" data-a="bcancel" data-id="${j.id}">Отмена</button>`}</div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>';
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
   h += `<div class="box"><div class="stats"><span>Стапелей на верфи</span><span>${yardSlots()}</span><span>Скорость постройки</span><span>×${fmtN(yardSpeed(), 1)}</span><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
@@ -345,6 +345,7 @@ export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k]
 export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
   if (a === 'bbuild' && bldCanAdd(d.t)) state.build.push({id: uid(), type: d.t, started: false, left: BLD[d.t].days, total: BLD[d.t].days});
+  if (a === 'hire') state.hire = Math.max(0, Math.min(8, (state.hire || 0) + (+d.d)));
   if (a === 'bcancel') state.build = state.build.filter(j => j.id !== +d.id);
   refreshEarth();
 }

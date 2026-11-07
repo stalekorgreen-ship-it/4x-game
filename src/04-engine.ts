@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { colBuildTick } from './19-colbld.ts';
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
 import { veinEff } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
@@ -14,7 +15,7 @@ export function advance(days) {
   while (days > 1e-9) {
     const h = Math.min(days, Battle.active() ? 1 / 86400 : 1 / 48);
     state.t += h;
-    yardTick(h); buildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
+    yardTick(h); buildTick(h); colBuildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
     while (state.t >= state.nextOfficer) { graduate(); state.nextOfficer += academyInterval(); }
     const bat = Battle.active();
     for (const s of state.ships) {

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { colBldHtml, colBuildAdd } from './19-colbld.ts';
 // Оболочка интерфейса: иконки разделов сверху слева и подвкладки, панели «Состав» и «Работа».
 import { depleteYears, veinEff, BODY, RES, GROUND, TERRA, canShipMine, shipMineLimit, state, fmtN } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
@@ -108,10 +109,12 @@ export function refreshCol() {
   if (COLONIZABLE(id) && !state.cols[id]) { const I = colInfo(id); h += `<div class="stats"><span>Стоимость</span><span>${fmtN(I.cost)} кр</span><span>Поселенцы</span><span>${fmtN(I.settlers)}</span><span>Вместимость</span><span>${fmtN(I.hab)}</span><span>Надбавка к ввозу</span><span>×${fmtN(I.dist, 2)}</span></div>`; }
   h += why ? `<div class="help">${why}</div>` : '';
   h += `<button class="btn" data-found="${esc(id)}"${why ? ' disabled' : ''}>Основать колонию</button><div class="help">Выберите тело на карте, приведите туда любой свой корабль, затем нажмите кнопку. Годятся планеты, спутники и астероиды.</div></div>`;
+  h += colBldHtml(ui.colSel && state.cols[ui.colSel] ? ui.colSel : id);
   setHtml(p, h);
 }
 (function colEvents() {
   const clk = (e) => {
+    const cb = e.target.closest('[data-cbld]'); if (cb) { colBuildAdd(cb.dataset.cid, cb.dataset.cbld); hooks.showTab(ui.tab); return; }
     const f = e.target.closest('[data-found]'); if (f) { if (foundColony(f.dataset.found)) ui.colSel = f.dataset.found; hooks.showTab(ui.tab); return; }
     const c = e.target.closest('[data-col]'); if (c) { ui.colSel = c.dataset.col; hooks.showTab(ui.tab === 'col' ? 'pop' : ui.tab); }
   };

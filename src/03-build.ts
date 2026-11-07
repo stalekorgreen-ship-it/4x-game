@@ -12,6 +12,7 @@ export const BLD = {
   shipyard:   {name: 'Верфь', level: true, max: 3, desc: 'Каждый уровень: +1 стапель и постройка быстрее на 10%.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
   scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, max: 3, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
+  cbureau:    {name: 'Строительное бюро', max: 20, desc: '+10 единиц стройки в сутки: здания и улучшения возводятся быстрее, параллельных бригад на одну больше.', cost: {fe: 400, ti: 100, cu: 100, si: 60}, days: 25},
   // --- научные институты ---
   instphys:   {name: 'Институт физики', max: 6, desc: '+4 очка физики в сутки на здание.', cost: {fe: 300, si: 300, cu: 150, c: 100}, days: 30},
   insteng:    {name: 'Инженерное бюро', max: 6, desc: '+4 очка инженерии в сутки на здание.', cost: {fe: 400, ti: 150, cu: 150, si: 150}, days: 30},
@@ -38,7 +39,10 @@ export const BLD = {
   exchange:   {name: 'Биржа', max: 5, desc: 'Приносит 150 000 кр в сутки на здание. Нужна «Здоровая рабочая сила».', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, tech: 'tax1'},
 };
 // Сотрудники построек: люди из рынка труда Земли, зарплата — средняя по рынку (в масштабе казны)
-export const BW = {mine: 20000, fuelplant: 30000, sparesplant: 30000, shipyard: 100000, scicenter: 10000, academy: 50000, instphys: 20000, insteng: 20000, instbio: 20000, market: 10000, fuelplant2: 60000, sparesfab: 50000, crusher: 30000, techpark: 80000, composite: 40000, enginefab: 50000, spaceport: 100000, colbureau: 15000, testrange: 25000, repairdock: 30000, trainctr: 15000, miningsch: 12000, hospital: 40000, maternity: 20000, chamber: 10000, exchange: 25000}, BLD_MIX = [.5, .35, .15, 0], WK = 1e-3;
+export const BW = {mine: 20000, fuelplant: 30000, sparesplant: 30000, cbureau: 10000, shipyard: 100000, scicenter: 10000, academy: 50000, instphys: 20000, insteng: 20000, instbio: 20000, market: 10000, fuelplant2: 60000, sparesfab: 50000, crusher: 30000, techpark: 80000, composite: 40000, enginefab: 50000, spaceport: 100000, colbureau: 15000, testrange: 25000, repairdock: 30000, trainctr: 15000, miningsch: 12000, hospital: 40000, maternity: 20000, chamber: 10000, exchange: 25000}, BLD_MIX = [.5, .35, .15, 0], WK = 1e-3;
+export const buildUnits = () => 5 + 10 * (state.bld.cbureau || 0) + 10 * (state.hire || 0);
+export const buildSlots = () => 2 + (state.bld.cbureau || 0) + (state.hire || 0);
+export const HIRE_PRICE = 120000;
 export const bldWorkers = () => Object.keys(BW).reduce((a, t) => a + (state.bld[t] || 0) * BW[t], 0);
 export const bldJobs = s => state.bld ? bldWorkers() * BLD_MIX[s] : 0;
 export function bldWage() { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !state.bld) return 0; let w = 0; for (let s = 0; s < 4; s++) w += bldJobs(s) * P.wage[s]; return w * WK; }
@@ -54,6 +58,7 @@ export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) 
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
   const B = state.bld, S = state.stock; for (const t in BLD) if (B[t] == null) B[t] = 0;
+  if (state.hire) { const cs = state.corps || [], pay = state.hire * HIRE_PRICE * h; if (cs.length && state.money >= pay) { state.money -= pay; cs[Math.floor(state.t) % cs.length].credits += pay; } else state.hire = 0; }
   state.money -= bldWage() * h; state.bldWageDay = bldWage();
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');
@@ -69,11 +74,11 @@ export function buildTick(h) {
     const inc = (60000 * B.chamber + 150000 * B.exchange) * h; if (inc > 0) state.money += inc; }
   let active = state.build.filter(j => j.started).length;
   for (const j of state.build) {
-    if (j.started || active >= 2) continue;
+    if (j.started || active >= buildSlots()) continue;
     const c = bldCost(j.type);
     if (stockOK(c)) { for (const [k, v] of Object.entries(c)) { S[k] -= v; rec(k, 'out', v, 'build'); } j.started = true; active++; }
   }
-  for (const j of state.build) if (j.started) j.left -= h * (techOn('fastbuild') ? 1.25 : 1) * tm('build');
+  { const act = state.build.filter(j => j.started).length || 1, rate = buildUnits() / act / 5; for (const j of state.build) if (j.started) j.left -= h * rate * (techOn('fastbuild') ? 1.25 : 1) * tm('build'); }
   const done = state.build.filter(j => j.started && j.left <= 0);
   for (const j of done) { B[j.type]++; log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`); }
   if (done.length) state.build = state.build.filter(j => !done.includes(j));
