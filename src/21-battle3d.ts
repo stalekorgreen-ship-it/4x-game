@@ -355,9 +355,12 @@ if (wrap && bgo) {
           const inv = new THREE.Quaternion().copy(gs.quaternion).invert(), n: THREE.Vector3 = tt.userData.n, dd = dw.clone().applyQuaternion(inv).normalize(), dn = dd.dot(n); if (dn < .02) dd.addScaledVector(n, .02 - dn).normalize();
           const dl = dd.clone().applyQuaternion(tt.quaternion.clone().invert()), hq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.normalize()); tt.userData.head.quaternion.copy(hq); tt.updateMatrixWorld(true);
           const tip = tt.userData.tips[(Math.random() * tt.userData.tips.length) | 0], mp = new THREE.Vector3(); tip.getWorldPosition(mp);
-          p._m = { x: mp.x - p.x, y: mp.y - p.z, z: mp.z - p.y, d0: p.dist, F: Math.max(.04, (gs.userData.L || 1) * .1) }; dbg.td = tdeb.length; dbg.m++; dbg.last = { mp: [mp.x, mp.y, mp.z], src: p.src, ship: [gs.position.x, gs.position.y, gs.position.z] }; dbg.off = Math.max(dbg.off, Math.hypot(mp.x - gs.position.x, mp.y - gs.position.y, mp.z - gs.position.z) / (gs.userData.L || 1)) } }
+          p._m = null; if (p.o0) p._O = [p.o0.x + mp.x - gs.position.x, p.o0.z + mp.y - gs.position.y, p.o0.y + mp.z - gs.position.z]; // точка вылета: конец ствола в момент выстрела
+           dbg.td = tdeb.length; dbg.m++; dbg.last = { mp: [mp.x, mp.y, mp.z], src: p.src, ship: [gs.position.x, gs.position.y, gs.position.z] }; dbg.off = Math.max(dbg.off, Math.hypot(mp.x - gs.position.x, mp.y - gs.position.y, mp.z - gs.position.z) / (gs.userData.L || 1)) } }
       if (p._m) { const w = Math.max(0, 1 - (p.dist - p._m.d0) / p._m.F); ox = p._m.x * w; oy = p._m.y * w; oz = p._m.z * w }
-      pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; pa[o + 3] = p.x + ox - p.vx * tailK * .1; pa[o + 4] = p.z + oy - (p.vz || 0) * tailK * .1; pa[o + 5] = p.y + oz - p.vy * tailK * .1;
+      pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; { const tx = p.vx * tailK * .1, ty = (p.vz || 0) * tailK * .1, tz = p.vy * tailK * .1;
+        if (p._O) { const dx = p.x - p._O[0], dy = p.z - p._O[1], dz = p.y - p._O[2]; if (dx * dx + dy * dy + dz * dz < 16 * (tx * tx + ty * ty + tz * tz)) { pa[o + 3] = p._O[0]; pa[o + 4] = p._O[1]; pa[o + 5] = p._O[2] } else { pa[o + 3] = p.x - tx; pa[o + 4] = p.z - ty; pa[o + 5] = p.y - tz } }
+        else { pa[o + 3] = p.x + ox - tx; pa[o + 4] = p.z + oy - ty; pa[o + 5] = p.y + oz - tz } }
       const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;

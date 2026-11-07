@@ -443,13 +443,13 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   if(!o.alive)return;o.hitT=t;
   {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy)||1;impacts.push({id:++impN,x,y,z:o.z,nx:-vx/dd,ny:-vy/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:kind,s:o});if(impacts.length>300)impacts.splice(0,100)}
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
-  const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.9,0.9),ab=Math.abs(a);
+  const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.35,0.35),ab=Math.abs(a);
   const zi=ab<0.785?0:ab>2.356?2:(a>0?1:3);let z=o.zones[zi];
   // у корабля нет хп: слои брони по колонкам, потом модули. Попадание снимает слои в случайном месте (воронка шире от тяжёлого снаряда),
   // пробитая колонка пропускает остаток урона к ближайшим модулям; после гибели модуля урон идёт к соседнему
   let dm=kind==='torp'?1:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22);dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
   if(dm<=0){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
-  const nc=z.nc,c=(Math.random()*nc)|0,w=Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
+  const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5)))),w=Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
   if(kind==='mis'){ // ракета: сегмент PW колонок; в центре dm слоёв, к краям спад до 1; число сегментов растёт с мощностью (3→3, 9→5, 25→7, 30→9)
     const P0=pw||dmg,hs=Math.round(Math.sqrt(Math.max(1,P0))/1.5),W=hs*2+1,cen=Math.max(dmg*.5,.5);pass=0;
     for(let sg=-hs;sg<=hs;sg++){let dv=Math.max(sg===0?cen:1,cen*(1-Math.abs(sg)/(hs+1)));if(sg!==0&&dmg<P0*.5)dv*=dmg/P0*2;dv=Math.floor(dv)+(Math.random()<dv%1?1:0);if(dv<=0)continue;
@@ -493,7 +493,7 @@ function fireShell(s,m,o0,C,lag){
   const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*T*T)*(1.4-0.08*m.sk)*C.sig;
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:s.x+ax/l*(VPc*lag+s.T.L*.4),y:s.y+ay/l*(VPc*lag+s.T.L*.4),z:s.z,vz:(o.z-s.z)/Math.max(.5,T)+gauss()*VPc*.022,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,max:C.rng,src:s,m:m,ev:Math.random()});
+  proj.push({x:s.x+ax/l*(VPc*lag+s.T.L*.4),y:s.y+ay/l*(VPc*lag+s.T.L*.4),z:s.z,vz:(o.z-s.z)/Math.max(.5,T)+gauss()*VPc*.022,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,max:C.rng,src:s,m:m,ev:Math.random(),o0:{x:s.x,y:s.y,z:s.z}});
   stat.shots[s.side]++;s.flash=t;Sfx.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
