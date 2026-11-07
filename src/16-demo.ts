@@ -47,8 +47,8 @@ const MIXES = {
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
-// вес флота — по тоннажу: корпус 50 000 т на км длины + истребители по 500 т, торпедоносцы по 800 т
-const W3 = sp => (specTons(sp) + (sp.F || 0) * 500 + (sp.B || 0) * 800) / TON_L;
+// вес флота — по тоннажу: корпус 50 000 т на км длины + истребители по 350 т, торпедоносцы по 400 т
+const W3 = sp => (specTons(sp) + (sp.F || 0) * 350 + (sp.B || 0) * 400) / TON_L;
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .85); sp.spd = (sp.spd || 1) * .92; }},
