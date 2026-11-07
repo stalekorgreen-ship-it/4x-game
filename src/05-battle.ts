@@ -34,7 +34,7 @@ function mkShip(side,sp,x,y){
   for(let i=0;i<(sp.miss||0);i++){const m=add('M',(i+3)%4);m.cfg=(sp.missCfg&&sp.missCfg[i])||MC0;m.ammo=m.cfg.ammo;tur.push(m)}
   for(let i=0;i<T.eng;i++)add('E',2);
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.lasers||0)+(sp.miss||0)+T.eng+1;
-  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
+  const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*m.cfg.rng/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
   sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>m.cfg.rng));
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
@@ -165,11 +165,15 @@ function assignSlots(F){ // строй: впереди крепкие, за ни
 }
 function retarget(s){
   s.nt=t+R(1.2,2.4);const C=s.F,maxR=s.maxR||60;
-  s.near=around(1-s.side,s.x,s.y,maxR*1.25).filter(o=>o.seen[s.side]>t-5&&o.st!=='surr');
+  s.near=around(1-s.side,s.x,s.y,maxR*1.25).filter(o=>o.lock[s.side]>t-5&&o.st!=='surr');
   let best=null,bs=-1e9;const big=s.spec.rails>=14;
   for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);if(sc>bs){bs=sc;best=o}}
   if(!best&&t<s.bdo&&s.tg&&s.tg.alive)best=s.tg;
   s.tg=best||null;
+  // СУО: столько целей, сколько каналов
+  const sc2=s.near.map(o=>[-Math.hypot(o.x-s.x,o.y-s.y)*.5+val(o)*8+(1-hpf(o))*20+(o===C.focus?30:0),o]).sort((a,b)=>b[0]-a[0]);
+  s.trk=sc2.slice(0,s.ch).map(q=>q[1]);if(best&&!s.trk.includes(best)&&s.ch>0){s.trk.pop();s.trk.unshift(best)}
+  if(!s.ch){s.trk=s.near.filter(o=>Math.hypot(o.x-s.x,o.y-s.y)<1);if(s.tg&&!s.trk.includes(s.tg))s.tg=s.trk[0]||null}
 }
 function steer(s,dt){
   const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng)*(t<s.blk?.2:1),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;if(s.st==='surr')vm=0;
@@ -357,6 +361,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg){lastDmgT=t;
   if(o.alive&&o.aliveN<o.total*0.22)kill(o);
 }
 function flakBurst(s,m){
+  if(!s.fine){m.cd=3;return false}
   const F=m.cfg,cand=[];for(const c of fly[1-s.side])if(Math.hypot(c.x-s.x,c.y-s.y)<F.rng)cand.push(c);
   const tp=torps.concat(mis).filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng);
   if(!cand.length&&!tp.length){m.cd=2;return false}
@@ -405,7 +410,7 @@ function step(dt){
     let foes=null;const muted=s.st==='surr'||t<s.blk,slow=s.st==='panic'?.5:1;
     for(const m of s.tur){
       if(!m.alive||muted)continue;
-      if(mis.length&&(m.k==='T'||m.k==='A')&&t>(m.pd||0)){const q=nearMis(s,m.k==='A'?m.cfg.rng:22);
+      if(mis.length&&s.fine&&(m.k==='T'||m.k==='A')&&t>(m.pd||0)){const q=nearMis(s,m.k==='A'?m.cfg.rng:22);
         if(q){m.pd=t+(m.k==='A'?6:12)*R(.8,1.3);m.fa=Math.atan2(q.y-s.y,q.x-s.x);m.rt=performance.now();shots.push({x1:s.x,y1:s.y,x2:q.x,y2:q.y,rt:performance.now(),s:s.side,a:s,b:q});
           if(Math.random()<(m.k==='A'?.25:.08))hurtMis(q,1)}}
       m.cd-=dt*slow;if(m.cd>0)continue;
@@ -413,7 +418,7 @@ function step(dt){
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
-        const rg=C.rng,ok=q=>q&&q.alive&&q.st!=='surr'&&q.seen[s.side]>t-5&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
+        const rg=C.rng,ok=q=>q&&q.alive&&q.st!=='surr'&&q.lock[s.side]>t-5&&s.ch>0&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
         if(m.k==='L'&&s.ovh){m.cd=6;continue}
         let o=ok(s.F.focus)?s.F.focus:ok(s.tg)?s.tg:null;
         if(!o&&s.tg===null){m.cd=3;continue}
@@ -434,7 +439,7 @@ function step(dt){
           s.flash=t;Sfx.shot('missile');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(300,100+C.dmg*28)*R(.8,1.25)*(1.3-.06*m.sk);
         }
         continue}
-      foes=s.near||[];
+      foes=s.trk||[];
       const fl=(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<C.rng&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<C.rng);
       if(!fl.length){m.cd=5;continue}
       // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся
@@ -498,12 +503,33 @@ function step(dt){
 }
 let smoke=[];
 const WR={cv:.38,hc:.32,fr:.3,dd:.24};
+// сигнатуры: тепловая (двигатели, форсаж, перегрев, залпы) и электромагнитная (радар, залпы)
+function sigOf(o){const L2=o.T.L*o.T.L,sh=t-o.flash<8?1:0;
+  const h=(.6+L2)*(1+1.8*Math.max(0,o.bst-1)+o.heat*1.2+sh*.6-(o.engN>0?0:.5)),e=.3+L2*.3+(o.rdOn?3+L2*5:0)+sh*.5;
+  return [Math.max(.1,h),Math.max(.05,e)]}
+// работающие сканеры: чем сильнее повреждён корабль, тем меньше их живо
+function scAlive(s){const hp=hpf(s);if(hp<.3)return[];const n=Math.ceil(s.sc.length*Math.min(1,hp/.7));return s.sc.slice(0,n)}
 function updVis(){
   for(const o of ships){if(!o.alive)continue;let j=0;for(const q of around(o.side,o.x,o.y,30))j+=q.spec.ew!=null?.04*Math.min(5,q.spec.ew):(EW[q.cls]||0);o.jam=Math.min(.6,j)}
-  for(const s of ships){if(!s.alive||t<s.blk)continue;const R0=s.rad*(.5+.5*hpf(s));
-    for(const o of around(1-s.side,s.x,s.y,R0*1.5)){const d=Math.hypot(o.x-s.x,o.y-s.y),lim=Math.max(55,R0*(1-o.jam)*(t-o.flash<8?1.5:1));
-      if(d<lim){if(o.seen[s.side]<0)say(s.side,'contact',s);o.seen[s.side]=t}}}
-  for(const c of air){if(c.state!=='fly')continue;for(const o of around(1-c.side,c.x,c.y,110))o.seen[c.side]=t}
+  const mode=ORD.sens||'auto';
+  for(const s of ships){if(!s.alive)continue;s.rdOn=false;s.fine=false;s.scl=scAlive(s)}
+  // ИИ радара: включает при контакте с врагом рядом, молчит в режиме «тишина»
+  for(const s of ships){if(!s.alive||s.st==='surr')continue;const rd=s.scl.filter(q=>q.k==='rad');if(!rd.length)continue;
+    const m=s.side===0?mode:'auto';if(m==='silent'||m==='pass')continue;
+    let on=m==='active';
+    if(!on){const R2=Math.max(2.2*(s.maxR||60),160);for(const o of around(1-s.side,s.x,s.y,R2))if(o.seen[s.side]>t-8){on=true;break}}
+    if(on){s.rdOn=true;s.fine=rd.some(q=>q.fine)}}
+  for(const s of ships){if(!s.alive||t<s.blk)continue;
+    let mx=1;for(const q of s.scl)mx=Math.max(mx,q.k==='rad'?(s.rdOn?q.rng:0):q.rng*2);
+    for(const o of around(1-s.side,s.x,s.y,mx*1.6)){const d=Math.hypot(o.x-s.x,o.y-s.y);
+      if(d<1){o.lock[s.side]=t;o.seen[s.side]=t;continue}
+      const sg=sigOf(o),small=o.T.L<.6;let det=false,lk=false;
+      for(const q of s.scl){
+        if(q.k==='rad'){if(!s.rdOn)continue;const er=q.rng*Math.sqrt(1+o.T.L)*(1-o.jam);if(d<er){det=true;if(q.fine||!small)lk=true}}
+        else{const er=q.rng*Math.sqrt(q.k==='ir'?sg[0]:sg[1])*(small&&q.res<.66?.25:1);if(d<er)det=true}}
+      if(det){if(o.seen[s.side]<0)say(s.side,'contact',s);o.seen[s.side]=t}
+      if(lk)o.lock[s.side]=t}}
+  for(const c of air){if(c.state!=='fly')continue;for(const o of around(1-c.side,c.x,c.y,110)){o.seen[c.side]=t;o.lock[c.side]=t}}
 }
 function crewStep(dc){
   env=env.filter(e=>e.ttl>t);for(const e of env)if(e.vx||e.vy){e.x+=e.vx*dc;e.y+=e.vy*dc}
@@ -540,7 +566,7 @@ function crewStep(dc){
 function resolveBoard(s,o){
   const sk=(s.spec.sk||5)/10,att=s.mar*(.6+sk)*(.4+.6*s.crew),def=(o.st==='surr'?1.5:o.T.role?3:6+o.T.L*10)*(.3+o.crew)*(.4+.6*o.mor);
   if(Math.random()<att/(att+def)){
-    o.prizeFrom=o.side;o.side=s.side;o.fid=s.fid;o.st='ok';o.mor=.5;o.crew*=.5;o.prize=1;o.tg=null;o.nt=0;o.mar=0;o.blk=0;o.seen=[t,t];
+    o.prizeFrom=o.side;o.side=s.side;o.fid=s.fid;o.st='ok';o.mor=.5;o.crew*=.5;o.prize=1;o.tg=null;o.nt=0;o.mar=0;o.blk=0;o.seen=[t,t];o.lock=[t,t];
     for(const c of air)if(c.home===o&&c.state!=='dead')killCraft(c,'captured');
     stat.cap[s.side]++;s.mar=Math.max(0,s.mar-2);say(s.side,'prize',s)}
   else s.mar=Math.max(0,s.mar-Math.ceil(s.mar*.4));
@@ -724,6 +750,7 @@ function bind(){
   $b('bord').onclick=e=>{const o=e.target.dataset&&e.target.dataset.o;if(o===undefined)return;
     if(o==='focus'){ORD.focus=sel&&sel.alive&&sel.side===1?sel:null;e.target.classList.toggle('on',!!ORD.focus);return}
     ORD.st=o||null;for(const b of $b('bord').querySelectorAll('[data-o]'))if(b.dataset.o!=='focus')b.classList.toggle('on',b.dataset.o===o)};
+  $b('bsens').onclick=e=>{const o=e.target.dataset&&e.target.dataset.s;if(o===undefined)return;ORD.sens=o||null;for(const b of $b('bsens').querySelectorAll('[data-s]'))b.classList.toggle('on',b.dataset.s===o)};
   $b('bsnd').onclick=e=>{const v=e.target.textContent.includes('вкл');Sfx.setOn(!v);e.target.textContent='Звук: '+(v?'выкл':'вкл')};
   $b('bgo').onclick=()=>{ui.bfollow=true;focusBattle()};
   $b('btilt').oninput=e=>setTilt(+e.target.value);
@@ -752,7 +779,7 @@ export function specFromShip(s) {
   const st = s.st, cmd = effSkill(s, 'cmd');
   return {name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (st.L < 1 ? 1.25 : 1),
-    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, defl: st.defl, fq: st.fq, bq: st.bq, radar: st.radar||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, defl: st.defl, fq: st.fq, bq: st.bq, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }

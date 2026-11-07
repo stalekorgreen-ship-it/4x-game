@@ -37,7 +37,10 @@ export const COMP = {
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
   lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:240, cu:290, si:190, ree:48}},
   missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:14, cu:10, ti:6, si:6}},
-  radar:{name:'РЛС дальнего обнаружения', desc:'Видит врага дальше (до ×3 при 3 станциях). Нужны 2 человека', radar:1, mass:8, cost:{fe:10, cu:14, si:12}},
+  irs:{name:'Тепловой сканер (пассивный)', desc:'Ловит тепло чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'ir', mass:5, crewN:1, cost:{fe:6, cu:8, si:10}},
+  ems:{name:'ЭМ-сканер (пассивный)', desc:'Ловит радиоизлучение чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'em', mass:6, crewN:1, cost:{fe:6, cu:10, si:12}},
+  radar:{name:'Активный радар', desc:'Точные координаты цели для наведения, но выдаёт ваш корабль', sc:'rad', mass:12, crewN:3, cost:{fe:12, cu:18, si:14}},
+  fcs:{name:'Система управления огнём', desc:'Ведёт цели на прицел: по одной цели на канал', fcs:1, mass:4, crewN:2, cost:{fe:8, cu:10, si:8, ti:2}},
   ew:{name:'Станция РЭБ', desc:'Помехи: сбивает вражескую наводку рядом с кораблём. Нужны 3 человека', ew:1, mass:12, cost:{fe:14, cu:20, si:16, ti:4}},
   marines:{name:'Десантный отсек', desc:'10 морпехов для абордажа сдавшихся и обездвиженных кораблей. Морпехи занимают койки', mar:10, mass:14, cost:{fe:20, ti:6, si:4}},
   dcon:{name:'Пост аварийной команды', desc:'Быстрее тушит пожары и чинит модули в бою. Нужны 3 человека', dcon:1, mass:6, cost:{fe:8, ti:6}},
@@ -84,6 +87,15 @@ COMP.cargo.ap = (c, s) => { if (s.cn.v === 'l') { c.cargo = 160; c.mass *= 0.6; 
 COMP.laser.opts = [SZ, O('cool', 'Охлаждение', 'n', [['n', 'пассивное'], ['a', 'активное +30%']])];
 COMP.laser.ap = (c, s) => { if (s.cool.v === 'a') { c.mine *= 1.3; c.mass = Math.round(c.mass * 1.25 * 10) / 10; addCost(c, 'cu', 4); addCost(c, 'si', 4); } scl(c, SZK[s.sz.v]); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки, 2 человека экипажа на лазер`; };
 COMP.laser2.opts = COMP.laser.opts; COMP.laser2.ap = (c, s) => { COMP.laser.ap(c, s); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки (нужна технология)`; };
+const SCW = {w: {k: 1.5, r: .5, m: 1, n: 'широкий (дальше, грубо)'}, n: {k: .8, r: 1, m: 1.3, n: 'узкий (ближе, точно)'}};
+for (const k of ['irs', 'ems']) {
+  COMP[k].opts = [O('res', 'Разрешение', 'w', [['w', 'широкое: дальше, грубо'], ['n', 'узкое: ближе, видит мелочь']])];
+  COMP[k].ap = (c, s) => { const q = SCW[s.res.v]; c.scRng = Math.round((k === 'irs' ? 150 : 180) * q.k); c.scRes = q.r; c.mass = Math.round(c.mass * q.m * 10) / 10; c.desc += ` · дальность ~${c.scRng} км`; };
+}
+COMP.radar.opts = [O('pw', 'Мощность', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая']]), O('res', 'Разрешение', 'c', [['c', 'крупное: далеко, не видит мелочь и ракеты'], ['f', 'мелкое: ближе, ловит ракеты и истребителей']])];
+COMP.radar.ap = (c, s) => { const P = {s: [180, .6, 2], m: [330, 1.5, 3], l: [600, 3.4, 5]}[s.pw.v], f = s.res.v === 'f'; c.scRng = Math.round(P[0] * (f ? .4 : 1)); c.scRes = f ? 1 : .4; c.scFine = f ? 1 : 0; c.mass = Math.round(c.mass * P[1] * 10) / 10; c.crewN = P[2]; mulCost(c, P[1]); c.desc += ` · дальность ~${c.scRng} км, экипаж ${P[2]}`; };
+COMP.fcs.opts = [O('ch', 'Каналов', '2', [['1', '1'], ['2', '2'], ['4', '4'], ['8', '8']])];
+COMP.fcs.ap = (c, s) => { const n = +s.ch.v; c.fcs = n; c.mass = Math.round(c.mass * Math.pow(n, .8) * 10) / 10; c.crewN = 2 * n; mulCost(c, Math.pow(n, .8)); c.desc = `${n} целей одновременно, экипаж ${2 * n}`; };
 COMP.cabin.opts = [SZ]; COMP.cabin.ap = sizeAp(c => `${c.crew} мест`);
 COMP.life.opts = [SZ]; COMP.life.ap = sizeAp(c => `Рассчитана на ${c.life} человек`);
 COMP.spares.opts = [SZ]; COMP.spares.ap = sizeAp(c => `Хранит ${c.spares} тех. изделий`);
@@ -397,7 +409,7 @@ export function designStats(parts, flags) {
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
     r.mine += (c.mine || 0) * n;
-    r.radar=(r.radar||0)+(c.radar||0)*n;r.ew=(r.ew||0)+(c.ew||0)*n;r.mar=(r.mar||0)+(c.mar||0)*n;r.dcon=(r.dcon||0)+(c.dcon||0)*n;r.sink=(r.sink||0)+(c.sink||0)*n;
+    r.scList=r.scList||[];r.fcsN=(r.fcsN||0)+(c.fcs||0)*n;r.scCrew=(r.scCrew||0)+(c.crewN||0)*n;if(c.sc)for(let i=0;i<n;i++)r.scList.push({k:c.sc,rng:c.scRng,res:c.scRes,fine:c.scFine||0});r.ew=(r.ew||0)+(c.ew||0)*n;r.mar=(r.mar||0)+(c.mar||0)*n;r.dcon=(r.dcon||0)+(c.dcon||0)*n;r.sink=(r.sink||0)+(c.sink||0)*n;
     r.lasers += c.mine ? n : 0;
     r.crewCap += (c.crew || 0) * n;
     r.lifeCap += (c.life || 0) * n;
@@ -426,8 +438,13 @@ export function designStats(parts, flags) {
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.bspd = r.power ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35)) : 1;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
-  r.crewNeed = 2 * (r.radar||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
+  r.crewNeed = (r.scCrew||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
   r.warship = r.rail + r.flak + r.lgun + r.msl + r.hangF + r.hangB > 0;
+  if (r.rail + r.flak + r.lgun + r.msl > 0) {
+    if (!r.fcsN) r.warns.push('Нет системы управления огнём: орудия не смогут вести цели (только стрельба вблизи на глаз).');
+    if (!(r.scList || []).some(q => q.k === 'rad')) r.warns.push('Нет активного радара: наводка возможна только по данным союзников или вблизи (до 1 км).');
+    if (r.flak && !(r.scList || []).some(q => q.fine)) r.warns.push('Нет радара с мелким разрешением: зенитки и ПВО не увидят ракеты и истребители.');
+  }
   r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.buildDays = Math.max(1, Math.round(r.dry * 0.4));
   const massFull = r.dry + r.fuelCap;
