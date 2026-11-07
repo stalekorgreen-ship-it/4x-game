@@ -13,6 +13,10 @@ if (wrap && bgo) {
   bgo.after(btn);
 
   let on = false, ren: THREE.WebGLRenderer | null = null, scene: THREE.Scene, cam: THREE.PerspectiveCamera, raf = 0;
+  let tcam: any = null, tcamN = 0, pendT = 0; // камера на башне (клавиша T): видно, как вылетает трассер и отлетают плиты
+  function camTurret() { let g: any = null, bd = 1e18; for (const [, m] of models) if (m.userData.det && m.userData.tur.children.length) { const d = m.position.distanceToSquared(cam.position); if (d < bd) { bd = d; g = m } } if (!g) { // нет детальных кораблей: подлетаем к ближайшему, башню выберем, когда он прорисуется
+      let b2: any = null, bd2 = 1e18; for (const [sh, m] of models) if (sh.alive) { const d = m.position.distanceToSquared(cam.position); if (d < bd2) { bd2 = d; b2 = sh } } if (b2) { Battle.select(b2); follow = true; fitAll = false; dist = Math.max(.05, b2.T.L * .35); pendT = 90 } return }
+    const c = (g.userData.tur.children as any[]).filter(t => t.visible && t.userData.m && t.userData.m.alive).sort((a, b) => (b.userData.m.rt || 0) - (a.userData.m.rt || 0)).slice(0, 6); if (!c.length) return; tcam = c[tcamN++ % c.length]; follow = false; fitAll = false; dist = Math.max(.002, tcam.userData.r * 70 * (g.scale.x || 1)) }
   let fitAll = true; let yaw = .6, pitch = .45, dist = 40, SC = 1.5, follow = true;
   const tgt = new THREE.Vector3();
   const models = new Map<any, THREE.Group>();
@@ -31,7 +35,7 @@ if (wrap && bgo) {
 
   const hud = document.createElement('div');
   hud.style.cssText = 'position:absolute;left:10px;top:44px;z-index:5;color:#cfe;font:12px monospace;background:rgba(10,14,22,.7);padding:6px 8px;border-radius:6px;display:none;pointer-events:none';
-  hud.innerHTML = 'ЛКМ: вращать · колесо: зум · ПКМ: сдвиг · [ ] размер · F: следить за выбранным · A: вписать всё поле';
+  hud.innerHTML = 'ЛКМ: вращать · колесо: зум · ПКМ: сдвиг · [ ] размер · F: следить за выбранным · A: вписать всё поле · T: камера на башню (повторно — следующая)';
   wrap.appendChild(hud);
 
   function init() {
@@ -86,7 +90,7 @@ if (wrap && bgo) {
       else { follow = false; const r = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)); tgt.addScaledVector(r, -dx * dist * .0016); tgt.y += dy * dist * .0016 }
     });
     cv.addEventListener('wheel', e => { e.preventDefault(); fitAll = false; dist = Math.max(.3, Math.min(2500, dist * Math.exp(e.deltaY * .0012))) }, { passive: false });
-    addEventListener('keydown', e => { if (!on) return; if (e.key === '[') SC = Math.max(1, SC / 1.4); else if (e.key === ']') SC = Math.min(40, SC * 1.4); else if (e.key === 'f' || e.key === 'F') { follow = true; fitAll = false } else if (e.key === 'a' || e.key === 'A') { follow = true; fitAll = true } });
+    addEventListener('keydown', e => { if (!on) return; if (e.key === '[') SC = Math.max(1, SC / 1.4); else if (e.key === ']') SC = Math.min(40, SC * 1.4); else if (e.key === 'f' || e.key === 'F') { follow = true; fitAll = false; tcam = null } else if (e.key === 'a' || e.key === 'A') { follow = true; fitAll = true; tcam = null } else if (e.key === 't' || e.key === 'T' || e.key === 'е' || e.key === 'Е') camTurret() });
   }
 
   // ---- процедурный «сборный» корпус: ступенчатые блоки, камуфляжные плиты, рубка, антенны, сопла ----
@@ -317,6 +321,8 @@ if (wrap && bgo) {
     }
     for (const [s, g] of models) if (!alive.has(s) && !s.alive && !ships.includes(s) && g.parent) { scene.remove(g); models.delete(s) }
     if (n && follow) { const sel = Battle.anchorSel && Battle.anchorSel(); if (fitAll || !(sel && sel.alive)) { v3.set(cx, cz, cy); tgt.lerp(v3, .08); if (fitAll) dist += (Math.min(700, Math.max(40, rad * 2.3 / Math.tan(.43))) - dist) * .04 } else { tgt.lerp(v3.set(sel.x, sel.z, sel.y), .08) } }
+    if (pendT > 0 && !tcam) { pendT--; camTurret() }
+    if (tcam && tcam.parent) { tcam.getWorldPosition(v3); tgt.lerp(v3, .35) } else tcam = null; { const nr = tcam ? Math.max(.0005, Math.min(.05, dist * .01)) : .05; if (cam.near !== nr) { cam.near = nr; cam.updateProjectionMatrix() } }
     cam.position.set(tgt.x + dist * Math.cos(pitch) * Math.sin(yaw), tgt.y + dist * Math.sin(pitch), tgt.z + dist * Math.cos(pitch) * Math.cos(yaw)); cam.lookAt(tgt);
     // истребители и бомбардировщики
     let fc = 0; const col = new THREE.Color();
@@ -349,7 +355,7 @@ if (wrap && bgo) {
           const inv = new THREE.Quaternion().copy(gs.quaternion).invert(), n: THREE.Vector3 = tt.userData.n, dd = dw.clone().applyQuaternion(inv).normalize(), dn = dd.dot(n); if (dn < .02) dd.addScaledVector(n, .02 - dn).normalize();
           const dl = dd.clone().applyQuaternion(tt.quaternion.clone().invert()), hq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.normalize()); tt.userData.head.quaternion.copy(hq); tt.updateMatrixWorld(true);
           const tip = tt.userData.tips[(Math.random() * tt.userData.tips.length) | 0], mp = new THREE.Vector3(); tip.getWorldPosition(mp);
-          p._m = { x: mp.x - p.x, y: mp.y - p.z, z: mp.z - p.y, d0: p.dist, F: Math.max(.04, (gs.userData.L || 1) * .1) }; dbg.m++; dbg.off = Math.max(dbg.off, Math.hypot(mp.x - gs.position.x, mp.y - gs.position.y, mp.z - gs.position.z) / (gs.userData.L || 1)) } }
+          p._m = { x: mp.x - p.x, y: mp.y - p.z, z: mp.z - p.y, d0: p.dist, F: Math.max(.04, (gs.userData.L || 1) * .1) }; dbg.td = tdeb.length; dbg.m++; dbg.last = { mp: [mp.x, mp.y, mp.z], src: p.src, ship: [gs.position.x, gs.position.y, gs.position.z] }; dbg.off = Math.max(dbg.off, Math.hypot(mp.x - gs.position.x, mp.y - gs.position.y, mp.z - gs.position.z) / (gs.userData.L || 1)) } }
       if (p._m) { const w = Math.max(0, 1 - (p.dist - p._m.d0) / p._m.F); ox = p._m.x * w; oy = p._m.y * w; oz = p._m.z * w }
       pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; pa[o + 3] = p.x + ox - p.vx * tailK * .1; pa[o + 4] = p.z + oy - (p.vz || 0) * tailK * .1; pa[o + 5] = p.y + oz - p.vy * tailK * .1;
       const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
@@ -433,5 +439,5 @@ if (wrap && bgo) {
     if (on) { if (!ren) init(); (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'block'; follow = true; const s = Battle.ships().find((q: any) => q.alive); if (s) { tgt.set(s.x, s.z, s.y); fitAll = true; dist = 120 } cancelAnimationFrame(raf); frame() }
     else { cancelAnimationFrame(raf); if (ren) (ren.domElement as HTMLElement).style.display = 'none'; hud.style.display = 'none' }
   };
-  (window as any).__b3d = { dbg, screenOf: (sh: any) => { const g = models.get(sh); if (!g || !ren) return null; const v = g.position.clone().project(cam), r = ren.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height] }, toggle: () => btn.click(), set: (o: any) => { if (o.yaw != null) yaw = o.yaw; if (o.pitch != null) pitch = o.pitch; if (o.dist != null) dist = o.dist; if (o.sc != null) SC = o.sc; if (o.follow != null) follow = o.follow; if (o.fit != null) fitAll = o.fit } };
+  (window as any).__b3d = { dbg, camTurret: () => { const sel = Battle.anchorSel && Battle.anchorSel(), g = sel && models.get(sel); return [!!sel, !!g, g && g.userData.det, g && g.userData.tur.children.length, !!tcam] }, dbg, pt: (x: number, y: number, z: number) => { if (!ren) return null; const v = new THREE.Vector3(x, y, z).project(cam), r = ren.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height] }, screenOf: (sh: any) => { const g = models.get(sh); if (!g || !ren) return null; const v = g.position.clone().project(cam), r = ren.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height] }, toggle: () => btn.click(), set: (o: any) => { if (o.yaw != null) yaw = o.yaw; if (o.pitch != null) pitch = o.pitch; if (o.dist != null) dist = o.dist; if (o.sc != null) SC = o.sc; if (o.follow != null) follow = o.follow; if (o.fit != null) fitAll = o.fit } };
 }
