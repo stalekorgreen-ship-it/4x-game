@@ -15,3 +15,8 @@ import './21-battle3d.ts';
 import './22-war.ts';
 import './99-debug.ts';
 import './20-tutorial.ts';
+
+import { hooks } from './00-hooks.ts';
+import { showEventToast, applyPanelBgs } from './17-art.ts';
+hooks.onLog = msg => showEventToast(msg);
+applyPanelBgs(); setTimeout(applyPanelBgs, 500);

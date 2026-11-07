@@ -2,7 +2,7 @@
 import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
-import { nebula } from './17-art.ts';
+import { nebula, eventKind, eventArt } from './17-art.ts';
 import { hooks } from './00-hooks.ts';
 
 /* ===== UI: ОБЩЕЕ ===== */
@@ -436,7 +436,7 @@ export function refreshFleet() {
   p.innerHTML = h + '<div class="help">Полосы корабля: топливо (синяя), груз (оранжевая), состояние (зелёная).</div>';
 }
 export function refreshLog() {
-  $('p-log').innerHTML = state.log.slice(0, 80).map(l => `<div><span class="t">${fmtDate(l.t).slice(0, 10)}</span>${esc(l.msg)}</div>`).join('') || '<div class="help">Пока тихо.</div>';
+  $('p-log').innerHTML = state.log.slice(0, 80).map(l => { const k = eventKind(l.msg); return `<div class="lg">${k ? `<span class="lgi">${eventArt(k, 64, 24)}</span>` : ''}<span class="t">${fmtDate(l.t).slice(0, 10)}</span>${esc(l.msg)}</div>` }).join('') || '<div class="help">Пока тихо.</div>';
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Shift') ui.shift = true; });

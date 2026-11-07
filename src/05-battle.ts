@@ -901,6 +901,11 @@ function drawShip(g,s,x,y,k,dp){
         g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.15,0,6.283);g.fill();g.fillStyle=m.k==='T'?CL[s.side]:'#ffe08a';g.beginPath();g.arc(mx,my,mr*.7,0,6.283);g.fill();
         const aim=turAim(m,s,now),bl=mr*(m.k==='T'?2.4:1.5);g.strokeStyle=m.k==='T'?'#e8f3ff':'#ffd27a';g.lineWidth=Math.max(dp,mr*.5);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke();
         if(m.rt&&now-m.rt<130){g.fillStyle='rgba(255,245,200,'+(1-(now-m.rt)/130)+')';g.beginPath();g.arc(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl,mr*1.05,0,6.283);g.fill()}}
+      else if(m.k==='G'){
+        const aim=turAim(m,s,now),tw=m.cfg&&m.cfg.tw,bl=mr*1.9,h=Math.min(1,m.heat||0);g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.1,0,6.283);g.fill();
+        g.fillStyle=m.lock?'#ff5a3c':'rgb('+Math.round(120+135*h)+','+Math.round(150-90*h)+','+Math.round(160-120*h)+')';g.beginPath();g.arc(mx,my,mr*.65,0,6.283);g.fill();
+        g.strokeStyle='#cfd8e0';g.lineWidth=Math.max(dp,mr*.32);const nx=-Math.sin(aim)*mr*.28;for(let b=0;b<(tw?2:1);b++){const o=tw?(b?1:-1):0,ox=-Math.sin(aim)*mr*.3*o,oy=Math.cos(aim)*mr*.3*o;g.beginPath();g.moveTo(mx+ox,my+oy);g.lineTo(mx+ox+Math.cos(aim)*bl,my+oy+Math.sin(aim)*bl);g.stroke()}
+        if(m.rt&&now-m.rt<90){g.fillStyle='rgba(255,230,150,.8)';g.beginPath();g.arc(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl,mr*.6,0,6.283);g.fill()}}
       else if(m.k==='L'){
         const aim=turAim(m,s,now),bl=mr*3.2,hot=m.rt&&now-m.rt<380;
         g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.3,0,6.283);g.fill();g.fillStyle=hot?'#fff':(s.side?'#ff7ad9':'#6af0ff');g.beginPath();g.arc(mx,my,mr*.85,0,6.283);g.fill();

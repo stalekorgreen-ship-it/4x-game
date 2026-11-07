@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { hooks } from './00-hooks.ts';
 import { tm } from './15-techs.ts';
 import { bindCrew, eqFor, genOfficer, pilFuel, pilSpeed, staffFor } from './02-crew.ts';
 import { initCorps } from './06-corps.ts';
@@ -391,7 +392,7 @@ export function fmtDur(days) {
   return fmtN(days, 1) + ' сут';
 }
 export function log(msg) {
-  state.log.unshift({t: state.t, msg});
+  state.log.unshift({t: state.t, msg}); if (hooks.onLog) hooks.onLog(msg);
   if (state.log.length > 200) state.log.length = 200;
 }
 export const uid = () => ++state.counters.id;

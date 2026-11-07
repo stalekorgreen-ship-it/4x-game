@@ -138,3 +138,11 @@ table.mono td,table.mono th{padding-top:1px!important;padding-bottom:1px!importa
 .panel>*{flex-shrink:0}
 
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.tcard{border:1px solid;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.03)}.tcard.on{background:rgba(74,163,255,.12)}
+
+#ev-toasts{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;z-index:60;pointer-events:none}
+.ev-toast{width:262px;background:#0c121d;border:1px solid;border-radius:8px;padding:5px;box-shadow:0 6px 24px #000a;animation:evin .35s ease-out;transition:opacity .5s,transform .5s}
+.ev-toast.out{opacity:0;transform:translateX(30px)}
+.ev-toast .ev-t{padding:5px 3px 2px;font-size:12px;line-height:1.35}.ev-toast .ev-t b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+@keyframes evin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.lg{display:flex;gap:8px;align-items:center}.lgi{flex:none;width:64px;height:24px;overflow:hidden;border-radius:4px}.lg .t{flex:none}
+.tcard svg{margin-bottom:2px}
