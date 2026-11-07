@@ -93,6 +93,10 @@ function fleet(n, mixOrDoc, fid, speed, W) {
   for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix2, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
   if (!W && n >= 25) { const nl = n >= 60 ? 2 : (Math.random() < .6 ? 1 : 0); for (let q = 0; q < nl; q++) { const sp = TYPES[Math.random() < .6 ? 'laserCruiser' : 'laserBattleship'](q); sp.name += ' №' + (n + q + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); } }
   if (!out.length) { const sp = TYPES[keys[0]](0); if (doc && doc.mod) doc.mod(sp); sp.name += ' №1'; sp.fid = fid; sp.sk = sk; out.push(sp); }
+  { // лазеры — редкая сверхпушка: не больше одного корабля на 10 и не больше 8 на флот
+    const cap = Math.min(8, Math.floor(out.length / 10)), ls = out.filter(sp => sp.lasers > 0);
+    ls.slice(cap).forEach(sp => { sp.lasers = 0; sp.laserCfg = []; sp.name = sp.name.replace('Лазерный линкор', 'Линкор').replace('Лазерный крейсер', 'Крейсер'); });
+  }
   return outfit(out);
 }
 const fleetW = specs => specs.reduce((a, sp) => a + W3(sp), 0);

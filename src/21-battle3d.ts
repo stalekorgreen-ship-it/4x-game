@@ -322,15 +322,16 @@ if (wrap && bgo) {
     const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, pcol = (projLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let pc = 0;
     const tmp = new THREE.Color();
     for (const p of Battle.proj() as any[]) {
-      if (pc >= MAXP) break; const o = pc * 6, l = Math.max(.15, dist * .0007) * 10;
+      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.8, Math.max(.03, cdp * .01)) / Math.max(1, Math.hypot(p.vx, p.vy)) / .1;
       let ox = 0, oy = 0, oz = 0;
-      if (p._m === undefined) { p._m = null; const gs = p.src && models.get(p.src); const ev = gs && gs.userData.muz; if (ev && ev.length) { const nw = performance.now(), fresh = ev.filter((q: any) => nw - q.t < 250); if (fresh.length) { const q = fresh[(Math.random() * fresh.length) | 0]; p._m = { x: q.p.x - p.x, y: q.p.y - p.z, z: q.p.z - p.y, d0: p.dist, F: (gs.userData.L || 1) * .5 + .3 } } } }
+      if (p._m === undefined) { p._m = null; const gs = p.src && models.get(p.src); const ev = gs && gs.userData.muz; if (ev && ev.length) { const nw = performance.now(), fresh = ev.filter((q: any) => nw - q.t < 250); if (fresh.length) { const hl = Math.hypot(p.vx, p.vy, p.vz || 0) || 1, dx = p.vx / hl, dy = (p.vz || 0) / hl, dz = p.vy / hl; let bq: any = null, bdot = .15; for (const q of fresh) { const ex = q.p.x - gs.position.x, ey = q.p.y - gs.position.y, ez = q.p.z - gs.position.z, el = Math.hypot(ex, ey, ez) || 1, dt = (ex * dx + ey * dy + ez * dz) / el; if (dt > bdot) { bdot = dt; bq = q } } // башня на стороне выстрела
+          if (bq) p._m = { x: bq.p.x - p.x, y: bq.p.y - p.z, z: bq.p.z - p.y, d0: p.dist, F: (gs.userData.L || 1) * .12 + .05 } } } }
       if (p._m) { const w = Math.max(0, 1 - (p.dist - p._m.d0) / p._m.F); ox = p._m.x * w; oy = p._m.y * w; oz = p._m.z * w }
-      pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; pa[o + 3] = p.x + ox - p.vx * l * .1; pa[o + 4] = p.z + oy - (p.vz || 0) * l * .1; pa[o + 5] = p.y + oz - p.vy * l * .1;
+      pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; pa[o + 3] = p.x + ox - p.vx * tailK * .1; pa[o + 4] = p.z + oy - (p.vz || 0) * tailK * .1; pa[o + 5] = p.y + oz - p.vy * tailK * .1;
       const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
-      { const hx = pa[o], hy = pa[o + 1], hz = pa[o + 2], tx = pa[o + 3], ty = pa[o + 4], tz = pa[o + 5], dx = hx - tx, dy = hy - ty, dz = hz - tz, ln = Math.hypot(dx, dy, dz) || 1e-6, cd = cam.position.distanceTo(_p.set(hx, hy, hz)), rad = Math.max(.0006, cd * .0007);
+      { const hx = pa[o], hy = pa[o + 1], hz = pa[o + 2], tx = pa[o + 3], ty = pa[o + 4], tz = pa[o + 5], dx = hx - tx, dy = hy - ty, dz = hz - tz, ln = Math.hypot(dx, dy, dz) || 1e-6, cd = cam.position.distanceTo(_p.set(hx, hy, hz)), rad = Math.max(.0004, cd * .0004);
         _sc.set(ln * 1.0, rad, rad); _bq.setFromUnitVectors(vX, _bd.set(dx / ln, dy / ln, dz / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(pc, _m4); bolts.setColorAt(pc, _cc.copy(tmp).multiplyScalar(fade * 1.6)) }
       pc++;
     }

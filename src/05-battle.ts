@@ -542,12 +542,12 @@ function step(dt){
         if(m.k==='L'){
           const cost=C.dmg*(.4+(Math.min(d,300)/120)**2);
           {const lx=o.x-s.x,ly=o.y-s.y,ll=lx*lx+ly*ly||1;let bk=null,bu=2;for(const f of around(s.side,s.x+lx/2,s.y+ly/2,Math.sqrt(ll)/2+3)){if(f===s||!f.alive)continue;const u=((f.x-s.x)*lx+(f.y-s.y)*ly)/ll;if(u<=.02||u>=1)continue;if(Math.hypot(s.x+lx*u-f.x,s.y+ly*u-f.y)<f.T.L*.38&&u<bu){bu=u;bk=f}}
-            if(bk){beams.push({a:s,b:bk,tx:bk.x,ty:bk.y,tz:bk.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.ff=(stat.ff||0)+1;hitShip(bk,'laser',lx,ly,bk.x,bk.y,C.dmg*1.7);m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*2.6;continue}}
+            if(bk){beams.push({a:s,b:bk,tx:bk.x,ty:bk.y,tz:bk.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.ff=(stat.ff||0)+1;hitShip(bk,'laser',lx,ly,bk.x,bk.y,C.dmg*1.7);m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;continue}}
           const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;Sfx.shot('laser');say(s.side,'laser',s);
           if(be){const dd=Math.hypot(be.x-s.x,be.y-s.y)||1;beams.push({a:s,b:{alive:false},tx:be.x-(be.x-s.x)/dd*be.r,ty:be.y-(be.y-s.y)/dd*be.r,tz:0,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.las[s.side]++;fx.push({x:be.x,y:be.y,t0:t,d:4,r:.8})}
           else{beams.push({a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});
           stat.las[s.side]++;stat.lasHit[s.side]++;hitShip(o,'laser',o.x-s.x,o.y-s.y,o.x,o.y,C.dmg*1.7)}
-          m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*2.6;
+          m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;
         }else{
           if(d<18){m.cd=4;continue}
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
