@@ -30,10 +30,10 @@ export const Sfx = (() => {
   };
   const shot = kind => {
     if (!on || !ok('s' + kind, kind === 'rail' ? 90 : 160)) return;
-    if (kind === 'rail') { tone(.09, 900, 120, .12, 'square'); noise(.08, 3000, 500, .08) }
+    if (kind === 'rail') { tone(.13, 175, 46, .24, 'sine'); noise(.1, 950, 130, .13, 'lowpass', .8); setTimeout(() => { tone(.1, 130, 42, .13, 'sine'); noise(.07, 700, 120, .06, 'lowpass', .8) }, 55) } // глухое «бу-бух», как автопушка
     else if (kind === 'laser') { tone(.5, 1800, 300, .1, 'sawtooth'); tone(.35, 2600, 500, .05, 'sine') }
     else if (kind === 'missile') { noise(.7, 400, 1800, .1, 'bandpass', .7); tone(.3, 140, 60, .1, 'triangle') }
-    else if (kind === 'flak') { noise(.06, 5000, 1500, .05, 'highpass') }
+    else if (kind === 'flak') { tone(.07, 150, 55, .1, 'sine'); noise(.06, 1100, 250, .05, 'lowpass', .8) }
   };
   const boom = size => {
     if (!on || !ok('b', size > 10 ? 150 : 70)) return;

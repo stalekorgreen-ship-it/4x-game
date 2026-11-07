@@ -276,9 +276,12 @@ if (wrap && bgo) {
     const jx = (Math.random() - .5) * cs * 2, jl = (Math.random() - .5) * cs * 2;
     for (const q of tiles) if (q.f === f && q.cur > 0) cand.push({ q, d: Math.hypot(q.px - _hp.x - jx, lat(q) - hl - jl) });
     cand.sort((a, b) => a.d - b.d);
-    for (let i = 0; i < Math.min(k, cand.length); i++) { const q = cand[i].q; q.cur--; q.dirty = true; spawnLayerDebris(s, g, q, q.cur) }
-    u.armT = 0;
+    let res: any = null;
+    for (let i = 0; i < Math.min(k, cand.length); i++) { const q = cand[i].q; q.cur--; q.dirty = true; spawnLayerDebris(s, g, q, q.cur);
+      if (!res) { const th = thL(u), lp = layerPos(q, q.cur, th, new THREE.Vector3()), nr = NRL[q.f]; lp.x += nr[0] * th * .5; lp.y += nr[1] * th * .5; lp.z += nr[2] * th * .5; res = { pos: g.localToWorld(lp), nrm: new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion) } } }
+    u.armT = 0; return res;
   }
+  const streaks: any[] = []; // последний отрезок трассера: долетает до корпуса и гаснет на плите
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
     const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 200)) return; u.armT = now; const th = thL(u); let spawned = 0, chg = false; const im = u.arm[0] as THREE.InstancedMesh;
     for (const q of u.tilesL as any[]) { const z = s.zones[q.f]; if (!z || !q.ent) continue;
@@ -379,13 +382,17 @@ if (wrap && bgo) {
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;
     }
+    { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / 140; if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
+        const hh = Math.min(1, u / .55), tt = Math.max(0, (u - .3) / .7), o = pc * 6, f = 1 - u * .5;
+        pa[o] = st.a.x + (st.b.x - st.a.x) * hh; pa[o + 1] = st.a.y + (st.b.y - st.a.y) * hh; pa[o + 2] = st.a.z + (st.b.z - st.a.z) * hh; pa[o + 3] = st.a.x + (st.b.x - st.a.x) * tt; pa[o + 4] = st.a.y + (st.b.y - st.a.y) * tt; pa[o + 5] = st.a.z + (st.b.z - st.a.z) * tt;
+        tmp.setHSL(st.side ? .08 : .52, .9, .65); pcol[o] = tmp.r * f; pcol[o + 1] = tmp.g * f; pcol[o + 2] = tmp.b * f; pcol[o + 3] = tmp.r * f * .25; pcol[o + 4] = tmp.g * f * .25; pcol[o + 5] = tmp.b * f * .25; pc++ } }
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const imp = Battle.impacts() as any[], nw = performance.now();
-      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') peelAt(gg, q.s, q) } if (sparks.length > MAXSP - 40) break;
-        const cp = cam.position, pos = new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
+      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
+        const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         flashes.push({ p: pos, t0: nw, life: 140 + q.pw * 25, sz: Math.min(34, 14 + q.pw * 3) });
-        const n = Math.min(26, 8 + Math.round(q.pw * 3)), nrm = new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();
+        const n = Math.min(26, 8 + Math.round(q.pw * 3)), nrm = hit ? hit.nrm.clone().add(new THREE.Vector3(q.nx * .4, 0, q.ny * .4)).normalize() : new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();
         for (let i = 0; i < n; i++) { const d = new THREE.Vector3().randomDirection().multiplyScalar(.9).add(nrm.clone().multiplyScalar(1.3)).normalize(), sp = cd * .055 * (.3 + Math.random() * .9) * (.7 + Math.min(1.2, q.pw * .1));
           sparks.push({ p: pos.clone(), v: d.multiplyScalar(sp), t0: nw, life: 350 + Math.random() * 650, h: Math.random() }) } }
       const spa = (sparkLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, sco = (sparkLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0;
