@@ -390,9 +390,9 @@ COMP.lgun.ap = (c, s) => {
 // --- ракеты ---
 export const MIS_A = {l: {hp: 1, m: 0.7, n: 'лёгкая'}, m: {hp: 2, m: 1, n: 'средняя'}, h: {hp: 3, m: 1.5, n: 'тяжёлая'}};
 export const MIS_S = {s: {spd: 6, n: 'медленная (6 км/с)'}, m: {spd: 8, n: 'обычная (8 км/с)'}, f: {spd: 10, n: 'быстрая (10 км/с)'}};
-export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}, l: {dmg: 7, blast: 10, m: 1.5}};
+export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}, l: {dmg: 7, blast: 10, m: 1.5}, x: {dmg: 15, blast: 16, m: 3.5}, g: {dmg: 30, blast: 26, m: 7}};
 export const mkMis = (a, sp, w, ammo) => ({hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
-COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая']]), O('am', 'Боезапас', '8', [['4', '4 ракеты'], ['8', '8 ракет'], ['16', '16 ракет']])];
+COMP.missile.opts = [O('ar', 'Броня ракеты', 'm', [['l', 'лёгкая'], ['m', 'средняя'], ['h', 'тяжёлая']]), O('sp', 'Скорость', 'm', [['s', 'медленная'], ['m', 'обычная'], ['f', 'быстрая']]), O('wh', 'Боеголовка', 'm', [['s', 'малая'], ['m', 'средняя'], ['l', 'большая'], ['x', 'тяжёлая (урон 15)'], ['g', 'сверхтяжёлая (урон 30)']]), O('am', 'Боезапас', '8', [['4', '4 ракеты'], ['8', '8 ракет'], ['16', '16 ракет']])];
 COMP.missile.ap = (c, s) => {
   const am = +s.am.v; c.mass = Math.round(10 * (0.6 + 0.05 * am * MIS_A[s.ar.v].m * MIS_W[s.wh.v].m)) / 1; c.mcfg = mkMis(s.ar.v, s.sp.v, s.wh.v, am);
   for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * (0.5 + am / 16) * MIS_W[s.wh.v].m));
