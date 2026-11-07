@@ -11,5 +11,6 @@ import './08-map-ui.ts';
 import './11-shell.ts';
 import './12-state.ts';
 import './09-orders-ui.ts';
+import './21-battle3d.ts';
 import './99-debug.ts';
 import './20-tutorial.ts';
