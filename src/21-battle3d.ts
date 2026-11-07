@@ -154,16 +154,13 @@ if (wrap && bgo) {
       x += len;
     }
     if (!seg.length) seg.push({ cx: (x0 + x1) / 2, w: W, h: H, len: Lk, cy: 0, weapon: true, ty: 's', col: P.main });
-    // литой корпус: плавный лофт вдоль хребта (суперэллипс), размеры сглажены между модулями, нос плавно сходится
-    const sm1 = (t: number) => t * t * (3 - 2 * t), dimsAt = (xx: number) => { const q = seg; if (xx <= q[0].cx) return q[0]; if (xx >= q[q.length - 1].cx) return q[q.length - 1];
-      let i = 0; while (i < q.length - 2 && xx > q[i + 1].cx) i++; const a = q[i], b = q[i + 1], t = sm1((xx - a.cx) / Math.max(1e-9, b.cx - a.cx)), l = (u: number, v: number) => u + (v - u) * t;
-      return { w: l(a.w, b.w), h: l(a.h, b.h), cy: l(a.cy, b.cy), col: t < .5 ? a.col : b.col } };
-    { const NS = 44, NR = 20, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [];
-      const se = (v: number, n: number) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n);
+    // жёсткий корпус: ступенчатые призмы с фасками (сечение — прямоугольник со срезанными углами), никаких сглаживаний
+    const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
+    { const NS = 90, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [], NR = RING.length;
       for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS; let d: any = dimsAt(Math.min(xx, x1)), k = 1;
-        if (xx > x1) { const t = Math.min(1, (xx - x1) / (xe - x1)); k = Math.max(.05, Math.pow(Math.max(0, Math.cos(t * Math.PI / 2)), .65)) } 
+        if (xx > x1) { const t = Math.min(1, (xx - x1) / (xe - x1)); k = Math.max(.06, 1 - t * .94) }
         const c = new THREE.Color(d.col); const rib = Math.abs(Math.sin(xx / L * 38)) > .93 ? .72 : 1; c.multiplyScalar(rib);
-        for (let j = 0; j < NR; j++) { const a = j / NR * Math.PI * 2; pos.push(xx, d.cy + se(Math.sin(a), 5) * d.h / 2 * k * .985, se(Math.cos(a), 5) * d.w / 2 * k * .985); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
+        for (let j = 0; j < NR; j++) { const r = RING[j]; pos.push(xx, d.cy + r.u * d.h / 2 * k * .985, r.v * d.w / 2 * k * .985); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
       for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
       const g0 = new THREE.BufferGeometry(); g0.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g0.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g0.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g0.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g0.setIndex(idx);
       const g1 = g0.toNonIndexed(); g1.computeVertexNormals(); parts.push(g1);
@@ -223,6 +220,9 @@ if (wrap && bgo) {
     const g = mergeGeometries(parts, false)!; (g as any).userData = { armorT: mp.armor, x1, x0v: x0, tiles, mounts, cell, nozz, W, H, x0, Lk, gridRows, gridCols, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy, col: q.col })) }; return g;
   }
   let sid = 1;
+  // шаблон сечения: прямоугольник со срезанными углами (8 рёбер), 64 точки; u — вдоль высоты, v — вдоль ширины (−1..1)
+  const RING: { u: number; v: number; nu: number; nv: number }[] = (() => { const C: number[][] = [[.5, 1], [-.5, 1], [-1, .5], [-1, -.5], [-.5, -1], [.5, -1], [1, -.5], [1, .5]], N: number[][] = [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], o: any[] = [];
+    for (let e = 0; e < 8; e++) { const A = C[e], B = C[(e + 1) % 8], n = e % 2 ? 4 : 12; for (let m = 0; m < n; m++) { const t = m / n; o.push({ u: A[1] + (B[1] - A[1]) * t, v: A[0] + (B[0] - A[0]) * t, nu: N[e][1], nv: N[e][0] }) } } return o })();
   const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
   // дальний LOD: один склеенный низкополигональный силуэт на сторону (единичной длины)
   const simpleGeo = PAL.map(P => mergeGeometries([
@@ -231,12 +231,12 @@ if (wrap && bgo) {
 
   // средний LOD: гладкий обобщённый корпус единичной длины (суперэллипс, нос, рубка, плавники, сопла)
   function loftUnit(P: any) {
-    const NS = 18, NR = 12, pos: number[] = [], col: number[] = [], nrm: number[] = [], uv: number[] = [], idx: number[] = [];
-    const se = (v: number, n: number) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n), cM = new THREE.Color(P.main), cD = new THREE.Color(P.dark);
+    const NS = 18, pos: number[] = [], col: number[] = [], nrm: number[] = [], uv: number[] = [], idx: number[] = [], NR = RING.length;
+    const cM = new THREE.Color(P.main), cD = new THREE.Color(P.dark);
     for (let i = 0; i <= NS; i++) { const t = i / NS, x = -.5 + 1.04 * t; let w = .17, h = .095;
-      if (t < .12) { const k = .75 + t / .12 * .25; w *= k; h *= k } if (t > .8) { const q = Math.min(1, (t - .8) / .2), k = Math.max(.05, Math.cos(q * Math.PI / 2)); w *= k; h *= k }
+      if (t < .12) { w *= .8; h *= .8 } else if (t < .5) { w *= .96 } if (t > .8) { const q = Math.min(1, (t - .8) / .2), k = Math.max(.06, 1 - q * .94); w *= k; h *= k }
       const c = i < 3 ? cD : (Math.floor(i / 3) % 2 ? cM : cM.clone().multiplyScalar(.8));
-      for (let j = 0; j < NR; j++) { const a = j / NR * Math.PI * 2; pos.push(x, se(Math.sin(a), 5) * h / 2, se(Math.cos(a), 5) * w / 2); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
+      for (let j = 0; j < NR; j++) { const r = RING[j]; pos.push(x, r.u * h / 2, r.v * w / 2); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
     for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
     const g0 = new THREE.BufferGeometry(); g0.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g0.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g0.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g0.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g0.setIndex(idx);
     const g1 = g0.toNonIndexed(); g1.computeVertexNormals();
@@ -445,7 +445,7 @@ if (wrap && bgo) {
 
   // ЛИТАЯ ОБШИВКА: гладкая оболочка поверх ядра корпуса. Высота над ядром в каждой точке = число оставшихся слоёв брони × толщина слоя.
   // Попадания снимают слои по одному (логика плит осталась прежней) — вмятина углубляется и расширяется метр за метром, пока не дойдёт до основного корпуса.
-  const shellMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .52, metalness: .45, flatShading: false });
+  const shellMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .52, metalness: .45, flatShading: true });
   let shellBuilds = 0;
   function tileInit(s: any, u: any) { for (const q of u.tilesL as any[]) if (q.n === undefined) { const z = s.zones[q.f] || s.zones[0]; q.n = Math.max(1, Math.min(10, Math.round(z.arm || 1))); q.cur = q.n;
       const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k]; q.cur = Math.max(0, Math.min(q.n, Math.floor(sum / (i1 - i0) + q.jit))); q.dirty = true } }
@@ -455,44 +455,50 @@ if (wrap && bgo) {
     const now = performance.now(); if (u.shellDirty && now - (u.shellT || 0) > 90) { u.shellT = now; u.shellDirty = false; updateShell(s, u) }
   }
   function buildShell(s: any, g: THREE.Group, u: any) {
-    tileInit(s, u); const L = u.L, seg: any[] = u.seg, NS = 110, NR = 48, xe = u.x1 + L * .2, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, nv = (NS + 1) * NR;
-    const dimsAt = (xx: number) => { const q = seg; if (xx <= q[0].cx) return q[0]; if (xx >= q[q.length - 1].cx) return q[q.length - 1]; let i = 0; while (i < q.length - 2 && xx > q[i + 1].cx) i++; const a = q[i], b = q[i + 1], t0 = (xx - a.cx) / Math.max(1e-9, b.cx - a.cx), t = t0 * t0 * (3 - 2 * t0), l = (m: number, n: number) => m + (n - m) * t; return { w: l(a.w, b.w), h: l(a.h, b.h), cy: l(a.cy, b.cy), col: t < .5 ? a.col : b.col } };
-    const se = (v: number, n: number) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n);
+    tileInit(s, u); const L = u.L, seg: any[] = u.seg, xe = u.x1 + L * .2, x0 = u.x0, Lk = u.Lk, cols = u.gridCols, rowsF: number[] = u.gridRows, NR = RING.length, NS = Math.min(260, Math.ceil((xe - x0) / (Lk / cols) * 2)), nv = (NS + 1) * NR;
+    const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
     const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), base = new Float32Array(nv * 3), dir = new Float32Array(nv * 3), map = new Float32Array(nv * 5), paint = new Float32Array(nv * 3), idx: number[] = [];
     const c = new THREE.Color();
-    for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS, d: any = dimsAt(Math.min(xx, u.x1)); let k = 1; if (xx > u.x1) { const t = Math.min(1, (xx - u.x1) / (xe - u.x1)); k = Math.max(.05, Math.pow(Math.max(0, Math.cos(t * Math.PI / 2)), .65)) }
-      c.set(d.col || 0x5b86a8); const rib = Math.abs(Math.sin(xx / L * 38)) > .95 ? .8 : 1;
-      for (let j = 0; j < NR; j++) { const v = i * NR + j, a = j / NR * Math.PI * 2, sy = Math.sin(a), sz = Math.cos(a), hh = d.h / 2 * k, ww = d.w / 2 * k, y = d.cy + se(sy, 5) * hh, z = se(sz, 5) * ww;
+    for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS, d: any = dimsAt(Math.min(xx, u.x1)); let k = 1; if (xx > u.x1) { const t = Math.min(1, (xx - u.x1) / (xe - u.x1)); k = Math.max(.06, 1 - t * .94) }
+      c.set(d.col || 0x5b86a8);
+      for (let j = 0; j < NR; j++) { const v = i * NR + j, r = RING[j], hh = d.h / 2 * k, ww = d.w / 2 * k, y = d.cy + r.u * hh, z = r.v * ww;
         base[v * 3] = xx; base[v * 3 + 1] = y; base[v * 3 + 2] = z;
-        // нормаль суперэллипса: градиент |y/h|^5 + |z/w|^5
-        let ny = Math.sign(sy) * Math.pow(Math.abs(se(sy, 5)), 4) / Math.max(1e-9, hh), nz = Math.sign(sz) * Math.pow(Math.abs(se(sz, 5)), 4) / Math.max(1e-9, ww), nl = Math.hypot(ny, nz) || 1; ny /= nl; nz /= nl; dir[v * 3] = 0; dir[v * 3 + 1] = ny; dir[v * 3 + 2] = nz;
-        const f = Math.abs(se(sy, 5)) >= Math.abs(se(sz, 5)) ? (sy > 0 ? 0 : 2) : (sz > 0 ? 1 : 3);
-        const lat = f % 2 === 0 ? se(sz, 5) * .5 : se(sy, 5) * .5; // доля ширины грани −.5..+.5
+        let ny = r.nu / Math.max(1e-9, hh), nz = r.nv / Math.max(1e-9, ww); const nl = Math.hypot(ny, nz) || 1; ny /= nl; nz /= nl; dir[v * 3] = 0; dir[v * 3 + 1] = ny; dir[v * 3 + 2] = nz;
+        const f = Math.abs(r.u) >= Math.abs(r.v) ? (r.u > 0 ? 0 : 2) : (r.v > 0 ? 1 : 3);
+        const lat = (f % 2 === 0 ? r.v : r.u) * .5;
         const af = (xx - x0) / Lk * cols - .5, bf = (lat + .5) * rowsF[f] - .5;
         map[v * 5] = f; map[v * 5 + 1] = xx <= u.x1 && xx >= x0 ? af : -999; map[v * 5 + 2] = bf; map[v * 5 + 3] = d.cy; map[v * 5 + 4] = k;
-        const sh = rib * (.92 + ((v * 2654435761 >>> 0) % 100) / 1400); paint[v * 3] = c.r * sh; paint[v * 3 + 1] = c.g * sh; paint[v * 3 + 2] = c.b * sh;
+        // панельная окраска: плиты 3×3 клетки чуть разного тона, швы темнее
+        const pa = Math.floor(af / 3), pb = Math.floor(bf / 3), hs = ((pa * 73856093) ^ (pb * 19349663) ^ (f * 83492791)) >>> 0, seam = (Math.floor(af) % 3 === 0 || Math.floor(bf) % 3 === 0) ? .86 : 1, sh = seam * (.9 + (hs % 100) / 500);
+        paint[v * 3] = c.r * sh; paint[v * 3 + 1] = c.g * sh; paint[v * 3 + 2] = c.b * sh;
         pos[v * 3] = xx; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z; col[v * 3] = paint[v * 3]; col[v * 3 + 1] = paint[v * 3 + 1]; col[v * 3 + 2] = paint[v * 3 + 2] } }
     for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
     const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.BufferAttribute(pos, 3)); ge.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); ge.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); ge.setAttribute('color', new THREE.BufferAttribute(col, 3)); ge.setIndex(idx);
-    // сетка плит [грань][столбец][ряд]
     const grid: any[][][] = [0, 1, 2, 3].map(() => []); for (const q of u.tilesL as any[]) { (grid[q.f][q.ia] || (grid[q.f][q.ia] = []))[q.ib] = q }
-    const m = new THREE.Mesh(ge, shellMat); m.frustumCulled = false; g.add(m); u.shell = m; u.shellData = { base, dir, map, paint, grid, nv, NS, NR }; u.shellDirty = true; updateShell(s, u);
+    // трещины: ломаные с острыми изломами по краям вмятин
+    const CR = 5000, cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CR * 6), 3)); cg.setDrawRange(0, 0);
+    const cl = new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0x060606 })); cl.frustumCulled = false;
+    const m = new THREE.Mesh(ge, shellMat); m.frustumCulled = false; m.add(cl); g.add(m); u.shell = m; u.shellData = { base, dir, map, paint, grid, nv, NS, NR, cl, CR }; u.shellDirty = true; updateShell(s, u);
   }
   function updateShell(s: any, u: any) {
-    const sd = u.shellData, m = u.shell as THREE.Mesh, ge = m.geometry, pos = ge.attributes.position.array as Float32Array, col = ge.attributes.color.array as Float32Array, th = thL(u), { base, dir, map, paint, grid, nv } = sd, rowsF: number[] = u.gridRows, cols = u.gridCols;
+    const sd = u.shellData, m = u.shell as THREE.Mesh, ge = m.geometry, pos = ge.attributes.position.array as Float32Array, col = ge.attributes.color.array as Float32Array, th = thL(u), { base, dir, map, paint, grid, nv, cl, CR } = sd, rowsF: number[] = u.gridRows, cols = u.gridCols;
     const tv = (f: number, a: number, b: number) => { const ga = grid[f][Math.max(0, Math.min(cols - 1, a))]; if (!ga) return 1; const q = ga[Math.max(0, Math.min(rowsF[f] - 1, b))]; return q ? Math.max(0, q.cur) / q.n : 1 }; // доля оставшейся брони
     const nQ = (f: number) => { const z = s.zones[f] || s.zones[0]; return Math.max(1, Math.min(10, Math.round(z.arm || 1))) };
-    const nF = [nQ(0), nQ(1), nQ(2), nQ(3)];
+    const nF = [nQ(0), nQ(1), nQ(2), nQ(3)], cp = cl.geometry.attributes.position.array as Float32Array, cell = u.cell || th * 6; let ns = 0;
     for (let v = 0; v < nv; v++) { const f = map[v * 5] | 0, af = map[v * 5 + 1]; let fr = 1;
-      if (af > -900) { const a0 = Math.floor(af), b0 = Math.floor(map[v * 5 + 2]), ta = af - a0, tb = map[v * 5 + 2] - b0;
-        fr = (tv(f, a0, b0) * (1 - ta) + tv(f, a0 + 1, b0) * ta) * (1 - tb) + (tv(f, a0, b0 + 1) * (1 - ta) + tv(f, a0 + 1, b0 + 1) * ta) * tb }
+      if (af > -900) fr = tv(f, Math.round(af), Math.round(map[v * 5 + 2])); // ближайшая плита: вмятина — ступенчатая, с острыми краями
       const h = af > -900 ? fr * nF[f] * th : 0, hb = h + th * .08;
       pos[v * 3] = base[v * 3]; pos[v * 3 + 1] = base[v * 3 + 1] + dir[v * 3 + 1] * hb; pos[v * 3 + 2] = base[v * 3 + 2] + dir[v * 3 + 2] * hb;
       const dm = af > -900 ? 1 - fr : 0, r0 = paint[v * 3], g0 = paint[v * 3 + 1], b0c = paint[v * 3 + 2];
       if (dm <= .02) { col[v * 3] = r0; col[v * 3 + 1] = g0; col[v * 3 + 2] = b0c }
       else if (dm < .999) { const t = Math.min(1, dm * 2.4), rim = Math.max(0, 1 - Math.abs(dm - .3) * 4) * .55; col[v * 3] = r0 * (1 - t) * .9 + .1 * t + rim * .5; col[v * 3 + 1] = g0 * (1 - t) * .9 + .085 * t + rim * .18; col[v * 3 + 2] = b0c * (1 - t) * .9 + .08 * t }
-      else { col[v * 3] = .36; col[v * 3 + 1] = .33; col[v * 3 + 2] = .31 } } // дошли до основного корпуса — голый металл
-    ge.attributes.position.needsUpdate = true; ge.attributes.color.needsUpdate = true; ge.computeVertexNormals();
+      else { col[v * 3] = .36; col[v * 3 + 1] = .33; col[v * 3 + 2] = .31 }
+      // трещина от края вмятины: 3 острых звена
+      if (dm > .02 && dm < .6 && ns < CR - 3) { const h1 = (Math.imul(v, 2654435761) >>> 0) % 1000 / 1000; if (h1 < .22) { const h2 = (Math.imul(v, 40503) >>> 0) % 1000 / 1000;
+        let px = pos[v * 3], py = pos[v * 3 + 1] + dir[v * 3 + 1] * th * .15, pz = pos[v * 3 + 2] + dir[v * 3 + 2] * th * .15, ang = h2 * 6.2832; const ty = -dir[v * 3 + 2], tz = dir[v * 3 + 1];
+        for (let k = 0; k < 3; k++) { const ln = cell * (.7 + ((h2 * 997 * (k + 1)) % 1) * 1.4), cx = Math.cos(ang) * ln, sx = Math.sin(ang) * ln, qx = px + cx, qy = py + ty * sx, qz = pz + tz * sx;
+          cp[ns * 6] = px; cp[ns * 6 + 1] = py; cp[ns * 6 + 2] = pz; cp[ns * 6 + 3] = qx; cp[ns * 6 + 4] = qy; cp[ns * 6 + 5] = qz; ns++; px = qx; py = qy; pz = qz; ang += (((h2 * 7919 * (k + 2)) % 1) - .5) * 2.4 } } } }
+    cl.geometry.setDrawRange(0, ns * 2); cl.geometry.attributes.position.needsUpdate = true; ge.attributes.position.needsUpdate = true; ge.attributes.color.needsUpdate = true;
   }
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
     const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 200)) return; u.armT = now; const th = thL(u); let spawned = 0, chg = false; const im = u.arm[0] as THREE.InstancedMesh;
