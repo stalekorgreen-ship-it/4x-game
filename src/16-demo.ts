@@ -3,7 +3,7 @@
 import { state, log } from './01-data.ts';
 import { Battle } from './05-battle.ts';
 import { focusBattle, ui, setHtml, $ } from './08-map-ui.ts';
-import { BODIES, BODY, mkLas, mkMis, compOf, mkKey } from './01-data.ts';
+import { BODIES, BODY, mkLas, mkMis, compOf, mkKey, specTons, TON_L } from './01-data.ts';
 import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
@@ -47,7 +47,8 @@ const MIXES = {
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
-const W3 = sp => Math.pow(sp.L || .5, 2.2) + (sp.F || 0) * 0.00008 + (sp.B || 0) * 0.0002;
+// вес флота — по тоннажу: корпус 50 000 т на км длины + истребители по 500 т, торпедоносцы по 800 т
+const W3 = sp => (specTons(sp) + (sp.F || 0) * 500 + (sp.B || 0) * 800) / TON_L;
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .85); sp.spd = (sp.spd || 1) * .92; }},

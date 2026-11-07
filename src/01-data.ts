@@ -52,14 +52,15 @@ export const COMP = {
 /* ===== НАСТРАИВАЕМЫЕ МОДУЛИ ===== */
 // Ключ варианта: «база|опция=знач|опция=знач». Голый ключ = значения по умолчанию.
 export const O = (id, name, def, vals) => ({id, name, def, vals: vals.map(([v, l]) => ({v, l}))});
-export const SZ = O('sz', 'Размер', 'm', [['s', 'малый ×½'], ['m', 'средний ×1'], ['l', 'большой ×2']]);
-export const SZK = {s: 0.5, m: 1, l: 2};
+export const SZ = O('sz', 'Размер', 'm', [['s', 'малый ×½'], ['m', 'средний ×1'], ['l', 'большой ×2'], ['x', 'корабельный ×20']]);
+export const SZK = {s: 0.5, m: 1, l: 2, x: 20};
 export const scl = (c, k) => {
   for (const f of ['power', 'fuel', 'cargo', 'mine', 'spares', 'tow']) if (c[f]) c[f] = Math.round(c[f] * k * 100) / 100;
   if (c.crew) c.crew = Math.max(1, Math.round(c.crew * k));
   if (c.life) c.life = Math.max(1, Math.round(c.life * k));
   c.mass = Math.round(c.mass * Math.pow(k, 0.9) * 10) / 10;
-  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * k));
+  const kc = k > 2 ? Math.pow(k, .55) : k;
+  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * kc));
 };
 export const mulCost = (c, m) => { for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * m)); };
 export const addCost = (c, r, v) => { c.cost[r] = (c.cost[r] || 0) + v; };
@@ -141,10 +142,10 @@ COMP.flak.ap = (c, s) => {
 COMP.armor.opts = [O('th', 'Толщина', '1', [['1', '1 слой'], ['2', '2 слоя'], ['3', '3 слоя']]), O('mat', 'Материал', 's', [['s', 'сталь'], ['t', 'титан (легче)'], ['r', 'реактивная (отражает 20%)']])];
 COMP.armor.ap = (c, s) => {
   const th = +s.th.v, m = s.mat.v;
-  c.armor = th; c.mass = 20 * th; c.cost = {fe: 40 * th, ti: 10 * th};
-  if (m === 't') { c.mass = Math.round(c.mass * 0.7); c.cost = {fe: 15 * th, ti: 35 * th}; }
-  if (m === 'r') { c.mass = Math.round(c.mass * 1.25); c.cost = {fe: 40 * th, ti: 10 * th, cu: 12 * th, si: 8 * th}; c.defl = 0.2; }
-  c.desc = `+${th} слоя брони на каждом секторе${m === 'r' ? ', 20% попаданий отражается' : ''}`;
+  c.armor = th; c.mass = 0; c.armW = th * (m === 't' ? 0.7 : m === 'r' ? 1.25 : 1); c.cost = {fe: 40 * th, ti: 10 * th};
+  if (m === 't') { c.cost = {fe: 15 * th, ti: 35 * th}; }
+  if (m === 'r') { c.cost = {fe: 40 * th, ti: 10 * th, cu: 12 * th, si: 8 * th}; c.defl = 0.2; }
+  c.desc = `+${th} слоя брони на каждом секторе${m === 'r' ? ', 20% попаданий отражается' : ''} · масса зависит от длины корабля (~${Math.round(ARM_K * c.armW)} т на км² поверхности)`;
 };
 // --- ангары ---
 COMP.hangar_f.opts = [O('cl', 'Класс', 's', [['l', 'лёгкие (15 шт)'], ['s', 'обычные (10 шт)'], ['h', 'тяжёлые (6 шт)']])];
@@ -177,7 +178,7 @@ export function compOf(key) {
   if (MIL_MODS.has(b)) { c = {...c, cost: {...c.cost}}; c.mass = Math.round(c.mass * TONS_K); c.mil = 1; }
   c.base = b; return _cc[key] = c;
 }
-const MIL_MODS = new Set(['rail', 'flak', 'armor', 'lgun', 'missile', 'irs', 'ems', 'radar', 'fcs', 'ew', 'marines', 'dcon', 'sink', 'hangar_f', 'hangar_b']);
+const MIL_MODS = new Set(['rail', 'flak', 'lgun', 'missile', 'irs', 'ems', 'radar', 'fcs', 'ew', 'marines', 'dcon', 'sink', 'hangar_f', 'hangar_b']);
 
 export const FIELDS = {phys: 'Физика', eng: 'Инженерия', bio: 'Биология'};
 export const RES = {fe:'Железо', ni:'Никель', ti:'Титан', cu:'Медь', si:'Кремний', c:'Углерод', ice:'Лёд', pt:'Платиноиды', ree:'Редкоземельные', n2:'Азот', co2:'Углекислый газ', ch4:'Метан', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
@@ -397,12 +398,9 @@ COMP.missile.ap = (c, s) => {
 export const STAT_OUT = {build: 'Строительство', yard: 'Судостроение', plant: 'Заводы (сырьё)', fuel: 'Заправка кораблей', spares: 'Тех. изделия кораблям', raid: 'Потери от налётов', pop: 'Продажа сырья заводам Земли', old: 'Прочее'};
 
 /* ===== ВОДОИЗМЕЩЕНИЕ ===== */
-// боевой корабль: оборудование в тоннах ×150 (бронекорпус, переборки, реактор) + каркас корпуса ~4000·L³
-export const TONS_K = 150, HULL_K = 4000;
-export const tonsOf = (dry, L) => Math.round((dry * TONS_K + HULL_K * Math.pow(L, 3)) / 100) * 100;
-// оценка массы модулей у корабля ИИ (рельсы 6, зенитки 5, ракеты 10, лазер 450, двигатель 6, слой брони 20, ангары, десант)
-export const specDry = sp => (sp.rails || 0) * 6 + (sp.flak || 0) * 5 + (sp.miss || 0) * 10 + (sp.lasers || 0) * 450 + (sp.eng || 3) * 6 + (sp.arm || 0) * 20 + Math.ceil((sp.F || 0) / 10) * 30 + Math.ceil((sp.B || 0) / 5) * 30 + Math.ceil((sp.mar || 0) / 10) * 14;
-export const specTons = sp => sp.role === 'freight' ? Math.round((specDry(sp) + 4000 * Math.pow(sp.L || .5, 3) * .15) / 100) * 100 : tonsOf(specDry(sp), sp.L || .5);
+// боевые модули тяжелее в 150 раз; длина корабля: 1 м на каждые 50 т (50 000 т = 1 км); слой брони весит ~925 т на км² поверхности
+export const TONS_K = 150, TON_L = 50000, ARM_K = 925;
+export const specTons = sp => Math.round(TON_L * (sp.L || .5) / 100) * 100;
 
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
@@ -413,7 +411,7 @@ export function designStats(parts, flags) {
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
-    r.dry += (c.mil ? c.mass / TONS_K : c.mass) * n;
+    r.dry += c.mass * n; r.dry0 = (r.dry0 || 0) + (c.mil ? c.mass / TONS_K : c.mass) * n; r.armW = (r.armW || 0) + (c.armW || 0) * n;
     r.power += (c.power || 0) * n * tm('thrust');
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
@@ -446,7 +444,6 @@ export function designStats(parts, flags) {
   if (r.hangB) { r.bq = {hp: r.bqS.hp / r.hangB, vmax: r.bqS.v / r.hangB}; }
   r.fire = r.railList.reduce((a, q) => a + q.dmg * q.shells * 60 / (60 * q.rel), 0);
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
-  r.bspd = r.power ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35)) : 1;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;
   r.crewNeed = (r.scCrew||0) + 3 * (r.ew||0) + (r.mar||0) + 3 * (r.dcon||0) + 2 + 2 * r.lasers + r.labsTotal + Math.ceil((r.rail + r.flak + r.lgun + r.msl) / 10) + 2 * r.hangars;
   r.warship = r.rail + r.flak + r.lgun + r.msl + r.hangF + r.hangB > 0;
@@ -455,9 +452,16 @@ export function designStats(parts, flags) {
     if (!(r.scList || []).some(q => q.k === 'rad')) r.warns.push('Нет активного радара: наводка возможна только по данным союзников или вблизи (до 1 км).');
     if (r.flak && !(r.scList || []).some(q => q.fine)) r.warns.push('Нет радара с мелким разрешением: зенитки и ПВО не увидят ракеты и истребители.');
   }
-  r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
-  r.buildDays = Math.max(1, Math.round(r.dry * 0.4));
-  r.tons = r.warship ? tonsOf(r.dry, r.L) : r.dry;
+  r.dry0 = r.dry0 || 0;
+  if (r.warship || r.armW) { // водоизмещение: модули ×1.15 (корпус) + броня по площади, длина = т / 50 000 км
+    let T = Math.max(1, r.dry * 1.15); const M = T;
+    for (let i = 0; i < 40; i++) T = M + ARM_K * (r.armW || 0) * Math.pow(T / TON_L, 2);
+    r.armT = Math.round(T - M); r.dry = Math.round(T); r.L = Math.max(0.08, Math.min(6, T / TON_L));
+  } else r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
+  r.bspd = r.power ? (r.warship ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.25)) : Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35))) : 1;
+  if (r.warship && r.power && r.power / r.dry < 0.12) r.warns.push('Тяги мало для такого водоизмещения: корабль будет ползти. Добавьте двигатели (хорошо подходит размер «корабельный»).');
+  r.buildDays = Math.max(1, Math.round((r.warship ? r.dry / TONS_K : r.dry) * 0.4));
+  r.tons = r.dry;
   const massFull = r.dry + r.fuelCap;
   r.speedFull = r.power ? r.power / massFull * SPEED_K : 0;
   r.range = r.power && r.fuelCap ? r.fuelCap / (massFull * FUEL_K / r.eff) : 0;
@@ -501,10 +505,11 @@ export function newGame() {
   D('Тягач Т1', {ion: 3, tank: 3, hook: 1, cabin: 1, life: 1});
   D('Снабженец-танкер С1', {ion: 2, tank: 5, cargo: 2, xfer: 1, cabin: 1, life: 1});
   D('Исследователь Н1', {ion: 3, tank: 3, cabin: 2, life: 1, lab_phys: 1, lab_eng: 1, lab_bio: 1});
-  D('Эсминец Э1', {ion: 3, tank: 2, rail: 8, armor: 3, cabin: 1, life: 1});
-  D('Фрегат ПВО Ф1', {ion: 3, tank: 2, flak: 8, armor: 2, cabin: 1, life: 1});
-  D('Крейсер К1', {ion: 5, tank: 3, rail: 30, armor: 4, cabin: 3, life: 2});
-  D('Авианосец А1', {ion: 5, tank: 3, hangar_f: 3, hangar_b: 1, rail: 4, armor: 3, cabin: 3, life: 2});
+  const IX = mkKey('ion', {pw: '500'}), TX = mkKey('tank', {sz: 'x'});
+  D('Эсминец Э1', {[IX]: 26, [TX]: 3, rail: 8, armor: 3, cabin: 1, life: 1});
+  D('Фрегат ПВО Ф1', {[IX]: 22, [TX]: 3, flak: 8, armor: 2, cabin: 1, life: 1});
+  D('Крейсер К1', {[IX]: 95, [TX]: 8, rail: 30, armor: 4, cabin: 3, life: 2});
+  D('Авианосец А1', {[IX]: 75, [TX]: 6, hangar_f: 3, hangar_b: 1, rail: 4, armor: 3, cabin: 3, life: 2});
   D('Станция «Опора»', {cargo: 3, tank: 4, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1});
   for (let i = 0; i < 12; i++) genOfficer();
   const g = newGroup('Добытчики');

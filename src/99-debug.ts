@@ -13,3 +13,4 @@ import { matureSystem } from './16-demo.ts'; window.__game.matureSystem = mature
 import { makeScenario } from './16-demo.ts'; window.__game.makeScenario = makeScenario;
 import { duelScenario, MIXNAMES } from './16-demo.ts'; window.__game.duelScenario = duelScenario; window.__game.MIXNAMES = MIXNAMES;
 import * as CB from './19-colbld.ts'; window.__game.CB = CB;
+import { designStats } from './01-data.ts'; window.__game.designStats = designStats;
