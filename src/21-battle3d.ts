@@ -33,7 +33,8 @@ if (wrap && bgo) {
   const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
    const dbg: any = { n: 0, m: 0, off: 0 }; const MAXTD = 1500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 3000, MAXFL = 200; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
    function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,230,170,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) }
-   let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
+   let misMesh: THREE.InstancedMesh, misFl: THREE.InstancedMesh, misTr: THREE.LineSegments; const MAXMIS = 1500;
+  let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
   const hud = document.createElement('div');
@@ -81,6 +82,12 @@ if (wrap && bgo) {
     tdDec = new THREE.InstancedMesh(decalGeo, decalMat, MAXDD); tdDec.frustumCulled = false; tdDec.count = 0; tdDec.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdDec); // следы на сорванных плитах летят вместе с ними
     bolts = new THREE.InstancedMesh(geoCyl, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAXP); bolts.frustumCulled = false; bolts.count = 0; bolts.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(bolts);
     const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2000 * 3), 3));
+    { const body = new THREE.CylinderGeometry(.09, .09, .7, 8).rotateZ(-Math.PI / 2).translate(-.05, 0, 0), nose = new THREE.ConeGeometry(.09, .3, 8).rotateZ(-Math.PI / 2).translate(.45, 0, 0), parts2: THREE.BufferGeometry[] = [body.toNonIndexed(), nose.toNonIndexed()];
+      for (let i = 0; i < 4; i++) parts2.push(new THREE.BoxGeometry(.2, .02, .22).translate(-.3, 0, 0).rotateX(i * Math.PI / 2).toNonIndexed());
+      misMesh = new THREE.InstancedMesh(mergeGeometries(parts2.map(g2 => { g2.deleteAttribute('uv'); return g2 }), false)!, new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: .4, metalness: .6, emissive: 0x552200, flatShading: true }), MAXMIS); misMesh.frustumCulled = false; misMesh.count = 0; scene.add(misMesh);
+      misFl = new THREE.InstancedMesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 }), MAXMIS); misFl.frustumCulled = false; misFl.count = 0; scene.add(misFl);
+      const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setDrawRange(0, 0);
+      misTr = new THREE.LineSegments(tg2, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); misTr.frustumCulled = false; scene.add(misTr) }
     misPts = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xff8a50, size: 5, sizeAttenuation: false })); misPts.frustumCulled = false; scene.add(misPts);
     const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(400 * 6), 3));
     beamLines = new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ color: 0x7af4ff })); beamLines.frustumCulled = false; scene.add(beamLines);
@@ -739,6 +746,12 @@ if (wrap && bgo) {
       shotLines.geometry.setDrawRange(0, k * 2); (shotLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (shotLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     const ma = (misPts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let mc = 0;
     for (const p of Battle.mis() as any[]) { if (mc >= 2000) break; ma[mc * 3] = p.x; ma[mc * 3 + 1] = p.z; ma[mc * 3 + 2] = p.y; mc++ }
+    { const mt = new THREE.Matrix4(), qm = new THREE.Quaternion(), dm = new THREE.Vector3(), pm = new THREE.Vector3(), sm = new THREE.Vector3(), ax1 = new THREE.Vector3(1, 0, 0), tp = misTr.geometry.attributes.position.array as Float32Array, tc = misTr.geometry.attributes.color.array as Float32Array; let mk = 0, ts = 0;
+      for (const p of Battle.mis() as any[]) { if (mk >= MAXMIS) break; pm.set(p.x, p.z, p.y); const cd = cam.position.distanceTo(pm); if (cd > 6000) continue; const len = Math.max(.08, cd * .032), hd = p.h != null ? p.h : Math.atan2(p.vy, p.vx);
+        dm.set(Math.cos(hd), 0, Math.sin(hd)); qm.setFromUnitVectors(ax1, dm); sm.set(len, len, len); mt.compose(pm, qm, sm); misMesh.setMatrixAt(mk, mt);
+        const fl = len * (.5 + Math.random() * .35); const pf = pm.clone().addScaledVector(dm, -len * .55); sm.set(fl, len * .22, len * .22); mt.compose(pf, qm, sm); misFl.setMatrixAt(mk, mt); mk++;
+        const tr = p.tr as number[]; let px = p.x, py = p.z, pz = p.y; for (let i = tr.length - 3; i >= 0 && ts < MAXMIS * 12; i -= 3) { const f = 1 - (tr.length - 3 - i) / Math.max(3, tr.length) * .9, o = ts * 6; tp[o] = px; tp[o + 1] = py; tp[o + 2] = pz; px = tr[i]; py = tr[i + 2]; pz = tr[i + 1]; tp[o + 3] = px; tp[o + 4] = py; tp[o + 5] = pz; tc[o] = f; tc[o + 1] = f * .55; tc[o + 2] = f * .18; tc[o + 3] = f * .5; tc[o + 4] = f * .25; tc[o + 5] = f * .08; ts++ } }
+      misMesh.count = mk; misFl.count = mk; misMesh.instanceMatrix.needsUpdate = true; misFl.instanceMatrix.needsUpdate = true; misTr.geometry.setDrawRange(0, ts * 2); (misTr.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (misTr.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true; mc = 0 }
     misPts.geometry.setDrawRange(0, mc); (misPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const ba = (beamLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let bc = 0; const nowp = performance.now();
     // лазерный выстрел — летящий яркий импульс с хвостом, а не постоянная линия через всё поле
