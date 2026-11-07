@@ -540,7 +540,7 @@ function step(dt){
     if(env.length){let ee=null;for(const e of env)if(Math.abs(e.x-p.x)<e.r+14&&Math.abs(e.y-p.y)<e.r+14&&segHit(p.x,p.y,nx,ny,e)){ee=e;break}
       if(ee){fx.push({x:nx,y:ny,z:p.z,t0:t,d:3,r:.6});if(ee.t==='debris')ee.ttl-=4;if(Math.random()<.02)say(p.side,'rock',p.src);proj[i]=proj[proj.length-1];proj.pop();continue}}
     hit=scan(GR[1-p.side],null);if(!hit&&p.dist>(p.src&&p.src.T?p.src.T.L*.6:1)){hit=scan(GR[p.side],p.src);fr=!!hit}
-    if(hit){if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;hitShip(hit,'rail',p.vx,p.vy,nx,ny,p.dmg);proj[i]=proj[proj.length-1];proj.pop();continue}
+    if(hit){if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=Math.max(0,Math.min(1,((hit.x-p.x)*dx+(hit.y-p.y)*dy)/l2)),ix=p.x+dx*iu,iy=p.y+dy*iu;hitShip(hit,'rail',p.vx,p.vy,ix,iy,p.dmg)}proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){proj[i]=proj[proj.length-1];proj.pop()}
   }
@@ -689,7 +689,7 @@ const HULLV=[HULL,
   [[-.5,-.15],[-.2,-.4],[.2,-.4],[.5,-.08],[.5,.08],[.2,.4],[-.2,.4],[-.5,.15]]];
 const hullOf=s=>HULLV[s.hv||0];
 function drawShip(g,s,x,y,k,dp){
-  const HL=hullOf(s),len=Math.min(Math.max(9*dp*Math.pow(s.T.L,.6),s.T.L*k*1.8),150*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
+  const HL=hullOf(s),len=Math.min(Math.max(3*dp,4*dp*Math.sqrt(s.T.L),s.T.L*k*1.8),150*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
   if(x<-len||x>W+len||y<-len||y>H+len)return;
   if(len<14*dp&&s.alive&&s!==sel){const q=Math.max(5*dp,len*.62),c2=Math.cos(s.hd),s2=Math.sin(s.hd);g.save();g.translate(x,y);g.scale(1,curCT);
     g.globalAlpha=.28;g.fillStyle=CL[s.side];g.beginPath();g.arc(0,0,q*1.35,0,6.283);g.fill();g.globalAlpha=1;
