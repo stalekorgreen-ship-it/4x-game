@@ -142,6 +142,8 @@ function fleetsUpdate(){
     if(F.stance==='retreat'||F.stance==='convoy'){F.tgx=F.cx-dx*160;F.tgy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.tgx=F.cx-(ne.cx-F.cx)/dl*200;F.tgy=F.cy-(ne.cy-F.cy)/dl*200}}
     else if(F.stance==='wait'){F.tgx=F.cx;F.tgy=F.cy}
     else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?14:Math.max(14,Math.max(25,F.rng*(F.stance==='engage'?.9:1.3))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
+    // ручной приказ: идти в точку (игрок, сторона 0)
+    if(F.side===0&&F.mv){const md=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy);if(md>6){F.tgx=F.mv.x;F.tgy=F.mv.y;if(F.stance!=='retreat'&&F.stance!=='convoy'){const l=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy)||1;dx=(F.mv.x-F.cx)/l;dy=(F.mv.y-F.cy)/l}}else F.mv=null}
     // слои по высоте: в бою флоты сближаются по вертикали
     if(F.flank&&dist<420)F.zl+=((F.flank>0?24:-24)-F.zl)*.3;
     F.tdx=dx;F.tdy=dy;
@@ -768,15 +770,22 @@ function bind(){
     if(o==='focus'){ORD.focus=sel&&sel.alive&&sel.side===1?sel:null;e.target.classList.toggle('on',!!ORD.focus);return}
     ORD.st=o||null;for(const b of $b('bord').querySelectorAll('[data-o]'))if(b.dataset.o!=='focus')b.classList.toggle('on',b.dataset.o===o)};
   $b('bsens').onclick=e=>{const o=e.target.dataset&&e.target.dataset.s;if(o===undefined)return;ORD.sens=o||null;for(const b of $b('bsens').querySelectorAll('[data-s]'))b.classList.toggle('on',b.dataset.s===o)};
+  $b('bmove').onclick=e=>{if(!sel||sel.side!==0){e.target.textContent='Сначала выберите свой корабль';return}moveMode=!moveMode;e.target.classList.toggle('on',moveMode);e.target.textContent=moveMode?'Кликните точку на карте':'Флот: идти в точку'};
+  $b('bhold').onclick=()=>{if(sel&&sel.side===0)sel.F.mv=null};
   $b('bsnd').onclick=e=>{const v=e.target.textContent.includes('вкл');Sfx.setOn(!v);e.target.textContent='Звук: '+(v?'выкл':'вкл')};
   $b('bgo').onclick=()=>{ui.bfollow=true;focusBattle()};
   $b('btilt').oninput=e=>setTilt(+e.target.value);
   $b('bpm').onclick=e=>{projMode=(projMode+1)%3;e.target.textContent='Снаряды: '+PM[projMode]};
 }
-function pick(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
+let moveMode=false;
+function toWorld(mx,my){const cT=vw.cT||1;return {x:(mx-vw.ox)/vw.kk,y:(my-vw.oy)/(vw.kk*cT)}}
+function pick(mx,my){
+  if(moveMode&&sel&&sel.side===0&&sel.alive){const w=toWorld(mx,my);sel.F.mv={x:w.x,y:w.y};moveMode=false;const b=$b('bmove');if(b){b.classList.remove('on');b.textContent='Флот: идти в точку'}return true}
+  return pick0(mx,my)}
+function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
+return {select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
 })();
 
 /* ===== НАЛЁТЫ ===== */
