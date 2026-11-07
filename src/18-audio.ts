@@ -68,37 +68,15 @@ export const Sfx = (() => {
     win: ['Противник разбит.', 'Бой окончен. Мы выстояли.'],
     lose: ['Всё кончено…', 'Флот разбит.'],
   };
-  let voices = null;
-  const loadVoices = () => { try { voices = (speechSynthesis.getVoices() || []).filter(v => /^ru/i.test(v.lang)) } catch (e) { voices = [] } };
   const squelch = hi => { tone(.05, hi ? 1700 : 1300, hi ? 1700 : 1300, .05, 'square'); noise(.12, 2500, 1800, .05, 'bandpass', 2) };
-  // radio(side, key, who): минимум одна реплика за раз, не чаще раза в 2.5 с, одинаковые типы — реже
-  const radio = (side, key, who) => {
-    if (!on || !L[key] || speaking) return;
-    const n = performance.now(); if (n - lastV < 2500 || n - (lastLine[key] || 0) < 9000) return;
-    if (!ctx()) return;
-    lastV = n; lastLine[key] = n;
-    const arr = L[key], txt = arr[(Math.random() * arr.length) | 0], name = who && who.T && who.T.n ? who.T.n : '';
-    squelch(true);
-    // фоновый шум эфира на время реплики
-    noise(2.4, 3000, 2000, .02, 'bandpass', 1.5);
-    try {
-      if (!window.speechSynthesis) return;
-      if (!voices) loadVoices();
-      const u = new SpeechSynthesisUtterance((name && Math.random() < .5 ? name + ': ' : '') + txt);
-      u.lang = 'ru-RU'; if (voices && voices.length) u.voice = voices[(side * 3 + ((Math.random() * voices.length) | 0)) % voices.length];
-      u.rate = 1.05 + Math.random() * .25; u.pitch = side ? .75 + Math.random() * .3 : 1 + Math.random() * .3; u.volume = Math.min(1, vol * 1.3);
-      speaking = true; u.onend = u.onerror = () => { speaking = false; squelch(false) };
-      setTimeout(() => { speaking = false }, 6000);
-      speechSynthesis.speak(u);
-    } catch (e) { speaking = false }
-  };
-  try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = loadVoices } catch (e) {}
+  // голосовой связи нет: озвучка браузера звучит плохо, живые голоса — позже
+  const radio = () => {};
   return {
     shot, boom, radio,
-    setOn(v) { on = !!v; if (!on) { try { speechSynthesis.cancel() } catch (e) {} } else ctx() && ac.state === 'suspended' && ac.resume() },
+    setOn(v) { on = !!v; if (!on) { } else ctx() && ac.state === 'suspended' && ac.resume() },
     isOn: () => on,
     setVol(v) { vol = v; if (master) master.gain.value = v },
     unlock() { const a = ctx(); if (a && a.state === 'suspended') a.resume() },
-    stop() { try { speechSynthesis.cancel() } catch (e) {} speaking = false },
+    stop() { speaking = false },
   };
 })();

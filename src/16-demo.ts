@@ -27,8 +27,8 @@ const TYPES = {
   swarmcarrier: n => ({name: 'Лёгкий авианосец', ...gun(2, 10), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
   bomber: n => ({name: 'Торпедоносец', ...gun(2, 10), flak: 2, eng: 3, L: R(1.2, 1.6), arm: 2, spd: .9, F: 2, B: RI(6, 12)}),
   // лазеры редки и огромны: один-два на огромном корабле
-  laserCruiser: n => { const k = RI(1, 2); return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: LC(k, 'm', Math.random() < .5 ? 'f' : 'm'), eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
-  laserBattleship: n => { const k = RI(1, 2); return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
+  laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: LC(k, 'm', Math.random() < .5 ? 'f' : 'm'), eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
+  laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
   missileFrigate: n => { const k = RI(2, 4); return {name: 'Ракетный фрегат', ...gun(2, 10), flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 4), eng: 3, L: R(.5, .7), arm: 2, spd: 1.1}; },
   missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; },
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
@@ -42,7 +42,7 @@ const MIXES = {
   brawl: {brawler: 3, gunboat: 4, corvette: 4, destroyer: 2},
   swarm: {corvette: 12, gunboat: 4, frigate: 1, swarmcarrier: 1},
   strike: {bomber: 3, swarmcarrier: 2, frigate: 3, corvette: 3},
-  lasers: {laserCruiser: 2, destroyer: 4, frigate: 2, brawler: 2, laserBattleship: 1},
+  lasers: {laserCruiser: 1, destroyer: 5, frigate: 2, brawler: 2, cruiser: 2, laserBattleship: 1},
   missiles: {missileFrigate: 4, missileCruiser: 2, destroyer: 2, frigate: 2, gunboat: 2},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
@@ -66,7 +66,7 @@ const DOCT = {
   light: {n: 'лёгкий флот', mix: 'light'},
   convoy: {n: 'конвой', mix: 'convoy'},
 };
-const BYSIZE = n => { const r = Math.random(); if (n >= 10 && r < .1) return 'lasers'; if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
+const BYSIZE = n => { const r = Math.random(); if (n >= 30 && r < .06) return 'lasers'; if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
   if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
 // оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
 function outfit(specs) {
