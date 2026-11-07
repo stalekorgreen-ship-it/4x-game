@@ -87,7 +87,11 @@ function buildGrids(){
   for(const s of ships){if(!s.alive)continue;const k=ckey(Math.floor(s.x/CS),Math.floor(s.y/CS)),g=GR[s.side];let a=g.get(k);if(!a)g.set(k,a=[]);a.push(s)}
 }
 // ближайший корабль стороны side (поиск по кольцам ячеек)
-function nearestShip(x,y,side){
+let nsT=-1,nsC=new Map();
+function nearestShip(x,y,side){ // кэш на такт по крупной ячейке: сотни звеньев и бомбардировщиков не гоняют спиральный поиск каждый раз
+  if(nsT!==t){nsT=t;nsC.clear()}const kk=side*1e9+Math.floor(x/48)*1e4+Math.floor(y/48),hit=nsC.get(kk);if(hit!==undefined&&(hit===null||hit.s.alive)){return hit?{s:hit.s,d:Math.hypot(hit.s.x-x,hit.s.y-y)}:null}
+  const r0=nearestShip0(x,y,side);nsC.set(kk,r0);return r0}
+function nearestShip0(x,y,side){
   const g=GR[side];if(!g.size)return null;const cx=Math.floor(x/CS),cy=Math.floor(y/CS);let b=null,bd=1e18;
   const scan=(i,j)=>{const a=g.get(ckey(cx+i,cy+j));if(!a)return;for(const o of a){const d=(o.x-x)*(o.x-x)+(o.y-y)*(o.y-y);if(d<bd){bd=d;b=o}}};
   for(let r=0;r<48;r++){
