@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Battle } from './05-battle.ts';
+import { massParts, TON_L, RAIL_CAL } from './01-data.ts';
 
 const wrap = document.getElementById('mapwrap');
 const bgo = document.getElementById('bgo');
@@ -103,12 +104,25 @@ if (wrap && bgo) {
   function hullGeo(s: any, seed: number) {
     const R = rng(seed), P = PAL[s.side], L = s.T.L, W = L * .17, H = L * .095, parts: THREE.BufferGeometry[] = [];
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
-    // хребет из блоков
-    const n = 7 + Math.floor(R() * 4), x0 = -L * .5, x1 = L * .34; let x = x0; const seg: any[] = [];
-    for (let i = 0; i < n; i++) {
-      const len = (x1 - x0) / n * (.8 + R() * .5), w = W * (.62 + R() * .38), h = H * (.65 + R() * .45), cx = x + len / 2, cy = (R() - .5) * H * .25;
-      const col = R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2; seg.push({ cx, w, h, len, cy });
-      parts.push(piece(unitBox, shade(col, .85 + R() * .3), cx, cy, 0, len * 1.02, h, w)); x += len;
+    // хребет из блоков: участки идут по модулям корабля (корма → нос), длина участка пропорциональна массе модулей
+    const x0 = -L * .5, x1 = L * .34, Lk = x1 - x0; const seg: any[] = [];
+    const mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ORD: [string, string][] = [['eng', 'e'], ['struct', 's'], ['hangF', 'f'], ['hangB', 'b'], ['mar', 's'], ['flak', 'w'], ['rail', 'w'], ['miss', 'm'], ['laser', 'l'], ['core', 'c']];
+    const lst: { ty: string; len: number }[] = []; { const raw = ORD.filter(([k]) => mp.parts[k] > 0).map(([k, ty]) => ({ k, ty, w: Math.max(mp.parts[k], 1) })); const tt = raw.reduce((a, q) => a + q.w, 0);
+      const sh = raw.map(q => Math.max(q.w / tt, .03)), ss = sh.reduce((a, b) => a + b, 0);
+      raw.forEach((q, i) => { const share = sh[i] / ss * Lk, nb = Math.max(1, Math.min(5, Math.round(share / (Lk * .1)))); for (let j = 0; j < nb; j++) lst.push({ ty: q.ty, len: share / nb }) }) }
+    let x = x0;
+    for (const e of lst) {
+      const ty = e.ty, len = e.len, wF = ty === 'e' ? .95 : ty === 'f' || ty === 'b' ? 1.1 : ty === 'w' || ty === 'm' ? .8 : .62 + R() * .38, hF = ty === 'e' ? 1.1 : ty === 'f' || ty === 'b' ? 1.05 : ty === 'w' || ty === 'm' ? .8 : .65 + R() * .45;
+      const w = W * wF, h = H * hF, cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
+      const col = ty === 'e' ? P.dark : ty === 'f' ? P.main : ty === 'b' ? P.acc2 : R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2;
+      seg.push({ cx, w, h, len, cy, weapon: ty === 'w' || ty === 'm' || ty === 'l', ty });
+      parts.push(piece(unitBox, shade(col, .85 + R() * .3), cx, cy, 0, len * 1.02, h, w));
+      if (ty === 'f' || ty === 'b') for (const sd of [-1, 1]) { // ангарные ворота по бортам
+        parts.push(piece(unitBox, 0x0b0d12, cx, cy - h * .05, sd * (w / 2 + w * .01), len * .78, h * .5, w * .03)); parts.push(piece(unitBox, P.glow, cx, cy - h * .3, sd * (w / 2 + w * .02), len * .78, h * .03, w * .02)) }
+      if (ty === 'e') for (let i = 0; i < 4; i++) parts.push(piece(unitBox, shade(P.main, .7), cx - len / 2 + (i + .5) * len / 4, cy, 0, len * .07, h * 1.12, w * 1.04)); // рёбра радиатора
+      if (ty === 'm') for (let i = 0; i < 6; i++) for (const sd of [-1, 1]) parts.push(piece(unitBox, shade(P.dark, 1.1), cx - len * .4 + (i + .5) * len * .8 / 6, cy + h / 2 + h * .08, sd * w * .22, len * .1, h * .16, w * .3)); // ракетные шахты
+      if (ty === 'l') { parts.push(piece(unitCyl, 0x20242c, cx + len * .25, cy + h / 2 + h * .2, 0, len * 1.3, h * .5, h * .5)); parts.push(piece(unitCyl, P.glow, cx + len * .9, cy + h / 2 + h * .2, 0, len * .08, h * .35, h * .35)) } // лазерная пушка
+      x += len;
     }
     // нос
     parts.push(piece(taper(1, 1, 1, .25), P.main, x1 + L * .09, 0, 0, L * .2, H * .95, W * .78));
@@ -123,7 +137,7 @@ if (wrap && bgo) {
     // верхние блоки и рубка
     for (let i = 0; i < 9; i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
       parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() < .5 ? -1 : 1) * sg.w * .38, len, h * .7, w * .22)) }
-    const bs = seg[Math.floor(seg.length * .66)], bh = H * 1.4, bx = bs.cx;
+    const bs = seg[seg.length - 1], bh = H * 1.4, bx = bs.cx;
     parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
     parts.push(piece(unitBox, P.glow, bx + L * .006, bs.cy + bs.h / 2 + bh * .6, 0, L * .057, bh * .06, W * .52));
@@ -140,8 +154,12 @@ if (wrap && bgo) {
     for (let i = 0; i < ne; i++) { const zz = (i - (ne - 1) / 2) * (W * .8 / Math.max(1, ne - 1)) * (ne > 1 ? 1 : 0), r = Math.min(H * .38, W * .5 / ne * 1.5);
       parts.push(piece(unitCyl, 0x16181d, x0 - L * .075, 0, zz, L * .05, r * 2, r * 2)); nozz.push({ z: zz, r }) }
     // 200 жёстких точек крепления по всему корпусу: сверху, снизу и с обоих бортов (грани 0 верх, 1 правый, 2 низ, 3 левый)
-    const usable = seg.filter(q => Math.abs(q.cx - bx) > L * .06); let area = 0; for (const q of usable) area += (q.len * q.w * 2 + q.len * q.h * 2) * .7;
-    const cell = Math.sqrt(area / 200), mounts: { x: number; y: number; z: number; face: number }[] = [];
+    const nT = (s.spec ? (s.spec.rails || 0) + (s.spec.flak || 0) + (s.spec.lasers || 0) + (s.spec.miss || 0) : 40) || 1;
+    let usable = seg.filter(q => q.weapon && Math.abs(q.cx - bx) > L * .06); if (!usable.length) usable = seg.filter(q => Math.abs(q.cx - bx) > L * .06);
+    const arOf = (us: any[]) => { let a = 0; for (const q of us) a += (q.len * q.w * 2 + q.len * q.h * 2) * .7; return a };
+    if (arOf(usable) < L * L * .05) usable = seg.filter(q => Math.abs(q.cx - bx) > L * .06);
+    const rD = (s.spec && s.spec.railCfg && s.spec.railCfg[0] ? (RAIL_CAL as any)[s.spec.railCfg[0].cal] || RAIL_CAL[10] : RAIL_CAL[10]).m / TON_L; // диаметр башни: масса/50 т на метр
+    const cell = Math.max(rD * 1.3, L * .004, Math.sqrt(arOf(usable) / (nT * 2.4))), mounts: { x: number; y: number; z: number; face: number }[] = [];
     for (const q of usable) {
       const cols = Math.max(1, Math.floor(q.len / cell)), xs = (a: number) => q.cx - q.len / 2 + (a + .5) * q.len / cols;
       const rw = Math.max(1, Math.floor(q.w * .7 / cell)), rh = Math.max(1, Math.floor(q.h * .7 / cell));
@@ -150,7 +168,7 @@ if (wrap && bgo) {
         for (let b = 0; b < rh; b++) { const y = q.cy + (b + .5 - rh / 2) * (q.h * .7 / rh); mounts.push({ x: xs(a), y, z: q.w / 2, face: 1 }); mounts.push({ x: xs(a), y, z: -q.w / 2, face: 3 }) }
       }
     }
-    const g = mergeGeometries(parts, false)!; (g as any).userData = { mounts: mounts.slice(0, 400), cell, nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy })) }; return g;
+    const g = mergeGeometries(parts, false)!; (g as any).userData = { mounts: mounts.slice(0, 1200), cell, nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy })) }; return g;
   }
   let sid = 1;
   const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
@@ -185,6 +203,7 @@ if (wrap && bgo) {
       const f = m.face || 0, px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
       for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
       if (!best) continue; best.used = true;
+      const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
       const t = new THREE.Group(), lift = r * .3;
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, lift * 1.4, r * 1.8); base.position.y = lift * .2; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; t.add(head); // голова башни: поворачивается по полусфере
@@ -253,7 +272,7 @@ if (wrap && bgo) {
         const sp = Math.max(.5, Math.hypot(c.vx || 0, c.vy || 0)); let dh = 0; if (c._h0 != null) { dh = c.h - c._h0; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI }
         c._h0 = c.h; c._r = (c._r || 0) + (Math.max(-1.3, Math.min(1.3, dh * 40)) + .35 * Math.sin(w * 3 * T2 + ph) - (c._r || 0)) * .12;
         dummy.position.set(c.x, yv, c.y); qa.setFromAxisAngle(vY, -c.h); qb.setFromAxisAngle(vZ, Math.atan2(dy, sp)); qa.multiply(qb); qb.setFromAxisAngle(vX, c._r); qa.multiply(qb); qb.setFromAxisAngle(vZ, -Math.PI / 2); qa.multiply(qb);
-        dummy.quaternion.copy(qa); c._yv = yv; const sz = (c.type === 'B' ? .06 : .04) * Math.max(1, SC * .7); dummy.scale.set(sz, sz * 2.2, sz); dummy.updateMatrix() }
+        dummy.quaternion.copy(qa); c._yv = yv; const mc = (c.P && c.P.mass) || (c.type === 'B' ? 300 : 260), tl = mc / TON_L, dc = cam.position.distanceTo(dummy.position), len = Math.max(tl, dc * .0045), sz = len / 2.2; dummy.scale.set(sz * (c.type === 'B' ? 1.5 : 1), len, sz * (c.type === 'B' ? 1.5 : 1)); dummy.updateMatrix() } // длина = масса / 50 т на метр, но не меньше нескольких пикселей
       fighters.setMatrixAt(fc, dummy.matrix); fighters.setColorAt(fc, col.set(c.side ? 0xffb070 : 0x9fd8ff)); fc++;
     }
     fighters.count = fc; fighters.instanceMatrix.needsUpdate = true; if (fighters.instanceColor) fighters.instanceColor.needsUpdate = true;

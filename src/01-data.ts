@@ -442,6 +442,14 @@ export function fitSpec(sp) {
   sp.tons = Math.round(T / 100) * 100; sp.L = Math.max(.06, T / TON_L); return sp;
 }
 
+// разбивка массы корабля по модулям: длина участка корпуса пропорциональна массе (50 т на метр), по ней строится внешний вид
+export function massParts(sp) {
+  const T = sp.tons || specTons(sp), rc = sp.railCfg || []; let rails = 0;
+  for (let i = 0; i < (sp.rails || 0); i++) { const c = rc[i] || {cal: 10, bar: 1}; rails += (RAIL_CAL[c.cal] || RAIL_CAL[10]).m * (1 + 1.03 * ((c.bar || 1) - 1)) * 1.25; }
+  const o = {rail: rails, flak: (sp.flak || 0) * 110, miss: (sp.miss || 0) * 320, laser: (sp.lasers || 0) * 9000, hangF: (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass), hangB: (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass), mar: (sp.mar || 0) * 56, core: 800};
+  const M = Object.values(o).reduce((a, b) => a + b, 0); o.struct = M * (HULLK - 1); o.eng = T * ENGF * (sp.spd || 1);
+  return {T, parts: o};
+}
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
 export function designStats(parts, flags) {
