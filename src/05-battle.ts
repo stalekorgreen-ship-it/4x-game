@@ -227,10 +227,10 @@ function steer(s,dt){
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
   vm*=boost;const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   // инерция: ускорение ограничено тягой и массой
-  const a=.035*VMK*(eng+.1)/(1+T.L*.35)*dt*(1+(boost-1)*1.2),dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
+  const a=.035*VMK*(eng+.1)/(1+3*Math.pow(T.L/.5,1.5))*dt*(1+(boost-1)*1.2),dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
   if(dl>a){s.sx+=dvx/dl*a;s.sy+=dvy/dl*a}else{s.sx+=dvx;s.sy+=dvy}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
-  const turn=(.5/(1+T.L*.8))*dt;s.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
+  const turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt; // 1 км — около минуты на разворот, 4 км — минутыs.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
   s.vx=s.sx;s.vy=s.sy;
   // высота (псевдо-3D)
   if(t>=(s.zn||0)){s.zn=t+R(40,90);const r=Math.random();s.zo=r<.4?R(10,28):r<.75?R(-28,-10):R(-5,5)}
