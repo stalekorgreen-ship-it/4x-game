@@ -541,6 +541,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   if(o.alive&&o.aliveN<o.total*0.22)kill(o);
 }
 // пулемёт Гатлинга: непрерывный огонь по истребителям, ракетам и торпедам (в упор — по кораблям); нагрев снижает точность, перегрев — заклинивание или поломка
+const GV=300; // пуля гатлинга ~0,6 км/с (рельсотрон 2–10 км/с = ×500 в тех же единицах)
 function gatStep(s,m,dt){
   const C=m.cfg;let e=null,kind=0,bd=C.rng*C.rng;
   if(!m.lock&&s.fine){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}
@@ -553,9 +554,9 @@ function gatStep(s,m,dt){
   m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();m.acc+=dt*10;const w=C.rpm/600,dist=Math.hypot(e.x-s.x,e.y-s.y);
   const pAcc=Math.max(.02,(.55-.4*dist/C.rng)*(1-.95*m.heat))*(1.2-.05*m.sk);
   let n=0;while(m.acc>=1&&n<6){m.acc--;n++;
-    if(kind===1)fireAt(s.x,s.y,s.z,s,m,s.side,e,3000,pAcc,w*.05,C.rng*4);
-    else if(kind===4)fireAt(s.x,s.y,s.z,s,m,s.side,e,3000,pAcc,0,C.rng*4,w*C.pen*.01);
-    else{fireAt(s.x,s.y,s.z,s,m,s.side,e,3000,pAcc*.6,0,C.rng*3);if(Math.random()<pAcc*.12*w/10){if(kind===2)hurtMis(e,1);else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}}}
+    if(kind===1)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,w*.05,C.rng*4);
+    else if(kind===4)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,0,C.rng*4,w*C.pen*.01);
+    else{fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc*.6,0,C.rng*3);if(Math.random()<pAcc*.12*w/10){if(kind===2)hurtMis(e,1);else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}}}
 }
 function flakBurst(s,m){
   if(!s.fine){m.cd=3;return false}
