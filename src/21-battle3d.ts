@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Battle } from './05-battle.ts';
 import { massParts, TON_L, RAIL_CAL } from './01-data.ts';
+import { hooks } from './00-hooks.ts';
 
 const wrap = document.getElementById('mapwrap');
 const bgo = document.getElementById('bgo');
@@ -49,7 +50,7 @@ if (wrap && bgo) {
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x070a12); scene.fog = new THREE.FogExp2(0x070a12, .00008);
     cam = new THREE.PerspectiveCamera(50, 1, .05, 6000);
     scene.add(new THREE.HemisphereLight(0x8aa4d8, 0x20161c, 1.1));
-    const sun = new THREE.DirectionalLight(0xfff0dd, 2.2); sun.position.set(300, 400, 200); scene.add(sun);
+    const sun = new THREE.DirectionalLight(0xfff0dd, 2.2); sun.position.set(300, 400, 200); scene.add(sun); sunL = sun;
     const st = new Float32Array(1500 * 3); for (let i = 0; i < st.length; i += 3) { const v = new THREE.Vector3().randomDirection().multiplyScalar(2500); st[i] = v.x; st[i + 1] = v.y; st[i + 2] = v.z }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(st, 3));
     scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xaabbdd, size: 2, sizeAttenuation: false, fog: false })));
@@ -544,8 +545,44 @@ if (wrap && bgo) {
         dummy.position.set(f.x, f.z || 0, f.y); const rr = Math.max((f.r || .6) * (.5 + life) * .12, cam.position.distanceTo(dummy.position) * .003); dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
         fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar(1 - life)); k++ }
       fxMesh.count = k; fxMesh.instanceMatrix.needsUpdate = true; if (fxMesh.instanceColor) fxMesh.instanceColor.needsUpdate = true}
+    { const cf = Battle.cfg && Battle.cfg(), sk = cf ? cf.sky : null; if (sk !== curSky) buildSky(sk || null); if (skyG) skyG.position.copy(cam.position) }
     ren.render(scene, cam);
   }
+  // небо боя: настоящие направления и угловые размеры тел относительно места боя на карте; Солнце задаёт свет и фазы
+  let sunL: THREE.DirectionalLight, skyG: THREE.Group | null = null, curSky: any = undefined;
+  function skyTex(id: string) {
+    return cvTex(256, 128, c => {
+      if (id === 'earth') { c.fillStyle = '#2f64b8'; c.fillRect(0, 0, 256, 128); for (let i = 0; i < 26; i++) { c.fillStyle = Math.random() < .6 ? '#4f8a4a' : '#8a7a50'; c.globalAlpha = .85; c.beginPath(); c.ellipse(Math.random() * 256, 20 + Math.random() * 88, 8 + Math.random() * 26, 5 + Math.random() * 12, Math.random() * 3, 0, 6.3); c.fill() } for (let i = 0; i < 40; i++) { c.fillStyle = '#fff'; c.globalAlpha = .35; c.beginPath(); c.ellipse(Math.random() * 256, Math.random() * 128, 10 + Math.random() * 30, 2 + Math.random() * 5, 0, 0, 6.3); c.fill() } }
+      else if (id === 'mars') { c.fillStyle = '#b8582f'; c.fillRect(0, 0, 256, 128); for (let i = 0; i < 40; i++) { c.fillStyle = Math.random() < .5 ? '#6e3320' : '#d88a5a'; c.globalAlpha = .45; c.beginPath(); c.ellipse(Math.random() * 256, Math.random() * 128, 6 + Math.random() * 24, 4 + Math.random() * 10, 0, 0, 6.3); c.fill() } }
+      else if (id === 'venus') { c.fillStyle = '#d8bf8a'; c.fillRect(0, 0, 256, 128); for (let i = 0; i < 50; i++) { c.fillStyle = Math.random() < .5 ? '#f1deb0' : '#b99a62'; c.globalAlpha = .3; c.fillRect(0, Math.random() * 128, 256, 2 + Math.random() * 8) } }
+      else { c.fillStyle = '#9a978f'; c.fillRect(0, 0, 256, 128); for (let i = 0; i < 70; i++) { c.fillStyle = Math.random() < .5 ? '#6c6a64' : '#b9b6ae'; c.globalAlpha = .5; c.beginPath(); c.arc(Math.random() * 256, Math.random() * 128, 2 + Math.random() * 9, 0, 6.3); c.fill() } }
+    });
+  }
+  function buildSky(sk: any) {
+    curSky = sk; if (!scene) return;
+    if (skyG) { scene.remove(skyG); skyG.traverse((o: any) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose() } }); skyG = null }
+    if (!sk || !sk.length) { sunL.position.set(300, 400, 200); return }
+    skyG = new THREE.Group(); const D = 4300;
+    for (const b of sk) {
+      const r = D * Math.tan(b.ang); if (r < .6) continue;
+      const px = b.dx * D, pz = b.dy * D;
+      if (b.sun) {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff1c0, fog: false })); m.position.set(px, 0, pz); skyG.add(m);
+        const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xffe3a0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true })); h.scale.setScalar(r * 9); h.position.set(px, 0, pz); skyG.add(h);
+        sunL.position.set(b.dx * 400, 150, b.dy * 400);
+      } else {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 40, 28), new THREE.MeshStandardMaterial({ map: skyTex(b.id), roughness: .95, metalness: 0, fog: false })); m.position.set(px, 0, pz); skyG.add(m);
+      }
+    }
+    skyG.renderOrder = -1; scene.add(skyG);
+  }
+  function reset3d() {
+    if (scene) for (const [, g] of models) scene.remove(g);
+    models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
+    const im = Battle.impacts() as any[]; lastImp = im.length ? Math.max(...im.map((q: any) => q.id)) : 0;
+    follow = true; fitAll = true; curSky = undefined;
+  }
+  (hooks as any).reset3d = reset3d;
   btn.onclick = () => {
     on = !on; btn.classList.toggle('on', on);
     if (on) { if (!ren) init(); (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'block'; follow = true; const s = Battle.ships().find((q: any) => q.alive); if (s) { tgt.set(s.x, s.z, s.y); fitAll = true; dist = 120 } cancelAnimationFrame(raf); frame() }

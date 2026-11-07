@@ -194,7 +194,7 @@ export function drawMap() {
       drawShipGlyph(x, y, sz, a, col, !!dest, s); }
     if (ui.sel.kind === 'ship' && ui.sel.id === s.id) { cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, shipSize(s) + 6, 0, 7); cx.stroke(); }
   });
-  if (Battle.active()) drawBattleLayer();
+  if (hooks.warActive && hooks.warActive()) hooks.warDraw(); else if (Battle.active()) drawBattleLayer();
   // отметки
   cx.lineWidth = 1.5;
   for (const key of Object.keys(state.marks)) {
@@ -265,6 +265,7 @@ export function select(sel) {
     cv.classList.remove('drag');
     if (drag && !moved) {
       const r = cv.getBoundingClientRect();
+      if (hooks.warClick && hooks.warClick(e.clientX - r.left, e.clientY - r.top)) { drag = null; return; }
       if (Battle.active() && Battle.pick(e.clientX - r.left, e.clientY - r.top)) { drag = null; return; }
       const p = pickAt(e.clientX - r.left, e.clientY - r.top);
       if (p) select(p);

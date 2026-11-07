@@ -15,7 +15,7 @@ const STEPS = [
 let el = null;
 function render() {
   if (!state || !state.bld) return;
-  if (state.tutOff) { if (el) el.hidden = true; return; }
+  if (state.tutOff || state.demo) { if (el) el.hidden = true; return; }
   if (!el) {
     el = document.createElement('div'); el.id = 'tut';
     el.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:20;width:300px;max-width:calc(100vw - 32px);background:var(--panel,#121a26);border:1px solid var(--line,#2b3950);border-radius:8px;padding:10px 12px;font-size:12px;box-shadow:0 6px 24px #0008';

@@ -6,7 +6,8 @@ import { W, H, bar, cx, focusBattle, ui, setTilt } from './08-map-ui.ts';
 import { Sfx } from './18-audio.ts';
 
 /* ===== БОЙ (движок боя из демо) ===== */
-export const Battle = (() => {
+export function makeBattle() {
+let viewed=true;const SFX={shot:(...a)=>viewed&&Sfx.shot(...a),boom:(...a)=>viewed&&Sfx.boom(...a),radio:(...a)=>viewed&&Sfx.radio(...a),setOn:(...a)=>Sfx.setOn(...a)};
 const $b = id => document.getElementById(id);
 
 const DOPT={hc:20,dd:20,fr:35,cv:100},JINK=0.0015,VP=6,LIFE=10,RANGE=VP*LIFE,SIGMA=0.026,LAUNCH=450,SUB=0.25,REL=60;
@@ -19,7 +20,7 @@ const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
 let hitLog=[],impacts=[],impN=0,frags=[],pyro=[],pods=[],lands=[],mis=[],beams=[],bursts=[],curCT=1,curST=0,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
 let uidN=0,lastDmgT=0,env=[],ORD={st:null,focus:null},nextVis=0,nextCrew=0,lastCrewT=0,endSaid=false;
-const say=(side,key,s)=>{if(active&&!done)Sfx.radio(side,key,s)};
+const say=(side,key,s)=>{if(active&&!done)SFX.radio(side,key,s)};
 const EW={fr:.12,cv:.05,dd:.02,hc:.02},RADAR={cv:420,hc:320,dd:260,fr:360},MARN={cv:20,hc:10,dd:8,fr:4};
 let pend=[],lastFriend=0,vw={ox:0,oy:0,kk:1},active=false;
 const R=(a,b)=>a+Math.random()*(b-a);
@@ -228,7 +229,7 @@ function turAim(m,s,now){ // плавный поворот башни к цел�
   const dt=Math.min(.1,Math.max(0,(now-m.dt)/1000));m.dt=now;
   const d=target-m.da,st=1.6*dt;m.da+=Math.abs(d)<st?d:Math.sign(d)*st;return m.da}
 function steer(s,dt){
-  const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng)*(t<s.blk?.2:1),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;if(s.st==='surr')vm=0;
+  const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng)*(t<s.blk?.2:1),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;if(s.st==='surr'||T.role==='station')vm=0;
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
   if(t>=s.next){s.next=t+R(6,14);s.sdir=Math.random()<.5?1:-1}
   const tg=s.tg;let vx=0,vy=0,want=s.hd;
@@ -471,15 +472,15 @@ function podStep(dt){
     l.vx+=(o.sx+dx/d*sp-l.vx)*k;l.vy+=(o.sy+dy/d*sp-l.vy)*k;l.x+=l.vx*dt;l.y+=l.vy*dt;l.z=o.z;
     // ПВО сбивает шлюпки
     let dead=false;for(const q of around(1-l.side,l.x,l.y,22)){let na=0;for(const m of q.tur)if(m.k==='A'&&m.alive)na++;if(na&&Math.random()<.05*na*dt*(q.fine?1.3:.5)){dead=true;break}}
-    if(dead){fx.push({x:l.x,y:l.y,z:l.z,t0:t,d:3,r:1.1});spawnShards(l.x,l.y,l.z,4,5);Sfx.boom(4);stat.landLost=(stat.landLost||0)+1;lands.splice(i,1);continue}
+    if(dead){fx.push({x:l.x,y:l.y,z:l.z,t0:t,d:3,r:1.1});spawnShards(l.x,l.y,l.z,4,5);SFX.boom(4);stat.landLost=(stat.landLost||0)+1;lands.splice(i,1);continue}
     if(d<o.T.L*.5+.8){lands.splice(i,1);resolveBoard(l)}}
 }
-function kill(o){if(!o.alive)return;o.alive=false;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:40,r:26});Sfx.boom(26);stat.lost[o.side]++;
+function kill(o){if(!o.alive)return;o.alive=false;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:40,r:26});SFX.boom(26);stat.lost[o.side]++;
   {const L=o.T.L;spawnFrags(o.x,o.y,o.z,6+Math.floor(L*6),1.2,L,o);
    let ammo=(o.pool&&(o.pool.torp||0)+(o.pool.ammo||0)/10)||0;for(const m of o.tur)if(m.k==='M'&&m.alive)ammo+=m.ammo||0;
    if(ammo>0)pyro.push({x:o.x,y:o.y,z:o.z,hd:o.hd,L,vx:o.sx*.3,vy:o.sy*.3,n:4+Math.min(14,Math.round(L*3+ammo/3)),next:t+.3,t0:t,side:o.side});
    if(Math.random()<Math.min(.3,.08+.05*L)){stat.reactor=(stat.reactor||0)+1;const R0=7+L*10;
-     fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:9,r:R0,ring:1,big:1});fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:5,r:R0*.7});spawnShards(o.x,o.y,o.z,26,12);spawnFrags(o.x,o.y,o.z,10,5,L,o);Sfx.boom(40);
+     fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:9,r:R0,ring:1,big:1});fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:5,r:R0*.7});spawnShards(o.x,o.y,o.z,26,12);spawnFrags(o.x,o.y,o.z,10,5,L,o);SFX.boom(40);
      for(const q of ships){if(q===o||!q.alive)continue;const d=Math.hypot(q.x-o.x,q.y-o.y);if(d<R0*1.2)hitShip(q,'mis',q.x-o.x,q.y-o.y,o.x,o.y,Math.max(1,L*5*(1-d/(R0*1.2))))}}}
   if(env.length<90)env.push({t:'debris',x:o.x,y:o.y,r:Math.max(.25,o.T.L*.3),vx:o.sx*.3,vy:o.sy*.3,ttl:t+240});
   for(const q of ships){if(!q.alive||Math.hypot(q.x-o.x,q.y-o.y)>45)continue;q.mor+=q.side===o.side?-(o.cls==='cv'?.14:.07):.03}
@@ -518,7 +519,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
   const k=kind==='torp'?TORP.mod:pass,f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;
   for(let i=0;i<k;i++){let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
     if(!m)break;if(m.ar>0&&m.k!=='C'){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.7});continue}mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}
-  fx.push({z:o.z,x,y,t0:t,d:10,r:3});Sfx.boom(3);spawnPlates(o,x,y,2+Math.min(3,k),true);addDecal(o,x,y,vx,vy,1.2,1);
+  fx.push({z:o.z,x,y,t0:t,d:10,r:3});SFX.boom(3);spawnPlates(o,x,y,2+Math.min(3,k),true);addDecal(o,x,y,vx,vy,1.2,1);
   o.crew=Math.max(0,o.crew-.012*k-.004);o.mor-=.012+.01*k;
   if(Math.random()<.07+.04*k){const zi2=o.zones.indexOf(z);if(zi2>=0){o.fire[zi2]=Math.min(3,o.fire[zi2]+1);stat.fires++;say(o.side,'fire_',o)}}
   say(o.side,'hit',o);
@@ -533,7 +534,7 @@ function flakBurst(s,m){
   const e=tp.length&&Math.random()<0.5?tp[(Math.random()*tp.length)|0]:(cand.length?cand[(Math.random()*cand.length)|0]:tp[0]);
   const d=Math.hypot(e.x-s.x,e.y-s.y),err=(0.25+0.012*d)*(1.4-0.08*m.sk);
   const bx=e.x+(e.vx||0)*1.5+gauss()*err,by=e.y+(e.vy||0)*1.5+gauss()*err;
-  m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();Sfx.shot('flak');stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side,ext:1.7,src:s,m:m,o0:{x:s.x,y:s.y,z:s.z}});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
+  m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();SFX.shot('flak');stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side,ext:1.7,src:s,m:m,o0:{x:s.x,y:s.y,z:s.z}});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
   for(const c of fly[1-s.side])if(c.state==='fly'&&Math.hypot(c.x-bx,c.y-by)<F.blast){c.hp--;if(c.hp<=0){killCraft(c);stat.flakKill[s.side]++}}
   for(let i=torps.length-1;i>=0;i--){const p=torps[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5&&Math.random()<0.7){torps.splice(i,1);stat.torpPd[p.side]++;stat.flakKill[s.side]++}}
   for(let i=mis.length-1;i>=0;i--){const p=mis[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5+1&&Math.random()<0.15){p.hp--;if(p.hp<=0){mis.splice(i,1);stat.misShot[p.side]++;stat.flakKill[s.side]++;boom(p,null)}}}
@@ -549,12 +550,12 @@ function fireShell(s,m,o0,C,lag){
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
   proj.push({x:s.x+ax/l*(VPc*lag+s.T.L*.4),y:s.y+ay/l*(VPc*lag+s.T.L*.4),z:s.z,vz:(o.z-s.z)/Math.max(.5,T)+gauss()*VPc*.022,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,max:C.rng,src:s,m:m,ev:Math.random(),o0:{x:s.x,y:s.y,z:s.z}});
-  stat.shots[s.side]++;s.flash=t;Sfx.shot('rail');
+  stat.shots[s.side]++;s.flash=t;SFX.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
 // взрыв ракеты: бьёт всех рядом, в том числе своих
 function boom(p,direct){
-  fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:6,r:p.blast*1.3});Sfx.boom(p.blast);
+  fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:6,r:p.blast*1.3});SFX.boom(p.blast);
   if(direct)stat.misHit[p.side]++;
   for(const side of [0,1]){for(const o of around(side,p.x,p.y,p.blast+2)){
     if(!o.alive||Math.abs(o.z-p.z)>p.blast*1.5+10)continue;
@@ -583,9 +584,9 @@ function step(dt){
       const C=m.cfg;
       // рельсы отбиваются от истребителей и бомбардировщиков рядом (нужен мелкий радар в сети)
       if((m.k==='T'||m.k==='L')&&fly[1-s.side].length){let e=null,bd=Math.min(C.rng,m.k==='L'?150:110)**2;for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c}}
-        if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();Sfx.shot('rail');s.flash=t;s.heat+=.002;
+        if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();SFX.shot('rail');s.flash=t;s.heat+=.002;
           shots.push({x1:s.x,y1:s.y,x2:e.x,y2:e.y,rt:performance.now(),s:s.side,a:s,b:e});stat.pdRail=(stat.pdRail||0)+1;
-          const dd=Math.sqrt(bd),pk=(.02+.0015*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});Sfx.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){e.hp-=m.k==='L'?4:3;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
+          const dd=Math.sqrt(bd),pk=(.02+.0015*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});SFX.shot('laser')}if(Math.random()<pk*(m.k==='L'?1.5:1)){e.hp-=m.k==='L'?4:3;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C);if(--m.am<=0){m.am=0;m.cd=1e9}}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
@@ -600,7 +601,7 @@ function step(dt){
           const cost=C.dmg*(.4+(Math.min(d,300)/120)**2);
           {const lx=o.x-s.x,ly=o.y-s.y,ll=lx*lx+ly*ly||1;let bk=null,bu=2;for(const f of around(s.side,s.x+lx/2,s.y+ly/2,Math.sqrt(ll)/2+3)){if(f===s||!f.alive)continue;const u=((f.x-s.x)*lx+(f.y-s.y)*ly)/ll;if(u<=.02||u>=1)continue;if(Math.hypot(s.x+lx*u-f.x,s.y+ly*u-f.y)<f.T.L*.38&&u<bu){bu=u;bk=f}}
             if(bk){beams.push({a:s,b:bk,tx:bk.x,ty:bk.y,tz:bk.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.ff=(stat.ff||0)+1;hitShip(bk,'laser',lx,ly,bk.x,bk.y,C.dmg*1.7);m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;continue}}
-          const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;Sfx.shot('laser');say(s.side,'laser',s);
+          const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;SFX.shot('laser');say(s.side,'laser',s);
           if(be){const dd=Math.hypot(be.x-s.x,be.y-s.y)||1;beams.push({a:s,b:{alive:false},tx:be.x-(be.x-s.x)/dd*be.r,ty:be.y-(be.y-s.y)/dd*be.r,tz:0,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.las[s.side]++;fx.push({x:be.x,y:be.y,t0:t,d:4,r:.8})}
           else{beams.push({a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});
           stat.las[s.side]++;stat.lasHit[s.side]++;hitShip(o,'laser',o.x-s.x,o.y-s.y,o.x,o.y,C.dmg*1.7)}
@@ -609,7 +610,7 @@ function step(dt){
           if(d<18){m.cd=4;continue}
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           mis.push({x:s.x,y:s.y,z:s.z,h:s.hd,side:s.side,tgt:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.rng/C.spd*2.2,tr:[],trT:0,vx:0,vy:0,src:s});
-          s.flash=t;Sfx.shot('missile');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(2400,43*Math.pow(C.dmg,1.15))*R(.8,1.25)*(1.3-.06*m.sk);
+          s.flash=t;SFX.shot('missile');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(2400,43*Math.pow(C.dmg,1.15))*R(.8,1.25)*(1.3-.06*m.sk);
         }
         continue}
       foes=s.trk||[];
@@ -670,7 +671,7 @@ function step(dt){
   podStep(dt);
   for(let i=pyro.length-1;i>=0;i--){const q=pyro[i];if(t<q.next)continue;q.next=t+R(.25,.7);q.n--;
     const ox=q.x+q.vx*(t-q.t0),oy=q.y+q.vy*(t-q.t0),off=R(-.5,.5)*q.L,px=ox+Math.cos(q.hd)*off,py=oy+Math.sin(q.hd)*off;
-    fx.push({x:px,y:py,z:q.z,t0:t,d:4,r:q.L*R(1.4,3)});spawnShards(px,py,q.z,6,R(5,10));if(Math.random()<.5)spawnFrags(px,py,q.z,2,3,q.L,null);Sfx.boom(8);
+    fx.push({x:px,y:py,z:q.z,t0:t,d:4,r:q.L*R(1.4,3)});spawnShards(px,py,q.z,6,R(5,10));if(Math.random()<.5)spawnFrags(px,py,q.z,2,3,q.L,null);SFX.boom(8);
     for(const o of ships){if(!o.alive||o.side===q.side&&false)continue;if(Math.hypot(o.x-px,o.y-py)<q.L*1.8+2)hitShip(o,'mis',o.x-px,o.y-py,px,py,1)}
     if(q.n<=0){pyro.splice(i,1)}}
   stepFlights();assign();
@@ -997,6 +998,8 @@ function join(side,spec,edge,ang){
 function begin(cfg){cfgNow=cfg;reset(cfg);active=true;acc=0;prevTilt=ui.tilt||0;setTilt(30);
   $b('btitle').textContent=cfg.title||'Бой';$b('battle').hidden=false;bind();}
 let prevTilt=0;
+function beginBg(cfg){cfgNow=cfg;reset(cfg);active=true;acc=0;viewed=false}
+function tickN(rdt){if(!active||done)return;const sim=rdt*bspeed,n=Math.min(4,Math.max(1,Math.ceil(sim/2)));for(let i=0;i<n;i++){tick(Math.min(2,sim/n))}}
 function abort(){setTilt(Math.round(prevTilt*180/Math.PI));ui.bship=false;active=false;$b('battle').hidden=true;cfgNow=null}
 function finish(){setTilt(Math.round(prevTilt*180/Math.PI));active=false;$b('battle').hidden=true;const r=result(),cb=cfgNow.onEnd;cfgNow=null;cb(r)}
 function bind(){
@@ -1011,7 +1014,7 @@ function bind(){
   $b('bsens').onclick=e=>{const o=e.target.dataset&&e.target.dataset.s;if(o===undefined)return;ORD.sens=o||null;for(const b of $b('bsens').querySelectorAll('[data-s]'))b.classList.toggle('on',b.dataset.s===o)};
   $b('bmove').onclick=e=>{if(!sel||sel.side!==0){e.target.textContent='Сначала выберите свой корабль';return}moveMode=!moveMode;e.target.classList.toggle('on',moveMode);e.target.textContent=moveMode?'Кликните точку на карте':'Флот: идти в точку'};
   $b('bhold').onclick=()=>{if(sel&&sel.side===0)sel.F.mv=null};
-  $b('bsnd').onclick=e=>{const v=e.target.textContent.includes('вкл');Sfx.setOn(!v);e.target.textContent='Звук: '+(v?'выкл':'вкл')};
+  $b('bsnd').onclick=e=>{const v=e.target.textContent.includes('вкл');SFX.setOn(!v);e.target.textContent='Звук: '+(v?'выкл':'вкл')};
   $b('bgo').onclick=()=>{ui.bfollow=true;focusBattle()};
   $b('btilt').oninput=e=>setTilt(+e.target.value);
   $b('bpm').onclick=e=>{projMode=(projMode+1)%3;e.target.textContent='Снаряды: '+PM[projMode]};
@@ -1024,8 +1027,13 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null}};
-})();
+return {env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+}
+export const mainBattle = makeBattle();
+let curB = mainBattle;
+export const Battles = {main: mainBattle, get cur() { return curB; }, set cur(b) { curB = b; }};
+// все остальные модули работают с «текущим» боем (тем, что показан на экране)
+export const Battle = new Proxy({}, {get: (_, k) => (typeof curB[k] === 'function' ? (...a) => curB[k](...a) : curB[k])});
 
 /* ===== НАЛЁТЫ ===== */
 export function raidSpecs(k) {

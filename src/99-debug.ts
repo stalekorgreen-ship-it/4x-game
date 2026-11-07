@@ -14,3 +14,4 @@ import { makeScenario } from './16-demo.ts'; window.__game.makeScenario = makeSc
 import { duelScenario, MIXNAMES } from './16-demo.ts'; window.__game.duelScenario = duelScenario; window.__game.MIXNAMES = MIXNAMES;
 import * as CB from './19-colbld.ts'; window.__game.CB = CB;
 import { designStats } from './01-data.ts'; window.__game.designStats = designStats;
+import { War, startWar, warFrame, goBattle } from './22-war.ts'; import { Battles } from './05-battle.ts'; window.__game.War = War; window.__game.startWar = startWar; window.__game.warFrame = warFrame; window.__game.goBattle = goBattle; window.__game.Battles = Battles;
