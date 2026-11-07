@@ -290,7 +290,11 @@ function stepFlights(){
       if(!fl.home.alive){live.forEach(c=>killCraft(c,'hangar'));continue}
       if(fl.svc>0){fl.svc-=1;if(fl.svc<=0)live.forEach(reloadCraft);continue}
       const foe=nearestShip(fl.home.x,fl.home.y,1-fl.side);
-      if(foe&&foe.d<LAUNCH&&live.some(c=>c.ammo>0)){fl.mode='out';fl.t0=t;const h=fl.home;
+      let go=!!foe&&foe.d<LAUNCH;
+      if(go&&fl.type==='F'){ // истребители ждут: вылет, если видны вражеские истребители/бомберы/ракеты/торпеды, либо флоты уже обмениваются огнём
+        const R2=300*300,hx=fl.home.x,hy=fl.home.y,near=q=>(q.x-hx)*(q.x-hx)+(q.y-hy)*(q.y-hy)<R2;
+        go=(fly&&fly[1-fl.side]||[]).some(near)||mis.some(q=>q.side!==fl.side&&near(q))||torps.some(q=>q.side!==fl.side&&near(q))||t-lastDmgT<25}
+      if(go&&live.some(c=>c.ammo>0)){fl.mode='out';fl.t0=t;const h=fl.home;
         for(const c of live){if(c.ammo>0){h.nextL=Math.max(h.nextL,t)+0.4;c.launchAt=h.nextL;c.launched=false}else c.launched=true}}
     }else if(live.every(c=>c.state==='bay'&&c.launched)){fl.mode='bay';fl.svc=90;live.forEach(c=>c.launched=false)}
     if(fl.mode==='out')for(const c of live){
