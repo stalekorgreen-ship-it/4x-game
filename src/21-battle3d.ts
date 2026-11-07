@@ -21,9 +21,9 @@ if (wrap && bgo) {
   const matTur = [0xe8f3ff, 0xffd9b0].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: .4, metalness: .5 }));
   const matGlow = new THREE.MeshBasicMaterial({ color: 0xffd27a });
   const matDead = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 1 });
-  let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
+  let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
    let fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
-  const MAXF = 4000, MAXP = 4000;
+  const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
   const hud = document.createElement('div');
   hud.style.cssText = 'position:absolute;left:10px;top:44px;z-index:5;color:#cfe;font:12px monospace;background:rgba(10,14,22,.7);padding:6px 8px;border-radius:6px;display:none;pointer-events:none';
@@ -46,14 +46,19 @@ if (wrap && bgo) {
     const gh = new THREE.GridHelper(600, 60, 0x1c2a44, 0x121a2c); gh.position.y = -45; scene.add(gh);
     fighters = new THREE.InstancedMesh(geoCone, new THREE.MeshBasicMaterial({ color: 0xffffff }), MAXF); fighters.frustumCulled = false; fighters.count = 0;
     fighters.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(fighters);
-    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 6), 3));
-    projLines = new THREE.LineSegments(pg, new THREE.LineBasicMaterial({ color: 0xffe9a0 })); projLines.frustumCulled = false; scene.add(projLines);
+    const addMat = () => new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 6), 3)); pg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXP * 6), 3));
+    projLines = new THREE.LineSegments(pg, addMat()); projLines.frustumCulled = false; scene.add(projLines);
     const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2000 * 3), 3));
     misPts = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xff8a50, size: 5, sizeAttenuation: false })); misPts.frustumCulled = false; scene.add(misPts);
     const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(400 * 6), 3));
     beamLines = new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ color: 0x7af4ff })); beamLines.frustumCulled = false; scene.add(beamLines);
 
     fxMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), MAXFX); fxMesh.frustumCulled = false; fxMesh.count = 0; fxMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(fxMesh);
+    const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3));
+    trailLines = new THREE.LineSegments(tg2, addMat()); trailLines.frustumCulled = false; scene.add(trailLines);
+    const MAXS = 600, sg2 = new THREE.BufferGeometry(); sg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3)); sg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3));
+    shotLines = new THREE.LineSegments(sg2, addMat()); shotLines.frustumCulled = false; scene.add(shotLines);
     let drag = 0, lx = 0, ly = 0;
     cv.addEventListener('contextmenu', e => e.preventDefault());
     let dx0 = 0, dy0 = 0;
@@ -169,7 +174,8 @@ if (wrap && bgo) {
       const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 3.2, r * .28, r * .28); br.position.set(r * 1.9, r * .6, (b - (nb - 1) / 2) * r * .6); t.add(br) }
       const px = (m.u || 0) * u.L * .8; let sg = u.seg && u.seg[0]; if (u.seg) for (const q of u.seg) if (Math.abs(q.cx - px) < Math.abs(sg.cx - px)) sg = q;
       t.position.set(px, (sg ? sg.top : u.h * .5) + r * .35, sg ? Math.max(-sg.w * .42, Math.min(sg.w * .42, (m.v || 0) * u.w * 1.3)) : 0);
-      (t as any).userData = { m }; tg.add(t); u.mods.push(m);
+      const fl = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); fl.scale.setScalar(r * 1.6); fl.position.set(r * 3.6, r * .6, 0); fl.visible = false; t.add(fl);
+      (t as any).userData = { m, fl, bar: t.children.filter(c => c !== fl) }; tg.add(t); u.mods.push(m);
     }
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3();
@@ -186,12 +192,14 @@ if (wrap && bgo) {
       if (!s.alive) { const g = models.get(s); if (g) g.visible = false; continue }
       alive.add(s);
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
-      g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; g.rotation.y = -s.hd; g.rotation.z = Math.max(-.5, Math.min(.5, (s.pz || 0) * 6));
+      g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
+      { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; ud.pt += (Math.max(-.2, Math.min(.2, (s.pz || 0) * 2.5)) - ud.pt) * .015 } // сглаживание курса и тангажа
+      g.rotation.y = -ud.hd; g.rotation.z = ud.pt;
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
       const app = L * sc / Math.max(dd, .01); // видимый размер
       setLod(s, g, app > .035 ? 1 : 0);
       detail(s, g, g.userData.lod === 1 && app > .09);
-      if (g.userData.det) { const tg: THREE.Group = g.userData.tur; tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; t.rotation.y = -(m.da != null ? m.da : 0) }) }
+      if (g.userData.det) { const tg: THREE.Group = g.userData.tur; { const np = performance.now(); tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return; t.rotation.y = -Battle.turAim(m, s, np); const fr = m.rt && np - m.rt < 130; t.userData.fl.visible = !!fr; if (fr) t.userData.fl.scale.setScalar(t.userData.fl.scale.x > 0 ? t.userData.fl.scale.x : 1) }) } }
       g.userData.eng.visible = g.userData.lod === 1 && Math.hypot(s.vx, s.vy) > .02;
     }
     for (const [s, g] of models) if (!alive.has(s) && !s.alive && !ships.includes(s) && g.parent) { scene.remove(g); models.delete(s) }
@@ -205,10 +213,31 @@ if (wrap && bgo) {
       fighters.setMatrixAt(fc, dummy.matrix); fighters.setColorAt(fc, col.set(c.side ? 0xffb070 : 0x9fd8ff)); fc++;
     }
     fighters.count = fc; fighters.instanceMatrix.needsUpdate = true; if (fighters.instanceColor) fighters.instanceColor.needsUpdate = true;
-    // снаряды
-    const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let pc = 0;
-    for (const p of Battle.proj() as any[]) { if (pc >= MAXP) break; const o = pc * 6, l = Math.max(.9, dist * .02); pa[o] = p.x; pa[o + 1] = p.z; pa[o + 2] = p.y; pa[o + 3] = p.x - p.vx * l * .12; pa[o + 4] = p.z - (p.vz || 0) * l * .12; pa[o + 5] = p.y - p.vy * l * .12; pc++ }
-    projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    // снаряды: разные оттенки, затухание к концу дальности, тонкие
+    const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, pcol = (projLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let pc = 0;
+    const tmp = new THREE.Color();
+    for (const p of Battle.proj() as any[]) {
+      if (pc >= MAXP) break; const o = pc * 6, l = Math.max(.5, dist * .005);
+      pa[o] = p.x; pa[o + 1] = p.z; pa[o + 2] = p.y; pa[o + 3] = p.x - p.vx * l * .1; pa[o + 4] = p.z - (p.vz || 0) * l * .1; pa[o + 5] = p.y - p.vy * l * .1;
+      const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
+      tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
+      pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .08; pcol[o + 4] = tmp.g * fade * .08; pcol[o + 5] = tmp.b * fade * .08; pc++;
+    }
+    projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+    // следы истребителей и бомбардировщиков
+    {const ta = (trailLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, tc = (trailLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0;
+      for (const c of Battle.air() as any[]) { if (c.state !== 'fly' || !c.tr || c.tr.length < 4) continue; const y = c.home ? c.home.z : 0, n2 = c.tr.length, base = c.side ? [1, .55, .25] : [.45, .8, 1];
+        let px = c.x, py = c.y; const cnt = n2 / 2;
+        for (let i = n2 - 2, q = 0; i >= 0 && k < MAXT; i -= 2, q++) { const o = k * 6, f = Math.max(0, 1 - q / cnt) * .8, f2 = Math.max(0, 1 - (q + 1) / cnt) * .8;
+          ta[o] = px; ta[o + 1] = y; ta[o + 2] = py; ta[o + 3] = c.tr[i]; ta[o + 4] = y; ta[o + 5] = c.tr[i + 1];
+          tc[o] = base[0] * f; tc[o + 1] = base[1] * f; tc[o + 2] = base[2] * f; tc[o + 3] = base[0] * f2; tc[o + 4] = base[1] * f2; tc[o + 5] = base[2] * f2; px = c.tr[i]; py = c.tr[i + 1]; k++ } }
+      trailLines.geometry.setDrawRange(0, k * 2); (trailLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (trailLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
+    // мгновенные выстрелы ПВО/зениток: короткая вспышка линии, гаснет за 340 мс
+    {const sa = (shotLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, sc2 = (shotLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0; const now2 = performance.now();
+      for (const q of Battle.shots() as any[]) { if (k >= 600) break; const f = 1 - (now2 - q.rt) / 340; if (f <= 0) continue; const o = k * 6, z1 = q.a ? q.a.z : 0, z2 = q.b ? (q.b.z != null ? q.b.z : (q.b.home ? q.b.home.z : z1)) : z1;
+        sa[o] = q.x1; sa[o + 1] = z1; sa[o + 2] = q.y1; sa[o + 3] = q.x2; sa[o + 4] = z2; sa[o + 5] = q.y2; const c = q.s ? [1, .75, .4] : [.55, .9, 1];
+        sc2[o] = c[0] * f * .5; sc2[o + 1] = c[1] * f * .5; sc2[o + 2] = c[2] * f * .5; sc2[o + 3] = c[0] * f * .15; sc2[o + 4] = c[1] * f * .15; sc2[o + 5] = c[2] * f * .15; k++ }
+      shotLines.geometry.setDrawRange(0, k * 2); (shotLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (shotLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     const ma = (misPts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let mc = 0;
     for (const p of Battle.mis() as any[]) { if (mc >= 2000) break; ma[mc * 3] = p.x; ma[mc * 3 + 1] = p.z; ma[mc * 3 + 2] = p.y; mc++ }
     misPts.geometry.setDrawRange(0, mc); (misPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
