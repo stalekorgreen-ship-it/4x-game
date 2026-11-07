@@ -403,6 +403,7 @@ export const STAT_OUT = {build: 'Строительство', yard: 'Судос�
 
 /* ===== ВОДОИЗМЕЩЕНИЕ ===== */
 // боевые модули тяжелее в 150 раз; длина корабля: 1 м на каждые 50 т (50 000 т = 1 км); слой брони весит ~925 т на км² поверхности
+export const SHIP_CAP = 300000;
 export const TONS_K = 150, TON_L = 50000, ARM_K = 250; // TONS_K — только для срока постройки
 export const FGT_T = {l: 200, s: 350, h: 500}, BMB_T = {l: 250, s: 400, h: 500}; // истребитель/торпедоносец влезает в 500 т
 export const specTons = sp => sp.tons || Math.round(TON_L * (sp.L || .5) / 100) * 100;
@@ -413,9 +414,15 @@ export function fitSpec(sp) {
   sp.L0 = sp.L;
   if (sp.role === 'freight') { sp.tons = Math.round(TON_L * sp.L * .6 / 100) * 100; sp.L = Math.max(.06, sp.tons / TON_L); return sp; }
   const rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1}, rm = (RAIL_CAL[rc.cal] || RAIL_CAL[10]).m * (1 + 1.03 * (rc.bar - 1)) * 1.25;
-  const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * 400 + (sp.B || 0) * 460 + (sp.mar || 0) * 56 + 800;
-  let T = M * HULLK;
-  for (let i = 0; i < 60; i++) { const L = T / TON_L; T = Math.min(5e6, (M * HULLK + ARM_K * (sp.arm || 0) * L * L) / (1 - ENGF * (sp.spd || 1))); }
+  let T = 0;
+  for (let pass = 0; pass < 6; pass++) {
+    const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * 400 + (sp.B || 0) * 460 + (sp.mar || 0) * 56 + 800;
+    T = M * HULLK;
+    for (let i = 0; i < 60; i++) { const L = T / TON_L; T = (M * HULLK + Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L)) / (1 - ENGF * (sp.spd || 1)); } // броня не тяжелее 70% остальной массы
+    if (T <= SHIP_CAP || sp.super) break;
+    const f = Math.max(.5, SHIP_CAP / T * .97); // серийный корабль не тяжелее ~300 тыс. т, лишнее вооружение убирается (миллион тонн — только сверхоружие)
+    for (const k of ['rails', 'flak', 'miss', 'lasers', 'F', 'B', 'mar']) if (sp[k]) sp[k] = Math.max(k === 'rails' ? 2 : 0, Math.round(sp[k] * f));
+  }
   sp.tons = Math.round(T / 100) * 100; sp.L = Math.max(.06, T / TON_L); return sp;
 }
 
@@ -471,7 +478,7 @@ export function designStats(parts, flags) {
   }
   if (r.warship || r.armW) { // водоизмещение: модули ×1.15 (корпус) + броня по площади, длина = т / 50 000 км
     let T = Math.max(1, r.dry * 1.15); const M = T;
-    for (let i = 0; i < 40; i++) T = M + ARM_K * (r.armW || 0) * Math.pow(T / TON_L, 2);
+    for (let i = 0; i < 40; i++) T = M + Math.min(M * .7, ARM_K * (r.armW || 0) * Math.pow(T / TON_L, 2));
     r.armT = Math.round(T - M); r.dry = Math.round(T); r.L = Math.max(0.08, Math.min(6, T / TON_L));
   } else r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.bspd = r.power ? (r.warship ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.25)) : Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35))) : 1;
