@@ -109,9 +109,11 @@ export const SCENARIOS = {
   convoy: 'Налёт на конвой: транспорты с охраной и три группы рейдеров',
   chase: 'Погоня: флоты подходят по очереди, догоняя друг друга',
   armada: 'Армады: по несколько флотов у каждой стороны',
+  range: 'Полигон: по одному кораблю каждого типа, близко друг к другу',
 };
 export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
+  if (kind === 'range') return rangeScenario();
   const ang0 = R(0, TAU), E = R(320, 480), late = [], fleets = [[], []];
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
   const mixFor = BYSIZE;
@@ -183,3 +185,10 @@ export function duelScenario(a, b, n) {
   return {title: 'duel', fleets: [[], []], late, demo: true, maxT: 14400, names: [DOCT[a].n, DOCT[b].n], W: [fleetW(fa), fleetW(fb)], onEnd: () => { state.demo = false; }};
 }
 export const MIXNAMES = Object.keys(DOCT).filter(k => k !== 'convoy');
+
+// «Полигон»: по одному кораблю каждого типа с каждой стороны, старт близко
+export function rangeScenario() {
+  const late = [], types = Object.keys(DOCT).filter(k => k !== 'convoy');
+  for (const side of [0, 1]) for (const t of types) { const f = fleet(1, t, side * 20, 1); for (const sp of f) late.push({t: R(0, 5), side, spec: sp, edge: 160, ang: side * Math.PI + R(-.35, .35)}); }
+  return {title: 'Полигон: все типы кораблей', fleets: [[], []], late, demo: true, maxT: 14400, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
+}

@@ -213,7 +213,7 @@ if (wrap && bgo) {
       for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
       if (!best) continue; best.used = true; placed.push(best);
       const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
-      const t = new THREE.Group(), lift = r * .3, zA = (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * u.L * .0006 * 1.15); // стойка поднимает башню над бронёй
+      const t = new THREE.Group(), lift = r * .3, zA = (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
       const dome = new THREE.Mesh(geoDome, matTur[s.side]); dome.scale.set(r * .95, r * .8, r * .95); dome.position.y = lift; head.add(dome); // сферическая башня
@@ -234,28 +234,38 @@ if (wrap && bgo) {
       g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: true, bevelThickness: .03, bevelSize: .015, bevelSegments: 1 }); g.translate(0, 0, -.5); g.rotateX(Math.PI / 2) }
     return (tileGeos[v] = g) }
   const tileMat = new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true });
+  const thL = (u: any) => Math.max(.001, u.L * .0004); // один слой брони ≈ 1 м
   function buildTiles(s: any, g: THREE.Group, _placed: any[]) {
     const u = g.userData; if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } if (!u.tilesL || !u.tilesL.length) return;
-    const tiles = u.tilesL as any[], PALc = PAL[s.side], groups: any[][] = [[], [], [], [], []]; tiles.forEach(q => groups[q.v].push(q)); u.arm = []; const col = new THREE.Color();
-    groups.forEach((gr, v) => { if (!gr.length) return; const im = new THREE.InstancedMesh(tileGeo(v), tileMat, gr.length); im.frustumCulled = false; gr.forEach((q, i) => { q.im = im; q.ii = i; im.setColorAt(i, col.set(q.f === 0 ? PALc.main : PALc.dark).multiplyScalar(q.sh * (q.f === 0 ? 1.15 : 1.5))) }); if (im.instanceColor) im.instanceColor.needsUpdate = true; u.arm.push(im); g.add(im) });
+    const tiles = u.tilesL as any[], PALc = PAL[s.side], cnt = [0, 0, 0, 0, 0]; u.arm = []; const col = new THREE.Color();
+    for (const q of tiles) { q.n = Math.max(1, Math.min(12, Math.round((s.zones[q.f] || s.zones[0]).arm || 1))); cnt[q.v] += q.n; q.cur = q.n }
+    const ims = cnt.map((c, v) => { if (!c) return null; const im = new THREE.InstancedMesh(tileGeo(v), tileMat, c); im.frustumCulled = false; im.userData.k = 0; u.arm.push(im); g.add(im); return im });
+    for (const q of tiles) { const im = ims[q.v]!; q.ent = []; for (let l = 0; l < q.n; l++) { const i = im.userData.k++; q.ent.push({ im, ii: i });
+      im.setColorAt(i, col.set(q.f === 0 ? PALc.main : PALc.dark).multiplyScalar(q.sh * (q.f === 0 ? 1.15 : 1.5) * (l % 2 ? 1.12 : .88) * (.95 + (l / q.n) * .12))) } }
+    for (const im of ims) if (im && im.instanceColor) im.instanceColor.needsUpdate = true;
     u.armT = 0; updateTiles(s, g, true);
   }
   const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3();
   const _cc = new THREE.Color(), _bq = new THREE.Quaternion(), _bd = new THREE.Vector3(), _qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-  // отлетающие секции брони: летят от своего места на корпусе по нормали грани, кувыркаются и гаснут
-  function spawnTileDebris(s: any, g: THREE.Group, q: any) {
-    if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = Math.max(u.L * .0008, (s.zones[q.f].arm || 1) * u.L * .0006), nrl = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]][q.f];
-    g.updateMatrixWorld(true); const pos = g.localToWorld(new THREE.Vector3(q.px, q.py + (q.f === 0 ? th / 2 : q.f === 2 ? -th / 2 : 0), q.pz + (q.f === 1 ? th / 2 : q.f === 3 ? -th / 2 : 0))), nw = new THREE.Vector3(nrl[0], nrl[1], nrl[2]).applyQuaternion(g.quaternion);
-    const sp = u.L * (.0006 + Math.random() * .0012), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .5)); v.x += s.sx || 0; v.z += s.sy || 0;
-    const sz = new THREE.Vector3(q.len * .95, th, q.cs * .95), qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
+  // слой брони, сорванный с места: летит от корпуса по нормали грани, кувыркается и гаснет
+  function spawnLayerDebris(s: any, g: THREE.Group, q: any, l: number) {
+    if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = thL(u), off = (l + .5) * th, nrl = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]][q.f];
+    g.updateMatrixWorld(true); const pos = g.localToWorld(new THREE.Vector3(q.px + (Math.random() - .5) * q.len * .3, q.py + (q.f === 0 ? off : q.f === 2 ? -off : 0), q.pz + (q.f === 1 ? off : q.f === 3 ? -off : 0))), nw = new THREE.Vector3(nrl[0], nrl[1], nrl[2]).applyQuaternion(g.quaternion);
+    const sp = u.L * (.0005 + Math.random() * .0012), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .6)); v.x += s.sx || 0; v.z += s.sy || 0;
+    const sz = new THREE.Vector3(q.len * (.3 + Math.random() * .6), th, q.cs * (.3 + Math.random() * .6)), qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
     tdeb.push({ p: pos, v, q: qq, w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .35), sz, t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f });
   }
+  const _qx2 = _qx;
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
-    const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 400)) return; u.armT = now;
-    const tiles = u.tilesL as any[]; for (const q of tiles) { const z = s.zones[q.f]; if (!z || !q.im) continue; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k];
-      const fr = sum / ((i1 - i0) * Math.max(1, z.arm)); if (!q.gone && fr < .85) { q.gone = true; if (!force) spawnTileDebris(s, g, q) } const th = q.gone ? 0 : Math.max(u.L * .0008, z.arm * u.L * .0006 * fr), e = 1.03; // чуть внахлёст, чтобы не было щелей
-      if (q.f % 2 === 0) { _sc.set(q.len * e, th, q.cs * e); _p.set(q.px, q.py + (q.f === 0 ? th / 2 : -th / 2), q.pz); _m4.compose(_p, _q.identity(), _sc) } else { _sc.set(q.len * e, th, q.cs * e); _p.set(q.px, q.py, q.pz + (q.f === 1 ? th / 2 : -th / 2)); _m4.compose(_p, _qx, _sc) }
-      if (th === 0) { _sc.set(0, 0, 0); _m4.compose(_p, _q.identity(), _sc) } q.im.setMatrixAt(q.ii, _m4) }
+    const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 250)) return; u.armT = now; const th = thL(u); let spawned = 0;
+    const tiles = u.tilesL as any[]; for (const q of tiles) { const z = s.zones[q.f]; if (!z || !q.ent) continue; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k];
+      const cur = Math.max(0, Math.min(q.n, Math.ceil(sum / (i1 - i0) - .03))); // по слою на единицу брони
+      if (cur < q.cur) { if (!force) for (let l = cur; l < q.cur && spawned < 80; l++) { spawnLayerDebris(s, g, q, l); spawned++ } q.cur = cur }
+      for (let l = 0; l < q.n; l++) { const e = q.ent[l], c = (l + .5) * th;
+        if (l >= q.cur) { _sc.set(0, 0, 0); _p.set(q.px, q.py, q.pz); _m4.compose(_p, _q.identity(), _sc) }
+        else if (q.f % 2 === 0) { _sc.set(q.len * 1.03, th * 1.02, q.cs * 1.03); _p.set(q.px, q.py + (q.f === 0 ? c : -c), q.pz); _m4.compose(_p, _q.identity(), _sc) }
+        else { _sc.set(q.len * 1.03, th * 1.02, q.cs * 1.03); _p.set(q.px, q.py, q.pz + (q.f === 1 ? c : -c)); _m4.compose(_p, _qx, _sc) }
+        e.im.setMatrixAt(e.ii, _m4) } }
     for (const m of u.arm) m.instanceMatrix.needsUpdate = true;
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
@@ -288,8 +298,8 @@ if (wrap && bgo) {
           // базис башни: x — на цель, y — по нормали (в её локальных осях основание уже повёрнуто к нормали)
           const lq = t.quaternion.clone().invert(), dl = d.clone().applyQuaternion(lq); // направление в системе основания, y — вверх
           const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.lengthSq() ? dl.normalize() : new THREE.Vector3(1, 0, 0)); t.userData.head.quaternion.slerp(q, .12);
-          const fr = m.rt && np - m.rt < 130; t.userData.fl.visible = !!fr;
-          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; { const tp = t.userData.tips[(Math.random() * t.userData.tips.length) | 0], mp = new THREE.Vector3(); tp.updateWorldMatrix(true, false); tp.getWorldPosition(mp); const ev = (g.userData.muz = g.userData.muz || []); ev.push({ p: mp, t: np }); if (ev.length > 40) ev.shift() } if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
+          const fr = m.rt && np - m.rt < 260; t.userData.fl.visible = !!fr;
+          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; { const tp = t.userData.tips[(Math.random() * t.userData.tips.length) | 0], mp = new THREE.Vector3(); tp.updateWorldMatrix(true, false); tp.getWorldPosition(mp); const ev = (g.userData.muz = g.userData.muz || []); ev.push({ p: mp, t: np }); if (ev.length > 40) ev.shift(); flashes.push({ p: mp.clone(), t0: np, life: 220, sz: 20 }); for (let j = 0; j < 6 && sparks.length < MAXSP; j++) { const dv = d!.clone().applyQuaternion(g.quaternion); sparks.push({ p: mp.clone(), v: dv.multiplyScalar(g.userData.L * .004 * (.5 + Math.random())).add(new THREE.Vector3().randomDirection().multiplyScalar(g.userData.L * .0012)), t0: np, life: 350 + Math.random() * 250, h: Math.random() }) } } if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
       { const u2 = g.userData; // следы повреждений на корпусе: подпалины и пробоины
         if (u2.lod === 1 && app > .05 && s.vd && s.vd.length && u2.seg) { if (!u2.dmg) { u2.dmg = new THREE.InstancedMesh(decalGeo, decalMat, MAXD); u2.dmg.frustumCulled = false; u2.dmg.setColorAt(0, new THREE.Color(1, 1, 1)); g.add(u2.dmg) }
           const nowT = Battle.time(), q = new THREE.Quaternion(), nrm = new THREE.Vector3(), pos = new THREE.Vector3(), sc3 = new THREE.Vector3(), mt = new THREE.Matrix4(), col3 = new THREE.Color(); let k = 0;
