@@ -149,7 +149,7 @@ if (wrap && bgo) {
     const sm1 = (t: number) => t * t * (3 - 2 * t), dimsAt = (xx: number) => { const q = seg; if (xx <= q[0].cx) return q[0]; if (xx >= q[q.length - 1].cx) return q[q.length - 1];
       let i = 0; while (i < q.length - 2 && xx > q[i + 1].cx) i++; const a = q[i], b = q[i + 1], t = sm1((xx - a.cx) / Math.max(1e-9, b.cx - a.cx)), l = (u: number, v: number) => u + (v - u) * t;
       return { w: l(a.w, b.w), h: l(a.h, b.h), cy: l(a.cy, b.cy), col: t < .5 ? a.col : b.col } };
-    { const NS = 64, NR = 28, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [];
+    { const NS = 44, NR = 20, xe = x1 + L * .2, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [];
       const se = (v: number, n: number) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n);
       for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS; let d: any = dimsAt(Math.min(xx, x1)), k = 1;
         if (xx > x1) { const t = Math.min(1, (xx - x1) / (xe - x1)); k = Math.max(.05, Math.pow(Math.max(0, Math.cos(t * Math.PI / 2)), .65)) } 
