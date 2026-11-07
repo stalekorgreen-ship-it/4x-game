@@ -151,17 +151,33 @@ COMP.armor.ap = (c, s) => {
   c.desc = `+${th} слоя брони на каждом секторе${m === 'r' ? ', 20% попаданий отражается' : ''} · масса зависит от длины корабля (~${Math.round(ARM_K * c.armW)} т на км² поверхности)`;
 };
 // --- ангары ---
-COMP.hangar_f.opts = [O('cl', 'Класс', 's', [['l', 'лёгкие (15 шт)'], ['s', 'обычные (10 шт)'], ['h', 'тяжёлые (6 шт)']])];
+// --- лёгкие аппараты: обычные корабли с маленьким двигателем; скорость = тяга/масса, запас хода и боезапас ограничены массой ---
+const CR_KEYS = ['hp', 'vmax', 'a', 'fuel', 'ammo', 'ng', 'dmg', 'cd', 'gun', 'mass', 'torp'];
+const CR_HULL = {F: {l: [15, 6, 60], s: [10, 8, 110], h: [6, 14, 200]}, B: {l: [7, 3, 90], s: [5, 4, 170], h: [3, 7, 300]}}; // [число в ангаре, прочность, масса корпуса т]
+const CR_GUN = {'1': {n: 1, dmg: 3, cd: 1.4, rng: 7, m: 20, t: 'одно крупнокалиберное'}, '2': {n: 2, dmg: 1.4, cd: 1.1, rng: 5, m: 16, t: 'два средних'}, '4': {n: 4, dmg: .6, cd: .8, rng: 3.5, m: 16, t: 'четыре мелких скорострельных'}};
+export function craftDesign(kind, o) { // o: {cl, en (т двигателя), fu (минут тяги), gn, am (патронов), tp}
+  const H = CR_HULL[kind][o.cl || 's'], en = +o.en || 100, fu = +o.fu || 20, G = kind === 'F' ? CR_GUN[o.gn || '2'] : null, am = kind === 'F' ? (+o.am || 120) : 0;
+  const fuelM = en * .012 * fu, ammoM = am * .1, torpM = kind === 'B' ? 20 * (+o.tp || 1) : 0, m = H[2] + en + fuelM + (G ? G.m : 0) + ammoM + torpM;
+  const vmax = 8 * Math.sqrt(en / m); // км/с: тяговооружённость решает; ≥3× быстрее крупных кораблей (≈0,5 км/с)
+  return {n: H[0], hp: H[1], vmax, a: vmax * .125, fuel: fu * 60, ammo: am, ng: G ? G.n : 0, dmg: G ? G.dmg : 0, cd: G ? G.cd : 0, gun: G ? G.rng : 0, mass: Math.round(m), torp: kind === 'B' ? (+o.tp || 1) : 0, fuelM: Math.round(fuelM), g: G};
+}
+const pk = a => a[Math.floor(Math.random() * a.length)];
+export const randCraft = kind => kind === 'F' ? craftDesign('F', {cl: pk(['l', 's', 's', 'h']), en: pk(['50', '100', '100', '200']), fu: pk(['5', '10', '20', '30', '60']), gn: pk(['1', '2', '2', '4']), am: pk(['60', '120', '240'])}) : craftDesign('B', {cl: pk(['l', 's', 'h']), en: pk(['50', '100', '200']), fu: pk(['10', '20', '30', '60'])});
+export const CR_DEF = {F: craftDesign('F', {cl: 's', en: 100, fu: 20, gn: '2', am: 120}), B: craftDesign('B', {cl: 's', en: 100, fu: 30})};
+const CR_EN = [['50', 'двигатель 50 т'], ['100', 'двигатель 100 т'], ['200', 'двигатель 200 т']], CR_FU = [['5', '5 мин тяги'], ['10', '10 мин'], ['20', '20 мин'], ['30', '30 мин'], ['60', '60 мин']];
+const crSum = q => `${q.mass} т, ${q.vmax.toFixed(1)} км/с, ${Math.round(q.fuel / 60)} мин тяги`;
+COMP.hangar_f.opts = [O('cl', 'Корпус', 's', [['l', 'лёгкие (15 шт)'], ['s', 'обычные (10 шт)'], ['h', 'тяжёлые (6 шт)']]), O('en', 'Двигатель', '100', CR_EN), O('fu', 'Запас хода', '20', CR_FU),
+  O('gn', 'Пушки', '2', [['1', 'одна крупная'], ['2', 'две средние'], ['4', 'четыре мелких']]), O('am', 'Боезапас', '120', [['60', '60 выстрелов'], ['120', '120'], ['240', '240']])];
 COMP.hangar_f.ap = (c, s) => {
-  const t = {l: [15, 6, 2.4, 40, 25], s: [10, 8, 2, 60, 30], h: [6, 14, 1.5, 100, 38]}[s.cl.v];
-  c.hangF = t[0]; c.fq = {hp: t[1], v: t[2], am: t[3]}; c.mass = Math.round(t[0] * FGT_T[s.cl.v] * 1.15); c.cost = {fe: 60, si: 20, ti: 10};
-  c.desc = `${t[0]} истребителей по ${FGT_T[s.cl.v]} т: прочность ${t[1]}, скорость ${t[2]} км/с, боезапас ${t[3]}`;
+  const q = craftDesign('F', {cl: s.cl.v, en: s.en.v, fu: s.fu.v, gn: s.gn.v, am: s.am.v});
+  c.hangF = q.n; c.fq = q; c.mass = Math.round(q.n * q.mass * 1.15); c.cost = {fe: 60, si: 20, ti: 10};
+  c.desc = `${q.n} истребителей по ${crSum(q)}: прочность ${q.hp}, ${q.g.t} (урон ${q.g.dmg}, дальность ${q.g.rng} км), ${q.ammo} выстрелов`;
 };
-COMP.hangar_b.opts = [O('cl', 'Класс', 's', [['l', 'лёгкие (7 шт)'], ['s', 'обычные (5 шт)'], ['h', 'тяжёлые (3 шт)']])];
+COMP.hangar_b.opts = [O('cl', 'Корпус', 's', [['l', 'лёгкие (7 шт)'], ['s', 'обычные (5 шт)'], ['h', 'тяжёлые (3 шт)']]), O('en', 'Двигатель', '100', CR_EN), O('fu', 'Запас хода', '30', CR_FU)];
 COMP.hangar_b.ap = (c, s) => {
-  const t = {l: [7, 3, 0.96], s: [5, 4, 0.8], h: [3, 7, 0.64]}[s.cl.v];
-  c.hangB = t[0]; c.bq = {hp: t[1], v: t[2]}; c.mass = Math.round(t[0] * BMB_T[s.cl.v] * 1.15); c.cost = {fe: 60, si: 20, ti: 10, pt: 2};
-  c.desc = `${t[0]} бомбардировщиков по ${BMB_T[s.cl.v]} т с торпедами: прочность ${t[1]}, скорость ${t[2]} км/с`;
+  const q = craftDesign('B', {cl: s.cl.v, en: s.en.v, fu: s.fu.v});
+  c.hangB = q.n; c.bq = q; c.mass = Math.round(q.n * q.mass * 1.15); c.cost = {fe: 60, si: 20, ti: 10, pt: 2};
+  c.desc = `${q.n} бомбардировщиков по ${crSum(q)} с торпедой: прочность ${q.hp}`;
 };
 export const crewNum = c => c.mine ? 2 : c.lab ? 1 : (c.rail || c.flak) ? 0.1 : c.hangars ? 2 : 0;
 export const crewLabel = (c, n) => { const x = crewNum(c); if (!x) return 'персонал не нужен'; if (x < 1) return n ? `персонал ${Math.ceil(n * x)} чел.` : 'персонал: 1 на 10 орудий'; return `персонал ${n ? x * n + ' чел.' : x + ' чел.'}`; };
@@ -416,7 +432,7 @@ export function fitSpec(sp) {
   const rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1}, rm = (RAIL_CAL[rc.cal] || RAIL_CAL[10]).m * (1 + 1.03 * (rc.bar - 1)) * 1.25;
   let T = 0;
   for (let pass = 0; pass < 6; pass++) {
-    const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * 400 + (sp.B || 0) * 460 + (sp.mar || 0) * 56 + 800;
+    const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * ((sp.fq && sp.fq.mass) || CR_DEF.F.mass) + (sp.B || 0) * ((sp.bq && sp.bq.mass) || CR_DEF.B.mass) + (sp.mar || 0) * 56 + 800;
     T = M * HULLK;
     for (let i = 0; i < 60; i++) { const L = T / TON_L; T = (M * HULLK + Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L)) / (1 - ENGF * (sp.spd || 1)); } // броня не тяжелее 70% остальной массы
     if (T <= SHIP_CAP || sp.super) break;
@@ -453,8 +469,8 @@ export function designStats(parts, flags) {
     if (c.mcfg) for (let i = 0; i < n; i++) r.misList.push(c.mcfg);
     r.lgun += (c.lgun || 0) * n; r.msl += (c.msl || 0) * n;
     if (c.defl) r.defl += c.defl * c.armor * n;
-    if (c.fq) { r.fqS.hp += c.fq.hp * c.hangF * n; r.fqS.v += c.fq.v * c.hangF * n; r.fqS.am += c.fq.am * c.hangF * n; }
-    if (c.bq) { r.bqS.hp += c.bq.hp * c.hangB * n; r.bqS.v += c.bq.v * c.hangB * n; }
+    if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
+    if (c.bq) for (const k of CR_KEYS) r.bqS[k] = (r.bqS[k] || 0) + c.bq[k] * c.hangB * n;
     r.xfer += (c.xfer || 0) * n;
     r.armor += (c.armor || 0) * n; r.rail += (c.rail || 0) * n; r.flak += (c.flak || 0) * n;
     r.hangF += (c.hangF || 0) * n; r.hangB += (c.hangB || 0) * n; r.hangars += (c.hangars || 0) * n; if (c.power) r.engines += n;
@@ -464,8 +480,8 @@ export function designStats(parts, flags) {
   }
   r.eff = r.power ? effSum / r.power : 1;
   r.defl = r.armor ? r.defl / r.armor : 0;
-  if (r.hangF) { r.fq = {hp: r.fqS.hp / r.hangF, vmax: r.fqS.v / r.hangF, ammo: r.fqS.am / r.hangF}; }
-  if (r.hangB) { r.bq = {hp: r.bqS.hp / r.hangB, vmax: r.bqS.v / r.hangB}; }
+  if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; }
+  if (r.hangB) { r.bq = {}; for (const k of CR_KEYS) r.bq[k] = r.bqS[k] / r.hangB; }
   r.fire = r.railList.reduce((a, q) => a + q.dmg * q.shells * 60 / (60 * q.rel), 0);
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
   r.station = !r.power; r.tanker = r.xfer > 0 && r.fuelCap > 0 && r.power > 0;

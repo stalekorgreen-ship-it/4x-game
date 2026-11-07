@@ -3,7 +3,7 @@
 import { state, log } from './01-data.ts';
 import { Battle } from './05-battle.ts';
 import { focusBattle, ui, setHtml, $ } from './08-map-ui.ts';
-import { BODIES, BODY, mkLas, mkMis, compOf, mkKey, specTons, fitSpec, TON_L } from './01-data.ts';
+import { randCraft, BODIES, BODY, mkLas, mkMis, compOf, mkKey, specTons, fitSpec, TON_L } from './01-data.ts';
 import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
@@ -23,9 +23,9 @@ const TYPES = {
   cruiser: n => ({name: 'Крейсер', ...gun(RI(14, 24), 15, 2), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(6, 8), spd: .9}),
   brawler: n => ({name: 'Броненосец', ...gun(RI(12, 20), 20, 2), flak: 3, eng: 5, L: R(1.5, 1.9), arm: RI(8, 10), spd: .8, dopt0: 9}),
   battleship: n => ({name: 'Линкор', ...gun(RI(30, 40), 20, 2), flak: 6, eng: 5, L: R(2.8, 3.4), arm: RI(9, 10), spd: .7, defl: .1}),
-  carrier: n => ({name: 'Авианосец', ...gun(4, 10), flak: 6, eng: 4, L: R(2.2, 2.8), arm: 5, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
-  swarmcarrier: n => ({name: 'Лёгкий авианосец', ...gun(2, 10), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
-  bomber: n => ({name: 'Торпедоносец', ...gun(2, 10), flak: 2, eng: 3, L: R(1.2, 1.6), arm: 2, spd: .9, F: 2, B: RI(6, 12)}),
+  carrier: n => ({name: 'Авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(4, 10), flak: 6, eng: 4, L: R(2.2, 2.8), arm: 5, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
+  swarmcarrier: n => ({name: 'Лёгкий авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
+  bomber: n => ({name: 'Торпедоносец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), flak: 2, eng: 3, L: R(1.2, 1.6), arm: 2, spd: .9, F: 2, B: RI(6, 12)}),
   // лазеры редки и огромны: один-два на огромном корабле
   laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: LC(k, 'm', Math.random() < .5 ? 'f' : 'm'), eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
   laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), flak: 6, lasers: k, laserCfg: LC(k, 'l', 'f'), eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
