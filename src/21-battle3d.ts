@@ -322,7 +322,7 @@ if (wrap && bgo) {
     const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, pcol = (projLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let pc = 0;
     const tmp = new THREE.Color();
     for (const p of Battle.proj() as any[]) {
-      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.8, Math.max(.03, cdp * .01)) / Math.max(1, Math.hypot(p.vx, p.vy)) / .1;
+      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.4, Math.max(.02, cdp * .006)) / Math.max(1, Math.hypot(p.vx, p.vy)) / .1;
       let ox = 0, oy = 0, oz = 0;
       if (p._m === undefined) { p._m = null; const gs = p.src && models.get(p.src); const ev = gs && gs.userData.muz; if (ev && ev.length) { const nw = performance.now(), fresh = ev.filter((q: any) => nw - q.t < 250); if (fresh.length) { const hl = Math.hypot(p.vx, p.vy, p.vz || 0) || 1, dx = p.vx / hl, dy = (p.vz || 0) / hl, dz = p.vy / hl; let bq: any = null, bdot = .15; for (const q of fresh) { const ex = q.p.x - gs.position.x, ey = q.p.y - gs.position.y, ez = q.p.z - gs.position.z, el = Math.hypot(ex, ey, ez) || 1, dt = (ex * dx + ey * dy + ez * dz) / el; if (dt > bdot) { bdot = dt; bq = q } } // башня на стороне выстрела
           if (bq) p._m = { x: bq.p.x - p.x, y: bq.p.y - p.z, z: bq.p.z - p.y, d0: p.dist, F: (gs.userData.L || 1) * .12 + .05 } } } }
@@ -331,11 +331,9 @@ if (wrap && bgo) {
       const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
-      { const hx = pa[o], hy = pa[o + 1], hz = pa[o + 2], tx = pa[o + 3], ty = pa[o + 4], tz = pa[o + 5], dx = hx - tx, dy = hy - ty, dz = hz - tz, ln = Math.hypot(dx, dy, dz) || 1e-6, cd = cam.position.distanceTo(_p.set(hx, hy, hz)), rad = Math.max(.0004, cd * .0004);
-        _sc.set(ln * 1.0, rad, rad); _bq.setFromUnitVectors(vX, _bd.set(dx / ln, dy / ln, dz / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(pc, _m4); bolts.setColorAt(pc, _cc.copy(tmp).multiplyScalar(fade * 1.6)) }
       pc++;
     }
-    bolts.count = pc; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+    bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const imp = Battle.impacts() as any[], nw = performance.now();
       for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; if (sparks.length > MAXSP - 40) break;
@@ -364,8 +362,8 @@ if (wrap && bgo) {
       trailLines.geometry.setDrawRange(0, k * 2); (trailLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (trailLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     // мгновенные выстрелы ПВО/зениток: короткая вспышка линии, гаснет за 340 мс
     {const sa = (shotLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, sc2 = (shotLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0; const now2 = performance.now();
-      for (const q of Battle.shots() as any[]) { if (k >= 600) break; const f = 1 - (now2 - q.rt) / 340; if (f <= 0) continue; const o = k * 6, z1 = q.a ? q.a.z : 0, z2 = q.b ? (q.b.z != null ? q.b.z : (q.b.home ? q.b.home.z : z1)) : z1;
-        sa[o] = q.x1; sa[o + 1] = z1; sa[o + 2] = q.y1; sa[o + 3] = q.x2; sa[o + 4] = z2; sa[o + 5] = q.y2; const c = q.s ? [1, .75, .4] : [.55, .9, 1];
+      for (const q of Battle.shots() as any[]) { if (k >= 600) break; const age = now2 - q.rt, f = 1 - age / 300; if (f <= 0) continue; const o = k * 6, z1 = q.a ? q.a.z : 0, z2 = q.b ? (q.b.z != null ? q.b.z : (q.b.home ? q.b.home.z : z1)) : z1;
+        { const pr = Math.min(1, age / 120), tp = Math.max(0, pr - .12); sa[o] = q.x1 + (q.x2 - q.x1) * pr; sa[o + 1] = z1 + (z2 - z1) * pr; sa[o + 2] = q.y1 + (q.y2 - q.y1) * pr; sa[o + 3] = q.x1 + (q.x2 - q.x1) * tp; sa[o + 4] = z1 + (z2 - z1) * tp; sa[o + 5] = q.y1 + (q.y2 - q.y1) * tp } const c = q.s ? [1, .75, .4] : [.55, .9, 1];
         sc2[o] = c[0] * f * .5; sc2[o + 1] = c[1] * f * .5; sc2[o + 2] = c[2] * f * .5; sc2[o + 3] = c[0] * f * .15; sc2[o + 4] = c[1] * f * .15; sc2[o + 5] = c[2] * f * .15; k++ }
       shotLines.geometry.setDrawRange(0, k * 2); (shotLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (shotLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     const ma = (misPts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let mc = 0;
@@ -377,7 +375,7 @@ if (wrap && bgo) {
       for (const b of Battle.beams() as any[]) { if (bi >= MAXP - 1 || !b.a) continue; const dur = Math.max(1, b.rt - b.c0), a = (nwb - b.c0) / dur; if (a < 0 || a > 1.15) continue;
         const sx = b.a.x, sy = b.a.z, sz = b.a.y, ex = b.tx, ey = (b.tz != null ? b.tz : (b.b && b.b.z) || 0), ez = b.ty, len = Math.hypot(ex - sx, ey - sy, ez - sz) || 1e-6, cd2 = cam.position.distanceTo(_p.set((sx + ex) / 2, (sy + ey) / 2, (sz + ez) / 2));
         const hp = Math.min(1, a * 1.25), tail = Math.min(.5, Math.max(.02, cd2 * .03 / len)), tp = Math.max(0, hp - tail), fade = a > 1 ? Math.max(0, 1 - (a - 1) / .15) : 1;
-        const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0008, cd2 * .0011);
+        const hx = sx + (ex - sx) * hp, hy = sy + (ey - sy) * hp, hz = sz + (ez - sz) * hp, tx = sx + (ex - sx) * tp, ty = sy + (ey - sy) * tp, tz = sz + (ez - sz) * tp, ln = Math.hypot(hx - tx, hy - ty, hz - tz) || 1e-6, rad = Math.max(.0005, cd2 * .0006);
         _sc.set(ln, rad, rad); _bq.setFromUnitVectors(vX, _bd.set((hx - tx) / ln, (hy - ty) / ln, (hz - tz) / ln)); _p.set((hx + tx) / 2, (hy + ty) / 2, (hz + tz) / 2); _m4.compose(_p, _bq, _sc); bolts.setMatrixAt(bi, _m4);
         bolts.setColorAt(bi, _cc.setRGB(b.side ? 1 : .35, b.side ? .45 : .9, b.side ? .8 : 1).multiplyScalar(fade * 1.8)); bi++ }
       bolts.count = bi; bolts.instanceMatrix.needsUpdate = true; if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true }
