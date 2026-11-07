@@ -403,9 +403,21 @@ export const STAT_OUT = {build: 'Строительство', yard: 'Судос�
 
 /* ===== ВОДОИЗМЕЩЕНИЕ ===== */
 // боевые модули тяжелее в 150 раз; длина корабля: 1 м на каждые 50 т (50 000 т = 1 км); слой брони весит ~925 т на км² поверхности
-export const TONS_K = 150, TON_L = 50000, ARM_K = 925; // TONS_K — только для срока постройки
+export const TONS_K = 150, TON_L = 50000, ARM_K = 250; // TONS_K — только для срока постройки
 export const FGT_T = {l: 200, s: 350, h: 500}, BMB_T = {l: 250, s: 400, h: 500}; // истребитель/торпедоносец влезает в 500 т
-export const specTons = sp => Math.round(TON_L * (sp.L || .5) / 100) * 100;
+export const specTons = sp => sp.tons || Math.round(TON_L * (sp.L || .5) / 100) * 100;
+// корабль ИИ собирается из тех же модулей: тоннаж = (модули × накладные: корпус, реактор, жильё, припасы + броня по площади) / (1 − доля двигателей); длина = т / 50 000
+export const HULLK = 4.5, ENGF = .049;
+export function fitSpec(sp) {
+  if (sp.tons) return sp;
+  sp.L0 = sp.L;
+  if (sp.role === 'freight') { sp.tons = Math.round(TON_L * sp.L * .6 / 100) * 100; sp.L = Math.max(.06, sp.tons / TON_L); return sp; }
+  const rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1}, rm = (RAIL_CAL[rc.cal] || RAIL_CAL[10]).m * (1 + 1.03 * (rc.bar - 1)) * 1.25;
+  const M = (sp.rails || 0) * rm + (sp.flak || 0) * 110 + (sp.miss || 0) * 320 + (sp.lasers || 0) * 9000 + (sp.F || 0) * 400 + (sp.B || 0) * 460 + (sp.mar || 0) * 56 + 800;
+  let T = M * HULLK;
+  for (let i = 0; i < 60; i++) { const L = T / TON_L; T = Math.min(5e6, (M * HULLK + ARM_K * (sp.arm || 0) * L * L) / (1 - ENGF * (sp.spd || 1))); }
+  sp.tons = Math.round(T / 100) * 100; sp.L = Math.max(.06, T / TON_L); return sp;
+}
 
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}

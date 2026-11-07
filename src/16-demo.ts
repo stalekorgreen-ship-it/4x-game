@@ -3,7 +3,7 @@
 import { state, log } from './01-data.ts';
 import { Battle } from './05-battle.ts';
 import { focusBattle, ui, setHtml, $ } from './08-map-ui.ts';
-import { BODIES, BODY, mkLas, mkMis, compOf, mkKey, specTons, TON_L } from './01-data.ts';
+import { BODIES, BODY, mkLas, mkMis, compOf, mkKey, specTons, fitSpec, TON_L } from './01-data.ts';
 import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
@@ -48,7 +48,7 @@ const MIXES = {
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
 // вес флота — по тоннажу: корпус 50 000 т на км длины + истребители по 350 т, торпедоносцы по 400 т
-const W3 = sp => (specTons(sp) + (sp.F || 0) * 350 + (sp.B || 0) * 400) / TON_L;
+const W3 = sp => specTons(fitSpec(sp)) / TON_L;
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 2); setRails(sp, .85); sp.spd = (sp.spd || 1) * .92; }},
@@ -72,11 +72,11 @@ const BYSIZE = n => { const r = Math.random();  if (r < .08) return 'assault'; i
   if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
 // оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
 function outfit(specs) {
-  const el = specs.filter(sp => sp.L >= .6 && sp.role !== 'freight' && !sp.F).sort((a, b) => b.arm - a.arm || b.L - a.L), nP = Math.max(1, Math.ceil(el.length * .15)), nR = Math.max(1, Math.ceil(el.length * .1));
+  const el = specs.filter(sp => (sp.L0 || sp.L) >= .6 && sp.role !== 'freight' && !sp.F).sort((a, b) => b.arm - a.arm || b.L - a.L), nP = Math.max(1, Math.ceil(el.length * .15)), nR = Math.max(1, Math.ceil(el.length * .1));
   const IR = (res) => ({k: 'ir', rng: res === 'n' ? 120 : 225, res: res === 'n' ? 1 : .5}), EM = {k: 'em', rng: 270, res: .5}, RAD = (rng, fine) => ({k: 'rad', rng: fine ? rng * .4 : rng, res: fine ? 1 : .4, fine: fine ? 1 : 0});
   const chOf = sp => Math.max(1, Math.min(8, Math.round((sp.rails + (sp.lasers || 0) * 2 + (sp.miss || 0)) / 6) + 1));
   el.forEach((sp, i) => { if (i < nP) { sp.scList = [IR('w'), EM, RAD(330), RAD(330, 1)]; sp.fcsN = Math.max(4, chOf(sp)); setRails(sp, .88); sp.prim = 1; } else if (i < nP + nR) { sp.scList = [IR('w'), RAD(180), RAD(180, 1)]; sp.fcsN = chOf(sp); sp.reserve = 1; } });
-  for (const sp of specs) { if (sp.scList) continue; if (sp.name.includes('ПВО')) { sp.scList = [IR('n'), RAD(180, 1)]; sp.fcsN = 4; sp.reserve = 1; } else if (sp.F || sp.B) { sp.scList = [IR('w'), RAD(180, 1)]; sp.fcsN = 3; sp.reserve = 1; } else { sp.scList = sp.L < .6 ? [IR('n')] : [IR('w')]; sp.fcsN = sp.role === 'freight' ? 0 : chOf(sp); } }
+  for (const sp of specs) { if (sp.scList) continue; if (sp.name.includes('ПВО')) { sp.scList = [IR('n'), RAD(180, 1)]; sp.fcsN = 4; sp.reserve = 1; } else if (sp.F || sp.B) { sp.scList = [IR('w'), RAD(180, 1)]; sp.fcsN = 3; sp.reserve = 1; } else { sp.scList = (sp.L0 || sp.L) < .6 ? [IR('n')] : [IR('w')]; sp.fcsN = sp.role === 'freight' ? 0 : chOf(sp); } }
   return specs;
 }
 function pickType(mix, tot, keys) { let r = Math.random() * tot, k = keys[0]; for (const q of keys) { r -= mix[q]; if (r <= 0) { k = q; break; } } return k; }
