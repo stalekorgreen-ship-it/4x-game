@@ -273,6 +273,8 @@ function steer(s,dt){
     df=Math.max(-a*.35,Math.min(a,df));dlt=Math.max(-a*.12,Math.min(a*.12,dlt));
     s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.sx*=1-.0006*dt;s.sy*=1-.0006*dt}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
+  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+s.T.L*.3;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
+    if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
   const turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt; // 1 км — около минуты на разворот, 4 км — минутыs.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
   s.vx=s.sx;s.vy=s.sy;
   { const rr=.14/(1+T.L)*dt,dr=adiff(s.roll||0,s.rollT||0);s.roll=(s.roll||0)+Math.max(-rr,Math.min(rr,dr)) } // крен вокруг продольной оси

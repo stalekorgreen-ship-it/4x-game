@@ -13,7 +13,7 @@ if (wrap && bgo) {
   bgo.after(btn);
 
   let on = false, ren: THREE.WebGLRenderer | null = null, scene: THREE.Scene, cam: THREE.PerspectiveCamera, raf = 0;
-  const MAXEX = 9000; let exLines: THREE.LineSegments; let fGeo: THREE.BufferGeometry, fcam: any = null, tcam: any = null, tcamN = 0, pendT = 0; // камера на башне (клавиша T): видно, как вылетает трассер и отлетают плиты
+  const MAXEX = 3500; let exMesh: THREE.InstancedMesh; const _ep = new THREE.Vector3(); let fGeo: THREE.BufferGeometry, fcam: any = null, tcam: any = null, tcamN = 0, pendT = 0; // камера на башне (клавиша T): видно, как вылетает трассер и отлетают плиты
   function camFighter() { const l = (Battle.air() as any[]).filter(c => c.state === 'fly' && c._len).sort((a, b) => cam.position.distanceToSquared(_p.set(a.x, a._yv || 0, a.y)) - cam.position.distanceToSquared(_p.set(b.x, b._yv || 0, b.y))); if (!l.length) return; fcam = l[(fcamN++) % Math.min(l.length, 8)]; tcam = null; follow = false; fitAll = false; dist = Math.max(.004, fcam._len * 7) }
   let fcamN = 0; const _qz = new THREE.Quaternion(), _zv = new THREE.Vector3(0, 0, 1);
   function camTurret() { let g: any = null, bd = 1e18; for (const [, m] of models) if (m.userData.det && m.userData.tur.children.length) { const d = m.position.distanceToSquared(cam.position); if (d < bd) { bd = d; g = m } } if (!g) { // нет детальных кораблей: подлетаем к ближайшему, башню выберем, когда он прорисуется
@@ -73,7 +73,7 @@ if (wrap && bgo) {
     fxMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), MAXFX); fxMesh.frustumCulled = false; fxMesh.count = 0; fxMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(fxMesh);
     const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXT * 6), 3));
     trailLines = new THREE.LineSegments(tg2, addMat()); trailLines.frustumCulled = false; scene.add(trailLines);
-    { const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXEX * 6), 3)); eg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXEX * 6), 3)); exLines = new THREE.LineSegments(eg, addMat()); exLines.frustumCulled = false; scene.add(exLines) }
+    exMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .55 }), MAXEX); exMesh.frustumCulled = false; exMesh.count = 0; exMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(exMesh);
     const MAXS = 600, sg2 = new THREE.BufferGeometry(); sg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3)); sg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXS * 6), 3));
     shotLines = new THREE.LineSegments(sg2, addMat()); shotLines.frustumCulled = false; scene.add(shotLines);
     plateMesh = new THREE.InstancedMesh(unitBox, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .7, metalness: .3, flatShading: true }), MAXPL); plateMesh.frustumCulled = false; plateMesh.count = 0; plateMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(plateMesh);
@@ -289,7 +289,7 @@ if (wrap && bgo) {
   }
 
   // ===== окружение боя: астероиды, планета (с кольцом), станция =====
-  let rockMesh: THREE.InstancedMesh | null = null; const envObj = new Map<any, THREE.Object3D>(); const MAXR = 700;
+  let rockMesh: THREE.InstancedMesh | null = null, beltMesh: THREE.InstancedMesh | null = null; const envObj = new Map<any, THREE.Object3D>(); const MAXR = 700;
   function cvTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t }
   function makePlanet(e: any) {
     const g = new THREE.Group(), hue = (Math.abs(e.x * 7 + e.y * 3) % 1);
@@ -318,8 +318,13 @@ if (wrap && bgo) {
     const list = (Battle.env && Battle.env() as any[]) || [], rocks = list.filter(e => e.t === 'rock' || e.t === 'debris'), seen = new Set<any>();
     if (!rockMesh) { const ge = new THREE.IcosahedronGeometry(1, 1), pp = ge.attributes.position; for (let i = 0; i < pp.count; i++) { const k = 1 + .28 * Math.sin(pp.getX(i) * 4.1 + pp.getY(i) * 3.3) * Math.cos(pp.getZ(i) * 3.7); pp.setXYZ(i, pp.getX(i) * k, pp.getY(i) * k * .85, pp.getZ(i) * k) } ge.computeVertexNormals();
       rockMesh = new THREE.InstancedMesh(ge, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .95, metalness: .05, flatShading: true }), MAXR); rockMesh.frustumCulled = false; rockMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(rockMesh) }
+    { const big = rocks.length >= 60; if (big && !beltMesh) { // пояс астероидов вокруг системы: толстая оболочка на тысячи километров во все стороны
+        const ge = rockMesh.geometry, N = 7000; beltMesh = new THREE.InstancedMesh(ge, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .95, metalness: .05, flatShading: true }), N); beltMesh.frustumCulled = false; const col = new THREE.Color(), q = new THREE.Quaternion(), e3 = new THREE.Euler();
+        for (let i = 0; i < N; i++) { const R0 = 160 + Math.pow(Math.random(), .8) * 3600, th = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1), yy = Math.cos(ph) * R0 * .7, rr = R0 * Math.sin(ph); const sz = (1.2 + Math.random() * Math.random() * 9) * (1 + R0 / 900); dummy.position.set(Math.cos(th) * rr, yy, Math.sin(th) * rr); dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6); dummy.scale.set(sz * (.7 + Math.random() * .6), sz * .8, sz); dummy.updateMatrix(); beltMesh.setMatrixAt(i, dummy.matrix); const sh = .45 + Math.random() * .55; beltMesh.setColorAt(i, col.setRGB(.42 * sh, .37 * sh, .33 * sh)) }
+        void q; void e3; scene.add(beltMesh) }
+      if (beltMesh) beltMesh.visible = big }
     let k = 0; const nw = performance.now() / 1000;
-    for (const e of rocks) { if (k >= MAXR) break; if (e._s == null) e._s = Math.random() * 100; dummy.position.set(e.x, (e._s % 1 - .5) * e.r * 1.2, e.y); dummy.rotation.set(e._s, e._s * 1.7 + nw * .03 * (1 + e._s % 2), e._s * .6); dummy.scale.set(e.r * (1 + e._s % .3), e.r, e.r * (1.1 - e._s % .2)); dummy.updateMatrix(); rockMesh.setMatrixAt(k, dummy.matrix);
+    for (const e of rocks) { if (k >= MAXR) break; if (e._s == null) e._s = Math.random() * 100; dummy.position.set(e.x, (e._s % 1 - .5) * (30 + e.r * 3), e.y); dummy.rotation.set(e._s, e._s * 1.7 + nw * .03 * (1 + e._s % 2), e._s * .6); dummy.scale.set(e.r * (1 + e._s % .3), e.r, e.r * (1.1 - e._s % .2)); dummy.updateMatrix(); rockMesh.setMatrixAt(k, dummy.matrix);
       const sh = .55 + (e._s % 1) * .5; rockMesh.setColorAt(k, _cc2.setRGB(.42 * sh, .37 * sh, .33 * sh).multiplyScalar(e.t === 'debris' ? .7 : 1)); k++ }
     rockMesh.count = k; rockMesh.instanceMatrix.needsUpdate = true; if (rockMesh.instanceColor) rockMesh.instanceColor.needsUpdate = true;
     for (const e of list) { if (e.t !== 'planet' && e.t !== 'station') continue; seen.add(e); let o = envObj.get(e); if (!o) { o = e.t === 'planet' ? makePlanet(e) : makeStation(e); o.position.set(e.x, e.t === 'planet' ? -e.r * .02 : 0, e.y); scene.add(o); envObj.set(e, o) }
@@ -377,8 +382,8 @@ if (wrap && bgo) {
             const c = Math.cos(d.ang), sn = Math.sin(d.ang), hw = sg.w / 2, hh = sg.h / 2, f = 1 / Math.max(Math.abs(c) / hw, Math.abs(sn) / hh, 1e-6), zz = c * f, yy = sg.cy + sn * f;
             if (Math.abs(c) / hw > Math.abs(sn) / hh) nrm.set(0, 0, Math.sign(c)); else nrm.set(0, Math.sign(sn) || 1, 0);
             const fz = s.zones[nrm.y > 0 ? 0 : nrm.y < 0 ? 2 : nrm.z > 0 ? 1 : 3], hz = (Math.max(1, Math.min(10, Math.round((fz && fz.arm) || 1))) + .15) * thL(u2) + u2.L * .001; pos.set(x, yy + nrm.y * hz, zz + nrm.z * hz); // следы лежат поверх брони
-             q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm); const r = u2.L * .012 * d.sz * (.7 + d.r * .6); sc3.set(r * (1 + d.r * .6), r, r);
-            if (d.k === 2) sc3.multiplyScalar(2.1); else if (d.k === 3) { q.multiply(_qz.setFromAxisAngle(_zv, d.r * 6.283)); sc3.set(r * 3.6, r * .16, r) } else if (d.k === 4) sc3.multiplyScalar(.7);
+             q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm); const r = u2.L * .0042 * d.sz * (.7 + d.r * .6); sc3.set(r * (1 + d.r * .6), r, r);
+            if (d.k === 2) sc3.multiplyScalar(1.7); else if (d.k === 3) { q.multiply(_qz.setFromAxisAngle(_zv, d.r * 6.283)); sc3.set(r * 3.6, r * .16, r) } else if (d.k === 4) sc3.multiplyScalar(.7);
             mt.compose(pos, q, sc3); u2.dmg.setMatrixAt(k, mt); const age = nowT - d.t0, h = d.k >= 2 ? 0 : Math.max(0, 1 - age / 5); col3.setRGB(.05 + .95 * h, .05 + .45 * h * h, .05 + .05 * h * h * h); if (d.k === 1) col3.multiplyScalar(.8); else if (d.k === 2) col3.setRGB(.012, .012, .016); else if (d.k === 3) col3.setRGB(.2, .21, .24); else if (d.k === 4) col3.setRGB(.025, .025, .03); u2.dmg.setColorAt(k, col3); k++ }
           u2.dmg.count = k; u2.dmg.instanceMatrix.needsUpdate = true; if (u2.dmg.instanceColor) u2.dmg.instanceColor.needsUpdate = true; u2.dmg.visible = true } else if (u2.dmg) u2.dmg.visible = false }
       g.userData.eng.visible = g.userData.lod === 1 && Math.hypot(s.vx, s.vy) > .02;
@@ -432,14 +437,15 @@ if (wrap && bgo) {
       pc++;
     }
     updateEnv();
-    { const ea = (exLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, ec = (exLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3(), p0 = new THREE.Vector3(), p1 = new THREE.Vector3();
-      for (const [sh, g] of models) { if (!sh.alive || !g.parent) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true);
-        if (sp > .02) { st.set(-L * .56, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.p.distanceTo(st) > L * g.scale.x * .035) { h.push({ p: st.clone(), t: nE }); if (h.length > 30) h.shift() } }
-        while (h.length && nE - h[0].t > 6000) h.shift(); if (h.length < 2) continue; rt.set(0, 0, 1).applyQuaternion(g.quaternion).multiplyScalar(L * .17 * .22 * g.scale.x); const base = sh.side ? [1, .5, .22] : [.4, .78, 1];
-        for (let j = -1; j <= 1; j++) for (let i = 1; i < h.length && ek < MAXEX; i++) { const o = ek * 6, f1 = 1 - (nE - h[i].t) / 6000, f0 = 1 - (nE - h[i - 1].t) / 6000; p1.copy(h[i].p).addScaledVector(rt, j); p0.copy(h[i - 1].p).addScaledVector(rt, j);
-          ea[o] = p1.x; ea[o + 1] = p1.y; ea[o + 2] = p1.z; ea[o + 3] = p0.x; ea[o + 4] = p0.y; ea[o + 5] = p0.z; const a1 = f1 * f1 * (j ? .5 : .8), a0 = f0 * f0 * (j ? .5 : .8);
-          ec[o] = base[0] * a1; ec[o + 1] = base[1] * a1; ec[o + 2] = base[2] * a1; ec[o + 3] = base[0] * a0; ec[o + 4] = base[1] * a0; ec[o + 5] = base[2] * a0; ek++ } }
-      exLines.geometry.setDrawRange(0, ek * 2); (exLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (exLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true }
+    { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
+      for (const [sh, g] of models) { if (!sh.alive || !g.parent) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
+        if (sp > .02) { st.set(-L * .55, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.p.distanceTo(st) > L * sc * .02) { h.push({ p: st.clone(), t: nE, r: Math.random() }); if (h.length > 34) h.shift() } }
+        while (h.length && nE - h[0].t > 3500) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1], nz = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, r: L * .04 }];
+        rt.set(0, 0, 1).applyQuaternion(g.quaternion);
+        for (let i = 0; i < h.length && ek < MAXEX; i++) { const age = (nE - h[i].t) / 3500, f = (1 - age) * (1 - age), sz = (u.W || L * .17) * sc * (.16 + .5 * age) * Math.min(1, .35 + nz.length * .2);
+          _ep.copy(h[i].p).addScaledVector(rt, (h[i].r - .5) * (u.W || L * .17) * sc * .35); dummy.position.copy(_ep); dummy.quaternion.identity(); dummy.scale.setScalar(sz); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix);
+          exMesh.setColorAt(ek, _cc2.setRGB(base[0] * f * .9, base[1] * f * .9, base[2] * f * .9)); ek++ } }
+      exMesh.count = ek; exMesh.instanceMatrix.needsUpdate = true; if (exMesh.instanceColor) exMesh.instanceColor.needsUpdate = true }
     { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / 140; if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
         const hh = Math.min(1, u / .55), tt = Math.max(0, (u - .3) / .7), o = pc * 6, f = 1 - u * .5;
         pa[o] = st.a.x + (st.b.x - st.a.x) * hh; pa[o + 1] = st.a.y + (st.b.y - st.a.y) * hh; pa[o + 2] = st.a.z + (st.b.z - st.a.z) * hh; pa[o + 3] = st.a.x + (st.b.x - st.a.x) * tt; pa[o + 4] = st.a.y + (st.b.y - st.a.y) * tt; pa[o + 5] = st.a.z + (st.b.z - st.a.z) * tt;
