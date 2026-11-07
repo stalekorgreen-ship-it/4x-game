@@ -66,7 +66,7 @@ const DOCT = {
   light: {n: 'лёгкий флот', mix: 'light'},
   convoy: {n: 'конвой', mix: 'convoy'},
 };
-const BYSIZE = n => { const r = Math.random(); if (n >= 30 && r < .06) return 'lasers'; if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
+const BYSIZE = n => { const r = Math.random();  if (r < .24) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
   if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
 // оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
 function outfit(specs) {
@@ -84,6 +84,7 @@ function fleet(n, mixOrDoc, fid, speed, W) {
   const keys = Object.keys(mix), tot = keys.reduce((a, k) => a + mix[k], 0), out = [], sk = RI(4, 8);
   let w = 0;
   for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
+  if (!W && n >= 25) { const nl = n >= 60 ? 2 : (Math.random() < .6 ? 1 : 0); for (let q = 0; q < nl; q++) { const sp = TYPES[Math.random() < .6 ? 'laserCruiser' : 'laserBattleship'](q); sp.name += ' №' + (n + q + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); } }
   if (!out.length) { const sp = TYPES[keys[0]](0); if (doc && doc.mod) doc.mod(sp); sp.name += ' №1'; sp.fid = fid; sp.sk = sk; out.push(sp); }
   return outfit(out);
 }

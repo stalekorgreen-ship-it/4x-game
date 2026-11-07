@@ -371,7 +371,7 @@ export function rec(k, dir, v, cat) {
 export const STAT_IN = {ship: 'Добыча кораблями', mine: 'Добыча шахтами', plant: 'Заводы (выпуск)', loot: 'Трофеи', corp: 'Покупка у корпораций', old: 'Прочее'};
 // --- боевой лазер ---
 export const LAS_D = {s: {dmg: 2, m: 150}, m: {dmg: 4, m: 450}, l: {dmg: 8, m: 1200}};
-export const LAS_R = {n: 150, m: 250, f: 400};
+export const LAS_R = {n: 1500, m: 2500, f: 4000}; // дальнобойная артиллерия: бьёт через всё поле боя
 export const mkLas = (pw, fr) => ({dmg: LAS_D[pw].dmg, rng: LAS_R[fr], chg: 0.02 * LAS_D[pw].dmg});
 COMP.lgun.opts = [O('pw', 'Мощность', 'm', [['s', 'малая ×½'], ['m', 'средняя'], ['l', 'большая ×2']]), O('fr', 'Фокусировка', 'm', [['n', 'ближняя 150 км'], ['m', 'средняя 250 км'], ['f', 'дальняя 400 км']])];
 COMP.lgun.ap = (c, s) => {

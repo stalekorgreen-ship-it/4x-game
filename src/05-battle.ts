@@ -37,8 +37,8 @@ function mkShip(side,sp,x,y){
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.lasers||0)+(sp.miss||0)+T.eng+1;
   const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
-  for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*m.cfg.rng/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
-  sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>m.cfg.rng));
+  for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*Math.min(300,m.cfg.rng)/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
+  sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>Math.min(300,m.cfg.rng)));
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
     if(zi===0){m.u=.3+.06*(i%2);m.v=(i-(n-1)/2)*.16}else if(zi===2){m.u=-.4;m.v=(i-(n-1)/2)*.2}
     else{m.u=-.26+.52*(i+.5)/n;m.v=(zi===1?1:-1)*.2}});});
@@ -431,7 +431,7 @@ function step(dt){
       if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C)}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
-        const rg=C.rng,ok=q=>q&&q.alive&&q.st!=='surr'&&q.lock[s.side]>t-5&&s.ch>0&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
+        const rg=C.rng,isL=m.k==='L',ok=q=>q&&q.alive&&q.st!=='surr'&&(isL?q.seen[s.side]>t-5:q.lock[s.side]>t-5&&s.ch>0)&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
         if(m.k==='L'&&s.ovh){m.cd=6;continue}
         let o=ok(s.F.focus)?s.F.focus:ok(s.tg)?s.tg:null;
         if(!o&&s.tg===null){m.cd=3;continue}
@@ -439,7 +439,7 @@ function step(dt){
         const d=Math.hypot(o.x-s.x,o.y-s.y);
         m.fa=Math.atan2(o.y-s.y,o.x-s.x)-0;m.rt=performance.now();
         if(m.k==='L'){
-          const cost=C.dmg*(.4+(d/120)*(d/120));
+          const cost=C.dmg*(.4+(Math.min(d,300)/120)**2);
           const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;Sfx.shot('laser');say(s.side,'laser',s);
           if(be){const dd=Math.hypot(be.x-s.x,be.y-s.y)||1;beams.push({a:s,b:{alive:false},tx:be.x-(be.x-s.x)/dd*be.r,ty:be.y-(be.y-s.y)/dd*be.r,tz:0,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.las[s.side]++;fx.push({x:be.x,y:be.y,t0:t,d:4,r:.8})}
           else{beams.push({a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});
@@ -678,7 +678,7 @@ function draw(g,ox,oy,k,dp){
   for(const side of [0,1]){g.strokeStyle=CL[side];g.lineWidth=dp;g.globalAlpha=.22;g.beginPath();
     for(const p of mis){if(p.side!==side||p.tr.length<6)continue;g.moveTo(X(p.tr[0]),Y(p.tr[1])+Z(p.tr[2]));for(let i=3;i<p.tr.length;i+=3)g.lineTo(X(p.tr[i]),Y(p.tr[i+1])+Z(p.tr[i+2]));g.lineTo(X(p.x),Y(p.y)+Z(p.z))}
     g.stroke();g.globalAlpha=1}
-  for(const p of mis){const x=X(p.x),y=Y(p.y)+Z(p.z),L=Math.max(12*dp,k*4),Wd=L*.24;
+  for(const p of mis){const x=X(p.x),y=Y(p.y)+Z(p.z),L=Math.min(Math.max(5*dp,k*1.1),13*dp),Wd=L*.2;
     g.save();g.translate(x,y);g.scale(1,curCT>.6?1:curCT);g.rotate(p.h);
     const fg=g.createLinearGradient(-L*.5,0,-L*2.1,0);fg.addColorStop(0,'rgba(255,230,150,.95)');fg.addColorStop(.5,'rgba(255,120,40,.5)');fg.addColorStop(1,'rgba(255,80,20,0)');
     g.fillStyle=fg;g.beginPath();g.moveTo(-L*.5,-Wd*.5);g.lineTo(-L*2.1,0);g.lineTo(-L*.5,Wd*.5);g.fill();
@@ -704,7 +704,9 @@ function draw(g,ox,oy,k,dp){
     g.fill()}
   const now=performance.now();shots=shots.filter(s=>now-s.rt<140);
   g.lineWidth=1.4*dp;
-  for(const sh of shots){if(sh.a&&sh.a.alive!==false){sh.x1=sh.a.x;sh.y1=sh.a.y}if(sh.b&&sh.b.alive!==false){const ox=sh.x2-(sh.bx||sh.x2),oy=sh.y2-(sh.by||sh.y2);sh.x2=sh.b.x;sh.y2=sh.b.y}g.strokeStyle='#fff';g.globalAlpha=1-(now-sh.rt)/140;g.beginPath();g.moveTo(X(sh.x1),Y(sh.y1));g.lineTo(X(sh.x1+(sh.x2-sh.x1)*.7),Y(sh.y1+(sh.y2-sh.y1)*.7));g.stroke()}
+  for(const sh of shots){if(sh.a&&sh.a.alive!==false){sh.x1=sh.a.x;sh.y1=sh.a.y}if(sh.b&&sh.b.alive!==false){sh.x2=sh.b.x;sh.y2=sh.b.y}
+    const u=(now-sh.rt)/140,hd=Math.min(1,u*1.3),ax=X(sh.x1),ay=Y(sh.y1),bx=X(sh.x2),by=Y(sh.y2),len=Math.hypot(bx-ax,by-ay)||1,tl=Math.min(1,24*dp/len),tl0=Math.max(0,hd-tl);
+    g.strokeStyle='#fff';g.globalAlpha=1-u*.6;g.beginPath();g.moveTo(ax+(bx-ax)*tl0,ay+(by-ay)*tl0);g.lineTo(ax+(bx-ax)*hd,ay+(by-ay)*hd);g.stroke()}
   beams=beams.filter(b=>now-b.rt<900);
   for(const b of beams){if(now<b.rt){const u=(now-b.c0)/600,x0=X(b.a.x),y0=Y(b.a.y)+Z(b.a.z),r=(6+b.w*1.5)*dp*(.3+u);
       const gr0=g.createRadialGradient(x0,y0,0,x0,y0,r);gr0.addColorStop(0,'rgba(255,255,255,'+(.4+.5*u)+')');gr0.addColorStop(.5,b.side?'rgba(255,95,208,.45)':'rgba(79,230,255,.45)');gr0.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr0;g.globalAlpha=1;g.beginPath();g.arc(x0,y0,r,0,6.283);g.fill();continue}
@@ -713,6 +715,7 @@ function draw(g,ox,oy,k,dp){
     g.strokeStyle=b.side?'#ff5fd0':'#4fe6ff';g.globalAlpha=.25*a;g.lineWidth=(5+b.w*1.1)*dp;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();
     g.globalAlpha=.6*a;g.lineWidth=(2.4+b.w*.3)*dp;g.stroke();
     g.strokeStyle='#fff';g.globalAlpha=a;g.lineWidth=(1+b.w*.12)*dp;g.stroke();
+    {const ge=g.createRadialGradient(x1,y1,0,x1,y1,(7+b.w)*dp);ge.addColorStop(0,'rgba(255,255,255,'+a+')');ge.addColorStop(.4,(b.side?'rgba(255,95,208,':'rgba(79,230,255,')+(.6*a)+')');ge.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=ge;g.globalAlpha=1;g.beginPath();g.arc(x1,y1,(7+b.w)*dp,0,6.283);g.fill()}
     const gr=g.createRadialGradient(x2,y2,0,x2,y2,(6+b.w)*dp);gr.addColorStop(0,'rgba(255,255,255,'+a+')');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.globalAlpha=1;g.beginPath();g.arc(x2,y2,(6+b.w)*dp,0,6.283);g.fill();
     g.lineCap='butt'}
   g.globalAlpha=1;
