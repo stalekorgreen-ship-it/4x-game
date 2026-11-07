@@ -678,7 +678,7 @@ const HULLV=[HULL,
   [[-.5,-.15],[-.2,-.4],[.2,-.4],[.5,-.08],[.5,.08],[.2,.4],[-.2,.4],[-.5,.15]]];
 const hullOf=s=>HULLV[s.hv||0];
 function drawShip(g,s,x,y,k,dp){
-  const HL=hullOf(s),len=Math.min(Math.max(10*s.T.L*dp,s.T.L*k*1.8),Math.max(60*dp,420*dp)),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
+  const HL=hullOf(s),len=Math.min(Math.max(10*s.T.L*dp,s.T.L*k*1.8),220*dp),wid=len*(WR[s.cls]||.3)*2,r=len/2,now=performance.now();
   if(x<-len||x>W+len||y<-len||y>H+len)return;
   if(len<14*dp&&s.alive&&s!==sel){const q=Math.max(5*dp,len*.62),c2=Math.cos(s.hd),s2=Math.sin(s.hd);g.save();g.translate(x,y);g.scale(1,curCT);
     g.globalAlpha=.28;g.fillStyle=CL[s.side];g.beginPath();g.arc(0,0,q*1.35,0,6.283);g.fill();g.globalAlpha=1;
@@ -704,7 +704,7 @@ function drawShip(g,s,x,y,k,dp){
   if(det){
     g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=dp*.7;g.beginPath();g.moveTo(-.4*len,0);g.lineTo(.42*len,0);g.moveTo(-.1*len,-wid*.5);g.lineTo(-.1*len,wid*.5);g.stroke();
     g.save();hull();g.clip();s.zones.forEach((z,zi)=>{if(z.armN>0)return;g.fillStyle='rgba(255,110,50,.2)';const pad=zi===0?[.25,-.15,.25,.3]:zi===2?[-.5,-.28,.18,.56]:zi===1?[-.3,0,.6,.5]:[-.3,-.5,.6,.5];g.fillRect(pad[0]*len,pad[1]*wid,pad[2]*len,pad[3]*wid)});g.restore();
-    const mr=Math.max(1.4*dp,len*.032);
+    const mr=Math.max(1.2*dp,Math.min(len*.018,5*dp));
     for(const z of s.zones)for(const m of z.mods){const mx=m.u*len,my=m.v*wid*.7;
       if(!m.alive){g.fillStyle='#1a1d23';g.beginPath();g.arc(mx,my,mr*1.2,0,6.283);g.fill();g.strokeStyle='#ef6a5e';g.lineWidth=dp*.7;g.beginPath();g.moveTo(mx-mr,my-mr);g.lineTo(mx+mr,my+mr);g.moveTo(mx+mr,my-mr);g.lineTo(mx-mr,my+mr);g.stroke();continue}
       if(m.k==='T'||m.k==='A'){
