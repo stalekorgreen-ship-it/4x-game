@@ -1089,7 +1089,11 @@ function tick(dt){
 function join(side,spec,edge,ang){
   fitSpec(spec);spec.cls=classify(spec);spec.dopt=spec.dopt0||DOPT[spec.cls];
   const sh=ang==null?mkShip(side,spec,(side?1:-1)*edge+R(-80,80),R(-150,150)):mkShip(side,spec,Math.cos(ang)*edge+R(-40,40),Math.sin(ang)*edge+R(-40,40));
-  if(ang!=null)sh.hd=ang+Math.PI;ships.push(sh);
+  if(ang!=null)sh.hd=ang+Math.PI;
+  // не появляться внутри другого корабля: сдвигаем в сторону, пока не освободится место
+  for(let k=0;k<40;k++){let hit=null;for(const o of ships){if(!o.alive)continue;const m=(sh.T.L+o.T.L)*.5*1.15;if(Math.hypot(sh.x-o.x,sh.y-o.y)<m){hit=o;break}}
+    if(!hit)break;const a=Math.atan2(sh.y-hit.y,sh.x-hit.x)+R(-.6,.6),st=(sh.T.L+hit.T.L)*.3;sh.x+=Math.cos(a)*st;sh.y+=Math.sin(a)*st}
+  ships.push(sh);
   if(sh.car){if(spec.F>0)addFlights(sh,'F',spec.F);if(spec.B>0)addFlights(sh,'B',spec.B)}
   return sh;
 }
