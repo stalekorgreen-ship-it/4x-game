@@ -14,7 +14,7 @@ const FI={vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO={vmax:0.8,a:0.05,fuel:2
 const TORP={sp:2.5,pd:0.02,pdr:35,launch:120,mod:2};
 const FLAK={range:60,blast:1.2};
 const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0={blast:1.2,rng:60,rel:1,fail:0},LC0={dmg:4,rng:250,chg:.08},MC0={hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83};
-const BURST={5:10,10:8,15:6,20:5},RCT={5:70,10:130,15:200,20:290};
+const BURST={5:3,10:5,15:5,20:5},RCT={5:18,10:48,15:85,20:130};
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
 let frags=[],pyro=[],pods=[],lands=[],mis=[],beams=[],bursts=[],curCT=1,curST=0,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
@@ -324,7 +324,7 @@ function assign(){
     if(t<c.na&&(c.tg||c.goal||c.type==='B'))continue;
     c.na=t+R(1,2);
     if(c.type==='F'){
-      c.tg=foeCraft(c,60,15);
+      c.tg=foeCraft(c,110,25);
       if(!c.tg){c.goal=foeCraft(c,1e9,200);if(!c.goal&&!c.fl.tsh)c.ret=true}
     }else c.tg=foeCraft(c,15,0,true);
   }
@@ -333,8 +333,8 @@ function shoot(c,e,p){shots.push({x1:c.x,y1:c.y,x2:e.x,y2:e.y,rt:performance.now
   if(Math.random()<p){e.hp--;fx.push({x:e.x,y:e.y,t0:t,d:3,r:0.5});if(e.hp<=0)killCraft(e)}}
 function craftStep(c,d){
   const P=c.P,home=c.home;
-  if(c.type==='F'&&mis.length&&t>(c.pd||0)){let q=null,bd=64;for(const m of mis){if(m.side===c.side)continue;const dd=(m.x-c.x)*(m.x-c.x)+(m.y-c.y)*(m.y-c.y);if(dd<bd){bd=dd;q=m}}
-    if(q){c.pd=t+1;shots.push({x1:c.x,y1:c.y,x2:q.x,y2:q.y,rt:performance.now(),s:c.side,a:c,b:q});if(Math.random()<.1)hurtMis(q,1)}}
+  if(c.type==='F'&&mis.length&&t>(c.pd||0)){let q=null,bd=200;for(const m of mis){if(m.side===c.side)continue;const dd=(m.x-c.x)*(m.x-c.x)+(m.y-c.y)*(m.y-c.y);if(dd<bd){bd=dd;q=m}}
+    if(q){c.pd=t+1;shots.push({x1:c.x,y1:c.y,x2:q.x,y2:q.y,rt:performance.now(),s:c.side,a:c,b:q});if(Math.random()<.22)hurtMis(q,1)}}
   let vdx=c.vx,vdy=c.vy,aim=null,fight=false;
   c.jt-=d;
   if(c.jt<=0){c.jt=R(2,5);const a=R(0,6.283),m=R(0.2,0.5)*P.a;c.jx=Math.cos(a)*m;c.jy=Math.sin(a)*m}
@@ -480,7 +480,7 @@ function fireShell(s,m,o0,C,lag){
   const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*T*T)*(1.4-0.08*m.sk)*C.sig;
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:s.x+ax/l*VPc*lag,y:s.y+ay/l*VPc*lag,z:s.z,vz:(o.z-s.z)/Math.max(.5,T),vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.5,max:C.rng,src:s,ev:Math.random()});
+  proj.push({x:s.x+ax/l*VPc*lag,y:s.y+ay/l*VPc*lag,z:s.z,vz:(o.z-s.z)/Math.max(.5,T),vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg,max:C.rng,src:s,ev:Math.random()});
   stat.shots[s.side]++;s.flash=t;Sfx.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
@@ -553,9 +553,9 @@ function step(dt){
         for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
         if(bl&&Math.random()<.4){m.cd=2+Math.random()*3;continue}}
       s.heat+=.004;say(s.side,'fire',s);
-      const B0=BURST[C.cal]||8,B=1,bf=1/(B0*2); // по одному выстрелу вдвое чаще чем 1/B0 от прежней очереди, урон снаряда ×0,5: суммарный огонь тот же, орудие стреляет каждые ~8 с
+      const B=BURST[C.cal]||8;
       for(let b=0;b<C.shells;b++)bursts.push({s,m,o:fl[(Math.random()*fl.length)|0],C,n:B,i:0,t0:t+b*.03});
-      {const ldf=C.rel/(Math.pow((C.cal||10)/10,.7)*(1+.2*(C.shells-1)));m.cd=(RCT[C.cal]||130)*ldf*(1+.25*(C.shells-1))*(1.3-.06*m.sk)*R(.8,1.25)*bf}jamChk(s,m,C);
+      {const ldf=C.rel/(1+.2*(C.shells-1));m.cd=(RCT[C.cal]||130)*ldf*(1+.25*(C.shells-1))*(1.3-.06*m.sk)*R(.8,1.25)}jamChk(s,m,C);
     }
   }
   // очереди рельсотронов: выстрелы с задержкой 0,1 с

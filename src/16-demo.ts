@@ -83,9 +83,14 @@ function pickType(mix, tot, keys) { let r = Math.random() * tot, k = keys[0]; fo
 // флот по числу кораблей или (если задан вес W) по весу
 function fleet(n, mixOrDoc, fid, speed, W) {
   const doc = typeof mixOrDoc === 'string' ? DOCT[mixOrDoc] : null, mix = doc ? (typeof doc.mix === 'string' ? MIXES[doc.mix] : doc.mix) : mixOrDoc;
-  const keys = Object.keys(mix), tot = keys.reduce((a, k) => a + mix[k], 0), out = [], sk = RI(4, 8);
+  let mix2 = mix;
+  if (doc && mixOrDoc !== 'convoy') { // разнообразие: в любой флот подмешиваем авианосцы, ракетные корабли, торпедоносцы, ПВО
+    const t0 = Object.values(mix).reduce((a, b) => a + b, 0); mix2 = {...mix};
+    for (const [k, f] of [['swarmcarrier', .1], ['missileFrigate', .08], ['missileCruiser', .06], ['bomber', .06], ['frigate', .08], ['carrier', .04]]) mix2[k] = (mix2[k] || 0) + t0 * f * R(.5, 1.5);
+  }
+  const keys = Object.keys(mix2), tot = keys.reduce((a, k) => a + mix2[k], 0), out = [], sk = RI(4, 8);
   let w = 0;
-  for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
+  for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix2, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
   if (!W && n >= 25) { const nl = n >= 60 ? 2 : (Math.random() < .6 ? 1 : 0); for (let q = 0; q < nl; q++) { const sp = TYPES[Math.random() < .6 ? 'laserCruiser' : 'laserBattleship'](q); sp.name += ' №' + (n + q + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); } }
   if (!out.length) { const sp = TYPES[keys[0]](0); if (doc && doc.mod) doc.mod(sp); sp.name += ' №1'; sp.fid = fid; sp.sk = sk; out.push(sp); }
   return outfit(out);
