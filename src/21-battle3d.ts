@@ -13,7 +13,7 @@ if (wrap && bgo) {
   bgo.after(btn);
 
   let on = false, ren: THREE.WebGLRenderer | null = null, scene: THREE.Scene, cam: THREE.PerspectiveCamera, raf = 0;
-  const MAXEX = 3500; let exMesh: THREE.InstancedMesh; const _ep = new THREE.Vector3(); let fGeo: THREE.BufferGeometry, fcam: any = null, tcam: any = null, tcamN = 0, pendT = 0; // камера на башне (клавиша T): видно, как вылетает трассер и отлетают плиты
+  const _fr = new THREE.Frustum(), _pm = new THREE.Matrix4(), _sph = new THREE.Sphere(); const MAXEX = 3500; let exMesh: THREE.InstancedMesh; const _ep = new THREE.Vector3(); let fGeo: THREE.BufferGeometry, fcam: any = null, tcam: any = null, tcamN = 0, pendT = 0; // камера на башне (клавиша T): видно, как вылетает трассер и отлетают плиты
   function camFighter() { const l = (Battle.air() as any[]).filter(c => c.state === 'fly' && c._len).sort((a, b) => cam.position.distanceToSquared(_p.set(a.x, a._yv || 0, a.y)) - cam.position.distanceToSquared(_p.set(b.x, b._yv || 0, b.y))); if (!l.length) return; fcam = l[(fcamN++) % Math.min(l.length, 8)]; tcam = null; follow = false; fitAll = false; dist = Math.max(.004, fcam._len * 7) }
   let fcamN = 0; const _qz = new THREE.Quaternion(), _zv = new THREE.Vector3(0, 0, 1);
   function camTurret() { let g: any = null, bd = 1e18; for (const [, m] of models) if (m.userData.det && m.userData.tur.children.length) { const d = m.position.distanceToSquared(cam.position); if (d < bd) { bd = d; g = m } } if (!g) { // нет детальных кораблей: подлетаем к ближайшему, башню выберем, когда он прорисуется
@@ -353,6 +353,7 @@ if (wrap && bgo) {
     const ships: any[] = Battle.ships(); let cx = 0, cy = 0, cz = 0, n = 0, rad = 0; builds = 0; const alive = new Set<any>();
     for (const s of ships) if (s.alive) { cx += s.x; cy += s.y; cz += s.z; n++ }
     if (n) { cx /= n; cy /= n; cz /= n; const ds: number[] = []; for (const s of ships) if (s.alive) ds.push(Math.hypot(s.x - cx, s.y - cy, (s.z - cz) * 2)); ds.sort((a, b) => a - b); rad = ds[Math.floor(ds.length * .9)] || 0 }
+    _fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)); // видимый объём камеры: что вне его — не обновляем и не рисуем
     for (const s of ships) {
       if (!s.alive) { const g = models.get(s); if (g) g.visible = false; continue }
       alive.add(s);
@@ -361,6 +362,7 @@ if (wrap && bgo) {
       { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; ud.pt += (Math.max(-.2, Math.min(.2, (s.pz || 0) * 2.5)) - ud.pt) * .015 } // сглаживание курса и тангажа
       if (ud.rl == null) ud.rl = s.roll || 0; ud.rl += ((s.roll || 0) - ud.rl) * .2; g.rotation.y = -ud.hd; g.rotation.z = ud.pt; g.rotation.x = ud.rl;
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
+      if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
       const app = L * sc / Math.max(dd, .01); // видимый размер
       setLod(s, g, app > .035 ? 1 : 0);
       detail(s, g, g.userData.lod === 1 && app > .09);
@@ -398,6 +400,7 @@ if (wrap && bgo) {
     let fc = 0; const col = new THREE.Color();
     for (const c of Battle.air() as any[]) {
       if (c.state !== 'fly' || fc >= MAXF) continue;
+      if (c !== fcam && !_fr.containsPoint(_p.set(c.x, c._yv != null ? c._yv : (c.home ? c.home.z : 0), c.y)) && cam.position.distanceToSquared(_p) > 4) continue;
       { // полёт в 3D: вертикальное «плетение», крен по скорости поворота, тангаж по набору/снижению высоты
         const T2 = Battle.time(), id = c.slot || 0, ph = (c.fl ? (c.fl.fid || 0) : 0) * 1.7 + id * 2.3, w = .22 + (id % 5) * .07, A = c.type === 'B' ? 1.2 : 2.6 * Math.max(1, SC * .35);
         const yv = (c.home ? c.home.z : 0) + A * Math.sin(w * T2 + ph) + A * .4 * Math.sin(w * 2.7 * T2 + ph * 1.9), dy = A * w * Math.cos(w * T2 + ph) + A * .4 * w * 2.7 * Math.cos(w * 2.7 * T2 + ph * 1.9);
@@ -415,12 +418,12 @@ if (wrap && bgo) {
       if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.4, Math.max(.02, cdp * .006)) / Math.max(1, Math.hypot(p.vx, p.vy)) / .1;
       let ox = 0, oy = 0, oz = 0;
       if (p._m === undefined) { p._m = null; dbg.n++; const gs = p.src && models.get(p.src); let tt: any = gs && gs.userData.turMap && p.m ? gs.userData.turMap.get(p.m) : null;
-        if (!tt && gs && gs.userData.det && gs.userData.tur) { // нет привязки к модулю: берём ближайшую живую башню, смотрящую в сторону выстрела
+        if (!tt && gs && (gs.userData.det && gs.visible) && gs.userData.tur) { // нет привязки к модулю: берём ближайшую живую башню, смотрящую в сторону выстрела
           gs.updateMatrixWorld(true); const hl0 = Math.hypot(p.vx, p.vy, p.vz || 0) || 1, d0 = new THREE.Vector3(p.vx / hl0, (p.vz || 0) / hl0, p.vy / hl0).applyQuaternion(gs.quaternion.clone().invert()), o0 = gs.worldToLocal(new THREE.Vector3(p.x, p.z, p.y)); let bd = 1e18, bt: any = null;
           for (const t of gs.userData.tur.children as any[]) { if (!t.visible || !t.userData.m || !t.userData.m.alive || t.userData.n.dot(d0) < .05) continue; const dd2 = t.position.distanceToSquared(o0); if (dd2 < bd) { bd = dd2; bt = t } }
           tt = bt }
-        if (gs && gs.userData.det) { dbg.d = (dbg.d || 0) + 1; if (!tt) dbg.nt = (dbg.nt || 0) + 1 }
-        if (tt && gs.userData.det) { // ствол стреляющей башни: наводим на направление выстрела и берём конец ствола
+        if (gs && (gs.userData.det && gs.visible)) { dbg.d = (dbg.d || 0) + 1; if (!tt) dbg.nt = (dbg.nt || 0) + 1 }
+        if (tt && (gs.userData.det && gs.visible)) { // ствол стреляющей башни: наводим на направление выстрела и берём конец ствола
           const hl = Math.hypot(p.vx, p.vy, p.vz || 0) || 1, dw = new THREE.Vector3(p.vx / hl, (p.vz || 0) / hl, p.vy / hl); gs.updateMatrixWorld(true);
           const inv = new THREE.Quaternion().copy(gs.quaternion).invert(), n: THREE.Vector3 = tt.userData.n, dd = dw.clone().applyQuaternion(inv).normalize(), dn = dd.dot(n); if (dn < .02) dd.addScaledVector(n, .02 - dn).normalize();
           const dl = dd.clone().applyQuaternion(tt.quaternion.clone().invert()), hq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.normalize()); tt.userData.head.quaternion.copy(hq); tt.updateMatrixWorld(true);
@@ -438,7 +441,7 @@ if (wrap && bgo) {
     }
     updateEnv();
     { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
-      for (const [sh, g] of models) { if (!sh.alive || !g.parent) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
+      for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
         if (sp > .02) { st.set(-L * .55, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.p.distanceTo(st) > L * sc * .02) { h.push({ p: st.clone(), t: nE, r: Math.random() }); if (h.length > 34) h.shift() } }
         while (h.length && nE - h[0].t > 3500) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1], nz = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, r: L * .04 }];
         rt.set(0, 0, 1).applyQuaternion(g.quaternion);
@@ -482,7 +485,7 @@ if (wrap && bgo) {
       for (const q of Battle.shots() as any[]) { if (k >= 600) break; const age = now2 - q.rt, f = 1 - age / 300; if (f <= 0) continue; const o = k * 6, z1 = q.a ? q.a.z : 0, z2 = q.b ? (q.b.z != null ? q.b.z : (q.b.home ? q.b.home.z : z1)) : z1;
         { const ex = q.ext || 1; let ax = q.x1, ay = z1, az = q.y1;
           if (q.src && q._O === undefined) { q._O = null; const gs = models.get(q.src), tt = gs && gs.userData.turMap && q.m ? gs.userData.turMap.get(q.m) : null; // начало — конец ствола зенитной башни
-            if (tt && gs.userData.det) { gs.updateMatrixWorld(true); const dw = new THREE.Vector3(q.x2 - q.x1, 0, q.y2 - q.y1).normalize(), inv = new THREE.Quaternion().copy(gs.quaternion).invert(), n: THREE.Vector3 = tt.userData.n, dd = dw.applyQuaternion(inv).normalize(), dn = dd.dot(n); if (dn < .02) dd.addScaledVector(n, .02 - dn).normalize();
+            if (tt && (gs.userData.det && gs.visible)) { gs.updateMatrixWorld(true); const dw = new THREE.Vector3(q.x2 - q.x1, 0, q.y2 - q.y1).normalize(), inv = new THREE.Quaternion().copy(gs.quaternion).invert(), n: THREE.Vector3 = tt.userData.n, dd = dw.applyQuaternion(inv).normalize(), dn = dd.dot(n); if (dn < .02) dd.addScaledVector(n, .02 - dn).normalize();
               const dl = dd.clone().applyQuaternion(tt.quaternion.clone().invert()); tt.userData.head.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.normalize())); tt.updateMatrixWorld(true);
               const tip = tt.userData.tips[0], mp = new THREE.Vector3(); tip.getWorldPosition(mp); q._O = [q.o0.x + mp.x - gs.position.x, q.o0.z + mp.y - gs.position.y, q.o0.y + mp.z - gs.position.z] } }
           if (q._O) { ax = q._O[0]; ay = q._O[1]; az = q._O[2] }
