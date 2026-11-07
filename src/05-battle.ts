@@ -546,7 +546,7 @@ function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
   const VPc=C.vp*500;let T=Math.hypot(o.x-s.x,o.y-s.y)/VPc;
   for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y)/VPc}
-  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*T*T)*(1.4-0.08*m.sk)*C.sig;
+  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*5*(1.4-0.08*m.sk)*C.sig;
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
   proj.push({x:s.x+ax/l*(VPc*lag+s.T.L*.4),y:s.y+ay/l*(VPc*lag+s.T.L*.4),z:s.z,vz:(o.z-s.z)/Math.max(.5,T)+gauss()*VPc*.022,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,max:C.rng*1000,src:s,m:m,ev:Math.random(),o0:{x:s.x,y:s.y,z:s.z}});
