@@ -45,7 +45,7 @@ if (wrap && bgo) {
     const cv = document.createElement('canvas');
     cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block';
     wrap!.appendChild(cv);
-    ren = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+    ren = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); ren.localClippingEnabled = true;
     ren.setPixelRatio(Math.min(1.5, devicePixelRatio));
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x070a12); scene.fog = new THREE.FogExp2(0x070a12, .00008);
     cam = new THREE.PerspectiveCamera(50, 1, .05, 6000);
@@ -212,6 +212,26 @@ if (wrap && bgo) {
   const simpleGeo = PAL.map(P => mergeGeometries([
     piece(unitBox, P.main, -.11, 0, 0, .78, .1, .17), piece(taper(1, 1, 1, .3), P.main, .42, 0, 0, .22, .095, .15), piece(unitBox, P.dark, -.5, 0, 0, .06, .11, .18), piece(unitBox, P.acc2, .1, .08, 0, .07, .09, .09)], false)!);
   const glowMats = PAL.map(P => new THREE.MeshBasicMaterial({ color: P.glow }));
+  // гибель корабля: корпус раскалывается на три секции, они расходятся, кувыркаются, горят и гаснут
+  const wrecks: any[] = []; let wLast = 0;
+  function makeWreck(g: THREE.Group, s: any) {
+    const L = g.userData.L, sc = g.scale.x, nw = performance.now(), d0 = cam.position.distanceTo(g.position); dbg.mw = [d0, g.visible]; if (d0 > 4000 || !g.visible) { scene.remove(g); return }
+    const cuts = [[-9, -.17], [-.17, .17], [.17, 9]], ch = (() => { const ud = g.userData, kids: any[] = []; g.traverse((o: any) => { if (o !== g && o.userData && Object.keys(o.userData).length) kids.push([o, o.userData]) }); g.userData = {}; kids.forEach(k => k[0].userData = {}); const r = [g, g.clone(true), g.clone(true)]; g.userData = ud; kids.forEach(k => k[0].userData = k[1]); return r })();
+    ch.forEach((c, i) => { const pa = new THREE.Plane(), pb = new THREE.Plane();
+      c.traverse((o: any) => { if (!o.isMesh || !o.material) return; const mm = Array.isArray(o.material) ? o.material : [o.material]; const cl = mm.map((m: any) => { if (!m.clone) return m; const q = m.clone(); q.clippingPlanes = [pa, pb]; q.needsUpdate = true; return q }); o.material = Array.isArray(o.material) ? cl : cl[0]; o.frustumCulled = false });
+      if (i) scene.add(c); const ax = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(), dir = new THREE.Vector3(1, 0, 0).applyQuaternion(g.quaternion);
+      wrecks.push({ g: c, pa, pb, lo: cuts[i][0] * L, hi: cuts[i][1] * L, v: dir.clone().multiplyScalar((i - 1) * L * sc * .05).add(new THREE.Vector3((Math.random() - .5) * L * sc * .02, (Math.random() - .5) * L * sc * .03, (Math.random() - .5) * L * sc * .02)), ax, w: (Math.random() - .3) * .5 * (i === 1 ? .4 : 1), t0: nw, sc, L, nf: nw }) });
+    for (let i = 0; i < 7; i++) { const lp = new THREE.Vector3((Math.random() - .5) * L, (Math.random() - .5) * L * .1, (Math.random() - .5) * L * .1); g.localToWorld(lp); flashes.push({ p: lp, t0: nw, life: 380 + i * 90 + Math.random() * 300, sz: 22 + Math.random() * 30 }) }
+    for (let i = 0; i < 70; i++) { const dd = new THREE.Vector3().randomDirection(), sp = d0 * .07 * (.3 + Math.random()), lp = new THREE.Vector3((Math.random() - .5) * L, 0, 0); g.localToWorld(lp); sparks.push({ p: lp, v: dd.multiplyScalar(sp), t0: nw, life: 700 + Math.random() * 1400, h: Math.random() }) }
+  }
+  function stepWrecks(nw: number) {
+    dbg.wr = wrecks.length; const dt = Math.min(.1, wLast ? (nw - wLast) / 1000 : .016); wLast = nw; const v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
+    for (let i = wrecks.length - 1; i >= 0; i--) { const w = wrecks[i], age = (nw - w.t0) / 1000, c = w.g;
+      if (age > 14) { scene.remove(c); c.traverse((o: any) => { if (o.isMesh && o.material && o.material.clippingPlanes) { const mm = Array.isArray(o.material) ? o.material : [o.material]; mm.forEach((m: any) => m.dispose && m.dispose()) } }); wrecks.splice(i, 1); continue }
+      c.position.addScaledVector(w.v, dt); c.rotateOnAxis(w.ax, w.w * dt); c.scale.setScalar(w.sc * (age > 11 ? Math.max(.01, 1 - (age - 11) / 3) : 1)); c.visible = true; c.updateMatrixWorld(true);
+      v1.set(1, 0, 0).applyQuaternion(c.quaternion); v2.set(w.lo, 0, 0); c.localToWorld(v2); w.pa.setFromNormalAndCoplanarPoint(v1, v2); v2.set(w.hi, 0, 0); c.localToWorld(v2); w.pb.setFromNormalAndCoplanarPoint(v1.clone().negate(), v2);
+      if (age < 9 && nw - w.nf > 160) { w.nf = nw; const lp = new THREE.Vector3((Math.random() - .5) * w.L * .3 + (w.lo > -5 ? (w.lo + (w.hi > 5 ? .3 * w.L : w.hi)) / 2 : (w.hi - .3 * w.L)), 0, (Math.random() - .5) * w.L * .08); c.localToWorld(lp); flashes.push({ p: lp, t0: nw, life: 260, sz: 10 + Math.random() * 14 }); sparks.push({ p: lp.clone(), v: new THREE.Vector3().randomDirection().multiplyScalar(cam.position.distanceTo(lp) * .03), t0: nw, life: 600, h: Math.random() }) } }
+  }
   let builds = 0;
   function build(s: any) {
     const L = s.T.L, g = new THREE.Group(), seed = (sid++ * 2654435761) ^ Math.round(L * 1000);
@@ -378,7 +398,7 @@ if (wrap && bgo) {
     if (n) { cx /= n; cy /= n; cz /= n; const ds: number[] = []; for (const s of ships) if (s.alive) ds.push(Math.hypot(s.x - cx, s.y - cy, (s.z - cz) * 2)); ds.sort((a, b) => a - b); rad = ds[Math.floor(ds.length * .9)] || 0 }
     _fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)); // видимый объём камеры: что вне его — не обновляем и не рисуем
     for (const s of ships) {
-      if (!s.alive) { const g = models.get(s); if (g) g.visible = false; continue }
+      if (!s.alive) { const g = models.get(s); if (g) { models.delete(s); makeWreck(g, s) } continue }
       alive.add(s);
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
       g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
@@ -418,7 +438,7 @@ if (wrap && bgo) {
           u2.dmg.count = k; u2.dmg.instanceMatrix.needsUpdate = true; if (u2.dmg.instanceColor) u2.dmg.instanceColor.needsUpdate = true; u2.dmg.visible = true } else if (u2.dmg) u2.dmg.visible = false }
       g.userData.eng.visible = g.userData.lod === 1 && Math.hypot(s.vx, s.vy) > .02;
     }
-    for (const [s, g] of models) if (!alive.has(s) && !s.alive && !ships.includes(s) && g.parent) { scene.remove(g); models.delete(s) }
+    for (const [s, g] of models) if (!alive.has(s) && !s.alive && g.parent) { models.delete(s); makeWreck(g, s) }
     if (n && follow) { const sel = Battle.anchorSel && Battle.anchorSel(); if (fitAll || !(sel && sel.alive)) { v3.set(cx, cz, cy); tgt.lerp(v3, .08); if (fitAll) dist += (Math.min(700, Math.max(40, rad * 2.3 / Math.tan(.43))) - dist) * .04 } else { tgt.lerp(v3.set(sel.x, sel.z, sel.y), .08) } }
     if (fcam) { if (fcam.state === 'fly') { tgt.lerp(v3.set(fcam.x, fcam._yv || 0, fcam.y), .4) } else fcam = null }
     if (pendT > 0 && !tcam && !fcam) { pendT--; camTurret() }
@@ -467,7 +487,7 @@ if (wrap && bgo) {
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;
     }
-    updateEnv();
+    updateEnv(); stepWrecks(performance.now());
     { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
       for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
         if (sp > .02) { st.set(-L * .55, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.p.distanceTo(st) > L * sc * .02) { h.push({ p: st.clone(), t: nE, r: Math.random() }); if (h.length > 34) h.shift() } }
@@ -476,6 +496,9 @@ if (wrap && bgo) {
         for (let i = 0; i < h.length && ek < MAXEX; i++) { const age = (nE - h[i].t) / 3500, f = (1 - age) * (1 - age), sz = (u.W || L * .17) * sc * (.16 + .5 * age) * Math.min(1, .35 + nz.length * .2);
           _ep.copy(h[i].p).addScaledVector(rt, (h[i].r - .5) * (u.W || L * .17) * sc * .35); dummy.position.copy(_ep); dummy.quaternion.identity(); dummy.scale.setScalar(sz); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix);
           exMesh.setColorAt(ek, _cc2.setRGB(base[0] * f * .9, base[1] * f * .9, base[2] * f * .9)); ek++ } }
+      // маневровые: короткие белые вспышки по бортам, пока корабль крутится (только живые РСУ)
+      for (const [sh, g] of models) { if (!sh.alive || !g.visible || !sh.rcs0 || !(sh.rcsN > 0) || Math.abs(sh.trn || 0) < .08) continue; const u = g.userData, L = u.L, sc = g.scale.x, sg = Math.sign(sh.trn), fl = performance.now() % 160 < 100; if (!fl) continue;
+        for (let q = 0; q < 2 && ek < MAXEX; q++) { st.set((q ? -1 : 1) * L * .38, 0, -sg * (q ? -1 : 1) * (u.W || L * .17) * .56); g.localToWorld(st); dummy.position.copy(st); dummy.quaternion.identity(); dummy.scale.setScalar(L * sc * .012 * Math.min(1, .4 + sh.rcsN / sh.rcs0)); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix); exMesh.setColorAt(ek, _cc2.setRGB(.9, .95, 1)); ek++ } }
       exMesh.count = ek; exMesh.instanceMatrix.needsUpdate = true; if (exMesh.instanceColor) exMesh.instanceColor.needsUpdate = true }
     { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / 140; if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
         const hh = Math.min(1, u / .55), tt = Math.max(0, (u - .3) / .7), o = pc * 6, f = 1 - u * .5;
@@ -591,7 +614,7 @@ if (wrap && bgo) {
   }
   function reset3d() {
     if (scene) for (const [, g] of models) scene.remove(g);
-    models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
+    for (const w of wrecks) scene.remove(w.g); wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
     const im = Battle.impacts() as any[]; lastImp = im.length ? Math.max(...im.map((q: any) => q.id)) : 0;
     follow = true; fitAll = true; curSky = undefined;
   }
