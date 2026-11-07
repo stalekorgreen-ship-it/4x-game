@@ -73,7 +73,7 @@ if (wrap && bgo) {
     projLines = new THREE.LineSegments(pg, addMat()); projLines.frustumCulled = false; scene.add(projLines);
     { const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXSP * 6), 3)); sg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXSP * 6), 3)); sparkLines = new THREE.LineSegments(sg, addMat()); sparkLines.frustumCulled = false; scene.add(sparkLines);
       const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXFL * 3), 3)); fg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXFL * 3), 3)); flashPts = new THREE.Points(fg, new THREE.PointsMaterial({ size: 18, sizeAttenuation: false, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, map: glowTex(), fog: false })); flashPts.frustumCulled = false; scene.add(flashPts) }
-    tdMesh = new THREE.InstancedMesh(geoBox, new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true }), MAXTD); tdMesh.frustumCulled = false; tdMesh.count = 0; tdMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdMesh);
+    tdMesh = new THREE.InstancedMesh((() => { const t = new THREE.TetrahedronGeometry(.62, 0).toNonIndexed(), a = t.attributes.position as THREE.BufferAttribute, off = [[.2, -.1, .1], [-.15, .2, -.1], [.1, .15, .2], [-.1, -.2, -.15]], seen = new Map<string, number>(); for (let i = 0; i < a.count; i++) { const key = a.getX(i).toFixed(3) + a.getY(i).toFixed(3) + a.getZ(i).toFixed(3); if (!seen.has(key)) seen.set(key, seen.size); const o = off[seen.get(key)! % 4]; a.setXYZ(i, a.getX(i) + o[0], a.getY(i) * .55 + o[1] * .6, a.getZ(i) + o[2]) } t.computeVertexNormals(); return t })(), new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true }), MAXTD); tdMesh.frustumCulled = false; tdMesh.count = 0; tdMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdMesh);
     tdDec = new THREE.InstancedMesh(decalGeo, decalMat, MAXDD); tdDec.frustumCulled = false; tdDec.count = 0; tdDec.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdDec); // следы на сорванных плитах летят вместе с ними
     bolts = new THREE.InstancedMesh(geoCyl, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAXP); bolts.frustumCulled = false; bolts.count = 0; bolts.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(bolts);
     const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2000 * 3), 3));
@@ -163,7 +163,7 @@ if (wrap && bgo) {
         for (let j = 0; j < NR; j++) { const r = RING[j]; pos.push(xx, d.cy + r.u * d.h / 2 * k * .985, r.v * d.w / 2 * k * .985); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
       for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
       const g0 = new THREE.BufferGeometry(); g0.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g0.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g0.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g0.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g0.setIndex(idx);
-      const g1 = g0.toNonIndexed(); g1.computeVertexNormals(); parts.push(g1);
+      const g1 = g0.toNonIndexed(); g1.computeVertexNormals(); flatCol(g1); parts.push(g1);
       // кормовые стабилизаторы и бортовые спонсоны — силуэт «как на концептах»
       const fin = (sd: number, vy: number) => parts.push(piece(taper(1, 1, 1, .15), shade(P.dark, 1.1), x0 + L * .1, vy * H * .5, sd * W * .62, L * .2, H * .08, W * .5, 0));
       for (const sd of [-1, 1]) { fin(sd, 0); parts.push(piece(taper(1, 1, 1, .2), shade(P.main, .8), x0 + L * .3, 0, sd * W * .5, L * .3, H * .15, W * .55)) } }
@@ -219,6 +219,7 @@ if (wrap && bgo) {
     const cell = Math.sqrt(tiles.length ? tiles[0].len * tiles[0].cs : 1);
     const g = mergeGeometries(parts, false)!; (g as any).userData = { armorT: mp.armor, x1, x0v: x0, tiles, mounts, cell, nozz, W, H, x0, Lk, gridRows, gridCols, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy, col: q.col })) }; return g;
   }
+  const flatCol = (g: THREE.BufferGeometry) => { const c = g.attributes.color as THREE.BufferAttribute, a = c.array as Float32Array; for (let t = 0; t + 8 < a.length; t += 9) { a[t + 3] = a[t]; a[t + 4] = a[t + 1]; a[t + 5] = a[t + 2]; a[t + 6] = a[t]; a[t + 7] = a[t + 1]; a[t + 8] = a[t + 2] } return g };
   let sid = 1;
   // шаблон сечения: прямоугольник со срезанными углами (8 рёбер), 64 точки; u — вдоль высоты, v — вдоль ширины (−1..1)
   const RING: { u: number; v: number; nu: number; nv: number }[] = (() => { const C: number[][] = [[.5, 1], [-.5, 1], [-1, .5], [-1, -.5], [-.5, -1], [.5, -1], [1, -.5], [1, .5]], N: number[][] = [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], o: any[] = [];
@@ -239,7 +240,7 @@ if (wrap && bgo) {
       for (let j = 0; j < NR; j++) { const r = RING[j]; pos.push(x, r.u * h / 2, r.v * w / 2); col.push(c.r, c.g, c.b); nrm.push(0, 1, 0); uv.push(0, 0) } }
     for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
     const g0 = new THREE.BufferGeometry(); g0.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g0.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g0.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g0.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g0.setIndex(idx);
-    const g1 = g0.toNonIndexed(); g1.computeVertexNormals();
+    const g1 = flatCol(g0.toNonIndexed()); g1.computeVertexNormals();
     return mergeGeometries([g1, piece(unitBox, P.dark, -.5, 0, 0, .05, .1, .17), piece(unitBox, P.acc2, .02, .075, 0, .06, .05, .08), piece(unitBox, P.glow, .02, .1, 0, .05, .008, .075),
       piece(taper(1, 1, 1, .2), shade2(P.dark, 1.1), -.36, 0, .1, .2, .008, .16), piece(taper(1, 1, 1, .2), shade2(P.dark, 1.1), -.36, 0, -.1, .2, .008, .16),
       piece(unitCyl, 0x16181d, -.53, 0, 0, .04, .06, .06)], false)!;
@@ -373,13 +374,18 @@ if (wrap && bgo) {
     if (q.f === 0) out.set(q.px + sx, q.py + c, q.pz + sz); else if (q.f === 2) out.set(q.px + sx, q.py - c, q.pz + sz);
     else if (q.f === 1) out.set(q.px + sx, q.py + sz, q.pz + c); else out.set(q.px + sx, q.py + sz, q.pz - c); return out }
   // плита сорвана: тот же размер, цвет и место, что были на корпусе; отлетает по нормали и кувыркается
-  function spawnLayerDebris(s: any, g: THREE.Group, q: any, l: number) {
-    dbg.sp = (dbg.sp || 0) + 1; if (tdeb.length >= MAXTD) tdeb.shift(); const u = g.userData, th = thL(u), lp = layerPos(q, l, th, new THREE.Vector3()); g.updateMatrixWorld(true);
-    const pos = g.localToWorld(lp), nr = NRL[q.f], nw = new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion);
-    const sp = u.L * (.008 + Math.random() * .03), v = nw.multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .5)); v.x += s.sx || 0; v.z += s.sy || 0;
-    const qq = g.quaternion.clone(); if (q.f % 2) qq.multiply(_qx);
+  function spawnLayerDebris(s: any, g: THREE.Group, q: any, l: number, org?: THREE.Vector3) {
+    dbg.sp = (dbg.sp || 0) + 1; const u = g.userData, th = thL(u), lp = layerPos(q, l, th, new THREE.Vector3()); g.updateMatrixWorld(true);
+    const pos0 = org ? org.clone() : g.localToWorld(lp), nr = NRL[q.f], nrW = new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion);
+    const qq0 = g.quaternion.clone(); if (q.f % 2) qq0.multiply(_qx);
     const dec: any[] = []; for (const d of (s.vd || []) as any[]) { const a = d.a3; if (a && !a.dead && a.q === q && a.l === l) { a.dead = true; const lq = new THREE.Quaternion().setFromUnitVectors(_zv, new THREE.Vector3(0, NS[q.f], 0)); if (a.rz) lq.multiply(_qz.setFromAxisAngle(_zv, a.rz)); dec.push({ ox: a.ox, oz: a.oz * LS[q.f], ny: NS[q.f] * th * .54, lq, sc: a.sc.clone(), col: a.col.clone() }) } }
-    tdeb.push({ p: pos, v, q: qq, w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .5), sz: new THREE.Vector3(q.len * .94, th * .95, q.cs * .94), t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f, dec });
+    // 1–4 осколка разного размера, вылетают из точки попадания; крупные иногда раскалываются пополам
+    const np = 1 + (Math.random() < .6 ? 1 : 0) + (Math.random() < .35 ? 1 : 0) + (Math.random() < .15 ? 1 : 0), mean = (q.len + q.cs) / 2;
+    for (let i = 0; i < np; i++) { if (tdeb.length >= MAXTD) tdeb.shift(); const mul = i === 0 ? .7 + Math.random() * .8 : .25 + Math.random() * .7, sp = u.L * (.008 + Math.random() * .035);
+      const v = nrW.clone().multiplyScalar(sp).add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .8)); v.x += s.sx || 0; v.z += s.sy || 0;
+      const split = i === 0 && mul > 1 && Math.random() < .5, pieces = split ? 2 : 1;
+      for (let k = 0; k < pieces; k++) { const vv = split ? v.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(sp * .5)) : v, m2 = split ? mul * (.5 + Math.random() * .3) : mul;
+        tdeb.push({ p: pos0.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(mean * .5)), v: vv, q: qq0.clone().multiply(new THREE.Quaternion().random()), w: new THREE.Vector3().randomDirection().multiplyScalar((Math.random() + .3) * .9), sz: new THREE.Vector3(mean * m2 * (.7 + Math.random() * .8), Math.max(th * 1.2, mean * m2 * (.3 + Math.random() * .6)), mean * m2 * (.6 + Math.random() * .9)), t0: performance.now(), life: 9000 + Math.random() * 5000, side: s.side, f: q.f, dec: i === 0 && k === 0 ? dec : undefined }) } }
   }
   // попадание снимает верхний слой с одной (или нескольких соседних) плит ровно там, куда ударил снаряд
   const _hp = new THREE.Vector3(), _hd = new THREE.Vector3(), _iq = new THREE.Quaternion();
@@ -392,8 +398,9 @@ if (wrap && bgo) {
     for (const q of tiles) if (q.f === f && q.cur > 0) cand.push({ q, d: Math.hypot(q.px - _hp.x - jx, lat(q) - hl - jl) });
     cand.sort((a, b) => a.d - b.d);
     let res: any = null;
-    for (let i = 0; i < Math.min(k, cand.length); i++) { const q = cand[i].q; q.cur--; q.dirty = true; spawnLayerDebris(s, g, q, q.cur);
-      if (!res) { const th = thL(u), lp = layerPos(q, q.cur, th, new THREE.Vector3()), nr = NRL[q.f]; lp.x += nr[0] * th * .5; lp.y += nr[1] * th * .5; lp.z += nr[2] * th * .5; res = { pos: g.localToWorld(lp), nrm: new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion) } } }
+    for (let i = 0; i < Math.min(k, cand.length); i++) { const q = cand[i].q; q.cur--; q.dirty = true;
+      if (!res) { const th = thL(u), lp = layerPos(q, q.cur, th, new THREE.Vector3()), nr = NRL[q.f]; lp.x += nr[0] * th * .5; lp.y += nr[1] * th * .5; lp.z += nr[2] * th * .5; res = { pos: g.localToWorld(lp), nrm: new THREE.Vector3(nr[0], nr[1], nr[2]).applyQuaternion(g.quaternion) } }
+      spawnLayerDebris(s, g, q, q.cur, res.pos) }
     u.armT = 0; return res;
   }
 
@@ -473,31 +480,38 @@ if (wrap && bgo) {
         paint[v * 3] = c.r * sh; paint[v * 3 + 1] = c.g * sh; paint[v * 3 + 2] = c.b * sh;
         pos[v * 3] = xx; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z; col[v * 3] = paint[v * 3]; col[v * 3 + 1] = paint[v * 3 + 1]; col[v * 3 + 2] = paint[v * 3 + 2] } }
     for (let i = 0; i < NS; i++) for (let j = 0; j < NR; j++) { const a = i * NR + j, b = i * NR + (j + 1) % NR, c2 = (i + 1) * NR + j, d2 = (i + 1) * NR + (j + 1) % NR; idx.push(a, c2, b, b, c2, d2) }
-    const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.BufferAttribute(pos, 3)); ge.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); ge.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); ge.setAttribute('color', new THREE.BufferAttribute(col, 3)); ge.setIndex(idx);
+    const nT = idx.length, ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nT * 3), 3)); ge.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nT * 3), 3)); ge.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(nT * 2), 2)); ge.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nT * 3), 3));
     const grid: any[][][] = [0, 1, 2, 3].map(() => []); for (const q of u.tilesL as any[]) { (grid[q.f][q.ia] || (grid[q.f][q.ia] = []))[q.ib] = q }
     // трещины: ломаные с острыми изломами по краям вмятин
     const CR = 5000, cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CR * 6), 3)); cg.setDrawRange(0, 0);
     const cl = new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0x060606 })); cl.frustumCulled = false;
-    const m = new THREE.Mesh(ge, shellMat); m.frustumCulled = false; m.add(cl); g.add(m); u.shell = m; u.shellData = { base, dir, map, paint, grid, nv, NS, NR, cl, CR }; u.shellDirty = true; updateShell(s, u);
+    const m = new THREE.Mesh(ge, shellMat); m.frustumCulled = false; m.add(cl); g.add(m); u.shell = m; u.shellData = { base, dir, map, paint, grid, nv, NS, NR, cl, CR, idx, pv: pos, dmv: new Float32Array(nv) }; u.shellDirty = true; updateShell(s, u);
   }
   function updateShell(s: any, u: any) {
-    const sd = u.shellData, m = u.shell as THREE.Mesh, ge = m.geometry, pos = ge.attributes.position.array as Float32Array, col = ge.attributes.color.array as Float32Array, th = thL(u), { base, dir, map, paint, grid, nv, cl, CR } = sd, rowsF: number[] = u.gridRows, cols = u.gridCols;
+    const sd = u.shellData, m = u.shell as THREE.Mesh, ge = m.geometry, gp = ge.attributes.position.array as Float32Array, gc = ge.attributes.color.array as Float32Array, th = thL(u), { base, dir, map, paint, grid, nv, cl, CR, idx, pv: pos, dmv } = sd, rowsF: number[] = u.gridRows, cols = u.gridCols;
     const tv = (f: number, a: number, b: number) => { const ga = grid[f][Math.max(0, Math.min(cols - 1, a))]; if (!ga) return 1; const q = ga[Math.max(0, Math.min(rowsF[f] - 1, b))]; return q ? Math.max(0, q.cur) / q.n : 1 }; // доля оставшейся брони
     const nQ = (f: number) => { const z = s.zones[f] || s.zones[0]; return Math.max(1, Math.min(10, Math.round(z.arm || 1))) };
     const nF = [nQ(0), nQ(1), nQ(2), nQ(3)], cp = cl.geometry.attributes.position.array as Float32Array, cell = u.cell || th * 6; let ns = 0;
     for (let v = 0; v < nv; v++) { const f = map[v * 5] | 0, af = map[v * 5 + 1]; let fr = 1;
-      if (af > -900) fr = tv(f, Math.round(af), Math.round(map[v * 5 + 2])); // ближайшая плита: вмятина — ступенчатая, с острыми краями
-      const h = af > -900 ? fr * nF[f] * th : 0, hb = h + th * .08;
+      const hA = (Math.imul(v + 1, 2654435761) >>> 0) % 1000 / 1000, hB = (Math.imul(v + 7, 40503) >>> 0) % 1000 / 1000;
+      if (af > -900) fr = tv(f, Math.round(af + (hA - .5) * 1.9), Math.round(map[v * 5 + 2] + (hB - .5) * 1.9)); // ближайшая плита с рваным краем: вмятина неровная, не прямоугольная
+      const dm = af > -900 ? 1 - fr : 0, h = af > -900 ? fr * nF[f] * th : 0, hb = h + th * .08 - (dm > .02 && dm < .999 ? th * .45 * hA : 0); dmv[v] = dm;
       pos[v * 3] = base[v * 3]; pos[v * 3 + 1] = base[v * 3 + 1] + dir[v * 3 + 1] * hb; pos[v * 3 + 2] = base[v * 3 + 2] + dir[v * 3 + 2] * hb;
-      const dm = af > -900 ? 1 - fr : 0, r0 = paint[v * 3], g0 = paint[v * 3 + 1], b0c = paint[v * 3 + 2];
-      if (dm <= .02) { col[v * 3] = r0; col[v * 3 + 1] = g0; col[v * 3 + 2] = b0c }
-      else if (dm < .999) { const t = Math.min(1, dm * 2.4), rim = Math.max(0, 1 - Math.abs(dm - .3) * 4) * .55; col[v * 3] = r0 * (1 - t) * .9 + .1 * t + rim * .5; col[v * 3 + 1] = g0 * (1 - t) * .9 + .085 * t + rim * .18; col[v * 3 + 2] = b0c * (1 - t) * .9 + .08 * t }
-      else { col[v * 3] = .36; col[v * 3 + 1] = .33; col[v * 3 + 2] = .31 }
       // трещина от края вмятины: 3 острых звена
-      if (dm > .02 && dm < .6 && ns < CR - 3) { const h1 = (Math.imul(v, 2654435761) >>> 0) % 1000 / 1000; if (h1 < .22) { const h2 = (Math.imul(v, 40503) >>> 0) % 1000 / 1000;
+      if (dm > .02 && dm < .6 && ns < CR - 3) { if (hA < .22) { const h2 = hB;
         let px = pos[v * 3], py = pos[v * 3 + 1] + dir[v * 3 + 1] * th * .15, pz = pos[v * 3 + 2] + dir[v * 3 + 2] * th * .15, ang = h2 * 6.2832; const ty = -dir[v * 3 + 2], tz = dir[v * 3 + 1];
         for (let k = 0; k < 3; k++) { const ln = cell * (.7 + ((h2 * 997 * (k + 1)) % 1) * 1.4), cx = Math.cos(ang) * ln, sx = Math.sin(ang) * ln, qx = px + cx, qy = py + ty * sx, qz = pz + tz * sx;
           cp[ns * 6] = px; cp[ns * 6 + 1] = py; cp[ns * 6 + 2] = pz; cp[ns * 6 + 3] = qx; cp[ns * 6 + 4] = qy; cp[ns * 6 + 5] = qz; ns++; px = qx; py = qy; pz = qz; ang += (((h2 * 7919 * (k + 2)) % 1) - .5) * 2.4 } } } }
+    // в плоские треугольники: цвет одинаков на всей грани, переходов нет
+    for (let t = 0; t < idx.length; t += 3) { const i0 = idx[t], i1 = idx[t + 1], i2 = idx[t + 2], o = t * 3;
+      for (let k = 0; k < 3; k++) { const i = idx[t + k]; gp[o + k * 3] = pos[i * 3]; gp[o + k * 3 + 1] = pos[i * 3 + 1]; gp[o + k * 3 + 2] = pos[i * 3 + 2] }
+      const dm = (dmv[i0] + dmv[i1] + dmv[i2]) / 3; let r: number, g2: number, b: number;
+      if (dm < .02) { r = paint[i0 * 3]; g2 = paint[i0 * 3 + 1]; b = paint[i0 * 3 + 2] }
+      else if (dm < .3) { r = paint[i0 * 3] * .32 + .06; g2 = paint[i0 * 3 + 1] * .3 + .035; b = paint[i0 * 3 + 2] * .3 + .03 }
+      else if (dm < .65) { r = .1; g2 = .085; b = .075 }
+      else if (dm < .97) { r = .06; g2 = .052; b = .046 }
+      else { r = .36; g2 = .33; b = .31 }
+      for (let k = 0; k < 3; k++) { gc[o + k * 3] = r; gc[o + k * 3 + 1] = g2; gc[o + k * 3 + 2] = b } }
     cl.geometry.setDrawRange(0, ns * 2); cl.geometry.attributes.position.needsUpdate = true; ge.attributes.position.needsUpdate = true; ge.attributes.color.needsUpdate = true;
   }
   function updateTiles(s: any, g: THREE.Group, force?: boolean) {
@@ -543,7 +557,7 @@ if (wrap && bgo) {
           const lq = t.quaternion.clone().invert(), dl = d.clone().applyQuaternion(lq); // направление в системе основания, y — вверх
           const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.lengthSq() ? dl.normalize() : new THREE.Vector3(1, 0, 0)); t.userData.head.quaternion.slerp(q, .12);
           const fr = m.rt && np - m.rt < 260; t.userData.fl.visible = !!fr;
-          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; { const tp = t.userData.tips[(Math.random() * t.userData.tips.length) | 0], mp = new THREE.Vector3(); tp.updateWorldMatrix(true, false); tp.getWorldPosition(mp); const ev = (g.userData.muz = g.userData.muz || []); ev.push({ p: mp, t: np }); if (ev.length > 40) ev.shift(); flashes.push({ p: mp.clone(), t0: np, life: 220, sz: 20 }); for (let j = 0; j < 6 && sparks.length < MAXSP; j++) { const dv = d!.clone().applyQuaternion(g.quaternion); sparks.push({ p: mp.clone(), v: dv.multiplyScalar(g.userData.L * .004 * (.5 + Math.random())).add(new THREE.Vector3().randomDirection().multiplyScalar(g.userData.L * .0012)), t0: np, life: 350 + Math.random() * 250, h: Math.random() }) } } if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
+          if (fr && t.userData.lr !== m.rt) { t.userData.lr = m.rt; { const tp = t.userData.tips[(Math.random() * t.userData.tips.length) | 0], mp = new THREE.Vector3(); tp.updateWorldMatrix(true, false); tp.getWorldPosition(mp); const ev = (g.userData.muz = g.userData.muz || []); ev.push({ p: mp, t: np }); if (ev.length > 40) ev.shift(); flashes.push({ p: mp.clone(), t0: np, life: 220, sz: 20 }); { const dvv = d!.clone().applyQuaternion(g.quaternion).normalize(), ln = Math.max(g.userData.L * .1, cam.position.distanceTo(mp) * .03); streaks.push({ a: mp.clone(), b: mp.clone().addScaledVector(dvv, ln), t0: performance.now(), dur: 120, side: s.side }) } for (let j = 0; j < 6 && sparks.length < MAXSP; j++) { const dv = d!.clone().applyQuaternion(g.quaternion); sparks.push({ p: mp.clone(), v: dv.multiplyScalar(g.userData.L * .004 * (.5 + Math.random())).add(new THREE.Vector3().randomDirection().multiplyScalar(g.userData.L * .0012)), t0: np, life: 350 + Math.random() * 250, h: Math.random() }) } } if (cas.length < MAXC) { const wp = new THREE.Vector3(); t.getWorldPosition(wp); const ra = Math.random() * 6.283, sp = .006 + Math.random() * .01; cas.push({ x: wp.x, y: wp.y + t.userData.r, z: wp.z, vx: s.sx + Math.cos(ra) * sp, vy: .012 + Math.random() * .012, vz: s.sy + Math.sin(ra) * sp, t0: np, sz: t.userData.r * .45, rx: Math.random() * 6, rs: (Math.random() - .5) * 14 }) } } }) }
       { const u2 = g.userData; // следы повреждений на корпусе: подпалины и пробоины
         if (u2.lod === 2 && app > .05 && s.vd && s.vd.length && u2.seg) { if (!u2.dmg) { u2.dmg = new THREE.InstancedMesh(decalGeo, decalMat, MAXD); u2.dmg.frustumCulled = false; u2.dmg.setColorAt(0, new THREE.Color(1, 1, 1)); g.add(u2.dmg) }
           const nowT = Battle.time(), q = new THREE.Quaternion(), nrm = new THREE.Vector3(), pos = new THREE.Vector3(), sc3 = new THREE.Vector3(), mt = new THREE.Matrix4(), col3 = new THREE.Color(); let k = 0;
@@ -626,7 +640,7 @@ if (wrap && bgo) {
       for (const [sh, g] of models) { if (!sh.alive || !g.visible || !sh.rcs0 || !(sh.rcsN > 0) || Math.abs(sh.trn || 0) < .08) continue; const u = g.userData, L = u.L, sc = g.scale.x, sg = Math.sign(sh.trn), fl = performance.now() % 160 < 100; if (!fl) continue;
         for (let q = 0; q < 2 && ek < MAXEX; q++) { st.set((q ? -1 : 1) * L * .38, 0, -sg * (q ? -1 : 1) * (u.W || L * .17) * .56); g.localToWorld(st); dummy.position.copy(st); dummy.quaternion.identity(); dummy.scale.setScalar(L * sc * .012 * Math.min(1, .4 + sh.rcsN / sh.rcs0)); dummy.updateMatrix(); exMesh.setMatrixAt(ek, dummy.matrix); exMesh.setColorAt(ek, _cc2.setRGB(.9, .95, 1)); ek++ } }
       exMesh.count = ek; exMesh.instanceMatrix.needsUpdate = true; if (exMesh.instanceColor) exMesh.instanceColor.needsUpdate = true }
-    { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / 140; if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
+    { const nwS = performance.now(); for (let i = streaks.length - 1; i >= 0; i--) { const st = streaks[i], u = (nwS - st.t0) / (st.dur || 140); if (u >= 1) { streaks.splice(i, 1); continue } if (pc >= MAXP) break;
         const hh = Math.min(1, u / .55), tt = Math.max(0, (u - .3) / .7), o = pc * 6, f = 1 - u * .5;
         pa[o] = st.a.x + (st.b.x - st.a.x) * hh; pa[o + 1] = st.a.y + (st.b.y - st.a.y) * hh; pa[o + 2] = st.a.z + (st.b.z - st.a.z) * hh; pa[o + 3] = st.a.x + (st.b.x - st.a.x) * tt; pa[o + 4] = st.a.y + (st.b.y - st.a.y) * tt; pa[o + 5] = st.a.z + (st.b.z - st.a.z) * tt;
         tmp.setHSL(st.side ? .08 : .52, .9, .65); pcol[o] = tmp.r * f; pcol[o + 1] = tmp.g * f; pcol[o + 2] = tmp.b * f; pcol[o + 3] = tmp.r * f * .25; pcol[o + 4] = tmp.g * f * .25; pcol[o + 5] = tmp.b * f * .25; pc++ } }
