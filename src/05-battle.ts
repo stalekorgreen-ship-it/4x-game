@@ -188,6 +188,13 @@ function retarget(s){
   s.trk=sc2.slice(0,s.ch).map(q=>q[1]);if(best&&!s.trk.includes(best)&&s.ch>0){s.trk.pop();s.trk.unshift(best)}
   if(!s.ch){s.trk=s.near.filter(o=>Math.hypot(o.x-s.x,o.y-s.y)<1);if(s.tg&&!s.trk.includes(s.tg))s.tg=s.trk[0]||null}
 }
+function turAim(m,s,now){ // плавный поворот башни к цели (~1.6 рад/с)
+  const tg=s.tg&&s.tg.alive?Math.atan2(s.tg.y-s.y,s.tg.x-s.x):null;
+  let want=(m.fa!=null&&m.rt&&now-m.rt<1800)?m.fa:tg!=null?tg:m.fa!=null?m.fa:s.hd;
+  want-=s.hd;if(m.da==null){m.da=want;m.dt=now;return m.da}
+  const dt=Math.min(.1,Math.max(0,(now-m.dt)/1000));m.dt=now;
+  let d=want-m.da;d=Math.atan2(Math.sin(d),Math.cos(d));const st=1.6*dt;
+  m.da+=Math.abs(d)<st?d:Math.sign(d)*st;return m.da}
 function steer(s,dt){
   const T=s.T,F=s.F,eng=Math.max(.15,s.engN/T.eng)*(t<s.blk?.2:1),hp=hpf(s);let vm=.2*VMK*T.spd,boost=1;if(s.st==='surr')vm=0;
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
@@ -709,10 +716,10 @@ function drawShip(g,s,x,y,k,dp){
       if(!m.alive){g.fillStyle='#1a1d23';g.beginPath();g.arc(mx,my,mr*1.2,0,6.283);g.fill();g.strokeStyle='#ef6a5e';g.lineWidth=dp*.7;g.beginPath();g.moveTo(mx-mr,my-mr);g.lineTo(mx+mr,my+mr);g.moveTo(mx+mr,my-mr);g.lineTo(mx-mr,my+mr);g.stroke();continue}
       if(m.k==='T'||m.k==='A'){
         g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.15,0,6.283);g.fill();g.fillStyle=m.k==='T'?CL[s.side]:'#ffe08a';g.beginPath();g.arc(mx,my,mr*.7,0,6.283);g.fill();
-        const aim=(m.fa!=null?m.fa-s.hd:0),bl=mr*(m.k==='T'?2.4:1.5);g.strokeStyle=m.k==='T'?'#e8f3ff':'#ffd27a';g.lineWidth=Math.max(dp,mr*.5);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke();
+        const aim=turAim(m,s,now),bl=mr*(m.k==='T'?2.4:1.5);g.strokeStyle=m.k==='T'?'#e8f3ff':'#ffd27a';g.lineWidth=Math.max(dp,mr*.5);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke();
         if(m.rt&&now-m.rt<130){g.fillStyle='rgba(255,245,200,'+(1-(now-m.rt)/130)+')';g.beginPath();g.arc(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl,mr*1.05,0,6.283);g.fill()}}
       else if(m.k==='L'){
-        const aim=(m.fa!=null?m.fa-s.hd:0),bl=mr*3.2,hot=m.rt&&now-m.rt<380;
+        const aim=turAim(m,s,now),bl=mr*3.2,hot=m.rt&&now-m.rt<380;
         g.fillStyle='#0d1219';g.beginPath();g.arc(mx,my,mr*1.3,0,6.283);g.fill();g.fillStyle=hot?'#fff':(s.side?'#ff7ad9':'#6af0ff');g.beginPath();g.arc(mx,my,mr*.85,0,6.283);g.fill();
         g.strokeStyle='#d8f6ff';g.lineWidth=Math.max(dp,mr*.45);g.beginPath();g.moveTo(mx,my);g.lineTo(mx+Math.cos(aim)*bl,my+Math.sin(aim)*bl);g.stroke()}
       else if(m.k==='M'){
