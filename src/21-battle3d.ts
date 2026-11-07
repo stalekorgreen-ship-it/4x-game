@@ -210,7 +210,7 @@ if (wrap && bgo) {
         parts.push(piece(unitCyl, 0x16181d, x0 - L * .075, yy, zz, L * .05, r * 2, r * 2)); nozz.push({ z: zz, y: yy, r }) } }
     // 200 жёстких точек крепления по всему корпусу: сверху, снизу и с обоих бортов (грани 0 верх, 1 правый, 2 низ, 3 левый)
     // броневая обшивка: сетка секций по всем четырём граням без щелей; часть секций с отверстием (центральным или смещённым) под башни и малые модули
-    const nT = (s.spec ? (s.spec.rails || 0) + (s.spec.flak || 0) + (s.spec.lasers || 0) + (s.spec.miss || 0) : 40) || 1, smalls: { k: string; D: number }[] = [];
+    const nT = (s.spec ? (s.spec.rails || 0) + (s.spec.flak || 0) + (s.spec.gat || 0) + (s.spec.lasers || 0) + (s.spec.miss || 0) : 40) || 1, smalls: { k: string; D: number }[] = [];
     { const sm = mp.smalls as any; for (const k of Object.keys(sm)) if (sm[k] > 0) { const n = k === 'rad' ? Math.max(1, Math.round(sm[k] / 700)) : 1; for (let i = 0; i < n; i++) smalls.push({ k, D: Math.max(sm[k] / n / TON_L, L * .002) }) } }
     const needH = Math.ceil((nT + smalls.length) * 1.5) + 4, tiles: any[] = [];
     // мелкие плиты: ячейка ≈ L/75, не больше ~2600 плит на корабль; слои кладутся в 3D друг на друга
@@ -380,15 +380,15 @@ if (wrap && bgo) {
     if (!want) { if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } return }
     const placed: any[] = [], free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: !!q.sm })), r = Math.max((u.cell || u.L * .02) * .42, .004);
     const N = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1)];
-    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
+    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'G' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
       const f = m.face || 0, px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
       for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
       if (!best) continue; best.used = true; placed.push(best);
-      const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
+      const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'G' ? 160 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
       const t = new THREE.Group(), lift = r * .3, zA = (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
-      const nb = m.k === 'T' ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
+      const nb = m.k === 'T' || (m.k === 'G' && m.cfg && m.cfg.tw) ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
       hp.push(piece(geoDome, cT, 0, lift, 0, r * .95, r * .8, r * .95)); // сферическая башня + стволы одним мешем (меньше вызовов отрисовки)
       for (let b = 0; b < nb; b++) { const zb = (b - (nb - 1) / 2) * r * .55, len = r * 2.1; hp.push(piece(geoCyl, cD, r * .5 + len / 2, lift + r * .1, zb, len, r * .13, r * .13)); hp.push(piece(geoCyl, cD, r * .5 + len, lift + r * .1, zb, r * .22, r * .19, r * .19)); const tp = new THREE.Object3D(); tp.position.set(r * .5 + len + r * .12, lift + r * .1, zb); head.add(tp); tips.push(tp) }
       { const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); head.add(hm) }
