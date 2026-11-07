@@ -106,7 +106,7 @@ if (wrap && bgo) {
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
     // хребет из блоков: участки идут по модулям корабля (корма → нос), длина участка пропорциональна массе модулей
     const x0 = -L * .5, x1 = L * .34, Lk = x1 - x0; const seg: any[] = [];
-    const mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ORD: [string, string][] = [['eng', 'e'], ['struct', 's'], ['hangF', 'f'], ['hangB', 'b'], ['mar', 's'], ['flak', 'w'], ['rail', 'w'], ['miss', 'm'], ['laser', 'l'], ['core', 'c']];
+    const mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ORD: [string, string][] = [['eng', 'e'], ['reactor', 'r'], ['tank', 't'], ['frame', 's'], ['hangF', 'f'], ['hangB', 'b'], ['crew', 'q'], ['mar', 'q'], ['flak', 'w'], ['rail', 'w'], ['miss', 'm'], ['laser', 'l'], ['core', 'c']];
     const lst: { ty: string; len: number }[] = []; { const raw = ORD.filter(([k]) => mp.parts[k] > 0).map(([k, ty]) => ({ k, ty, w: Math.max(mp.parts[k], 1) })); const tt = raw.reduce((a, q) => a + q.w, 0);
       const sh = raw.map(q => Math.max(q.w / tt, .03)), ss = sh.reduce((a, b) => a + b, 0);
       raw.forEach((q, i) => { const share = sh[i] / ss * Lk, nb = Math.max(1, Math.min(5, Math.round(share / (Lk * .1)))); for (let j = 0; j < nb; j++) lst.push({ ty: q.ty, len: share / nb }) }) }
@@ -114,9 +114,11 @@ if (wrap && bgo) {
     for (const e of lst) {
       const ty = e.ty, len = e.len, wF = ty === 'e' ? .95 : ty === 'f' || ty === 'b' ? 1.1 : ty === 'w' || ty === 'm' ? .8 : .62 + R() * .38, hF = ty === 'e' ? 1.1 : ty === 'f' || ty === 'b' ? 1.05 : ty === 'w' || ty === 'm' ? .8 : .65 + R() * .45;
       const w = W * wF, h = H * hF, cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
-      const col = ty === 'e' ? P.dark : ty === 'f' ? P.main : ty === 'b' ? P.acc2 : R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2;
+      const col = ty === 'e' ? P.dark : ty === 'f' ? P.main : ty === 'b' ? P.acc2 : ty === 't' ? 0x9aa3b2 : ty === 'r' ? P.dark : R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2;
       seg.push({ cx, w, h, len, cy, weapon: ty === 'w' || ty === 'm' || ty === 'l', ty });
-      parts.push(piece(unitBox, shade(col, .85 + R() * .3), cx, cy, 0, len * 1.02, h, w));
+      if (ty === 't') { parts.push(piece(unitCyl, shade(col, .9 + R() * .15), cx, cy, 0, len * 1.02, h * .92, w * .92)); for (let i = 0; i < 3; i++) parts.push(piece(unitCyl, 0x4a5262, cx - len * .35 + i * len * .35, cy, 0, len * .05, h * .96, w * .96)) } // топливный бак: цилиндр с обручами
+      else if (ty === 'r') { parts.push(piece(unitBox, shade(col, .9), cx, cy, 0, len * 1.02, h, w)); parts.push(piece(unitBox, P.glow, cx, cy + h * .52, 0, len * .85, h * .05, w * .25)); for (const sd of [-1, 1]) parts.push(piece(unitBox, shade(P.main, .7), cx, cy, sd * (w * .52), len * .8, h * .8, w * .03)) } // реактор: светящаяся шина и радиаторы
+      else parts.push(piece(unitBox, shade(col, .85 + R() * .3), cx, cy, 0, len * 1.02, h, w));
       if (ty === 'f' || ty === 'b') for (const sd of [-1, 1]) { // ангарные ворота по бортам
         parts.push(piece(unitBox, 0x0b0d12, cx, cy - h * .05, sd * (w / 2 + w * .01), len * .78, h * .5, w * .03)); parts.push(piece(unitBox, P.glow, cx, cy - h * .3, sd * (w / 2 + w * .02), len * .78, h * .03, w * .02)) }
       if (ty === 'e') for (let i = 0; i < 4; i++) parts.push(piece(unitBox, shade(P.main, .7), cx - len / 2 + (i + .5) * len / 4, cy, 0, len * .07, h * 1.12, w * 1.04)); // рёбра радиатора
@@ -127,13 +129,6 @@ if (wrap && bgo) {
     // нос
     parts.push(piece(taper(1, 1, 1, .25), P.main, x1 + L * .09, 0, 0, L * .2, H * .95, W * .78));
     parts.push(piece(taper(1, 1, 1, .3), P.dark, x1 + L * .02, -H * .35, 0, L * .12, H * .5, W * .6));
-    // боковые бронеплиты (камуфляж)
-    for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) {
-      const sg = seg[Math.floor(R() * seg.length)], len = L * (.1 + R() * .16), h = H * (.5 + R() * .5), w = W * .12, col = R() < .5 ? P.acc : R() < .5 ? P.dark : P.acc2;
-      const px = sg.cx + (R() - .5) * sg.len, pz = sd * (sg.w * .5 + w * .35);
-      parts.push(piece(unitBox, shade(col, .9 + R() * .2), px, sg.cy + (R() - .5) * H * .35, pz, len, h, w));
-      parts.push(piece(unitBox, shade(col, 1.25), px, sg.cy + h * .15, pz + sd * w * .52, len * .8, h * .06, w * .04)); // линии панелей
-    }
     // верхние блоки и рубка
     for (let i = 0; i < 9; i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
       parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() < .5 ? -1 : 1) * sg.w * .38, len, h * .7, w * .22)) }
@@ -144,6 +139,11 @@ if (wrap && bgo) {
     parts.push(piece(unitBox, P.main, bx, bs.cy + bs.h / 2 + bh * .86, 0, L * .04, bh * .2, W * .36));
     for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.35, z * W * .12, L * .004, bh * .75, L * .004));
     parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3));
+    // малые модули (радары, РЭБ, СУО…) торчат на корпусе: размер = масса / 50 т на метр
+    { const sm = mp.smalls as any, ks = Object.keys(sm).filter(k => sm[k] > 0); for (const k of ks) { const n = k === 'rad' ? Math.max(1, Math.round(sm[k] / 700)) : 1, each = sm[k] / n, D = Math.max(each / TON_L, L * .002);
+        for (let i = 0; i < n; i++) { const sg = seg[Math.floor(R() * seg.length)], px = sg.cx + (R() - .5) * sg.len * .6, pz = (R() < .5 ? -1 : 1) * sg.w * (.15 + R() * .25), py = sg.cy + sg.h / 2;
+          if (k === 'rad') { parts.push(piece(unitCyl, 0x3a3f4a, px, py + D * .3, pz, D * .15, D * .2, D * .2)); parts.push(piece(unitBox, 0xc9ced8, px, py + D * .75, pz, D * .12, D * 1.1, D * 1.1)) } // тарелка радара
+          else parts.push(piece(unitBox, k === 'ew' ? P.acc2 : k === 'ir' ? 0x8a6a4a : 0x6a707c, px, py + D * .5, pz, D, D, D)) } } }
     // грибы мелкой фурнитуры
     for (let i = 0; i < 50; i++) { const sg = seg[Math.floor(R() * seg.length)], a = R() < .6, r = L * (.003 + R() * .006);
       parts.push(piece(unitBox, shade(R() < .5 ? P.acc : 0x6a707c, .8 + R() * .4), sg.cx + (R() - .5) * sg.len, a ? sg.cy + sg.h / 2 + r / 2 : sg.cy + (R() - .5) * sg.h, a ? (R() < .5 ? -1 : 1) * sg.w * (.3 + R() * .15) : (R() < .5 ? -1 : 1) * (sg.w / 2 + r / 2), r * (1 + R() * 2), r, r * (1 + R() * 1.5))) }
@@ -168,7 +168,7 @@ if (wrap && bgo) {
         for (let b = 0; b < rh; b++) { const y = q.cy + (b + .5 - rh / 2) * (q.h * .7 / rh); mounts.push({ x: xs(a), y, z: q.w / 2, face: 1 }); mounts.push({ x: xs(a), y, z: -q.w / 2, face: 3 }) }
       }
     }
-    const g = mergeGeometries(parts, false)!; (g as any).userData = { mounts: mounts.slice(0, 1200), cell, nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy })) }; return g;
+    const g = mergeGeometries(parts, false)!; (g as any).userData = { armorT: mp.armor, x1, x0v: x0, mounts: mounts.slice(0, 1200), cell, nozz, W, H, x0, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy })) }; return g;
   }
   let sid = 1;
   const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
@@ -187,7 +187,7 @@ if (wrap && bgo) {
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — полный корпус
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 1) {
-      if (!u.full) { if (builds >= 3) return; builds++; u.full = hullGeo(s, u.seed); const ud = (u.full as any).userData; u.W = ud.W; u.H = ud.H; u.seg = ud.seg; u.mounts = ud.mounts; u.cell = ud.cell;
+      if (!u.full) { if (builds >= 3) return; builds++; u.full = hullGeo(s, u.seed); const ud = (u.full as any).userData; u.W = ud.W; u.H = ud.H; u.seg = ud.seg; u.mounts = ud.mounts; u.cell = ud.cell; u.armorT = ud.armorT; u.x1 = ud.x1; u.x0v = ud.x0v;
         for (const n of ud.nozz) { const f = new THREE.Mesh(geoSph, glowMats[s.side]); f.scale.set(u.L * .018, n.r * 1.5, n.r * 1.5); f.position.set(ud.x0 - u.L * .095, 0, n.z); u.eng.add(f) } }
       u.body.geometry = u.full; u.body.scale.setScalar(1);
     } else { u.body.geometry = simpleGeo[s.side]; u.body.scale.setScalar(u.L) }
@@ -196,13 +196,13 @@ if (wrap && bgo) {
   function detail(s: any, g: THREE.Group, want: boolean) {
     const u = g.userData; if (u.det === want) return; u.det = want;
     const tg: THREE.Group = u.tur; while (tg.children.length) tg.remove(tg.children[0]); u.mods = [];
-    if (!want) return;
-    const free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: false })), r = Math.max((u.cell || u.L * .02) * .42, .004);
+    if (!want) { if (u.arm) { g.remove(u.arm); u.arm.dispose(); u.arm = null } return }
+    const placed: any[] = [], free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: false })), r = Math.max((u.cell || u.L * .02) * .42, .004);
     const N = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1)];
     for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
       const f = m.face || 0, px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
       for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
-      if (!best) continue; best.used = true;
+      if (!best) continue; best.used = true; placed.push(best);
       const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
       const t = new THREE.Group(), lift = r * .3;
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, lift * 1.4, r * 1.8); base.position.y = lift * .2; t.add(base);
@@ -215,6 +215,30 @@ if (wrap && bgo) {
       t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), N[f]); t.position.set(best.x, best.y, best.z);
       (t as any).userData = { m, fl, head, n: N[f], r: r * 1.6, lr: 0, tips }; tg.add(t); u.mods.push(m);
     }
+    buildTiles(s, g, placed);
+  }
+  // броня секциями: одна секция = 50 т = 1 м объёма; толщина секции по слоям и тает по мере разрушения брони
+  function buildTiles(s: any, g: THREE.Group, placed: any[]) {
+    const u = g.userData; if (u.arm) { g.remove(u.arm); u.arm.dispose(); u.arm = null } if (!u.seg || !u.armorT) return;
+    const seg = u.seg as any[], x0 = u.x0v, Lk = u.x1 - x0, N = Math.max(24, Math.min(500, Math.round(u.armorT / 50))), pf = N / 4, tiles: any[] = [], PALc = PAL[s.side];
+    for (let f = 0; f < 4; f++) {
+      const fw = (f % 2 === 0 ? u.W : u.H) * .8, cols = Math.max(1, Math.round(Math.sqrt(pf * Lk / fw))), rows = Math.max(1, Math.ceil(pf / cols));
+      for (let a = 0; a < cols; a++) { const x = x0 + (a + .5) * Lk / cols; let sg = seg[0]; for (const e of seg) if (Math.abs(e.cx - x) < Math.abs(sg.cx - x)) sg = e;
+        for (let b = 0; b < rows; b++) { const sw = f % 2 === 0 ? sg.w : sg.h, off = (b + .5 - rows / 2) * (sw / rows);
+          const px = x, py = f === 0 ? sg.cy + sg.h / 2 : f === 2 ? sg.cy - sg.h / 2 : sg.cy + off, pz = f === 1 ? sg.w / 2 : f === 3 ? -sg.w / 2 : off, cs = sw / rows;
+          if (placed.some(q => q.face === f && Math.abs(q.x - px) < Lk / cols * .6 && Math.hypot(q.y - py, q.z - pz) < cs * .8 + 1e-9)) continue; // под башней брони нет
+          tiles.push({ f, px, py, pz, len: Lk / cols * .9, cs: cs * .9, c0: a / cols, c1: (a + 1) / cols, sh: .85 + Math.random() * .3 }) } }
+    }
+    const im = new THREE.InstancedMesh(geoBox, new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true }), tiles.length); im.frustumCulled = false;
+    const col = new THREE.Color(); tiles.forEach((q, i) => { im.setColorAt(i, col.set(q.f === 0 ? PALc.main : PALc.dark).multiplyScalar(q.sh * (q.f === 0 ? 1.15 : 1.5))) }); if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    u.arm = im; u.tiles = tiles; u.armT = 0; g.add(im); updateTiles(s, g, true);
+  }
+  const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _sc = new THREE.Vector3();
+  function updateTiles(s: any, g: THREE.Group, force?: boolean) {
+    const u = g.userData, now = performance.now(); if (!u.arm || (!force && now - u.armT < 400)) return; u.armT = now;
+    const tiles = u.tiles as any[]; tiles.forEach((q, i) => { const z = s.zones[q.f]; if (!z) return; const nc = z.nc, i0 = Math.floor(q.c0 * nc), i1 = Math.max(i0 + 1, Math.floor(q.c1 * nc)); let sum = 0; for (let k = i0; k < i1; k++) sum += z.cols[k]; const fr = sum / ((i1 - i0) * Math.max(1, z.arm)), th = fr < .04 ? 0 : Math.max(u.L * .0008, z.arm * u.L * .0006 * fr);
+      if (q.f % 2 === 0) { _sc.set(q.len, th, q.cs); _p.set(q.px, q.py + (q.f === 0 ? th / 2 : -th / 2), q.pz) } else { _sc.set(q.len, q.cs, th); _p.set(q.px, q.py, q.pz + (q.f === 1 ? th / 2 : -th / 2)) }
+      if (th === 0) _sc.set(0, 0, 0); _m4.compose(_p, _q.identity(), _sc); u.arm.setMatrixAt(i, _m4) }); u.arm.instanceMatrix.needsUpdate = true;
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
   function frame() {
@@ -237,7 +261,7 @@ if (wrap && bgo) {
       const app = L * sc / Math.max(dd, .01); // видимый размер
       setLod(s, g, app > .035 ? 1 : 0);
       detail(s, g, g.userData.lod === 1 && app > .09);
-      if (g.userData.det) { const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
+      if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
           // направление на цель в системе корабля, зажатое в полусферу вокруг нормали площадки
           let d: THREE.Vector3 | null = null; const fa = (m.fa != null && m.rt && np - m.rt < 1800) ? m.fa : null;
