@@ -15,7 +15,24 @@ const depot = id => (state.depot || (state.depot = {}))[id] || (state.depot[id] 
 export const crewUnits = () => 3 + 2 * ((state.bld && state.bld.colbureau) || 0);
 export function colQueue(id) { const c = state.cols[id]; return c.q || (c.q = []); }
 export function colBuildAdd(id, t) { const B = CBLD[t], c = state.cols[id]; if (!B || !c) return false; if (colN(id, t) + colQueue(id).filter(j => j.t === t).length >= B.max) return false; colQueue(id).push({t, left: B.units, total: B.units, started: false}); return true; }
+// корпорации с заводами в колонии сами завозят материалы и заказывают здания, пока у них есть деньги
+let corpAcc = 0;
+function corpColTick(h) {
+  corpAcc += h; if (corpAcc < 20) return; corpAcc = 0;
+  for (const k of state.corps || []) {
+    if (!k.civs || k.credits < 6e7) continue;
+    for (const id in k.civs) {
+      const c = state.cols[id]; if (!c || id === 'earth' || colQueue(id).length >= 2) continue;
+      const pop = c.pop, t = (pop.avgWel != null && pop.avgWel < .85) ? 'clinic' : (pop.n > 1e5 ? ['school', 'nursery', 'lab'][Math.floor(Math.random() * 3)] : 'clinic');
+      if (!colBuildAdd(id, t)) continue;
+      const B = CBLD[t], d = depot(id), cost = Object.entries(B.cost).reduce((a, [r, v]) => a + v * 80, 0);
+      for (const [r, v] of Object.entries(B.cost)) d[r] = (d[r] || 0) + v;
+      k.credits -= cost; log(`«${k.name}» завезла материалы и заказала на «${c.name}»: ${B.name}.`); break;
+    }
+  }
+}
 export function colBuildTick(h) {
+  corpColTick(h);
   for (const id in state.cols) {
     if (id === 'earth') continue;
     const c = state.cols[id], q = c.q; if (!q || !q.length) continue;

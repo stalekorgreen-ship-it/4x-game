@@ -108,8 +108,22 @@ const L = [
   ['lightcrew', 'bio', 'c', 400, 'Лёгкие экипажи', 'Грузоподъёмность +10%.', {cargo: .1}],
   ['biofuel', 'bio', 'u', 650, 'Биотопливо', 'Расход топлива −8%.', {fuel: -.08}],
   ['vitamin', 'bio', 'u', 650, 'Синтетические витамины', 'Налоги +5%.', {tax: .05}],
+  // ----- развилки: изучив одну технологию из пары, вторую уже не получить -----
+  ['bu_a', 'eng', 'u', 900, 'Конвейерная стройка', 'Строительные бригады работают на 25% быстрее.', {buildu: .25}, 0, 'bu_b'],
+  ['bu_b', 'eng', 'u', 900, 'Контракты с подрядчиками', 'Подрядчики корпораций дешевле на 40%.', {hire: -.4}, 0, 'bu_a'],
+  ['md_a', 'bio', 'u', 850, 'Массовая вакцинация', 'Смертность −10% во всех колониях.', {death: -.1}, 0, 'md_b'],
+  ['md_b', 'bio', 'u', 850, 'Программы семьи', 'Рождаемость +10% во всех колониях.', {birth: .1}, 0, 'md_a'],
+  ['rd_a', 'phys', 'u', 900, 'Фазированные решётки', 'Радары ваших кораблей видят на 25% дальше.', {radarR: .25}, 0, 'rd_b'],
+  ['rd_b', 'phys', 'u', 900, 'Малозаметные корпуса', 'Тепловая и радиосигнатура ваших кораблей −30%: враг замечает позже.', {stealth: -.3}, 0, 'rd_a'],
+  ['fc_a', 'phys', 'u', 950, 'Параллельные СУО', '+1 канал наведения у каждого вашего корабля.', {fcs: 1}, 0, 'fc_b'],
+  ['fc_b', 'eng', 'u', 950, 'Живучие системы', 'Радиаторы и аварийные команды работают вдвое эффективнее.', {dcx: 1}, 0, 'fc_a'],
+  ['lg_a', 'eng', 'u', 800, 'Грузовые коридоры', 'Рейсы быстрее на 25%.', {fspeed: .25}, 0, 'lg_b'],
+  ['lg_b', 'eng', 'u', 800, 'Оптовые контракты', 'Фрахт дешевле на 20%.', {fare: -.2}, 0, 'lg_a'],
+  ['ec_a', 'phys', 'u', 850, 'Конвейеры заводов', 'Заводы +10%.', {prod: .1}, 0, 'ec_b'],
+  ['ec_b', 'bio', 'u', 850, 'Открытая наука', 'Наука +15%.', {sci: .15}, 0, 'ec_a'],
 ];
-export const TECH = L.map(([id, f, r, base, name, desc, eff, req]) => ({id, f, r, cost: Math.round(base * RARITY[r].k), name, desc, eff: eff || null, req: req || null}));
+export const TECH = L.map(([id, f, r, base, name, desc, eff, req, excl]) => ({id, f, r, cost: Math.round(base * RARITY[r].k), name, desc, eff: eff || null, req: req || null, excl: excl || null}));
+export const excluded = t => !!(t.excl && state.tech && state.tech[t.excl]);
 const BYID = {}; for (const t of TECH) BYID[t.id] = t;
 export const techById = id => BYID[id];
 // модификаторы: tm — произведение (1+v) по изученным, ta — сумма
@@ -132,9 +146,9 @@ const pick = (arr, w) => { let s = arr.reduce((a, x) => a + w(x), 0), r = Math.r
 export function dealField(f, keep) {
   state.offers = state.offers || {}; const cur = (keep || []).filter(id => BYID[id] && !state.tech[id]), taken = new Set();
   for (const g in state.offers) for (const id of state.offers[g]) taken.add(id);
-  const pool = TECH.filter(t => t.f === f && !state.tech[t.id] && (!t.req || state.tech[t.req]) && !taken.has(t.id) && !cur.includes(t.id));
+  const pool = TECH.filter(t => t.f === f && !state.tech[t.id] && !excluded(t) && (!t.req || state.tech[t.req]) && !taken.has(t.id) && !cur.includes(t.id));
   const out = cur.slice();
-  while (out.length < OFFER_N && pool.length) { const t = pick(pool, x => RARITY[x.r].w); pool.splice(pool.indexOf(t), 1); out.push(t.id); }
+  while (out.length < OFFER_N && pool.length) { const t = pick(pool, x => RARITY[x.r].w); pool.splice(pool.indexOf(t), 1); out.push(t.id); const pr = t.excl && pool.find(x => x.id === t.excl); if (pr && out.length < OFFER_N) { pool.splice(pool.indexOf(pr), 1); out.push(pr.id); } }
   state.offers[f] = out;
 }
 export function ensureOffers(fields) {

@@ -40,7 +40,7 @@ export const BLD = {
 };
 // Сотрудники построек: люди из рынка труда Земли, зарплата — средняя по рынку (в масштабе казны)
 export const BW = {mine: 20000, fuelplant: 30000, sparesplant: 30000, cbureau: 10000, shipyard: 100000, scicenter: 10000, academy: 50000, instphys: 20000, insteng: 20000, instbio: 20000, market: 10000, fuelplant2: 60000, sparesfab: 50000, crusher: 30000, techpark: 80000, composite: 40000, enginefab: 50000, spaceport: 100000, colbureau: 15000, testrange: 25000, repairdock: 30000, trainctr: 15000, miningsch: 12000, hospital: 40000, maternity: 20000, chamber: 10000, exchange: 25000}, BLD_MIX = [.5, .35, .15, 0], WK = 1e-3;
-export const buildUnits = () => 5 + 10 * (state.bld.cbureau || 0) + 10 * (state.hire || 0);
+export const buildUnits = () => (5 + 10 * (state.bld.cbureau || 0) + 10 * (state.hire || 0)) * tm('buildu');
 export const buildSlots = () => 2 + (state.bld.cbureau || 0) + (state.hire || 0);
 export const HIRE_PRICE = 120000;
 export const bldWorkers = () => Object.keys(BW).reduce((a, t) => a + (state.bld[t] || 0) * BW[t], 0);
@@ -58,7 +58,7 @@ export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) 
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
   const B = state.bld, S = state.stock; for (const t in BLD) if (B[t] == null) B[t] = 0;
-  if (state.hire) { const cs = state.corps || [], pay = state.hire * HIRE_PRICE * h; if (cs.length && state.money >= pay) { state.money -= pay; cs[Math.floor(state.t) % cs.length].credits += pay; } else state.hire = 0; }
+  if (state.hire) { const cs = state.corps || [], pay = state.hire * HIRE_PRICE * tm('hire') * h; if (cs.length && state.money >= pay) { state.money -= pay; cs[Math.floor(state.t) % cs.length].credits += pay; } else state.hire = 0; }
   state.money -= bldWage() * h; state.bldWageDay = bldWage();
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');

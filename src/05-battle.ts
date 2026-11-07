@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { RES, compOf, dist, fmtN, log, mkKey, rec, state } from './01-data.ts';
+import { tm, ta } from './15-techs.ts';
 import { effSkill, officerById } from './02-crew.ts';
 import { W, H, bar, cx, focusBattle, ui, setTilt } from './08-map-ui.ts';
 import { Sfx } from './18-audio.ts';
@@ -35,6 +36,7 @@ function mkShip(side,sp,x,y){
   for(let i=0;i<T.eng;i++)add('E',2);
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.lasers||0)+(sp.miss||0)+T.eng+1;
   const sh={fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:30*sp.F,torp:sp.B},nextL:0,spec:sp,z:0,bst:1,lrp:0,srp:0,crew:1,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
+  if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
   for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*m.cfg.rng/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
   sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>m.cfg.rng));
   zones.forEach((z,zi)=>{const ms=z.mods.filter(m=>m.k!=='C'),n=ms.length;ms.forEach((m,i)=>{
@@ -512,7 +514,7 @@ const WR={cv:.38,hc:.32,fr:.3,dd:.24};
 // сигнатуры: тепловая (двигатели, форсаж, перегрев, залпы) и электромагнитная (радар, залпы)
 function sigOf(o){const L2=o.T.L*o.T.L,sh=t-o.flash<8?1:0;
   const h=(.6+L2)*(1+1.8*Math.max(0,o.bst-1)+o.heat*1.2+sh*.6-(o.engN>0?0:.5)),e=.3+L2*.3+(o.rdOn?3+L2*5:0)+sh*.5;
-  return [Math.max(.1,h),Math.max(.05,e)]}
+  const sk=o.side===0?tm('stealth'):1;return [Math.max(.1,h*sk),Math.max(.05,e*sk)]}
 // работающие сканеры: чем сильнее повреждён корабль, тем меньше их живо
 function scAlive(s){const hp=hpf(s);if(hp<.3)return[];const n=Math.ceil(s.sc.length*Math.min(1,hp/.7));return s.sc.slice(0,n)}
 function updVis(){
@@ -533,8 +535,8 @@ function updVis(){
       if(d<1){o.lock[s.side]=t;o.seen[s.side]=t;continue}
       const sg=sigOf(o),small=o.T.L<.6;let det=false,lk=false;
       for(const q of s.scl){
-        if(q.k==='rad'){if(!s.rdOn)continue;const er=q.rng*Math.sqrt(1+o.T.L)*(1-o.jam);if(d<er){det=true;if(q.fine||!small)lk=true}}
-        else{const er=q.rng*Math.sqrt(q.k==='ir'?sg[0]:sg[1])*(small&&q.res<.66?.25:1);if(d<er)det=true}}
+        if(q.k==='rad'){if(!s.rdOn)continue;const er=q.rng*(s.side===0?tm('radarR'):1)*Math.sqrt(1+o.T.L)*(1-o.jam);if(d<er){det=true;if(q.fine||!small)lk=true}}
+        else{const er=q.rng*(s.side===0?tm('radarR'):1)*Math.sqrt(q.k==='ir'?sg[0]:sg[1])*(small&&q.res<.66?.25:1);if(d<er)det=true}}
       if(det){if(o.seen[s.side]<0)say(s.side,'contact',s);o.seen[s.side]=t}
       if(lk)o.lock[s.side]=t}}
   for(const c of air){if(c.state!=='fly')continue;for(const o of around(1-c.side,c.x,c.y,110)){o.seen[c.side]=t;o.lock[c.side]=t}}
@@ -543,11 +545,11 @@ function crewStep(dc){
   env=env.filter(e=>e.ttl>t);for(const e of env)if(e.vx||e.vy){e.x+=e.vx*dc;e.y+=e.vy*dc}
   for(const s of ships){if(!s.alive)continue;const sk=s.spec.sk||5.5,hp=hpf(s);
     // тепло
-    s.heat=Math.max(0,s.heat-.004*dc*(.5+.5*hp)*(t<s.blk?2:1)*(s.spec.sink!=null?.6+.5*Math.min(5,s.spec.sink):1));
+    s.heat=Math.max(0,s.heat-.004*dc*(.5+.5*hp)*(t<s.blk?2:1)*(s.spec.sink!=null?.6+.5*Math.min(5,s.spec.sink):1)*(s.side===0?1+ta('dcx'):1));
     if(s.heat>1&&!s.ovh){s.ovh=1;stat.ovh++;say(s.side,'heat',s)}else if(s.ovh&&s.heat<.55)s.ovh=0;
     if(s.heat>1.4&&Math.random()<.03*dc){const al=s.tur.filter(m=>m.alive);if(al.length){const m=al[(Math.random()*al.length)|0];m.alive=false;s.aliveN--;fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:6,r:1.5});s.heat=1}}
     // пожары и аварийная команда
-    const dcp=.05*(.4+.6*s.crew)*sk/6*(s.spec.dcon!=null?.4+.9*Math.min(4,s.spec.dcon):1);
+    const dcp=.05*(.4+.6*s.crew)*sk/6*(s.spec.dcon!=null?.4+.9*Math.min(4,s.spec.dcon):1)*(s.side===0?1+ta('dcx'):1);
     for(let zi=0;zi<4;zi++){const f=s.fire[zi];if(!f)continue;
       if(Math.random()<.5*f*dc/12){const al=s.zones[zi].mods.filter(m=>m.alive&&m.k!=='C');if(al.length){const m=al[(Math.random()*al.length)|0];m.alive=false;s.aliveN--;if(m.k==='E')s.engN--;fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:5,r:1.6});if(s.aliveN<s.total*.22)kill(s)}}
       if(s.alive&&Math.random()<dcp*dc)s.fire[zi]--}
