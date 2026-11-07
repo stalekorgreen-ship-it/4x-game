@@ -1,5 +1,6 @@
 // Тестовый настоящий 3D-вид боя (three.js): поверх карты, корабли — объёмные модели, свободная орбитальная камера.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Battle } from './05-battle.ts';
 
 const wrap = document.getElementById('mapwrap');
@@ -35,7 +36,7 @@ if (wrap && bgo) {
     ren.setPixelRatio(Math.min(2, devicePixelRatio));
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x070a12); scene.fog = new THREE.FogExp2(0x070a12, .0012);
     cam = new THREE.PerspectiveCamera(50, 1, .05, 6000);
-    scene.add(new THREE.AmbientLight(0x6070a0, .8));
+    scene.add(new THREE.HemisphereLight(0x8aa4d8, 0x20161c, 1.1));
     const sun = new THREE.DirectionalLight(0xfff0dd, 2.2); sun.position.set(300, 400, 200); scene.add(sun);
     const st = new Float32Array(1500 * 3); for (let i = 0; i < st.length; i += 3) { const v = new THREE.Vector3().randomDirection().multiplyScalar(2500); st[i] = v.x; st[i + 1] = v.y; st[i + 2] = v.z }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(st, 3));
@@ -63,24 +64,87 @@ if (wrap && bgo) {
     addEventListener('keydown', e => { if (!on) return; if (e.key === '[') SC = Math.max(1, SC / 1.4); else if (e.key === ']') SC = Math.min(40, SC * 1.4); else if (e.key === 'f' || e.key === 'F') follow = true });
   }
 
+  // ---- процедурный «сборный» корпус: ступенчатые блоки, камуфляжные плиты, рубка, антенны, сопла ----
+  const PAL = [
+    { main: 0x5b86a8, dark: 0x25384d, acc: 0xd8e6f2, acc2: 0x2f9fbf, glow: 0x7af4ff },
+    { main: 0xe0743a, dark: 0x2c3a58, acc: 0xb8325f, acc2: 0xf2a65a, glow: 0xffd27a },
+  ];
+  function rng(seed: number) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  function piece(geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, rz = 0) {
+    const g = geo.clone(); g.scale(sx, sy, sz); if (rz) g.rotateZ(rz); g.translate(x, y, z);
+    const c = new THREE.Color(color), n = g.attributes.position.count, arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b }
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); return g;
+  }
+  const unitBox = new THREE.BoxGeometry(1, 1, 1), unitCyl = new THREE.CylinderGeometry(.5, .5, 1, 10).rotateZ(Math.PI / 2);
+  function taper(len: number, h: number, w: number, k: number) { // клиновидный блок: сужается к носу (+x)
+    const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getX(i) > 0) { p.setY(i, p.getY(i) * k); p.setZ(i, p.getZ(i) * k) }
+    g.scale(len, h, w); return g;
+  }
+  function hullGeo(s: any, seed: number) {
+    const R = rng(seed), P = PAL[s.side], L = s.T.L, W = L * .17, H = L * .095, parts: THREE.BufferGeometry[] = [];
+    const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
+    // хребет из блоков
+    const n = 7 + Math.floor(R() * 4), x0 = -L * .5, x1 = L * .34; let x = x0; const seg: any[] = [];
+    for (let i = 0; i < n; i++) {
+      const len = (x1 - x0) / n * (.8 + R() * .5), w = W * (.62 + R() * .38), h = H * (.65 + R() * .45), cx = x + len / 2, cy = (R() - .5) * H * .25;
+      const col = R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2; seg.push({ cx, w, h, len, cy });
+      parts.push(piece(unitBox, shade(col, .85 + R() * .3), cx, cy, 0, len * 1.02, h, w)); x += len;
+    }
+    // нос
+    parts.push(piece(taper(1, 1, 1, .25), P.main, x1 + L * .09, 0, 0, L * .2, H * .95, W * .78));
+    parts.push(piece(taper(1, 1, 1, .3), P.dark, x1 + L * .02, -H * .35, 0, L * .12, H * .5, W * .6));
+    // боковые бронеплиты (камуфляж)
+    for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const sg = seg[Math.floor(R() * seg.length)], len = L * (.1 + R() * .16), h = H * (.5 + R() * .5), w = W * .12, col = R() < .5 ? P.acc : R() < .5 ? P.dark : P.acc2;
+      const px = sg.cx + (R() - .5) * sg.len, pz = sd * (sg.w * .5 + w * .35);
+      parts.push(piece(unitBox, shade(col, .9 + R() * .2), px, sg.cy + (R() - .5) * H * .35, pz, len, h, w));
+      parts.push(piece(unitBox, shade(col, 1.25), px, sg.cy + h * .15, pz + sd * w * .52, len * .8, h * .06, w * .04)); // линии панелей
+    }
+    // верхние блоки и рубка
+    for (let i = 0; i < 9; i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
+      parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() - .5) * sg.w * .3, len, h, w)) }
+    const bs = seg[Math.floor(seg.length * .66)], bh = H * 1.4, bx = bs.cx;
+    parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
+    parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
+    parts.push(piece(unitBox, P.glow, bx + L * .006, bs.cy + bs.h / 2 + bh * .6, 0, L * .057, bh * .06, W * .52));
+    parts.push(piece(unitBox, P.main, bx, bs.cy + bs.h / 2 + bh * .86, 0, L * .04, bh * .2, W * .36));
+    for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.35, z * W * .12, L * .004, bh * .75, L * .004));
+    parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3));
+    // грибы мелкой фурнитуры
+    for (let i = 0; i < 50; i++) { const sg = seg[Math.floor(R() * seg.length)], a = R() < .6, r = L * (.003 + R() * .006);
+      parts.push(piece(unitBox, shade(R() < .5 ? P.acc : 0x6a707c, .8 + R() * .4), sg.cx + (R() - .5) * sg.len, a ? sg.cy + sg.h / 2 + r / 2 : sg.cy + (R() - .5) * sg.h, a ? (R() - .5) * sg.w : (R() < .5 ? -1 : 1) * (sg.w / 2 + r / 2), r * (1 + R() * 2), r, r * (1 + R() * 1.5))) }
+    // кормовой блок и сопла
+    const ne = Math.max(2, Math.min(5, s.engN || 3));
+    parts.push(piece(unitBox, P.dark, x0 - L * .02, 0, 0, L * .06, H * 1.15, W * 1.05));
+    const nozz: any[] = [];
+    for (let i = 0; i < ne; i++) { const zz = (i - (ne - 1) / 2) * (W * .8 / Math.max(1, ne - 1)) * (ne > 1 ? 1 : 0), r = Math.min(H * .38, W * .5 / ne * 1.5);
+      parts.push(piece(unitCyl, 0x16181d, x0 - L * .075, 0, zz, L * .05, r * 2, r * 2)); nozz.push({ z: zz, r }) }
+    const g = mergeGeometries(parts, false)!; (g as any).userData = { nozz, W, H, x0 }; return g;
+  }
+  let sid = 1;
+  const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
   function build(s: any) {
     const L = s.T.L, g = new THREE.Group();
-    const w = L * .17, h = L * .1;
-    const body = new THREE.Mesh(geoBox, mats[s.side]); body.scale.set(L * .78, h, w); body.position.x = -L * .11; g.add(body);
-    const nose = new THREE.Mesh(geoCone, mats[s.side]); nose.rotation.z = -Math.PI / 2; nose.rotation.x = Math.PI / 4; nose.scale.set(w * 1.0, L * .22, h * 1.0); nose.position.x = L * .39; g.add(nose);
-    const keel = new THREE.Mesh(geoBox, matDark); keel.scale.set(L * .5, h * .5, w * .55); keel.position.set(-L * .15, -h * .55, 0); g.add(keel);
+    const geo = hullGeo(s, (sid++ * 2654435761) ^ Math.round(L * 1000)); const u = (geo as any).userData;
+    const body = new THREE.Mesh(geo, hullMat); g.add(body);
     const eng = new THREE.Group(); eng.name = 'eng'; g.add(eng);
-    for (const z of s.zones) for (const m of z.mods) if (m.k === 'E') { const e = new THREE.Mesh(geoBox, matGlow); e.scale.set(L * .05, h * .45, w * .18); e.position.set(-L * .5, 0, (m.v || 0) * w * 1.6); eng.add(e) }
-    g.userData = { L, w, h, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
+    for (const n of u.nozz) { const f = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: PAL[s.side].glow })); f.scale.set(L * .018, n.r * 1.5, n.r * 1.5); f.position.set(u.x0 - L * .095, 0, n.z); eng.add(f) }
+    g.userData = { L, w: u.W, h: u.H, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
     scene.add(g); return g;
   }
   function detail(s: any, g: THREE.Group, want: boolean) {
     const u = g.userData; if (u.det === want) return; u.det = want;
     const tg: THREE.Group = u.tur; while (tg.children.length) tg.remove(tg.children[0]); u.mods = [];
     if (!want) return;
-    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 60) {
-      const r = Math.max(u.L * .018, .01), t = new THREE.Mesh(geoSph, matTur[s.side]); t.scale.set(r * 1.4, r * .8, r * 1.4);
-      t.position.set((m.u || 0) * u.L * .8, u.h * .5 + r * .5, (m.v || 0) * u.w * 1.6); const b = new THREE.Mesh(geoBox, matDark); b.scale.set(r * 2.6, r * .3, r * .3); b.position.set(r * 1.3, r * .4, 0); t.add(b); b.scale.set(1.8, .18, .18); b.position.set(1.1, .6, 0);
+    const R = rng(Math.round(u.L * 7919));
+    for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'L' || m.k === 'M') && tg.children.length < 70) {
+      const r = Math.max(u.L * .016, .012), t = new THREE.Group();
+      const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 2, r * .7, r * 2); t.add(base);
+      const dome = new THREE.Mesh(geoBox, matTur[s.side]); dome.scale.set(r * 1.5, r * .6, r * 1.5); dome.position.y = r * .55; t.add(dome);
+      const nb = m.k === 'T' ? 2 : 1; for (let b = 0; b < nb; b++) { const br = new THREE.Mesh(geoBox, matDark); br.scale.set(r * 3.2, r * .28, r * .28); br.position.set(r * 1.9, r * .6, (b - (nb - 1) / 2) * r * .6); t.add(br) }
+      t.position.set((m.u || 0) * u.L * .8, u.h * .62 + r * .5 + R() * u.h * .15, (m.v || 0) * u.w * 1.3);
       (t as any).userData = { m }; tg.add(t); u.mods.push(m);
     }
   }
