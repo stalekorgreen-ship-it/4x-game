@@ -212,7 +212,8 @@ function steer(s,dt){
     // экстренное ускорение: догнать строй / вовремя встать на место
     if(ed>70)boost=Math.min(2,1+(ed-70)/120);
     let fvx=ex/ed*sp,fvy=ey/ed*sp;
-    const er=Math.max(s.maxR,F.stance==='kite'?F.hold:0),dopt=t<s.bdo?5:F.stance==='kite'?F.hold:F.stance==='assault'?14:T.dopt;
+    const er=Math.max(s.maxR,F.stance==='kite'?F.hold:0);let dopt=t<s.bdo?5:F.stance==='kite'?F.hold:F.stance==='assault'?14:T.dopt;
+    if(tg&&tg.maxR&&tg.maxR>s.maxR*1.05&&F.stance!=='kite')dopt=Math.min(dopt,Math.max(8,s.maxR*.4)); // враг бьёт дальше — сближаемся, а не пятимся
     if(T.role==='freight'||F.stance==='convoy'&&T.role){vx=fvx;vy=fvy}
     else if(tg&&(td<er*1.5||t<s.bdo)){
       const dd=td-dopt,k=Math.abs(dd)<10?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*10)/20)),lat=0,w=formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25;
@@ -496,6 +497,8 @@ function step(dt){
         m.fa=Math.atan2(o.y-s.y,o.x-s.x)-0;m.rt=performance.now();
         if(m.k==='L'){
           const cost=C.dmg*(.4+(Math.min(d,300)/120)**2);
+          {const lx=o.x-s.x,ly=o.y-s.y,ll=lx*lx+ly*ly||1;let bk=null,bu=2;for(const f of around(s.side,s.x+lx/2,s.y+ly/2,Math.sqrt(ll)/2+3)){if(f===s||!f.alive)continue;const u=((f.x-s.x)*lx+(f.y-s.y)*ly)/ll;if(u<=.02||u>=1)continue;if(Math.hypot(s.x+lx*u-f.x,s.y+ly*u-f.y)<f.T.L*.38&&u<bu){bu=u;bk=f}}
+            if(bk){beams.push({a:s,b:bk,tx:bk.x,ty:bk.y,tz:bk.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.ff=(stat.ff||0)+1;hitShip(bk,'laser',lx,ly,bk.x,bk.y,C.dmg*1.7);m.cd=cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*2.6;continue}}
           const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;Sfx.shot('laser');say(s.side,'laser',s);
           if(be){const dd=Math.hypot(be.x-s.x,be.y-s.y)||1;beams.push({a:s,b:{alive:false},tx:be.x-(be.x-s.x)/dd*be.r,ty:be.y-(be.y-s.y)/dd*be.r,tz:0,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});stat.las[s.side]++;fx.push({x:be.x,y:be.y,t0:t,d:4,r:.8})}
           else{beams.push({a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:m.rt+600,c0:m.rt,side:s.side,w:C.dmg});
@@ -532,10 +535,10 @@ function step(dt){
     const scan=(g,self)=>{for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=g.get(ckey(gx,gy));if(!a)continue;
       for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;if(o.T.tons<15000&&p.dmg>=1.5&&p.ev>.55)continue; // малые корабли уворачиваются от тяжёлых снарядов
         let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
-        if(Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.25)return o}}return null};
+        if(Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.38)return o}}return null};
     if(env.length){let ee=null;for(const e of env)if(Math.abs(e.x-p.x)<e.r+14&&Math.abs(e.y-p.y)<e.r+14&&segHit(p.x,p.y,nx,ny,e)){ee=e;break}
       if(ee){fx.push({x:nx,y:ny,z:p.z,t0:t,d:3,r:.6});if(ee.t==='debris')ee.ttl-=4;if(Math.random()<.02)say(p.side,'rock',p.src);proj[i]=proj[proj.length-1];proj.pop();continue}}
-    hit=scan(GR[1-p.side],null);if(!hit&&p.dist>3){hit=scan(GR[p.side],p.src);fr=!!hit}
+    hit=scan(GR[1-p.side],null);if(!hit&&p.dist>(p.src&&p.src.T?p.src.T.L*.6:1)){hit=scan(GR[p.side],p.src);fr=!!hit}
     if(hit){if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;hitShip(hit,'rail',p.vx,p.vy,nx,ny,p.dmg);proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){proj[i]=proj[proj.length-1];proj.pop()}
