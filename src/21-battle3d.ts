@@ -8,6 +8,7 @@ import { massParts, TON_L, RAIL_CAL, TRAIL_COL } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 import { buildLoft, invFromSpec, buildWoundFx, makeWoundTex, faceV, loftMats, turretGeo } from './21c-loft.ts';
 import type { LoftPack } from './21c-loft.ts';
+import { buildSpine } from './21d-spine.ts';
 
 const wrap = document.getElementById('mapwrap');
 const bgo = document.getElementById('bgo');
@@ -473,10 +474,38 @@ if (wrap && bgo) {
   function build(s: any) {
     const L = s.T.L, g = new THREE.Group(), seed = (sid++ * 2654435761) ^ Math.round(L * 1000);
     const dm0 = s._dims || (s._dims = shipDims(s)), body = new THREE.Mesh(simpleGeo[s.side], hullMat); body.scale.set(L, L * dm0.H / (L * .095), L * dm0.W / (L * .17)); g.add(body);
-    g.userData = { s, L, lod: 0, seed, body, full: null, w: dm0.W, h: dm0.H, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
+    g.userData = { spQ: [], s, L, lod: 0, seed, body, full: null, w: dm0.W, h: dm0.H, det: false, tur: new THREE.Group() }; g.add(g.userData.tur);
     const eng = new THREE.Group(); eng.name = 'eng'; eng.visible = false; g.add(eng); g.userData.eng = eng;
     scene.add(g); return g;
   }
+  // модульный корабль «хребет» для ближних кораблей: свой корпус, турели, краска и повреждения в геометрии
+  let spBuilds = 0; const _sv = new THREE.Vector3(), _sd = new THREE.Vector3();
+  function spineVis(s: any, g: THREE.Group, lv: number, det: boolean, shl: boolean) {
+    const u = g.userData; if (frameNo !== spFrame) { spFrame = frameNo; spBuilds = 0 }
+    const stn = s.T.role === 'station' || (s.spec && s.spec.role === 'station'); let on = !!u.spOn && !stn;
+    if (!stn) { if (!on && lv >= 6 && det) on = true; else if (on && (lv < 5 || !shl)) on = false }
+    if (on && !u.sp) { if (spBuilds >= 1) on = false; else { spBuilds++; const tons = s.T.tons || s.T.L * TON_L, spc = s.spec || {}, m = tons < 800 ? 1 : tons < 3000 ? 2 : tons < 12000 ? 4 : tons < 60000 ? 5 : 7;
+      const sp = buildSpine(m, { tn: tons, ax: tons <= 3000 ? Math.max(2, Math.min(4, Math.round((spc.rails || 6) / 3))) : 0, t: Math.max(4, Math.min(100, Math.round(Math.sqrt(tons) / 4))) });
+      const k = u.L / (sp.userData.L + 16); sp.scale.setScalar(k); u.spK = k; u.sp = sp; g.add(sp) } }
+    u.spOn = on; if (u.sp) u.sp.visible = on; u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
+    return on;
+  }
+  function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 40) return; g.updateMatrixWorld(true);
+    const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
+    if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 }
+    const dL = _sv.set(q.nx, 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now() });
+  }
+  const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3();
+  function spineUpdate(g: THREE.Group) {
+    const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
+    const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
+    if (u.spQ.length && now - (u.spT || 0) > 160 && u.lod != null) { u.spT = now; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+      const oL = _rc.set(a, v, 0).addScaledVector(h.dL, R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
+      D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84)) }
+    D.step(dt * (1 / Math.max(1e-3, u.spK)) * .0 + dt);
+  }
+  let frameNo = 0, spFrame = -1;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 2) {
@@ -798,6 +827,7 @@ if (wrap && bgo) {
   const LODT = [.002, .004, .007, .011, .017, .026, .04, .06, .09, .14]; // пороги видимого размера для уровней 1..10
   function frame() { if (!pv) return frame0(); const pc = Battles.cur; Battles.cur = pv.b; try { frame0() } finally { Battles.cur = pc } }
   function frame0() {
+    frameNo++;
     raf = requestAnimationFrame(frame); if (!ren) return; const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
     const r = (pv ? pv.host : wrap!).getBoundingClientRect(); if (pv) { const cs = ren.domElement.style; cs.position = 'fixed'; cs.left = r.left + 'px'; cs.top = r.top + 'px'; cs.width = r.width + 'px'; cs.height = r.height + 'px'; cs.zIndex = '70'; if (!pv.drag) yaw += .004 }
@@ -825,8 +855,10 @@ if (wrap && bgo) {
       const app = L * sc / Math.max(dd, .01); // видимый размер
       // 11 уровней детализации (0..10) с гистерезисом ±10%: корабль теряет детали постепенно, без скачков
       let lv = ud.lv | 0; while (lv < 10 && app > LODT[lv] * 1.1) lv++; while (lv > 0 && app < LODT[lv - 1] * .9) lv--; ud.lv = lv;
-      setLod(s, g, lv >= 6 ? 2 : lv >= 3 ? 1 : 0);
-      detail(s, g, g.userData.lod === 2 && lv >= 7 && detOK.has(s)); shell(s, g, g.userData.lod === 2 && shellOK.has(s)); ultra(s, g, g.userData.lod === 2 && app > .22 && dd < 400 && detOK.has(s));
+      const spOn = spineVis(s, g, lv, detOK.has(s), shellOK.has(s));
+      setLod(s, g, spOn ? 1 : lv >= 6 ? 2 : lv >= 3 ? 1 : 0);
+      { const l2 = !spOn && g.userData.lod === 2; detail(s, g, l2 && lv >= 7 && detOK.has(s)); shell(s, g, l2 && shellOK.has(s)); ultra(s, g, l2 && app > .22 && dd < 400 && detOK.has(s)) }
+      if (spOn) spineUpdate(g);
       if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
           // направление на цель в системе корабля, зажатое в полусферу вокруг нормали площадки
@@ -942,7 +974,7 @@ if (wrap && bgo) {
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const imp = Battle.impacts() as any[], nw = performance.now();
-      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
+      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; spineHit(q); let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
         const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         flashes.push({ p: pos, t0: nw, life: 140 + q.pw * 25, sz: Math.min(34, 14 + q.pw * 3) });
         const n = Math.min(26, 8 + Math.round(q.pw * 3)), nrm = hit ? hit.nrm.clone().add(new THREE.Vector3(q.nx * .4, 0, q.ny * .4)).normalize() : new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();
