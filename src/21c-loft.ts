@@ -368,6 +368,44 @@ export const loftMats = {
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
   lines: edgeMatB,
 };
+
+// ===== трипланарная детальная обшивка для навесных деталей: плиты, клинья, башни получают панели, швы и огни, а не плоский цвет =====
+let _tileTex: THREE.CanvasTexture | null = null;
+function tileGreeble() {
+  if (_tileTex) return _tileTex;
+  const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d')!; x.fillStyle = '#cfd3da'; x.fillRect(0, 0, S, S);
+  let sq = 5; const rn = () => { sq = (sq * 16807) % 2147483647; return sq / 2147483647 };
+  const n = 8, cs = S / n;
+  for (let r = 0; r < n; r++) for (let q = 0; q < n; q++) {
+    const px = q * cs, py = r * cs, tone = rn(), kind = rn(), g = Math.floor(120 + tone * 110);
+    x.fillStyle = `rgba(${g},${g + 3},${g + 10},.6)`; x.fillRect(px, py, cs, cs);
+    // вложенные панели: кромка, внутреннее поле, фаска
+    const m = cs * .07; x.fillStyle = `rgba(${g - 30},${g - 28},${g - 18},.7)`; x.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m);
+    x.fillStyle = 'rgba(255,255,255,.4)'; x.fillRect(px + m, py + m, cs - 2 * m, 4); x.fillRect(px + m, py + m, 4, cs - 2 * m);
+    x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(px + m, py + cs - m - 4, cs - 2 * m, 4); x.fillRect(px + cs - m - 4, py + m, 4, cs - 2 * m);
+    x.fillStyle = 'rgba(8,10,16,.9)'; x.fillRect(px, py, cs, 3); x.fillRect(px, py, 3, cs);
+    if (kind < .2) { for (let k = 0; k < 5; k++) { x.fillStyle = 'rgba(8,10,14,.9)'; x.fillRect(px + cs * .2, py + cs * (.22 + k * .12), cs * .6, cs * .06) } }
+    else if (kind < .32) { x.fillStyle = 'rgba(20,24,34,.8)'; x.fillRect(px + cs * .25, py + cs * .25, cs * .5, cs * .5); x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(px + cs * .25, py + cs * .25, cs * .5, 3) }
+    else if (kind < .35) { x.fillStyle = '#e8c53a'; x.fillRect(px + 8, py + 8, cs - 16, cs - 16); x.fillStyle = '#14161b'; for (let k = -cs; k < cs; k += 28) { x.beginPath(); x.moveTo(px + 8 + k, py + cs - 8); x.lineTo(px + 8 + k + 14, py + cs - 8); x.lineTo(px + 8 + k + 14 + cs, py + 8); x.lineTo(px + 8 + k + cs, py + 8); x.fill() } x.clearRect(0, 0, 0, 0) }
+    else if (kind < .5) { for (let k = 0; k < 5; k++) { x.fillStyle = rn() < .7 ? '#fff3c4' : '#d8f6ff'; x.fillRect(px + cs * (.15 + k * .16), py + cs * .5, 7, 7) } }
+    else if (kind < .6) { x.fillStyle = 'rgba(255,255,255,.2)'; x.fillRect(px + cs * .15, py + cs * .15, cs * .7, cs * .7); x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.arc(px + cs * .5, py + cs * .5, cs * .16, 0, 6.2832); x.fill() }
+  }
+  const t2 = new THREE.CanvasTexture(c); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 4; _tileTex = t2; return t2;
+}
+const _triCache = new Map<string, THREE.MeshStandardMaterial>();
+export function triMat(tile: number) {
+  const key = tile.toPrecision(2); let m = _triCache.get(key); if (m) return m;
+  m = loftMats.parts.clone(); const u = { value: tile };
+  m.onBeforeCompile = (sh: any) => {
+    sh.uniforms.uTile = u; sh.uniforms.uGr = { value: tileGreeble() };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP=position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;uniform float uTile;uniform sampler2D uGr;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\nvec3 an=abs(normalize(cross(dFdx(vOP),dFdy(vOP))));vec3 tw=pow(an,vec3(8.));tw/=tw.x+tw.y+tw.z;vec3 tp=vOP*uTile;diffuseColor.rgb*=texture2D(uGr,tp.yz).rgb*tw.x+texture2D(uGr,tp.xz+.37).rgb*tw.y+texture2D(uGr,tp.xy+.71).rgb*tw.z;');
+  };
+  m.customProgramCacheKey = () => 'tri';
+  _triCache.set(key, m); return m;
+}
+
 // склеивает все меши группы в 3 геометрии (корпус остаётся отдельно: у него UV и раны), декали остаются отдельными плоскостями
 export function bakeGroup(grp: THREE.Group) {
   grp.updateMatrixWorld(true);
@@ -413,7 +451,7 @@ export function invFromSpec(s: any, mp: any, D0: any, P: any, seed: number, hasR
   };
 }
 
-export type LoftPack = { key: string; k: number; hull: THREE.BufferGeometry; li: any; parts: THREE.BufferGeometry | null; glow: THREE.BufferGeometry | null; lines: THREE.BufferGeometry | null; decals: THREE.Mesh[]; seedv: number; mat: THREE.MeshStandardMaterial; base: any; mounts: any[]; nozz: any[]; seg: any[]; W: number; H: number; x0: number; x1: number; Lk: number; wd: any; L0: number };
+export type LoftPack = { key: string; k: number; hull: THREE.BufferGeometry; li: any; parts: THREE.BufferGeometry | null; glow: THREE.BufferGeometry | null; lines: THREE.BufferGeometry | null; decals: THREE.Mesh[]; partsMat: THREE.MeshStandardMaterial; seedv: number; mat: THREE.MeshStandardMaterial; base: any; mounts: any[]; nozz: any[]; seg: any[]; W: number; H: number; x0: number; x1: number; Lk: number; wd: any; L0: number };
 const cache = new Map<string, LoftPack>();
 export function buildLoft(inv: any, Lgame: number): LoftPack {
   const key = JSON.stringify(inv) + '|' + Math.round(Lgame * 1e5);
@@ -447,7 +485,7 @@ export function buildLoft(inv: any, Lgame: number): LoftPack {
   let W = 0, H = 0; for (const q of seg) { W = Math.max(W, q.w); H = Math.max(H, q.h) }
   const pm = base((x0 + x1) / 2), fwd = Math.hypot(pm.h / 2, pm.w * (1 - pm.k) / 2), gb = makeGreeble(x1 + pk.noseL + L / 2, hh, [pm.w * pm.k, fwd, fwd, pm.w * pm.k, fwd, fwd]);
   const mat = loftMats.hull.clone(); mat.map = gb.tm; mat.emissiveMap = gb.te; mat.emissive = new THREE.Color(1, 1, 1); mat.emissiveIntensity = 1.0; mat.bumpMap = gb.tb; mat.bumpScale = 1.5;
-  const out: LoftPack = { key, k, hull, li, seedv: inv.seed, mat, base: gb, parts: b.parts, glow: b.glow, lines: b.lines, decals: b.decals, mounts, nozz: pk.NOZ.map((n: any) => ({ y: n.y * k, z: n.z * k, r: n.r * k })), seg, W, H, x0: -L / 2 * k, x1: (x1 + pk.noseL) * k, Lk: (x1 + pk.noseL + L / 2) * k, wd, L0: L };
+  const out: LoftPack = { key, k, hull, li, partsMat: triMat(1 / (hh * k * 1.3)), seedv: inv.seed, mat, base: gb, parts: b.parts, glow: b.glow, lines: b.lines, decals: b.decals, mounts, nozz: pk.NOZ.map((n: any) => ({ y: n.y * k, z: n.z * k, r: n.r * k })), seg, W, H, x0: -L / 2 * k, x1: (x1 + pk.noseL) * k, Lk: (x1 + pk.noseL + L / 2) * k, wd, L0: L };
   cache.set(key, out); if (cache.size > 24) cache.delete(cache.keys().next().value as string);
   return out;
 }
@@ -459,7 +497,7 @@ export function buildWoundFx(pk: LoftPack, hits: any[]) {
   const b = bakeGroup(fx);
   const grp = new THREE.Group(); grp.scale.setScalar(k);
   const meshes: THREE.Mesh[] = [];
-  if (b.parts) { const m = new THREE.Mesh(b.parts, loftMats.parts); m.frustumCulled = false; grp.add(m); meshes.push(m) }
+  if (b.parts) { const m = new THREE.Mesh(b.parts, triMat(1 / (pk.wd.hh * k * 1.3))); m.frustumCulled = false; grp.add(m); meshes.push(m) }
   if (b.glow) { const m = new THREE.Mesh(b.glow, loftMats.glow); m.frustumCulled = false; grp.add(m); meshes.push(m) }
   const pts: THREE.Points[] = []; fx.children.forEach((o: any) => { if (o.isPoints) { grp.add(o); pts.push(o) } });
   grp.userData.upd = fx.userData.upd; grp.userData.uS = fx.userData.uS;
@@ -497,5 +535,5 @@ export function turretGeo(tt: string, cal: number, seed: number, S: number, hp0 
 }
   if (hp0 <= .5 && hp0 > .15) gg.rotation.z = .3 * (1 - hp0 * 2);
   if (!tips.length) tips.push({ x: .45 * S, y: .22 * S, z: 0 });
-  const b = bakeGroup(gg); return { parts: b.parts, glow: b.glow, lines: b.lines, tips };
+  const b = bakeGroup(gg); return { parts: b.parts, glow: b.glow, lines: b.lines, tips, mat: triMat(1 / (S * 1.7)) };
 }

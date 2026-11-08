@@ -475,7 +475,7 @@ if (wrap && bgo) {
       }
       if (!stn && !u.full) { if (builds >= 3) return; builds++; const lp = loftFor(s, u); u.lp = lp; u.full = lp.hull; u.W = lp.W; u.H = lp.H; u.seg = lp.seg; u.mounts = lp.mounts; u.cell = lp.W * .02; u.armorT = 0; u.x1 = lp.x1 - u.L * .05; u.x0v = lp.x0; u.tilesL = []; u.Lk = lp.Lk; u.gridRows = [1, 1, 1, 1]; u.gridCols = 2; u.x0 = lp.x0;
         for (const n of lp.nozz) { const f = new THREE.Mesh(geoSph, glowMats[s.side]); f.scale.set(u.L * .02, n.r * 1.15, n.r * 1.15); f.position.set(lp.x0 - u.L * .17, n.y || 0, n.z); u.eng.add(f) }
-        const lx = new THREE.Group(); lx.name = 'lx'; if (lp.parts) lx.add(new THREE.Mesh(lp.parts, loftMats.parts)); if (lp.glow) lx.add(new THREE.Mesh(lp.glow, loftMats.glow)); if (lp.lines) lx.add(new THREE.LineSegments(lp.lines, loftMats.lines)); for (const d of lp.decals) lx.add(d.clone()); g.add(lx); u.lx = lx }
+        const lx = new THREE.Group(); lx.name = 'lx'; if (lp.parts) lx.add(new THREE.Mesh(lp.parts, lp.partsMat)); if (lp.glow) lx.add(new THREE.Mesh(lp.glow, loftMats.glow)); if (lp.lines) lx.add(new THREE.LineSegments(lp.lines, loftMats.lines)); for (const d of lp.decals) lx.add(d.clone()); g.add(lx); u.lx = lx }
       u.body.geometry = u.full; u.body.material = u.lp ? (u.wmat || u.lp.mat) : hullMat; u.body.scale.setScalar(1); if (u.lx) u.lx.visible = true; if (u.fxg) u.fxg.visible = true;
     } else { if (u.lx) u.lx.visible = false; if (u.fxg) u.fxg.visible = false; u.body.material = hullMat; if (lod === 1) { u.body.geometry = midGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) }
       else { u.body.geometry = simpleGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) } }
@@ -552,7 +552,7 @@ if (wrap && bgo) {
   }
   const turCache = new Map<string, any>();
   function loftTurret(m: any, r: number, lp: LoftPack) {
-    const tt = m.k === 'T' ? 'rail' : m.k === 'A' ? 'flak' : m.k === 'G' ? 'gat' : null; if (!tt) return null;
+    const tt = m.k === 'T' ? 'rail' : m.k === 'A' ? 'flak' : m.k === 'G' ? 'gat' : 'flak';
     const c = (m.cfg && m.cfg.cal) || 10, cal = c <= 8 ? 1 : c <= 14 ? 2 : 3, S = r * 3.4, key = tt + cal + ':' + lp.seedv + ':' + Math.round(S * 1e6);
     let q = turCache.get(key); if (!q) { q = turretGeo(tt, cal, lp.seedv, S); turCache.set(key, q); if (turCache.size > 60) turCache.delete(turCache.keys().next().value as string) } return q }
   function detail(s: any, g: THREE.Group, want: boolean) {
@@ -587,7 +587,7 @@ if (wrap && bgo) {
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
       const nb = m.k === 'T' || (m.k === 'G' && m.cfg && m.cfg.tw) ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
-      const tgm = u.lp ? loftTurret(m, r, u.lp) : null; if (tgm) { for (const tp0 of tgm.tips) { const tp = new THREE.Object3D(); tp.position.set(tp0.x, tp0.y + lift * .5, tp0.z); head.add(tp); tips.push(tp) } if (tgm.parts) head.add(new THREE.Mesh(tgm.parts, loftMats.parts)); if (tgm.glow) head.add(new THREE.Mesh(tgm.glow, loftMats.glow)); if (tgm.lines) head.add(new THREE.LineSegments(tgm.lines, loftMats.lines)) }
+      const tgm = u.lp ? loftTurret(m, r, u.lp) : null; if (tgm) { for (const tp0 of tgm.tips) { const tp = new THREE.Object3D(); tp.position.set(tp0.x, tp0.y + lift * .5, tp0.z); head.add(tp); tips.push(tp) } if (tgm.parts) head.add(new THREE.Mesh(tgm.parts, tgm.mat)); if (tgm.glow) head.add(new THREE.Mesh(tgm.glow, loftMats.glow)); if (tgm.lines) head.add(new THREE.LineSegments(tgm.lines, loftMats.lines)) }
       if (!tgm) hp.push(piece(geoDome, cT, 0, lift, 0, r * .95, r * .8, r * .95)); // сферическая башня + стволы одним мешем (меньше вызовов отрисовки)
       for (let b = 0; b < (tgm ? 0 : nb); b++) { const zb = (b - (nb - 1) / 2) * r * .55, len = r * 2.1; hp.push(piece(geoCyl, cD, r * .5 + len / 2, lift + r * .1, zb, len, r * .13, r * .13)); hp.push(piece(geoCyl, cD, r * .5 + len, lift + r * .1, zb, r * .22, r * .19, r * .19)); const tp = new THREE.Object3D(); tp.position.set(r * .5 + len + r * .12, lift + r * .1, zb); head.add(tp); tips.push(tp) }
       if (!tgm) { const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); head.add(hm) }
