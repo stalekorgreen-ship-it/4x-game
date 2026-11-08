@@ -56,8 +56,14 @@ if (wrap && bgo) {
     ren.setPixelRatio(Math.min(1.5, devicePixelRatio));
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x070a12); scene.fog = new THREE.FogExp2(0x070a12, .00008);
     cam = new THREE.PerspectiveCamera(50, 1, .05, 6000);
-    scene.add(new THREE.HemisphereLight(0x8aa4d8, 0x20161c, 1.1));
-    const sun = new THREE.DirectionalLight(0xfff0dd, 2.2); sun.position.set(300, 400, 200); scene.add(sun); sunL = sun;
+    scene.add(new THREE.HemisphereLight(0x8aa4d8, 0x20161c, .85));
+    { const rim = new THREE.DirectionalLight(0x6aa8ff, .9); rim.position.set(-300, 120, -250); scene.add(rim); } // холодная контровая подсветка
+    { const pm = new THREE.PMREMGenerator(ren), es = new THREE.Scene(), sg0 = new THREE.SphereGeometry(50, 24, 16), cl = new Float32Array(sg0.attributes.position.count * 3), pp = sg0.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pp.count; i++) { const dx = pp.getX(i) / 50, dy = pp.getY(i) / 50, dz = pp.getZ(i) / 50, sun0 = Math.pow(Math.max(0, dx * .55 + dy * .7 + dz * .35), 24), rim0 = Math.pow(Math.max(0, -dx * .7 + dy * .2 - dz * .6), 6), b = .04 + .1 * (dy * .5 + .5);
+        cl[i * 3] = b * .6 + sun0 * 9 + rim0 * .5; cl[i * 3 + 1] = b * .8 + sun0 * 8 + rim0 * 1; cl[i * 3 + 2] = b * 1.4 + sun0 * 6 + rim0 * 2.5 }
+      sg0.setAttribute('color', new THREE.BufferAttribute(cl, 3)); es.add(new THREE.Mesh(sg0, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+      hullMat.envMap = pm.fromScene(es, 0.04).texture; hullMat.needsUpdate = true; } // окружение даёт блики только корпусам
+    const sun = new THREE.DirectionalLight(0xfff0dd, 2.6); sun.position.set(300, 400, 200); scene.add(sun); sunL = sun;
     const st = new Float32Array(1500 * 3); for (let i = 0; i < st.length; i += 3) { const v = new THREE.Vector3().randomDirection().multiplyScalar(2500); st[i] = v.x; st[i + 1] = v.y; st[i + 2] = v.z }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(st, 3));
     scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xaabbdd, size: 2, sizeAttenuation: false, fog: false })));
@@ -136,7 +142,7 @@ if (wrap && bgo) {
     const g = geo.index ? geo.toNonIndexed() : geo.clone(); g.scale(sx, sy, sz); if (rz) g.rotateZ(rz); g.translate(x, y, z);
     const c = new THREE.Color(color), n = g.attributes.position.count, arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b }
-    g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); return g;
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2)); return g;
   }
   const unitBox = new RoundedBoxGeometry(1, 1, 1, 1, .09), unitCyl = new THREE.CylinderGeometry(.5, .5, 1, 10).rotateZ(Math.PI / 2);
   function taper(len: number, h: number, w: number, k: number) { // клиновидный блок: сужается к носу (+x)
@@ -186,17 +192,24 @@ if (wrap && bgo) {
     const mk = (hi: boolean, n: number) => { const m = new THREE.InstancedMesh(craftGeo(P, hi), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .45, metalness: .5, flatShading: true }), n); m.frustumCulled = false; m.count = 0; m.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(m); return m };
     M = { hi: mk(true, 160), lo: mk(false, 1200), nh: 0, nl: 0 }; fmods.set(P.mk, M); return M }
   // блок корпуса: восьмигранная призма (скошенные грани по углам — наклонная броня), торцы плоские, без швов и пересечений
+  let curL = 1;
   function chamPrism(len: number, h: number, w: number, c: number, col: number, cy: number, cx: number, nose = 1) {
     const hh = h / 2, ww = w / 2, pts = [[hh, -(ww - c)], [hh, ww - c], [hh - c, ww], [-(hh - c), ww], [-hh, ww - c], [-hh, -(ww - c)], [-(hh - c), -ww], [hh - c, -ww]], pos: number[] = [], x0 = -len / 2, x1 = len / 2;
     const q = (a: number[], b: number[], c2: number[], d: number[]) => { for (const v of [a, b, c2, a, c2, d]) pos.push(v[0], v[1], v[2]) };
     for (let i = 0; i < 8; i++) { const A = pts[i], B = pts[(i + 1) % 8]; q([x0, A[0], A[1]], [x1, A[0] * nose, A[1] * nose], [x1, B[0] * nose, B[1] * nose], [x0, B[0], B[1]]) }
     for (let i = 1; i < 7; i++) { const A = pts[0], B = pts[i], C = pts[i + 1]; pos.push(x0, A[0], A[1], x0, C[0], C[1], x0, B[0], B[1]); pos.push(x1, A[0] * nose, A[1] * nose, x1, B[0] * nose, B[1] * nose, x1, C[0] * nose, C[1] * nose) }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const n = pos.length / 3, cc = new THREE.Color(col), arr = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { arr[i * 3] = cc.r; arr[i * 3 + 1] = cc.g; arr[i * 3 + 2] = cc.b } g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2)); g.computeVertexNormals(); g.translate(cx, cy, 0); return g;
+    for (let i = 0; i < n; i++) { arr[i * 3] = cc.r; arr[i * 3 + 1] = cc.g; arr[i * 3 + 2] = cc.b } g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); g.computeVertexNormals(); g.translate(cx, cy, 0);
+    { const P = g.attributes.position as THREE.BufferAttribute, N = g.attributes.normal as THREE.BufferAttribute, uv = new Float32Array(n * 2), k = 1 / (curL * .05);
+      for (let i = 0; i < n; i++) { const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)), nz = Math.abs(N.getZ(i)); let a: number, b: number;
+        if (nx >= ny && nx >= nz) { a = P.getZ(i); b = P.getY(i) } else if (ny >= nz) { a = P.getX(i); b = P.getZ(i) } else { a = P.getX(i); b = P.getY(i) }
+        uv[i * 2] = a * k; uv[i * 2 + 1] = b * k }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)) }
+    return g;
   }
   const thL0 = () => 0;
   function hullGeo(s: any, seed: number) {
-    const mp0 = massParts(s.spec || { rails: 10, flak: 2, tons: s.T.L * TON_L }), RL = !!(s.spec && s.spec.real), hasBr = !RL || mp0.parts.crew > 0, hasMast = !RL || ((s.spec.scList || []).length > 0 || s.spec.fcsN > 0 || s.spec.ew > 0), R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
+    const mp0 = massParts(s.spec || { rails: 10, flak: 2, tons: s.T.L * TON_L }), RL = !!(s.spec && s.spec.real), hasBr = !RL || mp0.parts.crew > 0, hasMast = !RL || ((s.spec.scList || []).length > 0 || s.spec.fcsN > 0 || s.spec.ew > 0), R = rng(seed), P = PAL[s.side], L = (curL = s.T.L), D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
     // хребет из блоков: участки идут по модулям корабля (корма → нос), длина участка пропорциональна массе модулей
     const x0 = -L * .5, x1 = L * .34, Lk = x1 - x0; const seg: any[] = [];
@@ -319,7 +332,17 @@ if (wrap && bgo) {
   // шаблон сечения: прямоугольник со срезанными углами (8 рёбер), 48 точек; u — вдоль высоты, v — вдоль ширины (−1..1)
   const RING: { u: number; v: number; nu: number; nv: number }[] = (() => { const C: number[][] = [[.5, 1], [-.5, 1], [-1, .5], [-1, -.5], [-.5, -1], [.5, -1], [1, -.5], [1, .5]], N: number[][] = [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], o: any[] = [];
     for (let e = 0; e < 8; e++) { const A = C[e], B = C[(e + 1) % 8], n = e % 2 ? 4 : 8; for (let m = 0; m < n; m++) { const t = m / n; o.push({ u: A[1] + (B[1] - A[1]) * t, v: A[0] + (B[0] - A[0]) * t, nu: N[e][1], nv: N[e][0] }) } } return o })();
-  const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .3, flatShading: true });
+  // текстура обшивки: панели со швами, заклёпки, царапины и потёртости (швы лежат по линиям u,v = .5, так что точка (0,0) нейтральна)
+  const panelTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d')!, rr = rng(777);
+    x.fillStyle = '#d4d4d4'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 2600; i++) { const v = 150 + rr() * 90; x.fillStyle = `rgba(${v},${v},${v},${.05 + rr() * .1})`; x.fillRect(rr() * 256, rr() * 256, 1 + rr() * 3, 1 + rr() * 3) }
+    for (let i = 0; i < 40; i++) { x.strokeStyle = `rgba(255,255,255,${.04 + rr() * .08})`; x.lineWidth = 1; x.beginPath(); const ax = rr() * 256, ay = rr() * 256; x.moveTo(ax, ay); x.lineTo(ax + (rr() - .5) * 60, ay + (rr() - .5) * 60); x.stroke() }
+    for (let i = 0; i < 7; i++) { const gx = rr() * 256, gy = rr() * 256, gr = 18 + rr() * 40, gg = x.createRadialGradient(gx, gy, 0, gx, gy, gr); gg.addColorStop(0, 'rgba(40,40,40,.22)'); gg.addColorStop(1, 'rgba(40,40,40,0)'); x.fillStyle = gg; x.fillRect(gx - gr, gy - gr, gr * 2, gr * 2) }
+    x.fillStyle = 'rgba(25,25,25,.9)'; x.fillRect(0, 126, 256, 4); x.fillRect(126, 0, 4, 256); x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(0, 130, 256, 1); x.fillRect(130, 0, 1, 256);
+    x.fillStyle = 'rgba(30,30,30,.6)'; x.fillRect(0, 127, 256, 1);
+    for (let i = 0; i < 256; i += 16) for (const q of [[i, 112], [i, 144], [112, i], [144, i]]) { x.fillStyle = 'rgba(30,30,30,.55)'; x.fillRect(q[0] + 6, q[1], 3, 3); x.fillStyle = 'rgba(255,255,255,.3)'; x.fillRect(q[0] + 6, q[1], 1, 1) }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t })();
+  const hullMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .5, metalness: .32, flatShading: true, map: panelTex, bumpMap: panelTex, bumpScale: 2.2, envMapIntensity: 2.2 });
   // дальний LOD: один склеенный низкополигональный силуэт на сторону (единичной длины)
   const simpleGeo = PAL.map(P => mergeGeometries([
     piece(unitBox, P.main, -.11, 0, 0, .78, .1, .17), piece(taper(1, 1, 1, .3), P.main, .42, 0, 0, .22, .095, .15), piece(unitBox, P.dark, -.5, 0, 0, .06, .11, .18), piece(unitBox, P.acc2, .1, .08, 0, .07, .09, .09)], false)!);
