@@ -208,7 +208,7 @@ if (wrap && bgo) {
     let x = x0;
     for (const e of lst) {
       const ty = e.ty, len = e.len, wF = ty === 'e' ? .95 : ty === 'f' || ty === 'b' ? 1.1 : ty === 'w' || ty === 'm' ? .8 : .62 + R() * .38, hF = ty === 'e' ? 1.1 : ty === 'f' || ty === 'b' ? 1.05 : ty === 'w' || ty === 'm' ? .8 : .65 + R() * .45;
-      const tpar = Math.max(0, Math.min(1, ((x + len / 2 - x0) / Lk - .5) / .5)), tp = RL ? 1 - .55 * tpar * tpar : 1, w = (RL && ty === 'e') ? W * .98 : W * wF * tp * (RL ? 1.6 : 1), h = (RL && ty === 'e') ? H * .98 : H * hF * (RL ? .55 : 1), cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
+      const tpar = Math.max(0, Math.min(1, ((x + len / 2 - x0) / Lk - .5) / .5)), tp = RL ? 1 - .55 * tpar * tpar : 1, w = (RL && ty === 'e') ? W * .98 : RL ? Math.max(W * (1.05 + wF * .5) * tp, W * .6) : W * wF, h = RL ? H * (ty === 'e' ? .98 : 1 + (hF - .62) * .25) : H * hF, cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
       const col = ty === 'e' ? P.dark : ty === 'f' ? P.main : ty === 'b' ? P.acc2 : ty === 't' ? 0x9aa3b2 : ty === 'r' ? P.dark : R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2;
       const cF = ty === 'e' ? .1 : ty === 'w' || ty === 'm' || ty === 'l' ? .24 : ty === 'f' || ty === 'b' ? .12 : ty === 'q' ? .16 : .12 + R() * .16; // наклон угловых плит: оружейные блоки скошены сильнее всего
       seg.push({ cx, w, h, len, cy, c: RL ? Math.min(w, h) * (cF + .12) : 0, weapon: ty === 'w' || ty === 'm' || ty === 'l', ty, col: shade(col, .85 + R() * .3) });
