@@ -58,6 +58,14 @@ function laserOut(L,r){const g=new THREE.Group();
  const cr=new THREE.Mesh(new THREE.OctahedronGeometry(r*.95,0),cyan);cr.scale.set(1.7,1,1);cr.position.x=L*1.0;g.add(cr);
  const core=new THREE.Mesh(new THREE.OctahedronGeometry(r*.5,0),glowM);core.scale.set(1.7,1,1);core.position.x=L*1.0;g.add(core);
  return g}
+function gatOut(L,r){const g=new THREE.Group();const R=1.15*r;
+ const ax=cb(L+6*r,.6*r,.6*r,.15*r,steel);ax.position.x=(L-6*r)/2;g.add(ax);
+ for(let k=0;k<6;k++){const a=k*Math.PI/3;const b=cb(L+6*r,.46*r,.46*r,.13*r,k%2?steel:silver2);b.position.set((L-6*r)/2,Math.cos(a)*R,Math.sin(a)*R);g.add(b)}
+ [[.22,accent],[.55,silver],[.86,accent]].forEach(([t,m])=>{const d=cb(r*.55,R*2.5,R*2.5,r*.3,m);d.position.x=L*t;g.add(d)});
+ const mz=cb(r*.7,R*2.7,R*2.7,r*.35,dark);mz.position.x=L*1.0+r*.2;g.add(mz);
+ for(let k=0;k<6;k++){const a=k*Math.PI/3;const hole=new THREE.Mesh(new THREE.CircleGeometry(r*.2,6),cyan);hole.rotation.y=Math.PI/2;hole.position.set(L*1.0+r*.56,Math.cos(a)*R,Math.sin(a)*R);g.add(hole)}
+ const fd=cb(L*.25,r*1.4,r*1.2,r*.3,steel);fd.position.set(L*.1,r*1.9,0);g.add(fd);
+ return g}
 function horn(len,w,h){const g=new THREE.Group();const m1=cb(len*.56,w,h,Math.min(w,h)*.26,silver);m1.position.x=len*.28;g.add(m1);
  const m2=cb(len*.46,w*.82,h*.82,Math.min(w,h)*.22,silver2);m2.position.x=len*.56+len*.2;g.add(m2);
  const pl=cb(len*.5,w*.5,h*.14,.15,steel);pl.position.set(len*.3,0,0);const t=pl.clone();t.position.y=h*.5+.05;g.add(t);const u=pl.clone();u.position.y=-h*.5-.05;g.add(u);
@@ -85,9 +93,16 @@ function noseBlock(v){const g=new THREE.Group();
   // клин-сенсор между стволами: призма 45/30
   const wd=poly([[0,0],[6,0],[0,2.4]],1.2,.25,dark);wd.rotation.x=-Math.PI/2;wd.position.set(7.9,0,0);wd.rotation.z=0;g.add(wd);
   put(cb(.7,9.4,6.6,.5,silver2),7.7,0,0);for(const sg of[-1,1])gun(10,0,sg*2.5,1.05,13)}
-  if(v==='c'){ // четыре рельса
-  put(new THREE.Mesh(loftR([{x:-14,w:8,h:8},{x:-11,w:10,h:10},{x:-2,w:10,h:10},{x:4,w:9,h:9},{x:8,w:8.2,h:8.2}]),silver),0,0,0);
-  put(cb(.7,8.2,8.2,.5,silver2),8,0,0);for(const sy of[-1,1])for(const sg of[-1,1])gun(8.3,sy*2.2,sg*2.2,.85,12)}
+  if(v==='c'){ // четыре рельса: ступенчатый корпус, силовая рама, перекрестие между стволами
+  put(cb(10,10.6,10.6,2,silver),-9,0,0);put(cb(8,9.4,9.4,1.7,silver2),-1.5,0,0);put(cb(5,8.6,8.6,1.5,silver),4.7,0,0);
+  put(cb(8,6.4,.7,.2,steel),0,5.7,0);put(cb(8,6.4,.7,.2,steel),0,-5.7,0);
+  for(const sg of[-1,1]){put(cb(7,.6,5.2,.2,accent),-3,0,sg*5.7);put(cb(4,.6,3.4,.2,steel),3,0,sg*5.1);
+   const st=new THREE.Mesh(new THREE.BoxGeometry(2.4,.14,.7),cyan);st.position.set(-1,4.0,sg*4.2);g.add(st)}
+  put(cb(.7,8.6,8.6,.5,silver2),7.65,0,0);
+  // перекрестие между стволами и две квадратные рамы жёсткости
+  put(cb(7.5,.6,5.6,.2,steel),12,0,0);put(cb(7.5,5.6,.6,.2,steel),12,0,0);
+  for(const [x,m] of [[9.2,steel],[15.2,accent]]){for(const sy of[-1,1]){put(cb(.8,6.2,.7,.25,m),x,sy*3.1,0);put(cb(.8,.7,6.2,.25,m),x,0,sy*3.1)}}
+  for(const sy of[-1,1])for(const sg of[-1,1])gun(7.95,sy*2.2,sg*2.2,.85,12)}
   if(v==='d'){ // «П»: рога по краям с пушками, лазер из центральной стенки
   put(body3(-14,3,16,8),0,0,0);
   for(const sg of[-1,1]){const h=horn(11,4.4,6.4);put(h,0,0,sg*5.8);put(cb(.6,4.4*.82,6.4*.82,.4,silver2),11,0,sg*5.8);gun(11.2,0,sg*5.8,.95,10)}
@@ -101,6 +116,21 @@ function noseBlock(v){const g=new THREE.Group();
   // спинной гребень и радиаторы
   put(cb(11,1.2,1.6,.4,steel),-1,4.9,0);for(let i=0;i<5;i++)put(cb(.4,.3,2.6,.1,accent),-5+i*1.9,5.2,0);
   for(const sg of[-1,1])put(cb(6,.5,.14,.05,cyan),2,2.6,sg*3.46)}
+ if(v==='f'){ // один рельс
+  put(cb(10,8.4,8.4,1.7,silver),-9,0,0);put(cb(8,7,7,1.4,silver2),-1.5,0,0);put(cb(5.4,5.8,5.8,1.2,silver),4.9,0,0);
+  put(cb(7,5.2,.6,.2,steel),1,3.9,0);put(cb(7,5.2,.6,.2,steel),1,-3.9,0);
+  for(const sg of[-1,1]){put(cb(5,.5,3.6,.2,accent),-4,0,sg*4.4);put(cb(3,.5,2.6,.2,steel),3,0,sg*3.6)}
+  put(cb(.7,5.8,5.8,.5,silver2),7.7,0,0);gun(8.0,0,0,1.4,16)}
+ if(v==='g'){ // один миниган
+  put(cb(10,8.4,8.4,1.7,silver),-9,0,0);put(cb(8,7,7,1.4,silver2),-1.5,0,0);put(cb(5.4,5.8,5.8,1.2,silver),4.9,0,0);
+  put(cb(7,5.2,.6,.2,steel),1,3.9,0);put(cb(7,5.2,.6,.2,steel),1,-3.9,0);
+  for(const sg of[-1,1]){put(cb(5,.5,3.6,.2,accent),-4,0,sg*4.4);put(cb(3,.5,2.6,.2,steel),3,0,sg*3.6)}
+  put(cb(.7,5.8,5.8,.5,silver2),7.7,0,0);put(port(1.4),8.0,0,0);put(gatOut(13,1.3),8.0,0,0)}
+ if(v==='h'){ // два миниганa
+  put(cb(10,11,8,1.8,silver),-9,0,0);put(cb(8,10,7.2,1.6,silver2),-1.5,0,0);put(cb(5.6,9.4,6.6,1.4,silver),4.9,0,0);
+  put(cb(8,6.5,.7,.2,steel),0,4.4,0);put(cb(8,6.5,.7,.2,steel),0,-4.4,0);
+  for(const sg of[-1,1]){put(cb(7,.6,4.6,.2,accent),-3,0,sg*5.7);put(cb(4,.6,3,.2,steel),3,0,sg*5.2);put(cb(3.4,4.2,4.2,1,silver2),8.2,0,sg*2.7)}
+  put(cb(.7,9.4,6.6,.5,silver2),7.7,0,0);for(const sg of[-1,1]){put(port(1.15),10,0,sg*2.7);put(gatOut(11,1.1),10,0,sg*2.7)}}
  // стабилизаторы 45/30
  for(const sg of[-1,1]){const sp=5,st=poly([[-4,0],[-4-sp,sp],[-4-sp-1.4,sp],[-4-sp-1.4+sp*T30*2,0]],.5,.15,silver);st.rotation.x=-Math.PI/2;st.position.set(-3,0,sg*(v==='d'||v==='e'?8.2:5));if(sg>0)st.scale.set(1,1,-1);g.add(st)}
  g.userData={};return g}
@@ -108,7 +138,7 @@ function noseBlock(v){const g=new THREE.Group();
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,600);
 const v=q.get('v');
 if(v){const b=noseBlock(v);sc.add(b);const az=+q.get('az')||.9,el=+q.get('el')||.3,d=+q.get('d')||46;cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(8,0,0)}
-else{const vs=['a','b','c','d','e'];vs.forEach((k,i)=>{const b=noseBlock(k);b.position.set(0,0,(i-2)*34);sc.add(b)});cam.position.set(135,52,22);cam.lookAt(6,0,0)}
+else{const vs=(q.get('set')==='2'?['a','g','h','d']:['f','b','e','c']);vs.forEach((k,i)=>{const b=noseBlock(k);b.position.set(0,0,(i-1.5)*40);sc.add(b)});cam.position.set(135,52,22);cam.lookAt(6,0,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
 comp.render();window.done=true;
 </script>

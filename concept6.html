@@ -50,15 +50,15 @@ function base(s){const g=new THREE.Group();
  const r=cb(5.4*s,5.4*s,.35*s,.15*s,accent);r.position.y=1.35*s;g.add(r);
  const q=cb(4.2*s,4.2*s,.4*s,.18*s,dark);q.position.y=1.7*s;g.add(q);return g}
 function railTurret(s,n){const g=new THREE.Group();g.add(base(s));const y=3.2*s,rr=.55*s,L=9*s;
- const hz=cb(6.4*s,5.8*s,3.2*s,1.0*s,silver);hz.position.set(0,y,0);g.add(hz);
- const up=cb(4.2*s,4.2*s,.6*s,.2*s,steel);up.position.set(-.3*s,y+1.8*s,0);g.add(up);
- const man=cb(1.6*s,5.4*s,2.7*s,.85*s,silver2);man.position.set(3.7*s,y,0);g.add(man);
+ const HH=n>=4?4.6*s:3.2*s,MH=n>=4?4.1*s:2.7*s;const hz=cb(6.4*s,5.8*s,HH,1.0*s,silver);hz.position.set(0,y,0);g.add(hz);
+ const up=cb(4.2*s,4.2*s,.6*s,.2*s,steel);up.position.set(-.3*s,y+HH*.56,0);g.add(up);
+ const man=cb(1.6*s,5.4*s,MH,.85*s,silver2);man.position.set(3.7*s,y,0);g.add(man);
  const rear=cb(1.8*s,4.4*s,2.4*s,.7*s,silver2);rear.position.set(-3.8*s,y-.1*s,0);g.add(rear);
  for(const sg of[-1,1]){const cap=cb(3.2*s,1.3*s,2.2*s,.45*s,steel);cap.position.set(-.4*s,y-.2*s,sg*3.45*s);g.add(cap);
   const st=new THREE.Mesh(new THREE.BoxGeometry(2.2*s,.14*s,.9*s),cyan);st.position.set(-.4*s,y+.4*s,sg*(3.45*s+.66*s)*.995);st.scale.z=.1;g.add(st);
   const ac=cb(2*s,.3*s,1.3*s,.1*s,accent);ac.position.set(1.2*s,y,sg*(2.9*s+.15*s));g.add(ac)}
- const zs=n===1?[0]:n===2?[-1.45*s,1.45*s]:[-1.8*s,0,1.8*s];
- zs.forEach(z=>{const p=port(rr);p.position.set(4.5*s,y,z);g.add(p);const b=railOut(L,rr);b.position.set(4.5*s,y,z);g.add(b)});
+ const zs=n===1?[[0,0]]:n===2?[[-1.45*s,0],[1.45*s,0]]:n===3?[[-1.8*s,0],[0,0],[1.8*s,0]]:[[-1.5*s,1.05*s],[1.5*s,1.05*s],[-1.5*s,-1.05*s],[1.5*s,-1.05*s]];
+ zs.forEach(([z,dy])=>{const p=port(rr);p.position.set(4.5*s,y+dy,z);g.add(p);const b=railOut(L,rr);b.position.set(4.5*s,y+dy,z);g.add(b)});
  if(n>=2){const tr=cb(L*.3,.4*s,3.4*s,.12*s,steel);tr.position.set(4.5*s+L*.45,y,0);g.add(tr)} // стяжка стволов
  return g}
 function gatTurret(s,tw){const g=new THREE.Group();g.add(base(s));const y=3.1*s;
@@ -82,9 +82,9 @@ function gatTurret(s,tw){const g=new THREE.Group();g.add(base(s));const y=3.1*s;
 // ---- композиция ----
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,600);
 const t=q.get('t');
-const mkT={rs:()=>railTurret(1.3,1),rm:()=>railTurret(1.3,2),rl:()=>railTurret(2.2,3),g1:()=>gatTurret(1.5,0),g2:()=>gatTurret(1.5,1)};
+const mkT={r1:()=>railTurret(1.5,1),r2:()=>railTurret(1.5,2),r3:()=>railTurret(1.5,3),r4:()=>railTurret(1.5,4),g1:()=>gatTurret(1.5,0),g2:()=>gatTurret(1.5,1)};
 if(t){const b=mkT[t]();sc.add(b);const az=+q.get('az')||.6,el=+q.get('el')||.3,d=+q.get('d')||40;cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(+q.get('lx')||4,+q.get('ly')||3,0)}
-else{const ks=['rs','rm','rl','g1','g2'];ks.forEach((k,i)=>{const b=mkT[k]();b.position.set(0,0,(i-2)*26);sc.add(b)});cam.position.set(90,40,10);cam.lookAt(5,3,0)}
+else{const ks=['r1','r2','r3','r4','g1','g2'];ks.forEach((k,i)=>{const b=mkT[k]();b.position.set(0,0,(i-2.5)*24);sc.add(b)});cam.position.set(100,46,10);cam.lookAt(5,3,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
 comp.render();window.done=true;
 </script>
