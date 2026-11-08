@@ -19,7 +19,7 @@ export const WEAR_MINE = 0.1;  // % износа в сутки добычи
 export const REPAIR_RATE = 8;  // % ремонта в сутки
 export const ORE_PER_SPARE = 4;
 export const EPOCH = Date.UTC(2200, 0, 1);
-export const SPEEDS = [{m:1,l:'1 мин'},{m:20,l:'20 мин'},{m:60,l:'1 час'},{m:180,l:'3 часа'},{m:480,l:'8 часов'},{m:1440,l:'1 день'},{m:7200,l:'5 дней'}];
+export const SPEEDS = [{m:1/60,l:'1 сек'},{m:2/60,l:'2 сек'},{m:5/60,l:'5 сек'},{m:.5,l:'30 сек'},{m:1,l:'1 мин'},{m:20,l:'20 мин'},{m:60,l:'1 час'},{m:180,l:'3 часа'},{m:480,l:'8 часов'},{m:1440,l:'1 день'},{m:7200,l:'5 дней'}];
 
 export const COMP = {
   ion:   {name:'Ионный двигатель', desc:'Мощность 20, экономичный', power:20, mass:5, eff:1, cost:{ti:15, ree:4, cu:10}},
@@ -634,7 +634,7 @@ export const stockOK = cost => Object.entries(cost).every(([k, v]) => (state.sto
 /* ===== НАЧАЛО ИГРЫ ===== */
 export function newGame() {
   state = {
-    t: 0, speedIdx: 1, paused: true,
+    t: 0, speedIdx: 5, spv: 2, paused: true,
     counters: {id: 0, ship: {}, station: {}},
     stock: {fe: 3000, ni: 800, ti: 600, cu: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100},
     bld: {mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 1, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},

@@ -551,7 +551,7 @@ document.addEventListener('keydown', e => {
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (e.code === 'Escape' && ui.tab !== 'obj') { showTab('obj'); }
   else if (e.code === 'Space') { e.preventDefault(); state.paused = !state.paused; }
-  else if (e.key >= '1' && e.key <= '7') { state.speedIdx = +e.key - 1; state.paused = false; }
+  else if (e.key >= '1' && e.key <= '7') { state.speedIdx = +e.key + 3; state.paused = false; }
   else if (e.key === 'Escape') closeDesigner();
 });
 $('speeds').addEventListener('click', e => {
@@ -578,10 +578,11 @@ export function frame(now) {
   else if (Battle.active() && state.demo) { if (!state.paused) Battle.frame(dt); }
   else if (!state.paused) {
     let days = dt * SPEEDS[state.speedIdx].m / 1440;
-    if (Battle.active()) days = Math.min(days, (Battle.hot() ? 4 : 300) * dt / 86400);
+    if (Battle.active()) days = Math.min(days, (Battle.hot() ? 40 : 300) * dt / 86400);
     advance(days); days_ = days;
   }
   if (hooks.bgStep) hooks.bgStep(WARM || state.paused || (Battle.active() && state.demo) ? 0 : days_, dt, state.paused ? 0 : SPEEDS[state.speedIdx].m / 1440);
+  if (!WARM && Battle.active() && !state.demo && !state.paused && (ui.skip > 0 || SPEEDS[state.speedIdx].m >= 1440)) { const sim = Battle.fastForward(10); state.t += sim / 86400; if (ui.skip > 0) ui.skip = Math.max(0, ui.skip - sim / 86400); } // перемотка: бой просчитывается мгновенно
   if (ui.skip > 0 && !Battle.active()) { const t0 = performance.now(); while (ui.skip > 1e-9 && performance.now() - t0 < 14) { const d = Math.min(0.25, ui.skip); advance(d); ui.skip -= d; } }
   if (!WARM && Battle.active()) { if (ui.bfollow) { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; } else if (ui.bship) { const q = Battle.anchorSel(), e = objPos('earth', state.t); if (q && q.alive) { ui.cam.x = e.x + q.x / 149597870.7; ui.cam.y = e.y + q.y / 149597870.7; } } Battle.hud(); }
   if (ui.follow) { const sp = selPos(); if (sp) { ui.cam.x = sp.x; ui.cam.y = sp.y; } }

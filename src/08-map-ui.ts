@@ -45,7 +45,7 @@ export const BELTS = [mkBelt(2600, 2.1, 3.3, 'rgba(150,160,175,0.55)', 0, 12345)
 /* ===== ШАПКА ===== */
 export function buildHeader() {
   $('speeds').innerHTML = `<button class="btn" id="bpause" title="Пауза (пробел)"></button>` +
-    SPEEDS.map((s, i) => `<button class="btn" data-sp="${i}" title="Клавиша ${i + 1}">${s.l}/с</button>`).join('') + `<button class="btn" id="bskip" title="Перемотать 5 суток вперёд">+5 сут</button>`;
+    SPEEDS.map((s, i) => `<button class="btn" data-sp="${i}" title="${i >= 4 ? 'Клавиша ' + (i - 3) : 'Скорость боя'}">${s.l}/с</button>`).join('') + `<button class="btn" id="bskip" title="Перемотать 5 суток вперёд">+5 сут</button>`;
 }
 export function refreshHeader() {
   $('clock').textContent = fmtDate(state.t);

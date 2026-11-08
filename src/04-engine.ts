@@ -469,7 +469,7 @@ export function loadGame() {
     if (!raw) return false;
     const s = JSON.parse(raw);
     if (!s || !s.ships || !s.designs || !s.stations) return false;
-    setState(s); state.inBattle = false; state.terra = state.terra || {};
+    setState(s); if (!state.spv) { state.speedIdx = (state.speedIdx || 0) + 4; state.spv = 2; } state.inBattle = false; state.terra = state.terra || {};
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 3e6; initCorps(); }
