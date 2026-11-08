@@ -350,9 +350,12 @@ if (wrap && bgo) {
           tiles.push({ ia: a, ib: b, f, px: x, py: f === 0 ? sg.cy + sg.h / 2 : f === 2 ? sg.cy - sg.h / 2 : sg.cy + off, pz: f === 1 ? sg.w / 2 : f === 3 ? -sg.w / 2 : off, len: Lk / cols, cs: sw / rows, c0: a / cols, c1: (a + 1) / cols, v: 0, wp: sg.weapon ? 1 : 0, sh: .85 + R() * .3, jit: R(), dx: (R() - .5) * .5, dz: (R() - .5) * .5 }) } }
     }
     const order = tiles.map((q, i) => i).filter(i => !(tiles[i].f === 0 && Math.abs(tiles[i].px - bx) < L * .06)).sort((a, b) => (tiles[b].wp - tiles[a].wp) + (R() - .5) * 1.4);
-    const mounts: any[] = [], hole = new Set<number>();
-    for (const i of order) { if (mounts.length >= needH) break; const q = tiles[i]; let ok = true; for (const m of mounts) if (m.face === q.f && Math.abs(m.x - q.px) < q.len * 1.6 && Math.hypot(m.y - q.py, m.z - q.pz) < cellT * 1.6) { ok = false; break } if (!ok) continue;
-      hole.add(i); mounts.push({ x: q.px, y: q.py, z: q.pz, face: q.f, sm: false }) }
+    const mounts: any[] = [], hole = new Set<number>(), rowsOf = (f: number) => gridRows[f];
+    for (const i of order) { if (mounts.length >= needH) break; const q = tiles[i]; let ok = true; for (const m of mounts) if (m.face === q.f && Math.abs(m.x - q.px) < q.len * 1.6 && Math.hypot(m.y - q.py, m.z - q.pz) < cellT * 2.4) { ok = false; break } if (!ok) continue;
+      hole.add(i); mounts.push({ x: q.px, y: q.py, z: q.pz, face: q.f, sm: false });
+      // симметрия: зеркальная точка относительно оси корабля (борт 1↔3, крыша/днище — по z)
+      if (Math.abs(q.pz) > cellT * .3) { const mf = q.f === 1 ? 3 : q.f === 3 ? 1 : q.f; const j = tiles.findIndex(t => t.f === mf && t.ia === q.ia && (q.f % 2 === 0 ? t.ib === rowsOf(q.f) - 1 - q.ib : t.ib === q.ib));
+        if (j >= 0 && !hole.has(j)) { const t2 = tiles[j]; hole.add(j); mounts.push({ x: t2.px, y: t2.py, z: t2.pz, face: t2.f, sm: false }) } } }
     for (let i = tiles.length - 1; i >= 0; i--) if (hole.has(i)) tiles.splice(i, 1); // в дырах башни и малые модули стоят прямо на обшивке
     // малые модули берут первые отверстия: размер = масса / 50 т на метр
     const NRM = [[0, 1, 0], [0, 0, 1], [0, -1, 0], [0, 0, -1]];
@@ -522,7 +525,7 @@ if (wrap && bgo) {
         continue }
       const axi = axL.indexOf(m), isAx = axi >= 0, f = isAx ? 0 : (m.face || 0), px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
       if (isAx) { const c = axPos[axi]; if (!c) continue; best = { x: xNose, y: c.y, z: c.z } }
-      else { for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
+      else { for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (Math.abs(q.z) + Math.abs(q.y)) ** 2 * .02 + (q.z > 0 ? 0 : u.L * u.L * 1e-7); if (d < bd) { bd = d; best = q } }
         if (!best) continue; best.used = true; placed.push(best) }
       const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'G' ? 160 : m.k === 'M' ? 320 : 9000, r0 = Math.max(mass / TON_L * .55 / (isAx ? 3 : 1), u.L * .0025), r = isAx ? Math.min(r0, axPos[axi].pitch * .45) : r0; // диаметр башни = масса / 50 т на метр
       const t = new THREE.Group(), lift = r * .3, zA = isAx || (best && best.plat) ? 0 : (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй

@@ -595,6 +595,11 @@ export function designStats(parts, flags) {
     for (let i = 0; i < 60; i++) T = M + Math.min(M * 6, ARM_K * (r.armW || 0) * Math.pow(Math.max(0.08, T / TON_L), 2)); // длина не меньше 80 м, иначе у малых кораблей броня ничего не весит
     r.armT = Math.round(T - M); r.dry = Math.round(T); r.L = Math.max(0.08, Math.min(6, T / TON_L));
   } else r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
+  if (r.warship) { // турели не лепятся друг на друга: суммарная площадь стоек ≤ доли наружной обшивки (~0.5·L² · 0.55)
+    let foot = 0, nt = 0; for (const [k, n] of Object.entries(parts)) { const c = compOf(k); if (!c || !n || !(c.rcfg || c.fcfg || c.gcfg || c.mcfg)) continue; const d = Math.max(c.mass / TON_L * .55, r.L * .0025) * 1.8; foot += d * d * n; nt += n }
+    const cap = .27 * r.L * r.L; r.turCap = cap > 0 ? Math.round(100 * foot / cap) : 0;
+    if (nt > 1 && foot > cap) r.errors.push(`Турели не помещаются на корпусе: заняли ${r.turCap}% доступной обшивки. Увеличьте корабль (броню/модули) или уберите часть орудий.`);
+  }
   r.bspd = r.power ? (r.warship ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.25)) : Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35))) : 1;
   if (r.warship && r.power && r.power / r.dry < 0.12) r.warns.push('Тяги мало для такого водоизмещения: корабль будет ползти. Добавьте двигатели (хорошо подходит размер «корабельный»).');
   r.buildDays = Math.max(1, Math.round((r.warship ? r.dry / TONS_K : r.dry) * 0.4));
