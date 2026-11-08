@@ -521,4 +521,4 @@ function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().cop
   if(!ge.attributes.normal)ge.computeVertexNormals();ge.deleteAttribute('uv');ge.deleteAttribute('color');ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
  for(const o of rm)o.parent&&o.parent.remove(o);
  for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(!mg)continue;const me=new THREE.Mesh(mg,mat);me.userData.keep=true;g.add(me)}}
-export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
+export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);if(g.userData.inner)g.userData.inner.visible=false;g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
