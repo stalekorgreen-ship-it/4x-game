@@ -32,49 +32,56 @@ function poly(pts,th,bev,mat){const sh=new THREE.Shape();pts.forEach((p,i)=>i?sh
 const T30=Math.tan(Math.PI/6);
 function cyl(r0,r1,len,mat,open){const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,len,8,1,!!open),mat);m.rotation.z=Math.PI/2;m.rotation.x=Math.PI/8;return m} // ось вдоль X: r0 у корпуса (+X), r1 на срезе (−X)
 
-// ---- осевое оружие ----
-function railGun(L,r){const g=new THREE.Group();
- const br=cb(L,r*1.3,r*1.3,r*.4,steel);br.position.x=L/2;g.add(br);
- const rails=cb(L*.8,r*.35,r*2.1,r*.1,silver2);rails.position.x=L*.55;g.add(rails);const rails2=cb(L*.8,r*2.1,r*.35,r*.1,silver2);rails2.position.x=L*.55;g.add(rails2);
- const nc=Math.max(3,Math.round(L/(r*2.4)));for(let i=0;i<nc;i++){const c=cb(r*.7,r*2.5,r*2.5,r*.7,i%2?silver:accent);c.position.x=L*.22+i*(L*.62/nc);g.add(c)}
+// ---- осевое оружие: выходит из корпуса через порт ----
+function port(r){const g=new THREE.Group();
+ const inn=cyl(r*1.5,r*1.5,r*1.4,dark,true);inn.material=dark.clone();inn.material.side=THREE.BackSide;inn.position.x=-r*.6;g.add(inn);
+ const rim=cyl(r*1.72,r*1.72,r*.34,accent,true);rim.position.x=r*.05;g.add(rim);
+ const rim2=cyl(r*1.9,r*1.9,r*.22,silver2,true);rim2.position.x=-r*.3;g.add(rim2);return g}
+function railOut(L,r){const g=new THREE.Group();
+ const br=cb(L+r*6,r*1.3,r*1.3,r*.4,steel);br.position.x=(L-r*6)/2;g.add(br);
+ const r1=cb(L*.8,r*.35,r*2.1,r*.1,silver2);r1.position.x=L*.5;g.add(r1);const r2=cb(L*.8,r*2.1,r*.35,r*.1,silver2);r2.position.x=L*.5;g.add(r2);
+ const nc=Math.max(2,Math.round(L/(r*2.6)));for(let i=0;i<nc;i++){const c=cb(r*.7,r*2.5,r*2.5,r*.7,i%2?silver:accent);c.position.x=L*.16+i*(L*.7/nc);g.add(c)}
  const mz=cb(r*1.8,r*2.3,r*2.3,r*.55,dark);mz.position.x=L+r*.5;g.add(mz);
  const mg=new THREE.Mesh(new THREE.CircleGeometry(r*.5,8),cyan);mg.rotation.y=Math.PI/2;mg.position.x=L+r*1.42;g.add(mg);
- const br2=cb(L*.22,r*3.2,r*3.2,r*.9,silver2);br2.position.x=L*.08;g.add(br2);
  return g}
-function laser(L,r){const g=new THREE.Group();
- const cap=cb(L*.34,r*4.4,r*4.4,r*1.2,silver2);cap.position.x=L*.17;g.add(cap);
- const cap2=cb(L*.22,r*3.4,r*3.4,r*.9,silver);cap2.position.x=L*.45;g.add(cap2);
- const barrel=cyl(r*.95,r*.8,L*.7,steel,false);barrel.position.x=L*.55;g.add(barrel);
- for(let i=0;i<5;i++){const t=.32+i*.14;const rg=cyl(r*1.55,r*1.55,L*.045,i%2?silver:accent,false);rg.position.x=L*t;g.add(rg)}
- const sh=cyl(r*2.2,r*1.3,L*.2,dark,true);sh.material=dark.clone();sh.material.side=THREE.DoubleSide;sh.position.x=L*.93;g.add(sh);
- const rim=cyl(r*2.35,r*2.35,L*.04,accent,true);rim.position.x=L*1.02;g.add(rim);
- const lens=new THREE.Mesh(new THREE.CircleGeometry(r*1.15,8),cyan);lens.rotation.y=Math.PI/2;lens.position.x=L*1.0;g.add(lens);
- // косые рёбра жёсткости 45° от ствола к капле
- for(let k=0;k<4;k++){const a=k*Math.PI/2+Math.PI/4;const fn=poly([[0,0],[L*.3,0],[L*.12,r*1.6],[0,r*1.6]],r*.22,r*.07,silver);fn.position.set(L*.3,0,0);const gg=new THREE.Group();gg.add(fn);fn.position.set(L*.14,r*.9,0);gg.rotation.x=a;g.add(gg)}
- // радиаторы по бокам конденсаторного блока
- for(const sg of[-1,1])for(let i=0;i<4;i++){const f=cb(L*.22,r*.12,r*1.6,r*.04,steel);f.position.set(L*.12+i*L*.08,0,sg*(r*2.2+r*.08));g.add(f)}
- return g}
-function noseBlock(v){const g=new THREE.Group();const r=1;
- // состав: оружие в (z,y,тип,размер)
- const W={a:[[0,0,'L',1.7]],b:[[-2.1,0,'R',1],[2.1,0,'R',1]],c:[[-2.1,-2.1,'R',.8],[2.1,-2.1,'R',.8],[-2.1,2.1,'R',.8],[2.1,2.1,'R',.8]],d:[[0,0,'L',1.4],[-5,0,'R',.8],[5,0,'R',.8]],e:[[0,0,'R',1.5],[-3.6,-1.2,'R',.7],[3.6,-1.2,'R',.7]]}[v];
- let zm=0,ym=0;for(const[z,y,t,s]of W){const e=t==='L'?2.6*s:2.2*s;zm=Math.max(zm,Math.abs(z)*1+e);ym=Math.max(ym,Math.abs(y)+e)}
- const Wd=zm*2+1,Hd=ym*2+1,Ln=Wd*1.05;
- // носовая надстройка: ступенчатый клин с гранями 30°, оружие выходит из передней плиты
- const rings=[{x:-Wd*1.6,w:Wd*.8,h:Hd*.8},{x:-Wd*1.6+Wd*.25,w:Wd,h:Hd},{x:-Wd*.5,w:Wd,h:Hd},{x:0,w:Wd*.86,h:Hd*.86},{x:Ln*.35,w:Wd*.7,h:Hd*.7},{x:Ln*.5,w:Wd*.66,h:Hd*.66}];
- g.add(new THREE.Mesh(loftR(rings),silver));
- const plate=cb(r*.6,Wd*.8,Hd*.8,r*.4,dark);plate.position.x=Ln*.5+r*.3;g.add(plate);
- const fl=cb(r*.3,Wd*.9,Hd*.9,r*.25,accent);fl.position.x=Ln*.5-r*.05;g.add(fl);
- for(const[z,y,t,s]of W){const o=t==='L'?laser(14*s*.8+4,s*r):railGun(12*s+4,s*r*.9);o.position.set(Ln*.5+r*.6,y,z);g.add(o)}
- // боковые крылья-стабилизаторы 45/30
- for(const sg of[-1,1]){const sp=Wd*.35,st=poly([[Ln*.3,0],[Ln*.3-sp,sp],[Ln*.3-sp-r*1.2,sp],[Ln*.3-sp-r*1.2+sp*T30*2,0]],r*.3,r*.1,silver);st.rotation.x=-Math.PI/2;st.position.set(-Wd*.4,0,sg*Wd*.5);if(sg>0)st.scale.set(1,1,-1);g.add(st)}
- // сокеты
- [[-Wd*.9,Hd/2,0],[-Wd*.4,Hd/2,Wd*.3],[-Wd*.4,Hd/2,-Wd*.3]].forEach(([x,y,z])=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(r*.6,r*.78,r*.22,8),dark);p.position.set(x,y+r*.1,z);g.add(p);const dot=new THREE.Mesh(new THREE.CylinderGeometry(r*.14,r*.14,r*.26,8),cyan);dot.position.copy(p.position);g.add(dot)});
- g.userData={Wd,Hd,Ln};return g}
+function laserOut(L,r){const g=new THREE.Group();
+ const barrel=cyl(r*1.0,r*.85,L*.88+r*6,steel,false);barrel.position.x=(L*.88-r*6)/2;g.add(barrel);
+ for(let i=0;i<4;i++){const rg=cyl(r*1.5,r*1.5,L*.05,i%2?silver:accent,false);rg.position.x=L*(.2+i*.15);g.add(rg)}
+ for(let k=0;k<4;k++){const fn=poly([[0,0],[L*.28,0],[L*.1,r*1.3],[0,r*1.3]],r*.2,r*.06,silver);const gg=new THREE.Group();fn.position.set(L*.05,r*.95,0);gg.add(fn);gg.rotation.x=k*Math.PI/2+Math.PI/4;g.add(gg)}
+ const sh=cyl(r*2.1,r*1.3,L*.2,dark,true);sh.material=dark.clone();sh.material.side=THREE.DoubleSide;sh.position.x=L*.93;g.add(sh);
+ const rim=cyl(r*2.25,r*2.25,L*.04,accent,true);rim.position.x=L*1.02;g.add(rim);
+ const lens=new THREE.Mesh(new THREE.CircleGeometry(r*1.1,8),cyan);lens.rotation.y=Math.PI/2;lens.position.x=L*1.0;g.add(lens);return g}
+function horn(len,w,h){return new THREE.Mesh(loftR([{x:0,w:w,h:h},{x:len*.7,w:w,h:h},{x:len,w:w*.82,h:h*.82}]),silver)}
+function noseBlock(v){const g=new THREE.Group();
+ const body=(x0,x1,w,h)=>new THREE.Mesh(loftR([{x:x0,w:w*.8,h:h*.8},{x:x0+w*.25,w,h},{x:x1,w,h}]),silver);
+ const put=(m,x,y,z)=>{m.position.set(x,y,z);g.add(m);return m};
+ const gun=(x,y,z,r,L)=>{put(port(r),x,y,z);put(railOut(L,r),x,y,z)};
+ const las=(x,y,z,r,L)=>{put(port(r*1.4),x,y,z);put(laserOut(L,r),x,y,z)};
+ if(v==='a'){ // один лазер: корпус сужается и охватывает ствол
+  put(new THREE.Mesh(loftR([{x:-14,w:6,h:6},{x:-11,w:7.6,h:7.6},{x:-2,w:7.6,h:7.6},{x:4,w:6.6,h:6.6},{x:9,w:5.4,h:5.4}]),silver),0,0,0);
+  const pl=cb(.7,5.4,5.4,.5,silver2);put(pl,9,0,0);las(9.3,0,0,1.5,15)}
+ if(v==='b'){ // два рельса
+  put(new THREE.Mesh(loftR([{x:-14,w:8,h:6},{x:-11,w:10,h:7.5},{x:-2,w:10,h:7.5},{x:4,w:9,h:6.8},{x:8,w:8.2,h:6}]),silver),0,0,0);
+  put(cb(.7,8.2,6,.5,silver2),8,0,0);for(const sg of[-1,1])gun(8.3,0,sg*2.5,1.05,13)}
+ if(v==='c'){ // четыре рельса
+  put(new THREE.Mesh(loftR([{x:-14,w:8,h:8},{x:-11,w:10,h:10},{x:-2,w:10,h:10},{x:4,w:9,h:9},{x:8,w:8.2,h:8.2}]),silver),0,0,0);
+  put(cb(.7,8.2,8.2,.5,silver2),8,0,0);for(const sy of[-1,1])for(const sg of[-1,1])gun(8.3,sy*2.2,sg*2.2,.85,12)}
+ if(v==='d'){ // «П»: рога по краям с пушками, лазер из центральной стенки
+  put(body(-14,3,16,8),0,0,0);
+  for(const sg of[-1,1]){const h=horn(11,4.4,6.4);put(h,0,0,sg*5.8);put(cb(.6,4.4*.82,6.4*.82,.4,silver2),11,0,sg*5.8);gun(11.2,0,sg*5.8,.95,10)}
+  put(cb(.8,6.2,5.5,.5,silver2),3.3,0,0);las(3.6,0,0,1.25,13)}
+ if(v==='e'){ // трезубец: центральный зуб с главным рельсом, короткие боковые
+  put(body(-14,2,16,8),0,0,0);
+  const hc=horn(10,6.2,7.2);put(hc,0,0,0);put(cb(.6,6.2*.82,7.2*.82,.4,silver2),10,0,0);gun(10.2,0,0,1.55,15);
+  for(const sg of[-1,1]){const h=horn(5.5,3.6,5);put(h,0,-.6,sg*6);put(cb(.6,3.6*.82,5*.82,.4,silver2),5.5,-.6,sg*6);gun(5.7,-.6,sg*6,.7,9)}}
+ // стабилизаторы 45/30
+ for(const sg of[-1,1]){const sp=5,st=poly([[-4,0],[-4-sp,sp],[-4-sp-1.4,sp],[-4-sp-1.4+sp*T30*2,0]],.5,.15,silver);st.rotation.x=-Math.PI/2;st.position.set(-3,0,sg*(v==='d'||v==='e'?8.2:5));if(sg>0)st.scale.set(1,1,-1);g.add(st)}
+ g.userData={};return g}
 // ---- композиция ----
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,600);
 const v=q.get('v');
 if(v){const b=noseBlock(v);sc.add(b);const az=+q.get('az')||.9,el=+q.get('el')||.3,d=+q.get('d')||46;cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(8,0,0)}
-else{const vs=['a','b','c','d','e'];vs.forEach((k,i)=>{const b=noseBlock(k);b.position.set(0,0,(i-2)*30);sc.add(b)});cam.position.set(120,46,20);cam.lookAt(6,0,0)}
+else{const vs=['a','b','c','d','e'];vs.forEach((k,i)=>{const b=noseBlock(k);b.position.set(0,0,(i-2)*34);sc.add(b)});cam.position.set(135,52,22);cam.lookAt(6,0,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
 comp.render();window.done=true;
 </script>
