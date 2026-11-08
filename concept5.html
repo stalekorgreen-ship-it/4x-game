@@ -66,6 +66,23 @@ function gatOut(L,r){const g=new THREE.Group();const R=1.15*r;
  for(let k=0;k<6;k++){const a=k*Math.PI/3;const hole=new THREE.Mesh(new THREE.CircleGeometry(r*.2,6),cyan);hole.rotation.y=Math.PI/2;hole.position.set(L*1.0+r*.56,Math.cos(a)*R,Math.sin(a)*R);g.add(hole)}
  const fd=cb(L*.25,r*1.4,r*1.2,r*.3,steel);fd.position.set(L*.1,r*1.9,0);g.add(fd);
  return g}
+// раскладка сопел в одной гондоле (до 8 штук)
+function podLayout(n,r){
+ if(n<=1)return[[0,0,1]];
+ if(n===2)return[[-1.5*r,0,1],[1.5*r,0,1]];
+ if(n===3)return[[-1.6*r,-.8*r,1],[1.6*r,-.8*r,1],[0,1.2*r,1]];
+ if(n===4)return[[-1.6*r,-1.6*r,1],[1.6*r,-1.6*r,1],[-1.6*r,1.6*r,1],[1.6*r,1.6*r,1]];
+ if(n===5)return[[-2.3*r,-1.9*r,.8],[2.3*r,-1.9*r,.8],[-2.3*r,1.9*r,.8],[2.3*r,1.9*r,.8],[0,0,1.3]];
+ if(n===6)return[[-3.4*r,-1.7*r,1],[0,-1.7*r,1],[3.4*r,-1.7*r,1],[-3.4*r,1.7*r,1],[0,1.7*r,1],[3.4*r,1.7*r,1]];
+ if(n===7){const o=[[0,0,1]];for(let k=0;k<6;k++){const a=k*Math.PI/3+Math.PI/6;o.push([Math.cos(a)*2.4*r,Math.sin(a)*2.4*r,.85])}return o} // цветок: центр + 6
+ const cols=Math.ceil(n/2),o=[];for(let i=0;i<n;i++){const rw=i<cols?0:1,inRow=rw?n-cols:cols,cl=rw?i-cols:i;o.push([(cl-(inRow-1)/2)*2.7*r,(rw-.5)*2.7*r,.85])}return o}
+const ext=(nz,r)=>{let zm=0,ym=0;for(const[z,y,s]of nz){zm=Math.max(zm,Math.abs(z)+r*1.85*s);ym=Math.max(ym,Math.abs(y)+r*1.85*s)}return[zm,ym]};
+// состав кормы: центр + боковые гондолы. До 8 — одна гондола; 9..23 — центр 7 и две боковые; больше — центр и шестиугольник из 6 гондол
+function sternPlan(n){
+ if(n<=8)return{c:n,pods:[],ring:0};
+ if(n<=23){const c=7,rest=n-c;return{c,pods:[Math.ceil(rest/2),Math.floor(rest/2)],ring:0}}
+ const c=(n-6)%6===0?6:7,rest=n-c,P=6,pods=[];for(let i=0;i<P;i++)pods.push(Math.floor(rest/P)+(i<rest%P?1:0));return{c,pods,ring:1}}
+
 function horn(len,w,h){const g=new THREE.Group();const m1=cb(len*.56,w,h,Math.min(w,h)*.26,silver);m1.position.x=len*.28;g.add(m1);
  const m2=cb(len*.46,w*.82,h*.82,Math.min(w,h)*.22,silver2);m2.position.x=len*.56+len*.2;g.add(m2);
  const pl=cb(len*.5,w*.5,h*.14,.15,steel);pl.position.set(len*.3,0,0);const t=pl.clone();t.position.y=h*.5+.05;g.add(t);const u=pl.clone();u.position.y=-h*.5-.05;g.add(u);
@@ -131,6 +148,20 @@ function noseBlock(v){const g=new THREE.Group();
   put(cb(8,6.5,.7,.2,steel),0,4.4,0);put(cb(8,6.5,.7,.2,steel),0,-4.4,0);
   for(const sg of[-1,1]){put(cb(7,.6,4.6,.2,accent),-3,0,sg*5.7);put(cb(4,.6,3,.2,steel),3,0,sg*5.2);put(cb(3.4,4.2,4.2,1,silver2),8.2,0,sg*2.7)}
   put(cb(.7,9.4,6.6,.5,silver2),7.7,0,0);for(const sg of[-1,1]){put(port(1.15),10,0,sg*2.7);put(gatOut(11,1.1),10,0,sg*2.7)}}
+ if(v==='x'){ // батарея: центр из 6-7 стволов и шестиугольник гондол, как у двигателей
+  const n=+q.get('n')||30,plan=sternPlan(n),r=.9;const pods=[];
+  const cs=plan.pods.length?1.25:1,ps=.8;const cen=podLayout(plan.c,r*cs);const[cz,cy]=ext(cen,r*cs);pods.push({z:0,y:0,nz:cen,s:cs,x:0,zm:cz,ym:cy});
+  plan.pods.forEach((m,i)=>{if(!m)return;const lay=podLayout(m,r*ps),[pz,py]=ext(lay,r*ps);let z,y;if(plan.ring){const a=i*Math.PI/3;const D=Math.max(cz,cy)+Math.max(pz,py)+r*.6;z=Math.cos(a)*D;y=Math.sin(a)*D*.85}else{const sg=i?1:-1;z=sg*(cz+pz+r*.8);y=0}
+   pods.push({z,y,nz:lay,s:ps,x:-2,zm:pz,ym:py})});
+  let zM=0,yM=0;for(const p of pods){zM=Math.max(zM,Math.abs(p.z)+p.zm);yM=Math.max(yM,Math.abs(p.y)+p.ym)}
+  const Wd=zM*2+2,Hd=yM*2+2;
+  put(cb(10,Wd*.8,Hd*.8,2.4,silver),-9,0,0);put(cb(8,Wd*.92,Hd*.92,2.2,silver2),-1.5,0,0);put(cb(4,Wd,Hd,2,silver),4,0,0);
+  put(cb(8,Wd*.5,.8,.3,steel),0,Hd*.5+.4,0);put(cb(8,Wd*.5,.8,.3,steel),0,-Hd*.5-.4,0);
+  for(const sg of[-1,1])put(cb(6,.7,Hd*.5,.25,accent),-3,0,sg*(Wd*.5+.35));
+  put(cb(.8,Wd,Hd,.6,accent),6.4,0,0);
+  pods.forEach((p,i)=>{if(i){const pf=cb(1.6,p.zm*2+.4,p.ym*2+.4,.6,silver2);put(pf,7.4+p.x*.2,p.y,p.z)}
+   for(const[zz,yy,s2]of p.nz){const rr=r*p.s*s2*.62;put(port(rr),7.2+p.x*.2+ (i?.8:0),p.y+yy,p.z+zz);put(railOut(i?8:11,rr),7.2+p.x*.2+(i?.8:0),p.y+yy,p.z+zz)}});
+ }
  // стабилизаторы 45/30
  for(const sg of[-1,1]){const sp=5,st=poly([[-4,0],[-4-sp,sp],[-4-sp-1.4,sp],[-4-sp-1.4+sp*T30*2,0]],.5,.15,silver);st.rotation.x=-Math.PI/2;st.position.set(-3,0,sg*(v==='d'||v==='e'?8.2:5));if(sg>0)st.scale.set(1,1,-1);g.add(st)}
  g.userData={};return g}
