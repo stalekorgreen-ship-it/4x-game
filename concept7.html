@@ -5,6 +5,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 const q=new URLSearchParams(location.search),W=+q.get('w')||1600,H=+q.get('h')||1000;
 const cv=document.getElementById('c');const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setSize(W,H,false);ren.setPixelRatio(1);ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=.85;
@@ -21,10 +22,13 @@ const silver=mk(0xa9b0bc,.8,.36),silver2=mk(0x8a929f,.8,.4),dark=mk(0x242a37,.7,
 const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
 const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
 
-const HU={uHits:{value:Array.from({length:64},()=>new THREE.Vector4(0,0,0,1e-3))},uNH:{value:0}};
-function weather(m,k,hit){m.onBeforeCompile=sh=>{sh.uniforms.uHits=HU.uHits;sh.uniforms.uNH=hit===false?{value:0}:HU.uNH;
+const HU={uHits:{value:Array.from({length:64},()=>new THREE.Vector4(0,0,0,1e-3))},uNH:{value:0},hoA:{value:Array.from({length:16},()=>new THREE.Vector4(1,0,0,1))},hoB:{value:Array.from({length:16},()=>new THREE.Vector4(0,1,0,1))},hoC:{value:Array.from({length:16},()=>new THREE.Vector4(0,0,0,0))},nHo:{value:0}};
+function weather(m,k,hit,holes){m.onBeforeCompile=sh=>{sh.uniforms.uHits=HU.uHits;sh.uniforms.uNH=hit===false?{value:0}:HU.uNH;sh.uniforms.uHoA=HU.hoA;sh.uniforms.uHoB=HU.hoB;sh.uniforms.uHoC=HU.hoC;sh.uniforms.uNHo=holes?HU.nHo:{value:0};
  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
- sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[64];uniform int uNH;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\nfloat vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return vn(p)*.55+vn(p*2.3)*.3+vn(p*5.1)*.15;}\n').replace('#include <color_fragment>',`#include <color_fragment>
+ sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[64];uniform int uNH;uniform vec4 uHoA[16],uHoB[16],uHoC[16];uniform int uNHo;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\nfloat vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return vn(p)*.55+vn(p*2.3)*.3+vn(p*5.1)*.15;}\n').replace('#include <color_fragment>',`#include <color_fragment>
+ float rimAcc=0.;
+ for(int hj=0;hj<16;hj++){if(hj>=uNHo)break;vec3 rl=vWP-uHoC[hj].xyz;float uu=dot(rl,uHoA[hj].xyz)/uHoA[hj].w,ww=dot(rl,uHoB[hj].xyz)/uHoB[hj].w;float dd=length(vec2(uu,ww));dd/=1.+.55*(fbm(rl*.45+uHoC[hj].w*7.)-.5)+.3*(fbm(rl*1.4+3.)-.5)+.12*(fbm(rl*4.)-.5);
+  if(dd<uHoC[hj].w)discard;rimAcc=max(rimAcc,1.-smoothstep(.0,.2,dd-uHoC[hj].w));}
  vec3 q=vWP+vec3(${k}.);
  vec3 big=floor(q/vec3(26.,15.,15.));float hz=h31(big+1.7);
  vec3 pal=vec3(1.);
@@ -46,8 +50,9 @@ function weather(m,k,hit){m.onBeforeCompile=sh=>{sh.uniforms.uHits=HU.uHits;sh.u
  float scr=h31(vec3(floor(q.y*8.),floor(q.z*8.),floor(q.x*.35)));scr=step(.955,scr)*(1.-smoothstep(.0,.14,abs(fract(q.y*8.+q.z*8.)-.5)));diffuseColor.rgb*=1.+scr*.5;
  float dirt=smoothstep(.5,1.,h31(floor(q*vec3(.5,1.6,1.6))))*.3+smoothstep(.65,1.,h31(floor(q*vec3(.15,.9,.9)+3.)))*.2;diffuseColor.rgb*=1.-dirt;
  for(int hi=0;hi<64;hi++){if(hi>=uNH)break;vec4 hv=uHits[hi];float dh=distance(vWP,hv.xyz)/hv.w;float jag=(fbm(vWP*1.1)-.5)*1.1+(fbm(vWP*4.)-.5)*.5;
-  float scorch=1.-smoothstep(1.1,2.6,dh+jag);float peel=1.-smoothstep(.55,1.45,dh+jag);float burn=1.-smoothstep(.0,1.05,dh);
-  diffuseColor.rgb*=1.-scorch*.55;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.62,.64,.68)*(.75+.4*fbm(vWP*9.)),peel*.92);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.025),burn*.9);}
+  float scorch=1.-smoothstep(1.0,1.9,dh+jag*.6);float peel=1.-smoothstep(.5,.85,dh+jag*.6);float burn=1.-smoothstep(.0,1.05,dh);
+  diffuseColor.rgb*=1.-scorch*.55;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.36,.38,.42)*(.7+.5*fbm(vWP*14.)),peel*.9);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.025),burn*.9);}
+ diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.04),vec3(.85,.32,.07),smoothstep(.75,1.,rimAcc)),rimAcc*.9);
  diffuseColor.rgb*=.82+.18*smoothstep(-1.,1.,vWP.y*.08+.4);`)};m.customProgramCacheKey=()=>'w'+k}
 weather(silver,1);weather(silver2,5);weather(steel,9);weather(accent,3);
 // ---- гранёные заготовки ----
@@ -318,6 +323,7 @@ function tower(g,x,y0,tiers){let y=y0;for(const[len,w,h,m]of tiers){const b=cb(l
  const dish=new THREE.Mesh(new THREE.CylinderGeometry(0,2.4,1.2,8,1,true),silver2);dish.position.set(x+top[0]*.25,y+.7,top[1]*.2);g.add(dish);
  const rd=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),cyan);rd.position.set(x,y+H+.3,0);g.add(rd)}
 
+const hullM=silver.clone();hullM.flatShading=false;weather(hullM,1,true,true);
 const innerM=mk(0x1b2434,.6,.5);weather(innerM,11,false);
 // плотный граненый корпус: 8 граней по 6 сегментов, кольцо каждые 1.2 ед. — для вмятин, дыр и сорванной обшивки
 function denseHull(R,mat,k,S0,dx0){const S=S0||12,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=(dx0||.6))xs.push(x);
@@ -327,7 +333,7 @@ function denseHull(R,mat,k,S0,dx0){const S=S0||12,N=8*S,xs=[];const x0=R[0].x,x1
   for(let e=0;e<8;e++){const p=ring[e],q2=ring[(e+1)%8];for(let j=0;j<S;j++){const u=j/S;P.push(x,p[1]+(q2[1]-p[1])*u,p[0]+(q2[0]-p[0])*u)}}}
  for(let r=0;r<xs.length-1;r++)for(let v=0;v<N;v++){const v2=(v+1)%N,a=r*N+v,b=r*N+v2,c2=(r+1)*N+v,d=(r+1)*N+v2;I.push(a,c2,b,b,c2,d)}
  const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(P,3));ge.setIndex(I);ge.computeVertexNormals();
- const m=new THREE.Mesh(ge,mat);m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
+ const m=new THREE.Mesh(toCreasedNormals(ge.clone(),.7),mat);m.userData.base=ge;m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -357,7 +363,7 @@ function spine(m){const g=new THREE.Group();
   [[0,.9,.9],[.05,1.2,1],[.3,1.1,.95],[.6,1.15,1],[.8,.9,.8],[.93,.55,.5],[1,.88,.9]]][cls];
  const R=prof.map(([t,w,h])=>({x:f(t),w:W*w,h:W*h*Hk*(cls===0?1.2:1.3)}));
  R.unshift({x:x0-6,w:R[0].w*.9,h:R[0].h*.9});
- {const hm=denseHull(R,silver,1);g.add(hm);g.userData.hull=hm;const inn=denseHull(R,innerM,.9,6,1.2);g.add(inn);g.userData.inner=inn}
+ {const hm=denseHull(R,hullM,1);g.add(hm);g.userData.hull=hm;const inn=denseHull(R,innerM,.9,6,1.2);g.add(inn);g.userData.inner=inn}
  const wAt=t=>{for(let i=0;i<prof.length-1;i++)if(t<=prof[i+1][0]){const k=(t-prof[i][0])/(prof[i+1][0]-prof[i][0]);return W*(prof[i][1]+(prof[i+1][1]-prof[i][1])*k)}return W*.2};
  const hAt=t=>wAt(t)*Hk*1.3;
  // двигательное гнездо и пояса
@@ -480,15 +486,14 @@ function makeDamage(ship,L){const hull=ship.userData.hull,inner=ship.userData.in
  const holes=[];
  // lobe: {c,rx,ry,th,depth,hole}; общая нормаль n; неровный контур шумом, валик по краю
  function deform(p,n,lobes){const t1=new THREE.Vector3().crossVectors(n,Math.abs(n.y)<.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).normalize(),t2=new THREE.Vector3().crossVectors(n,t1);
-  const pos=hull.geometry.attributes.position,v=new THREE.Vector3(),rel=new THREE.Vector3();
+  const pos=hull.userData.base.attributes.position,v=new THREE.Vector3(),rel=new THREE.Vector3();
   const infl=(vec,lb)=>{rel.copy(vec).sub(lb.c);const u0=rel.dot(t1),w0=rel.dot(t2),cs=Math.cos(lb.th),sn=Math.sin(lb.th),u=u0*cs+w0*sn,w=-u0*sn+w0*cs;let d=Math.hypot(u/lb.rx,w/lb.ry);d/=1+.45*(vnoise(rel.x*.3+lb.s,rel.y*.3,rel.z*.3)-.5)+.2*(vnoise(rel.x*.9,rel.y*.9+lb.s,rel.z*.9)-.5);return d};
   for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);let off=0;
    for(const lb of lobes){const d=infl(v,lb);if(d<1){const k=1-d;off=Math.max(off,lb.depth*Math.pow(k,.65))}else if(d<1.3)off=Math.min(off,0)-lb.depth*.1*(1-(d-1)/.3)*(1-off*0)}
    if(off!==0){v.addScaledVector(n,-off);pos.setXYZ(i,v.x,v.y,v.z)}}
-  for(const lb of lobes)if(lb.hole>0)holes.push({lb,infl,hr:lb.hole});
-  const F=hull.userData.full,I=[],c=new THREE.Vector3(),a=new THREE.Vector3();
-  for(let t=0;t<F.length;t+=3){c.set(0,0,0);for(let q2=0;q2<3;q2++){a.fromBufferAttribute(pos,F[t+q2]);c.add(a)}c.multiplyScalar(1/3);let cut=false;for(const h of holes){rel.copy(c);if(h.infl(c,h.lb)<h.hr){cut=true;break}}if(!cut)I.push(F[t],F[t+1],F[t+2])}
-  hull.geometry.setIndex(I);hull.geometry.computeVertexNormals();hull.geometry.computeBoundingSphere();
+  for(const lb of lobes)if(lb.hole>0&&holes.length<16){const cs=Math.cos(lb.th),sn=Math.sin(lb.th),i2=holes.length;holes.push(lb);
+   HU.hoA.value[i2].set(t1.x*cs+t2.x*sn,t1.y*cs+t2.y*sn,t1.z*cs+t2.z*sn,lb.rx);HU.hoB.value[i2].set(-t1.x*sn+t2.x*cs,-t1.y*sn+t2.y*cs,-t1.z*sn+t2.z*cs,lb.ry);HU.hoC.value[i2].set(lb.c.x,lb.c.y,lb.c.z,lb.hole);HU.nHo.value=holes.length}
+  hull.userData.base.computeVertexNormals();hull.geometry.dispose();hull.geometry=toCreasedNormals(hull.userData.base.clone(),.7);hull.geometry.computeBoundingSphere();
   for(const lb of lobes){const k=Math.max(1,Math.min(7,Math.round(lb.rx/lb.ry)));for(let i=0;i<k;i++){const o=k>1?(i/(k-1)-.5)*2*(lb.rx-lb.ry):0;addHit(lb.c.clone().addScaledVector(t1,o*Math.cos(lb.th)).addScaledVector(t2,o*Math.sin(lb.th)),lb.ry*(lb.ry<1?1.6:.85))}}}
  function crater(p,n,r,depth,lobes){deform(p,n,lobes);
   // сорванные детали
