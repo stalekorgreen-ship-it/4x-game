@@ -11,9 +11,9 @@ import { LAW_DEFAULT } from './12-state.ts';
 
 /* ===== СИМУЛЯЦИЯ ===== */
 export const CORP_LOD = 0.5; // сутки между шагами корабля корпорации
-export function advance(days) {
+export function advance(days, maxStep) {
   while (days > 1e-9) {
-    const h = Math.min(days, Battle.active() ? 1 / 86400 : 1 / 48);
+    const h = Math.min(days, Battle.active() ? 1 / 86400 : (maxStep || 1 / 48));
     state.t += h;
     yardTick(h); buildTick(h); colBuildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
     while (state.t >= state.nextOfficer) { graduate(); state.nextOfficer += academyInterval(); }

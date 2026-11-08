@@ -162,7 +162,7 @@ export function startDemo(kind, size) {
 }
 export function refreshDemo() {
   const p = $('p-demo'); if (!p) return;
-  setTimeout(() => colInit(p), 0);
+  setTimeout(() => colInit(p), 0); setTimeout(() => hooks.stressInit && hooks.stressInit(p), 0);
   if (!p._built) {
     p._built = true;
     p.innerHTML = `<div class="box"><h2>Бой-демо</h2><div class="help">Запускает случайное сражение у Земли, не влияющее на игру: можно посмотреть, как выглядят корабли, турели, повреждения и дым. Флоты подходят с разных сторон.</div>
@@ -230,7 +230,7 @@ function colInit(p) {
 }
 
 // Зрелая система: 12 заселённых тел, ~100 млрд человек, тысячи кораблей корпораций. Только для просмотра, лучше начать потом «Новую игру».
-export function matureSystem() {
+export function matureSystem(perCorp = 100, settle = 160, stCnt = 2, stEvery = 1) {
   const want = ['venus', 'mars', 'luna', 'phobos', 'deimos', 'ceres', 'vesta', 'pallas', 'hygiea', 'eros', 'davida'];
   const pool = BODIES.filter(b => COLONIZABLE(b.id) && !b.comet && !b.gen && !state.cols[b.id]).sort((a, b) => (b.d || 0) - (a.d || 0)).map(b => b.id);
   const ids = want.filter(id => BODY[id] && COLONIZABLE(id) && !state.cols[id]);
@@ -244,10 +244,10 @@ export function matureSystem() {
   let n = 0;
   for (const c of state.corps) {
     c.credits = 1e13;
-    for (let i = 0; i < 100; i++) { createCorpShip(c, i % 8 === 7 ? 't' : 'm'); n++; }
-    for (let i = 0; i < 2; i++) { const sp = pickStationSpot(c); if (sp) createCorpStation(c, sp); }
+    for (let i = 0; i < perCorp; i++) { createCorpShip(c, i % 8 === 7 ? 't' : 'm'); n++; }
+    if (state.corps.indexOf(c) % stEvery === 0) for (let i = 0; i < stCnt; i++) { const sp = pickStationSpot(c); if (sp) createCorpStation(c, sp); }
   }
-  for (let i = 0; i < 160; i++) advance(.25); // разлетаются по системе
+  for (let i = 0; i < settle; i++) advance(.25); // разлетаются по системе
   log(`Демо «зрелая система»: заселено тел ${ids.length}, население ~100 млрд, кораблей корпораций ${n}.`);
   return {cols: ids.length, ships: n};
 }
