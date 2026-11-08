@@ -384,7 +384,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    for(const sx of[-1,1]){const c=cyl(r*.75,r*.9,r*.5,steel);c.position.x=sx*(l/2+r*.25);t.add(c)}
    for(const px of[-.35,0,.35]){const band=cyl(r*1.06,r*1.06,.5,accent);band.position.x=px*l;t.add(band)}
    const gg=cb(l*.5,.12,.5,.05,cyan);gg.position.set(0,0,r*1.0);t.add(gg);return t};
-  const nTx=cls===2?2:3,rT=cls===2?1.7:2.3;
+  const nTx=P.tankN||(cls===2?2:3),rT=cls===2?1.7:2.3;
   for(const sg of[-1,1])for(let a=0;a<nTx;a++)for(const yy of[-1,1]){const xx=f(.74+a*.0)-0;const tt=.62+a*.12,t=tank(L*.1,rT);t.position.set(f(tt),yy*(rT+.15),sg*(wAt(tt)/2+rT+.3));g.add(t)}
   for(const sg of[-1,1]){const x1=f(.62)+(nTx-1)*L*.06,len=nTx*L*.12;put(cb(len,.5,rT*4.4,.2,steel),x1,0,sg*(wAt(.7)/2+.2));for(let a=0;a<=nTx;a++)put(cb(.6,rT*1.2,rT*4.6,.2,accent),f(.62)-L*.06+a*L*.12,0,sg*(wAt(.7)/2+rT*2.1+.4)).scale.set(1,1,.001)}
  }
@@ -425,7 +425,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    // ориентация: локальная ось X → нормаль
    if(N[1]){gp.rotation.z=N[1]>0?Math.PI/2:-Math.PI/2}else{gp.rotation.y=N[2]>0?-Math.PI/2:Math.PI/2}
    gp.position.set(...P);g.add(gp);
-   if(P.tr!==0){const kt=P.tl&&P.tl.length?P.tl[i%P.tl.length]:i%6,ts=sz/6.4*(tn>3000?.85:.55),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
+   if(P.tr!==0){const kt=P.tl&&P.tl.length?P.tl[i%P.tl.length]:i%6,ts=sz/6.4*(tn>3000?.5:.34),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
  g.userData.sockets=SOC;
  if(tn>3000){
   for(const sg of[-1,1])for(const t0 of[.16,.78]){const wA=wAt(t0),hA=hAt(t0);faceDeco(g,f(t0),0,sg*(wA/2+.05),L*.14,hA*.6,'z',sg)}
