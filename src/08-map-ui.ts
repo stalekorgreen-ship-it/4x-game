@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, FUEL_K, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
 import { nebula, eventKind, eventArt } from './17-art.ts';
@@ -341,7 +341,7 @@ export function refreshObj() {
   if (ui.sel.kind === 'ship') {
     const s = state.ships.find(x => x.id === ui.sel.id); if (!s) return;
     const g = groupOf(s), load = cargoTotal(s), cargoTxt = Object.entries(s.cargo).filter(([, v]) => v > 0.05).map(([k, v]) => `${RES[k]} ${fmtN(v)}`).join(', ') || 'пусто';
-    const range = s.fuel / fuelPerAU(s);
+    const range = s.fuel / Math.max(1e-9, fuelPerAU(s));
     const tags = [s.st.tow ? 'тягач' : '', s.st.tanker ? 'танкер' : '', s.st.cargoCap ? 'грузовой' : ''].filter(Boolean).join(', ');
     od.innerHTML = `<div class="box"><div><span class="dot" style="background:${groupColor(s)}"></span><b class="grow">${esc(s.name)}</b> <span class="muted">${tags}</span> ${mk('sh:' + s.id)}</div>
       <div class="muted">${g ? 'Группа «' + esc(g.name) + '»' : 'Без группы'}${s.interrupt ? ' · возвращается по правилу' : ''}</div>
@@ -354,7 +354,7 @@ export function refreshObj() {
       ${s.towing ? `<div>На буксире: <b>${esc(nameOf(s.towing))}</b> (${fmtN(massOf(s.towing))} т, лимит ${fmtN(s.st.tow)} т)</div>` : ''}
       ${s.towedBy ? `<div class="warn">Его тащит «${esc(nameOf('sh:' + s.towedBy))}»</div>` : ''}
       <div class="stats"><span>Скорость сейчас</span><span>${fmtN(shipSpeed(s), 3)} а.е./сут</span>
-      <span>Дальность на топливе</span><span>${fmtN(range, 1)} а.е.</span>
+      <span>Дальность на топливе</span><span>${fmtN(range * 0.1496, 2)} млрд км</span>
       <span>Масса с грузом</span><span>${fmtN(shipMass(s))} т</span>
       <span>Добыча</span><span>${fmtN(s.st.mine)} т/сут</span></div></div>`;
     return;

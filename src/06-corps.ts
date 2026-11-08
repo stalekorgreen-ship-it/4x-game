@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
+import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
 import { FC, GOODS, popTaxDay, popTick } from './07-population.ts';
@@ -105,7 +105,7 @@ export function corpMine(s, h) {
     if (T.wait > state.t) return false;
     if (!isBase(s.at)) { T.ph = 'back'; return false; }
     serve(s, s.at);
-    const fpa = fuelPerAU(s) * 1.7, c = corpById(s.corp), bases = allBases();
+    const fpa = fuelPlanAU(s) * 1.7, c = corpById(s.corp), bases = allBases();
     let best = null, bs = 0;
     const cd = minePool();
     for (const q of cd) {
@@ -121,7 +121,7 @@ export function corpMine(s, h) {
   if (T.ph === 'out') { if (!travel(s, T.tgt, h)) return false; T.ph = 'mine'; }
   if (T.ph === 'mine') { if (execOrder(s, {type: 'mine', target: T.tgt, res: 'all', pct: 90}, h)) T.ph = 'back'; return false; }
   if (T.ph === 'back') {
-    const fpa = fuelPerAU(s) * 1.1;
+    const fpa = fuelPlanAU(s) * 1.1;
     if (!T.dest || s.at === T.dest) {
       if (T.wait > state.t) return false;
       T.dest = null;
@@ -147,7 +147,7 @@ export function corpTank(s, h) {
   if (T.ph === 'load') {
     if (s.at !== 'earth') { T.ph = 'ret'; return false; }
     serve(s, 'earth');
-    const fpa = fuelPerAU(s) * 1.3; let best = null, bn = 0;
+    const fpa = fuelPlanAU(s) * 1.3; let best = null, bn = 0;
     for (const st of ownStations(c)) {
       const need = st.st.fuelCap - st.fuel; if (need < 30) continue;
       const d = dist(E, objPos('st:' + st.id, state.t)); if (d * 2 * fpa > s.fuel * 0.9) continue;
@@ -159,7 +159,7 @@ export function corpTank(s, h) {
   if (T.ph === 'go') {
     const st = state.stations.find(x => x.id === T.st); if (!st) { T.ph = 'ret'; return false; }
     if (!travel(s, 'st:' + st.id, h)) return false;
-    const reserve = fuelPerAU(s) * dist(s, E) * 1.3, amt = Math.max(0, Math.min(s.fuel - reserve, st.st.fuelCap - st.fuel));
+    const reserve = fuelFor(s, dist(s, E)) * 1.3, amt = Math.max(0, Math.min(s.fuel - reserve, st.st.fuelCap - st.fuel));
     s.fuel -= amt; st.fuel += amt;
     const sp = Math.min(st.st.spareCap - st.spares, 40); if (sp > 0 && c.credits > sp * PRICE.spares * 0.5) { st.spares += sp; c.credits -= sp * PRICE.spares * 0.5; }
     if (amt > 1) log(`Танкер «${c.name}» доставил на станцию «${st.name}» ${fmtN(amt)} т топлива.`);

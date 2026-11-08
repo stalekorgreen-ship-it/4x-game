@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { colBuildTick } from './19-colbld.ts';
-import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
+import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, fuelFor, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
 import { veinEff } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
 import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed } from './03-build.ts';
@@ -131,7 +131,7 @@ export function checkRules(s, prog) {
     if (r.cond === 'fuel' && s.fuel / s.st.fuelCap * 100 <= r.val) return r;
     if (r.cond === 'cond' && shipCond(s) <= r.val) return r;
     if (r.cond === 'fuelhome') {
-      const need = fuelPerAU(s) * dist(s, objPos('earth', state.t));
+      const need = fuelFor(s, dist(s, objPos('earth', state.t)));
       if (s.fuel < need * r.val / 100) return r;
     }
   }
@@ -191,10 +191,10 @@ export function shipTickInner(s, h) {
 export function travel(s, tid, h) {
   if (s.at === tid) return true;
   if (s.at && !s.corp) { // на старте: хватит ли топлива долететь и вернуться к ближайшей базе
-    const P = objPos(tid, state.t), fpa = fuelPerAU(s) * 1.1;
+    const P = objPos(tid, state.t);
     let R = 0;
     if (!isBase(tid)) { R = dist(P, objPos('earth', state.t)); for (const x of state.stations) if (!x.towedBy && !x.corp) R = Math.min(R, dist(P, objPos('st:' + x.id, state.t))); }
-    const need = (dist(s, P) + R) * fpa;
+    const need = fuelFor(s, dist(s, P) + R) * 1.1;
     if (need > s.fuel + 1e-9 && need < 1e8) { s.status = `Не хватает топлива до цели: нужно ${fmtN(need, 1)} т, есть ${fmtN(s.fuel, 1)} т. Нужны станции дозаправки.`; return false; }
   }
   if (s.broken) { s.status = 'Двигатель неисправен!'; return false; }
@@ -386,9 +386,9 @@ export function execOrder(s, o, h) {
         if (!best) { s.status = 'Кометы закончились'; return true; }
         s.tmp.c = best;
       }
-      if (s.at !== s.tmp.c && s.fuel < fuelPerAU(s) * (dist(s, objPos(s.tmp.c, state.t)) + dist(objPos(s.tmp.c, state.t), objPos('earth', state.t))) * 1.15 + 1) { s.status = 'Нужна заправка перед вылетом'; return true; }
+      if (s.at !== s.tmp.c && s.fuel < fuelFor(s, dist(s, objPos(s.tmp.c, state.t)) + dist(objPos(s.tmp.c, state.t), objPos('earth', state.t))) * 1.15 + 1) { s.status = 'Нужна заправка перед вылетом'; return true; }
       if (!travel(s, s.tmp.c, h)) return false;
-      if (s.fuel < fuelPerAU(s) * dist(s, objPos('earth', state.t)) * 1.3 + 1) { s.status = 'Мало топлива: нужна заправка'; return true; }
+      if (s.fuel < fuelFor(s, dist(s, objPos('earth', state.t))) * 1.3 + 1) { s.status = 'Мало топлива: нужна заправка'; return true; }
       s.fuel = Math.max(0, s.fuel - s.st.power / Math.max(0.2, s.st.eff) * 0.02 * h);
       const ores = state.ast[s.tmp.c], ks = Object.keys(ores).filter(k => ores[k] > 0), tot = left(s.tmp.c);
       const m = Math.min(s.st.power * 1e7 * h, tot);
@@ -429,7 +429,7 @@ export function execOrder(s, o, h) {
       if (!st || !s.st.xfer) return true;
       if (failed(s, 'xfer')) { s.status = 'Передача топлива неисправна'; return true; }
       if (!travel(s, o.target, h)) return false;
-      const reserve = fuelPerAU(s) * dist(s, objPos('earth', state.t)) * 1.3;
+      const reserve = fuelFor(s, dist(s, objPos('earth', state.t))) * 1.3;
       const amt = Math.max(0, Math.min(s.fuel - reserve, st.st.fuelCap - st.fuel));
       s.fuel -= amt; st.fuel += amt; if (amt > 0.5) useWear(s, 'xfer', 3, 0.02);
       if (amt > 0.5) log(`«${s.name}» передал станции «${st.name}» ${fmtN(amt)} т топлива.`);
@@ -449,7 +449,7 @@ export function execOrder(s, o, h) {
       }
       const x = shById(s.tmp.target);
       if (!x) return true;
-      const reserve = fuelPerAU(s) * dist(s, objPos('earth', state.t)) * 1.3;
+      const reserve = fuelFor(s, dist(s, objPos('earth', state.t))) * 1.3;
       if (s.fuel <= reserve) { s.status = 'Мало топлива для передачи'; return true; }
       if (!travel(s, s.tmp.target, h)) return false;
       const amt = Math.max(0, Math.min(s.fuel - reserve, x.st.fuelCap - x.fuel));

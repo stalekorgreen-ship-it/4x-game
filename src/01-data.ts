@@ -381,7 +381,9 @@ export function massOf(id) {
 }
 export const shipMass = s => s.st.dry + s.fuel + cargoTotal(s) + (s.towing ? massOf(s.towing) : 0);
 export const shipSpeed = s => s.st.power / shipMass(s) * SPEED_K * pilSpeed(s);
-export const fuelPerAU = s => shipMass(s) * FUEL_K / s.st.eff * pilFuel(s);
+export const fuelPerAU = s => (shipMass(s) - s.fuel) * FUEL_K / s.st.eff * pilFuel(s); // расход считается от массы без топлива: иначе дальность упиралась бы в потолок КПД/K
+export const fuelFor = (s, d) => fuelPerAU(s) * d;
+export const fuelPlanAU = (s, d = 2) => fuelFor(s, d) / d;
 export const fmtN = (n, d = 0) => Math.abs(n) >= 1e15 ? Number(n).toExponential(1).replace('e+', 'e').replace('.', ',') : Math.abs(n) >= 1e12 ? fmtN0(n / 1e12, 2) + ' трлн' : Math.abs(n) >= 1e9 ? fmtN0(n / 1e9, 1) + ' млрд' : fmtN0(n, d);
 const NF = {};
 export const fmtN0 = (n, d = 0) => (NF[d] || (NF[d] = new Intl.NumberFormat('ru-RU', {maximumFractionDigits: d, minimumFractionDigits: d}))).format(Number(n));
@@ -564,7 +566,7 @@ export function designStats(parts, flags) {
   r.tons = r.dry;
   const massFull = r.dry + r.fuelCap;
   r.speedFull = r.power ? r.power / massFull * SPEED_K : 0;
-  r.range = r.power && r.fuelCap ? r.fuelCap / (massFull * FUEL_K / r.eff) : 0;
+  r.range = r.power && r.fuelCap && r.dry ? r.fuelCap / (r.dry * FUEL_K / r.eff) : 0;
   if (r.dry === 0) r.errors.push('Проект пуст.');
   if (!r.station) {
     if (!r.power) r.errors.push('Нужен хотя бы один двигатель.');

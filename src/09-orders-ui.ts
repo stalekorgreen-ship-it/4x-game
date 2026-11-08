@@ -219,7 +219,7 @@ export function refreshYardInfo() {
   if (!d) { el.innerHTML = '<div class="help">Нет проектов. Откройте конструктор.</div>'; return; }
   const st = dStats(d);
   el.innerHTML = `<div class="stats"><span>Стоимость</span><span>${costTxt(st.cost)}</span><span>Время постройки</span><span>${st.buildDays} сут</span>
-    <span>Скорость</span><span>${mps(st.speedFull)}</span><span>Дальность</span><span>${fmtN(st.range, 1)} а.е.</span></div>` +
+    <span>Скорость</span><span>${mps(st.speedFull)}</span><span>Дальность</span><span>${fmtN(st.range * 0.1496, 2)} млрд км</span></div>` +
     (stockOK(st.cost) ? '' : `<div class="warn">Не хватает на складе: ${lackTxt(st.cost)}</div>`) +
     st.errors.map(e => `<div class="err">${e}</div>`).join('') + st.warns.map(e => `<div class="warn">${e}</div>`).join('');
 }
@@ -298,7 +298,7 @@ export function renderDesigner(full) {
   $('dstats').innerHTML = `<div class="stats">
     <span>Водоизмещение (без топлива)</span><span>${fmtN(s.dry)} т</span>${s.warship ? `<span>Длина (50 т на метр)</span><span>${fmtN(s.L * 1000)} м${s.armT ? ' · броня ' + fmtN(s.armT) + ' т' : ''}</span>` : ''}<span>Мощность двигателей</span><span>${fmtN(s.power)}</span>
     <span>КПД двигателей</span><span>${fmtN(s.eff, 2)}</span><span>Скорость (полный бак)</span><span>${mps(s.speedFull)}</span>
-    <span>Дальность на баке</span><span>${fmtN(s.range, 1)} а.е.</span><span>Топливо</span><span>${fmtN(s.fuelCap)} т</span>
+    <span>Дальность на баке</span><span>${fmtN(s.range * 0.1496, 2)} млрд км</span><span>Топливо</span><span>${fmtN(s.fuelCap)} т</span>
     <span>Груз</span><span>${fmtN(s.cargoCap)} т</span><span>Добыча</span><span>${fmtN(s.mine)} т/сут</span>
     <span>Экипаж: нужно / мест</span><span>${s.crewNeed} / ${s.crewCap}</span><span>Жизнеобеспечение</span><span>на ${s.lifeCap}</span>
     ${s.tow ? `<span>Буксир</span><span>до ${fmtN(s.tow)} т</span>` : ''}${s.xfer ? '<span>Передача топлива</span><span>есть</span>' : ''}${s.repair ? '<span>Ремонтный док</span><span>есть</span>' : ''}${s.spareCap ? `<span>Склад тех. изделий</span><span>${fmtN(s.spareCap)}</span>` : ''}
