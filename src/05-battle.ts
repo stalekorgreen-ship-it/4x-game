@@ -63,7 +63,7 @@ const FORMS=['wedge','claw','x','sphere'];
 function mdead(s,m){if(!m.alive)return;m.alive=false;s.aliveN--;if(m.k==='E')s.engN--;else if(m.k==='R')s.rcsN--;else if(m.k==='D')s.radN--}
 function mrev(s,m){m.alive=true;s.aliveN++;if(m.k==='E')s.engN++;else if(m.k==='R')s.rcsN++;else if(m.k==='D')s.radN++}
 function addFlights(sh,ty,total){
-  const q=sh.spec[ty==='F'?'fq':'bq'],D=CR_DEF[ty],P=Object.assign({},ty==='F'?FI:BO);{const g=k=>q&&Number.isFinite(q[k])?q[k]:D[k];P.hp=g('hp');P.vmax=g('vmax');P.a=g('a');P.fuel=g('fuel');P.ammo=g('ammo');P.ng=g('ng');P.dmg=g('dmg');P.cd=g('cd');P.gun=g('gun')||P.gun;P.mass=g('mass');P.trail=q&&q.trail||null}
+  const q=sh.spec[ty==='F'?'fq':'bq'],D=CR_DEF[ty],P=Object.assign({},ty==='F'?FI:BO);{const g=k=>q&&Number.isFinite(q[k])?q[k]:D[k];P.hp=g('hp');P.vmax=g('vmax');P.a=g('a');P.fuel=g('fuel');P.ammo=g('ammo');P.ng=g('ng');P.dmg=g('dmg');P.cd=g('cd');P.gun=g('gun')||P.gun;P.mass=g('mass');P.trail=q&&q.trail||null;P.eng=q&&q.eng||2;P.arm=q&&q.arm||0;P.mk=ty==='F'?P.eng+'-'+(P.ng||2)+'-'+Math.min(8,Math.round(P.arm/2))+'-'+(P.fuel>1500?1:0):''}
   const per=ty==='F'?10:5,nfl=Math.ceil(total/per);let left=total;const f0=(sh.uid||0)%4;
   for(let f=0;f<nfl;f++){const n=Math.min(per,left);left-=n;
     const fl={side:sh.side,type:ty,home:sh,cr:[],mode:'bay',svc:0,t0:0,leader:null,lane:(f-(nfl-1)/2)*(ty==='F'?18:30),form:ty==='F'?FORMS[(f+f0)%4]:'wedge',a0:Math.random()*6.283,lost:0,broken:false};
@@ -256,6 +256,9 @@ function steer(s,dt){
             if(best){const ax=best.x-tg.x,ay=best.y-tg.y,al=Math.hypot(ax,ay)||1;s.cp={x:best.x+ax/al*best.r,y:best.y+ay/al*best.r,until:t+R(25,45)};stat.cover=(stat.cover||0)+1}}}}
       if(s.cp&&t<s.cp.until)hold={x:s.cp.x,y:s.cp.y,face:Math.atan2(uy,ux),spd:.9,cover:1}}
   }
+  if(tg)s.lastTg=t;else if(s.lastTg==null)s.lastTg=t;
+  if(!hold&&!tg&&!flee&&!T.role&&s.T.eng>0&&t-s.lastTg>40){ // потеряли врага из виду и стоим: идём к ближайшему вражескому кораблю, а не ждём на месте
+    const nn=nearestShip(s.x,s.y,1-s.side);if(nn&&nn.s&&nn.s.alive&&nn.d>6)hold={x:nn.s.x,y:nn.s.y,face:null,spd:.9}}
   s.holdK=hold&&(hold.cover?'cover':hold.escort?'escort':'');
   if(flee&&tg&&!hold){vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
   else if(hold){const ex=hold.x-s.x,ey=hold.y-s.y,ed=Math.hypot(ex,ey)||1,sp=Math.min(vm*hold.spd,ed*.25+.005);vx=ex/ed*sp;vy=ey/ed*sp;want=hold.face!=null?hold.face:ed>6?Math.atan2(vy,vx):(tg?Math.atan2(uy,ux):Math.atan2(F.dy,F.dx));if(ed>60)boost=Math.max(boost,Math.min(1.6,1+(ed-60)/150))}

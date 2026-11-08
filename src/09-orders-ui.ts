@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { techArt } from './17-art.ts';
-import { syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
+import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
@@ -268,7 +268,7 @@ function pv3d(on, refresh?) {
   if (on === false) { clearTimeout(pvT); h.hidden = true; ui.dpv = false; hooks.preview3dOff && hooks.preview3dOff(); const b = $('dpvb'); if (b) b.classList.remove('on'); return; }
   if (on === true) { ui.dpv = true; h.hidden = false; const b = $('dpvb'); if (b) b.classList.add('on'); }
   const d = curDesign(); if (!ui.dpv || !d) return;
-  clearTimeout(pvT); pvT = setTimeout(() => { if (ui.dpv && hooks.preview3d) hooks.preview3d(d.parts, h); }, refresh ? 120 : 30);
+  clearTimeout(pvT); pvT = setTimeout(() => { if (ui.dpv && hooks.preview3d) hooks.preview3d(d.parts, h, d.craft ? (st => st.dry > 0 ? { ...craftFromStats(st), mk: 'pv' } : null)(designStats(d.parts, { craft: true })) : null); }, refresh ? 120 : 30);
 }
 export function renderDesigner(full) {
   const d = curDesign(); if (!d) return;

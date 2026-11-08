@@ -555,7 +555,7 @@ export function designStats(parts, flags) {
     if (c.lcfg) for (let i = 0; i < n; i++) r.lasList.push(c.lcfg);
     r.ammoCap = (r.ammoCap || 0) + (c.ammoCap || 0) * n; r.energy = (r.energy || 0) + (c.en || 0) * n;
     if (c.mcfg) for (let i = 0; i < n; i++) r.misList.push(c.mcfg);
-    if (c.trail) r.trail = c.trail; if (c.fq && c.fq.trail) r.fqTrail = c.fq.trail;
+    if (c.trail) r.trail = c.trail; if (c.fq && c.fq.trail) r.fqTrail = c.fq.trail; if (c.fq && c.fq.eng) { r.fqEng = c.fq.eng; r.fqArm = c.fq.arm; }
     r.lgun += (c.lgun || 0) * n; r.msl += (c.msl || 0) * n;
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
@@ -573,7 +573,7 @@ export function designStats(parts, flags) {
     r.energyLeft = ws ? Math.max(0, (r.energy || 0) - ed) : (r.energy || 0); }
   r.eff = r.power ? effSum / r.power : 1;
   r.defl = r.armor ? r.defl / r.armor : 0;
-  if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; if (r.fqTrail) r.fq.trail = r.fqTrail; }
+  if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; if (r.fqTrail) r.fq.trail = r.fqTrail; if (r.fqEng) { r.fq.eng = r.fqEng; r.fq.arm = r.fqArm; } }
   if (r.hangB) { r.bq = {}; for (const k of CR_KEYS) r.bq[k] = r.bqS[k] / r.hangB; }
   r.fire = r.railList.reduce((a, q) => a + q.dmg * q.shells * 60 / (60 * q.rel), 0);
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
@@ -715,7 +715,7 @@ export function craftFromStats(st) {
   for (const q of st.railList) { dps += q.dmg * q.shells / Math.max(0.2, 60 * q.rel); ng++; rng = Math.max(rng, q.rng * 0.1); }
   for (const q of st.gatList) { dps += 1.2; ng++; rng = Math.max(rng, 4); }
   ng = Math.min(8, ng); const cd = 0.8, dmg = ng ? dps * cd / ng : 0;
-  return {n: 10, hp: Math.max(3, Math.min(40, Math.round(3 + (st.armor || 0) * 1.5 + st.dry / 50))), vmax, a: vmax * .125, fuel: Math.max(120, Math.min(3600, burn)), ammo: Math.min(600, Math.round((st.ammoCap || 0) * 10)), ng, dmg, cd, gun: Math.max(3, Math.min(9, rng)), mass: Math.round(st.dry), torp: 0, trail: st.trail || null, mps: Math.round(mps)};
+  return {n: 10, hp: Math.max(3, Math.min(40, Math.round(3 + (st.armor || 0) * 1.5 + st.dry / 50))), vmax, a: vmax * .125, fuel: Math.max(120, Math.min(3600, burn)), ammo: Math.min(600, Math.round((st.ammoCap || 0) * 10)), ng, dmg, cd, gun: Math.max(3, Math.min(9, rng)), mass: Math.round(st.dry), torp: 0, trail: st.trail || null, mps: Math.round(mps), eng: Math.max(1, st.engines || 1), arm: st.armor || 0};
 }
 // ангар теперь вмещает настоящие истребители из проекта
 export function syncCraftOpts() { const o = COMP.hangar_f.opts[0]; o.vals = craftList().map(d => ({v: d.id, l: d.name})); }
