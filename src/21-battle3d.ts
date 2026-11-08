@@ -233,7 +233,7 @@ if (wrap && bgo) {
     { const NS = 56, xe = x1 + L * .05, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [], NR = RING.length;
       if (RL) { // настоящий корабль: отдельные блоки-модули со скошенными гранями, встык, без наложений
         for (const e of seg) parts.push(chamPrism(e.len, e.h, e.w, e.c, e.col, e.cy, e.cx));
-        const lst0 = seg[seg.length - 1], nl = L * .1; parts.push(chamPrism(nl, lst0.h, lst0.w, Math.min(lst0.h, lst0.w) * .28, shade(P.main, 1.1), lst0.cy, x1 + nl / 2, .42)); // клиновидный нос
+        const lst0 = seg[seg.length - 1], nl = L * .2; parts.push(chamPrism(nl * .55, lst0.h, lst0.w, Math.min(lst0.h, lst0.w) * .3, shade(P.main, 1.1), lst0.cy, x1 + nl * .275, .55)); parts.push(chamPrism(nl * .45, lst0.h * .55, lst0.w * .55, Math.min(lst0.h, lst0.w) * .12, shade(P.main, 1.2), lst0.cy - lst0.h * .1, x1 + nl * .55 + nl * .225, .3)); // клиновидный нос
         // тёмные стыки между модулями
         for (let i = 1; i < seg.length; i++) { const a2 = seg[i - 1], b2 = seg[i], hh = Math.min(a2.h, b2.h), ww = Math.min(a2.w, b2.w); parts.push(piece(unitBox, 0x0e1014, (a2.cx + a2.len / 2 + b2.cx - b2.len / 2) / 2, (a2.cy + b2.cy) / 2, 0, L * .003, hh * .96, ww * .96)) }
       } else {

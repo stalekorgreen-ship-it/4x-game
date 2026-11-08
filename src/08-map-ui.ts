@@ -135,6 +135,7 @@ export function drawMap() {
   for (const b of BODIES) {
     if (b.kind === 'sun' || (b.kind === 'moon' && b.r * ui.cam.k < 6)) continue;
     const bp = objPos(b.id, state.t), [x, y] = w2s(bp);
+    if (x < -120 || y < -120 || x > W + 120 || y > H + 120) continue; // за экраном не рисуем
     if (tsn() > .02 && bp.z && Math.abs(zlift(bp.z)) > 4 && b.kind !== 'moon' && (b.kind !== 'ast' || selB === b.id || b.sci || ui.cam.k > 150)) { cx.strokeStyle = 'rgba(130,170,230,.22)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + zlift(bp.z)); cx.stroke(); cx.beginPath(); cx.ellipse(x, y + zlift(bp.z), 2.5, 1.2, 0, 0, 7); cx.stroke(); }
     let r = b.kind === 'moon' ? 2 : 2.6, col = '#8f8878';
     if (b.kind === 'ast' && selB !== b.id) r = Math.min(2.6, Math.max(.7, .8 + .5 * Math.log10(Math.max(1, ui.cam.k / 30))));
