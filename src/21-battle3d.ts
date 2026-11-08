@@ -427,7 +427,7 @@ if (wrap && bgo) {
       g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: true, bevelThickness: .03, bevelSize: .015, bevelSegments: 1 }); g.translate(0, 0, -.5); g.rotateX(Math.PI / 2) }
     return (tileGeos[v] = g) }
   const tileMat = new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true });
-  const thL = (u: any) => Math.max(.001, u.L * .0034); // толщина слоя (преувеличена, чтобы слои были видны)
+  const thL = (u: any) => Math.max(.001, u.L * .0034 * Math.max(1, Math.min(8, (((u.s && u.s.zones && u.s.zones[0] && u.s.zones[0].arm) || 1)) / 10))); // толщина слоя (преувеличена, чтобы слои были видны)
   function buildTiles(s: any, g: THREE.Group, _placed: any[]) {
     const u = g.userData; if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } if (!u.tilesL || !u.tilesL.length) return;
     const tiles = u.tilesL as any[], PALc = PAL[s.side]; let cnt = 0; u.arm = []; const col = new THREE.Color();

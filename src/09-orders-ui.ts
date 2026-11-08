@@ -219,7 +219,7 @@ export function refreshYardInfo() {
   if (!d) { el.innerHTML = '<div class="help">Нет проектов. Откройте конструктор.</div>'; return; }
   const st = dStats(d);
   el.innerHTML = `<div class="stats"><span>Стоимость</span><span>${costTxt(st.cost)}</span><span>Время постройки</span><span>${st.buildDays} сут</span>
-    <span>Скорость</span><span>${fmtN(st.speedFull, 3)} а.е./сут</span><span>Дальность</span><span>${fmtN(st.range, 1)} а.е.</span></div>` +
+    <span>Скорость</span><span>${mps(st.speedFull)}</span><span>Дальность</span><span>${fmtN(st.range, 1)} а.е.</span></div>` +
     (stockOK(st.cost) ? '' : `<div class="warn">Не хватает на складе: ${lackTxt(st.cost)}</div>`) +
     st.errors.map(e => `<div class="err">${e}</div>`).join('') + st.warns.map(e => `<div class="warn">${e}</div>`).join('');
 }
@@ -254,6 +254,7 @@ export function yardChange(c, el) {
 
 /* ===== КОНСТРУКТОР ===== */
 export function curDesign() { return state.designs.find(d => d.id === ui.dsel); }
+const mps = v => fmtN(Math.round(v * 1.7314e6)) + ' м/с'; // 1 а.е./сут = 1,731·10⁶ м/с
 export function openDesigner() {
   if (!curDesign()) ui.dsel = state.designs[0] ? state.designs[0].id : null;
   if (!curDesign()) { const d = {id: uid(), name: 'Новый проект', parts: {}, prio: {cmd: 0, eng: 0, pil: 0, min: 0}}; state.designs.push(d); ui.dsel = d.id; }
@@ -275,25 +276,28 @@ export function renderDesigner(full) {
   if (full) $('dname').value = d.name;
   $('dflags').innerHTML = prioHtml(d); if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
     <label><input type="checkbox" data-flag="tanker" ${d.tanker ? 'checked' : ''}> Танкер <span class="muted">(передаёт топливо станциям и кораблям)</span></label>`;
-  const ctl = (k, n) => `<span class="ct"><button class="btn sm" data-dp="${k}" data-dd="-1" aria-label="Меньше">−</button><b>${n}</b><button class="btn sm" data-dp="${k}" data-dd="1" aria-label="Больше">+</button></span>`;
+  const ctl = (k, n) => `<span class="ct">${[-25, -5, -1].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Меньше">${v < -1 ? '−' + -v : '−'}</button>`).join('')}<b>${n}</b>${[1, 5, 25].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Больше">${v > 1 ? '+' + v : '+'}</button>`).join('')}</span>`;
   const used = b => Object.keys(d.parts).filter(k => d.parts[k] > 0 && baseOf(k) === b);
   const tab = ui.dtab || 'build';
   const tabs = `<div class="dtabs"><button class="btn sm${tab === 'build' ? ' on' : ''}" data-dtab="build">Сборка</button><button class="btn sm${tab === 'ship' ? ' on' : ''}" data-dtab="ship">На корабле (${Object.values(d.parts).reduce((a, n) => a + n, 0)})</button></div>`;
   if (tab === 'ship') {
     const rows = Object.keys(d.parts).filter(k => d.parts[k] > 0 && compOf(k)).sort();
     $('dcomps').innerHTML = tabs + (rows.length ? rows.map(k => { const q = compOf(k), n = d.parts[k]; return `<div class="comp"><span class="nm">${q.name}</span><span class="ds">${q.desc}</span><span class="ds">${crewLabel(q, n)} · ${q.armW ? 'масса по длине корабля' : q.mass + ' т × ' + n + ' = ' + fmtN(q.mass * n, 1) + ' т'} · ${costTxt(Object.fromEntries(Object.entries(q.cost).map(([r, v]) => [r, v * n])))}</span>${ctl(k, n)}</div>`; }).join('') : '<div class="help">Пока ничего не установлено. Перейдите на вкладку «Сборка».</div>');
-  } else
-  $('dcomps').innerHTML = tabs + Object.entries(COMP).filter(([b, c]) => !c.tech || techOn(c.tech) || used(b).length).map(([b, c]) => {
+  } else {
+  const CAT = {ion: 'Двигатели', chem: 'Двигатели', fusion: 'Двигатели', reactor: 'Энергия', tank: 'Топливо и грузы', cargo: 'Топливо и грузы', xfer: 'Топливо и грузы', rail: 'Оружие', gat: 'Оружие', flak: 'Оружие', lgun: 'Оружие', missile: 'Оружие', ammo: 'Оружие', armor: 'Защита', dcon: 'Защита', sink: 'Защита', irs: 'Сенсоры и РЭБ', ems: 'Сенсоры и РЭБ', radar: 'Сенсоры и РЭБ', fcs: 'Сенсоры и РЭБ', ew: 'Сенсоры и РЭБ', cabin: 'Экипаж', life: 'Экипаж', marines: 'Экипаж', hangar_f: 'Авиация', hangar_b: 'Авиация'}, CATS = ['Двигатели', 'Энергия', 'Топливо и грузы', 'Оружие', 'Защита', 'Сенсоры и РЭБ', 'Экипаж', 'Авиация', 'Прочее'], hid = ui.dcatc || (ui.dcatc = {});
+  const rowsC = {};
+  Object.entries(COMP).filter(([b, c]) => !c.tech || techOn(c.tech) || used(b).length).forEach(([b, c]) => { (rowsC[CAT[b] || 'Прочее'] = rowsC[CAT[b] || 'Прочее'] || []).push([b, c]) });
+  $('dcomps').innerHTML = tabs + CATS.filter(n => rowsC[n]).map(n => { const cnt = rowsC[n].reduce((a, [b]) => a + used(b).reduce((x, k) => x + d.parts[k], 0), 0); return `<button class="dcat" data-cat="${n}">${hid[n] ? '▸' : '▾'} ${n}${cnt ? ' · ' + cnt : ''}</button>` + (hid[n] ? '' : rowsC[n].map(([b, c]) => {
     if (!c.opts) return `<div class="comp"><span class="nm">${c.name}</span><span class="ds">${c.desc} · ${c.armW ? 'масса по длине корабля' : c.mass + ' т'} · ${costTxt(c.cost)} · ${crewLabel(c)}</span>${ctl(b, d.parts[b] || 0)}</div>`;
     const cur = ui.dopt[b] || {}, key = mkKey(b, cur), cc = compOf(key);
     const sels = c.opts.map(p => p.range ? (v => `<label>${p.name}: <b>${v}%</b><span class="rg"><input type="range" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"><input type="number" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"></span></label>`)(snapPct(cur[p.id] || p.def)) : `<label>${p.name}<select data-op="${b}" data-oi="${p.id}">${p.vals.map(v => `<option value="${v.v}"${v.v === (cur[p.id] || p.def) ? ' selected' : ''}>${v.l}</option>`).join('')}</select></label>`).join('');
     const others = used(b).filter(k => k !== key).map(k => { const q = compOf(k); return `<div class="vr"><span>${q.name} <span class="muted">${q.desc} · ${q.armW ? 'масса по длине' : q.mass + ' т'}</span></span>${ctl(k, d.parts[k])}</div>`; }).join('');
     return `<div class="comp cfg"><span class="nm">${cc.name}</span><div class="opts">${sels}</div><span class="ds">${cc.desc} · ${cc.armW ? 'масса по длине корабля' : cc.mass + ' т'} · ${costTxt(cc.cost)} · ${crewLabel(cc)}</span>${ctl(key, d.parts[key] || 0)}${used(b).length ? `<span class="ds">Всего этого типа на корабле: ${used(b).reduce((a, k) => a + d.parts[k], 0)}</span>` : ''}</div>`;
-  }).join('');
+  }).join('')) }).join(''); }
   const s = dStats(d), aff = stockOK(s.cost);
   $('dstats').innerHTML = `<div class="stats">
     <span>Водоизмещение (без топлива)</span><span>${fmtN(s.dry)} т</span>${s.warship ? `<span>Длина (50 т на метр)</span><span>${fmtN(s.L * 1000)} м${s.armT ? ' · броня ' + fmtN(s.armT) + ' т' : ''}</span>` : ''}<span>Мощность двигателей</span><span>${fmtN(s.power)}</span>
-    <span>КПД двигателей</span><span>${fmtN(s.eff, 2)}</span><span>Скорость (полный бак)</span><span>${fmtN(s.speedFull, 3)} а.е./сут</span>
+    <span>КПД двигателей</span><span>${fmtN(s.eff, 2)}</span><span>Скорость (полный бак)</span><span>${mps(s.speedFull)}</span>
     <span>Дальность на баке</span><span>${fmtN(s.range, 1)} а.е.</span><span>Топливо</span><span>${fmtN(s.fuelCap)} т</span>
     <span>Груз</span><span>${fmtN(s.cargoCap)} т</span><span>Добыча</span><span>${fmtN(s.mine)} т/сут</span>
     <span>Экипаж: нужно / мест</span><span>${s.crewNeed} / ${s.crewCap}</span><span>Жизнеобеспечение</span><span>на ${s.lifeCap}</span>
@@ -309,9 +313,10 @@ export function renderDesigner(full) {
   $('dlist').addEventListener('click', e => { const it = e.target.closest('[data-d]'); if (it) { ui.dsel = +it.dataset.d; renderDesigner(true); } });
   $('dcomps').addEventListener('click', e => {
     const tb = e.target.closest('[data-dtab]'); if (tb) { ui.dtab = tb.dataset.dtab; renderDesigner(false); return; }
+    const ct = e.target.closest('[data-cat]'); if (ct) { const h = ui.dcatc || (ui.dcatc = {}); h[ct.dataset.cat] = !h[ct.dataset.cat]; renderDesigner(false); return; }
     const b = e.target.closest('[data-dp]'); if (!b) return;
     const d = curDesign(), k = b.dataset.dp;
-    d.parts[k] = Math.min(100, Math.max(0, (d.parts[k] || 0) + +b.dataset.dd)); if (!d.parts[k]) delete d.parts[k];
+    d.parts[k] = Math.min(999, Math.max(0, (d.parts[k] || 0) + +b.dataset.dd)); if (!d.parts[k]) delete d.parts[k];
     renderDesigner(false);
   });
   $('dcomps').addEventListener('change', e => {
