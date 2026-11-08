@@ -394,6 +394,11 @@ if (wrap && bgo) {
     if (!want) { if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } return }
     const placed: any[] = [], free: any[] = (u.mounts || []).map((q: any) => ({ ...q, used: !!q.sm })), r = Math.max((u.cell || u.L * .02) * .42, .004);
     const N = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1)];
+    // осевые орудия: вварены в носовую плиту лицом вперёд; первое по центру, остальные кругами к краям, не налезая друг на друга
+    const axL: any[] = []; for (const z of s.zones) for (const m of z.mods) if (m.cfg && m.cfg.ax && 'TAGLM'.includes(m.k) && !(m.k === 'L' && m.cfg.dur)) axL.push(m);
+    const axPos: any[] = (() => { const n = axL.length; if (!n) return []; const sg = (u.seg && u.seg[u.seg.length - 1]) || { w: u.W, h: u.H, cy: 0 }, Wn = sg.w * .62, Hn = sg.h * .62, cols = Math.max(1, Math.ceil(Math.sqrt(n * Wn / Math.max(1e-9, Hn)))), rows = Math.ceil(n / cols), pitch = Math.min(Wn / cols, Hn / rows), cells: any[] = [];
+      for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) cells.push({ y: (sg.cy || 0) + (i - (rows - 1) / 2) * pitch, z: (j - (cols - 1) / 2) * pitch, pitch }); cells.sort((a, b) => Math.hypot(a.y, a.z) - Math.hypot(b.y, b.z) || a.z - b.z); return cells.slice(0, n) })();
+    const xNose = (u.x1 != null ? u.x1 : u.L * .34) + u.L * .05;
     for (const z of s.zones) for (const m of z.mods) if ((m.k === 'T' || m.k === 'A' || m.k === 'G' || m.k === 'L' || m.k === 'M') && tg.children.length < 200) {
       if (m.k === 'L' && m.cfg && m.cfg.dur) { // боевой лазер встроен в центр корпуса: ствол по оси корабля, линза на носу
         if (!(g as any).userData.laser) { const Lh = u.L, r = Math.max(Math.min((m.cfg.lens || 20) / 1000 * .5, Lh * .12), Lh * .012), cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
@@ -401,11 +406,12 @@ if (wrap && bgo) {
           const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); g.add(hm);
           const lens = new THREE.Mesh(geoSph, new THREE.MeshBasicMaterial({ color: 0x7fe3ff, toneMapped: false })); lens.scale.set(r * .25, r * .85, r * .85); lens.position.set(Lh * .5 + r * .45, 0, 0); g.add(lens); (g as any).userData.laser = { lens, m } }
         continue }
-      const f = m.face || 0, px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
-      for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
-      if (!best) continue; best.used = true; placed.push(best);
-      const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'G' ? 160 : m.k === 'M' ? 320 : 9000, r = Math.max(mass / TON_L * .55, u.L * .0025); // диаметр башни = масса / 50 т на метр
-      const t = new THREE.Group(), lift = r * .3, zA = (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
+      const axi = axL.indexOf(m), isAx = axi >= 0, f = isAx ? 0 : (m.face || 0), px = (m.u || 0) * u.L * .8; let best: any = null, bd = 1e18;
+      if (isAx) { const c = axPos[axi]; if (!c) continue; best = { x: xNose, y: c.y, z: c.z } }
+      else { for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
+        if (!best) continue; best.used = true; placed.push(best) }
+      const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'G' ? 160 : m.k === 'M' ? 320 : 9000, r0 = Math.max(mass / TON_L * .55 / (isAx ? 3 : 1), u.L * .0025), r = isAx ? Math.min(r0, axPos[axi].pitch * .45) : r0; // диаметр башни = масса / 50 т на метр
+      const t = new THREE.Group(), lift = r * .3, zA = isAx ? 0 : (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
       const nb = m.k === 'T' || (m.k === 'G' && m.cfg && m.cfg.tw) ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
@@ -414,8 +420,8 @@ if (wrap && bgo) {
       { const hm = new THREE.Mesh(mergeGeometries(hp, false)!, hullMat); head.add(hm) }
       const fl = new THREE.Mesh(geoSph, flashMat); fl.scale.setScalar(r * .5); fl.position.copy(tips[0].position); fl.position.z = 0; fl.visible = false; head.add(fl);
       // основание ориентируем по нормали грани
-      t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), N[f]); t.position.set(best.x, best.y, best.z);
-      (t as any).userData = { m, fl, head, n: N[f], r: r * 1.6, lr: 0, tips }; tg.add(t); u.mods.push(m); (u.turMap = u.turMap || new Map()).set(m, t);
+      const nv = isAx ? new THREE.Vector3(1, 0, 0) : N[f]; t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nv); t.position.set(best.x - (isAx ? r * .6 : 0), best.y, best.z);
+      (t as any).userData = { m, fl, head, ax: isAx, n: nv, r: r * 1.6, lr: 0, tips }; tg.add(t); u.mods.push(m); (u.turMap = u.turMap || new Map()).set(m, t);
     }
     buildTiles(s, g, placed);
   }
@@ -642,6 +648,7 @@ if (wrap && bgo) {
           let d: THREE.Vector3 | null = null; const fa = (m.fa != null && m.rt && np - m.rt < 1800) ? m.fa : null;
           if (fa != null) { const hd = tgt0 ? Math.max(1e-3, Math.hypot(tgt0.x - s.x, tgt0.y - s.y)) : 1; d = new THREE.Vector3(Math.cos(fa), tgt0 ? (tgt0.z - s.z) / hd : 0, Math.sin(fa)) } else if (tgt0) { d = new THREE.Vector3(tgt0.x - s.x, tgt0.z - s.z, tgt0.y - s.y) }
           if (!d || d.lengthSq() < 1e-9) return; d.normalize().applyQuaternion(inv); const n: THREE.Vector3 = t.userData.n, dn = d.dot(n); if (dn < .02) d.addScaledVector(n, .02 - dn).normalize();
+          if (t.userData.ax) { const ang = Math.acos(Math.max(-1, Math.min(1, d.dot(n)))); if (ang > .175) { const qq = new THREE.Quaternion().setFromUnitVectors(n, d); d.copy(n).applyQuaternion(new THREE.Quaternion().slerp(qq, .175 / ang)) } } // осевое: конус ±10°
           // базис башни: x — на цель, y — по нормали (в её локальных осях основание уже повёрнуто к нормали)
           const lq = t.quaternion.clone().invert(), dl = d.clone().applyQuaternion(lq); // направление в системе основания, y — вверх
           const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dl.lengthSq() ? dl.normalize() : new THREE.Vector3(1, 0, 0)); t.userData.head.quaternion.slerp(q, .12);

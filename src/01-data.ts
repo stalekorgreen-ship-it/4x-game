@@ -8,6 +8,10 @@ import { H, bar } from './08-map-ui.ts';
 'use strict';
 /* ===== ДАННЫЕ ===== */
 export const SAVE_KEY = 'poyas4x-save-v8';
+export const AU_M = 1.496e11;      // метров в а.е.
+export const TRAVEL_WARP = 100;    // ускорение перелётов в игре: формульные м/с слишком медленны для игровых суток; на расход топлива на а.е. не влияет
+export const FUEL_S = 1.8e-10;      // масштаб расхода: т/с на (мощность двигателя)² при КПД 1
+export const BAT_FUEL_T = 20000;   // 1 секунда боя = столько секунд работы двигателей (для расхода топлива в бою)
 export const SPEED_K = 0.25;   // а.е./сутки на (мощность/масса)
 export const FUEL_K = 0.5;       // т топлива на а.е. на тонну массы / КПД
 export const WEAR_AU = 1.0;    // % износа на а.е. пути
@@ -380,8 +384,11 @@ export function massOf(id) {
   return 0;
 }
 export const shipMass = s => s.st.dry + s.fuel + cargoTotal(s) + (s.towing ? massOf(s.towing) : 0);
-export const shipSpeed = s => s.st.power / shipMass(s) * SPEED_K * pilSpeed(s);
-export const fuelPerAU = s => (shipMass(s) - s.fuel) * FUEL_K / s.st.eff * pilFuel(s); // расход считается от массы без топлива: иначе дальность упиралась бы в потолок КПД/K
+// скорость, м/с = мощность двигателей / (масса корабля без топлива / 2) · 1000; здесь в а.е./сут
+export const shipSpeedTrue = s => s.st.power / Math.max(1e-9, (shipMass(s) - s.fuel) / 2) * 1000 * 86400 / AU_M * pilSpeed(s);
+export const shipSpeed = s => shipSpeedTrue(s) * TRAVEL_WARP; // фактическая скорость перелёта, а.е./сут
+// расход на а.е.: двигатели жгут (мощность одного)² · (K/КПД) · (1 − доля объёма двигателей) т/с, на пути времени уходит d / скорость
+export const fuelPerAU = s => { const sp = shipSpeedTrue(s); if (!(sp > 0)) return 1e9; const fr = s.st.fuelRate != null ? s.st.fuelRate : (shipMass(s) - s.fuel) * FUEL_K / s.st.eff * sp / 86400; return fr * 86400 * pilFuel(s) / sp; };
 export const fuelFor = (s, d) => fuelPerAU(s) * d;
 export const fuelPlanAU = (s, d = 2) => fuelFor(s, d) / d;
 export const fmtN = (n, d = 0) => Math.abs(n) >= 1e15 ? Number(n).toExponential(1).replace('e+', 'e').replace('.', ',') : Math.abs(n) >= 1e12 ? fmtN0(n / 1e12, 2) + ' трлн' : Math.abs(n) >= 1e9 ? fmtN0(n / 1e9, 1) + ' млрд' : fmtN0(n, d);
@@ -494,6 +501,14 @@ export function massParts(sp) {
   const L = T / TON_L, armor = Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L);
   return {T, parts: o, smalls: sm, armor};
 }
+// --- осевое крепление: орудие вварено в нос лицом вперёд (±10°), вес в 3 раза меньше, остальные параметры те же ---
+for (const b of ['rail', 'gat', 'flak', 'lgun', 'missile']) {
+  COMP[b].opts.push(O('mnt', 'Крепление', 't', [['t', 'турель'], ['a', 'осевое (вес ÷3, только вперёд ±10°)']]));
+  const ap0 = COMP[b].ap;
+  COMP[b].ap = (c, s) => { ap0(c, s); if (s.mnt && s.mnt.v === 'a') { c.mass = Math.max(.1, Math.round(c.mass / 3 * 10) / 10); c.ax = 1;
+    for (const k of ['rcfg', 'fcfg', 'gcfg', 'lcfg', 'mcfg']) if (c[k]) { c[k] = {...c[k], ax: 1}; if (c[k].mass != null) c[k].mass = c.mass; }
+    c.name += ' · осевое'; c.desc = 'ОСЕВОЕ (в носу, ±10°, вес ÷3): ' + c.desc; } };
+}
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
 export function designStats(parts, flags) {
@@ -504,7 +519,7 @@ export function designStats(parts, flags) {
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
     r.dry += c.mass * n; r.armW = (r.armW || 0) + (c.armW || 0) * n;
-    r.power += (c.power || 0) * n * tm('thrust'); r.engDraw = (r.engDraw || 0) + (c.power || 0) * n * 0.5; if (c.power) r.engM = (r.engM || 0) + c.mass * n;
+    r.power += (c.power || 0) * n * tm('thrust'); if (c.power) r.fuelS = (r.fuelS || 0) + Math.pow(c.power * tm('thrust'), 2) * n * FUEL_K / Math.max(.05, c.eff || 1) * FUEL_S; r.engDraw = (r.engDraw || 0) + (c.power || 0) * n * 0.5; if (c.power) r.engM = (r.engM || 0) + c.mass * n;
     effSum += (c.power || 0) * (c.eff || 0) * n;
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
@@ -565,8 +580,9 @@ export function designStats(parts, flags) {
   r.buildDays = Math.max(1, Math.round((r.warship ? r.dry / TONS_K : r.dry) * 0.4));
   r.tons = r.dry;
   const massFull = r.dry + r.fuelCap;
-  r.speedFull = r.power ? r.power / massFull * SPEED_K : 0;
-  r.range = r.power && r.fuelCap && r.dry ? r.fuelCap / (r.dry * FUEL_K / r.eff) : 0;
+  { const share = r.dry ? (r.engM || 0) / r.dry * 100 : 0, f = r.engFactor || 1; r.fuelRate = (r.fuelS || 0) * (1 - Math.min(.9, share / 100)) * f * f; } // т/с на полной тяге
+  r.speedFull = r.power && r.dry ? r.power / (r.dry / 2) * 1000 * 86400 / AU_M : 0;
+  r.range = r.speedFull && r.fuelCap ? r.fuelCap / (r.fuelRate * 86400 / r.speedFull) : 0;
   if (r.dry === 0) r.errors.push('Проект пуст.');
   if (!r.station) {
     if (!r.power) r.errors.push('Нужен хотя бы один двигатель.');

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, FUEL_K, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, state, storeTotal } from './01-data.ts';
+import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, FUEL_K, AU_M, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, shipSpeedTrue, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
 import { nebula, eventKind, eventArt } from './17-art.ts';
@@ -353,7 +353,7 @@ export function refreshObj() {
       <div class="muted">${cargoTxt}</div>
       ${s.towing ? `<div>На буксире: <b>${esc(nameOf(s.towing))}</b> (${fmtN(massOf(s.towing))} т, лимит ${fmtN(s.st.tow)} т)</div>` : ''}
       ${s.towedBy ? `<div class="warn">Его тащит «${esc(nameOf('sh:' + s.towedBy))}»</div>` : ''}
-      <div class="stats"><span>Скорость сейчас</span><span>${fmtN(shipSpeed(s), 3)} а.е./сут</span>
+      <div class="stats"><span>Скорость сейчас</span><span>${fmtN(Math.round(shipSpeedTrue(s) * AU_M / 86400))} м/с</span>
       <span>Дальность на топливе</span><span>${fmtN(range * 0.1496, 2)} млрд км</span>
       <span>Масса с грузом</span><span>${fmtN(shipMass(s))} т</span>
       <span>Добыча</span><span>${fmtN(s.st.mine)} т/сут</span></div></div>`;
