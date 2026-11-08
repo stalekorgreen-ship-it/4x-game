@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { RES, compOf, dist, fmtN, log, mkKey, rec, specTons, fitSpec, CR_DEF, randCraft, state } from './01-data.ts';
+import { RES, compOf, dist, fmtN, log, mkKey, rec, specTons, fitSpec, CR_DEF, randCraft, state, fuelPerAU } from './01-data.ts';
 import { tm, ta } from './15-techs.ts';
 import { effSkill, officerById } from './02-crew.ts';
 import { W, H, bar, cx, focusBattle, ui, setTilt } from './08-map-ui.ts';
@@ -41,7 +41,7 @@ function mkShip(side,sp,x,y){
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
   const sh={hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
-  {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;
+  {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;sh.fuel=sp.fuel!=null?sp.fuel:null;sh.fuelCap=sp.fuelCap||0;sh.fpa=sp.fpa||0;
    const draw=(sp.railCfg||[]).slice(0,sp.rails||0).reduce((a,q)=>a+((q&&q.draw)||0),0)+(sp.lasers?800:0);sh.enR=sp.energy!=null&&draw>0?Math.max(.1,Math.min(1,sp.energy/draw)):1}
   for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*Math.min(300,m.cfg.rng)/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
   sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>Math.min(300,m.cfg.rng)));
@@ -423,7 +423,7 @@ function craftStep(c,d){
       vdx=home.sx+ex*1.3;vdy=home.sy+ey*1.3}
     else if(L===c||!L||fl.broken){let G=c.type==='F'?c.goal:c.sh,sf=.8;
       if(c.type==='F'&&fl.tsh){const sh=fl.tsh,ax=c.x-sh.x,ay=c.y-sh.y,ad=Math.hypot(ax,ay)||1;
-        if(fl.ph==='in'){G=sh;sf=1.6}else{G={x:sh.x+ax/ad*130,y:sh.y+ay/ad*130};sf=Math.min(1.6,Math.hypot(G.x-c.x,G.y-c.y)*.05+.1)}}
+        if(fl.ph==='in'){G=sh;if(sh.alive&&sh.engN>0){const k=sh.T.L*.38;G={x:sh.x-Math.cos(sh.hd)*k,y:sh.y-Math.sin(sh.hd)*k,sx:sh.sx,sy:sh.sy}} /* заходят с кормы, к двигателям */ sf=1.6}else{G={x:sh.x+ax/ad*130,y:sh.y+ay/ad*130};sf=Math.min(1.6,Math.hypot(G.x-c.x,G.y-c.y)*.05+.1)}}
       if(G){const bx=G.x-c.x,by=G.y-c.y,dist=Math.hypot(bx,by)||1e-6,off=c.fl.lane*Math.min(1,dist/(c.type==='F'?150:200)),dx=bx-by/dist*off,dy=by+bx/dist*off,dd=Math.hypot(dx,dy)||1e-6;vdx=dx/dd*P.vmax*sf;vdy=dy/dd*P.vmax*sf}}
     else{const sp=Math.hypot(L.vx,L.vy),ang=sp>0.05?Math.atan2(L.vy,L.vx):L.h,[lat,back]=slotPos(fl,c.slot);
       const px=L.x+Math.cos(ang)*(-back)-Math.sin(ang)*lat,py=L.y+Math.sin(ang)*(-back)+Math.cos(ang)*lat;
@@ -500,8 +500,10 @@ function segHit(x1,y1,x2,y2,e,pad){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1e-9;
 function los(x1,y1,x2,y2){for(const e of env)if(segHit(x1,y1,x2,y2,e))return e;return null}
 // истребители броню почти не берут: они выбивают внешние модули — башни, радары, маневровые (броня модуля их задерживает)
 function fighterHit(o,dmg,x,y,vx,vy){
-  const h=Math.floor(dmg*6+Math.random()),ex=[];if(h<=0)return;for(const z of o.zones)for(const m of z.mods)if(m.alive&&'TALMRD'.includes(m.k))ex.push(m);
-  for(let i=0;i<h&&ex.length;i++){const j=(Math.random()*ex.length)|0,m=ex[j];
+  const h=Math.floor(dmg*6+Math.random()),ex=[];if(h<=0)return;for(const z of o.zones)for(const m of z.mods)if(m.alive&&'TALMRDE'.includes(m.k))ex.push(m);
+  // приоритет целей: двигатели (вес 4) и башни (вес 3) — самое уязвимое и самое важное; радары и прочее — реже
+  const wt=m=>m.k==='E'?4:m.k==='T'||m.k==='A'?3:1;
+  for(let i=0;i<h&&ex.length;i++){let tw=0;for(const q of ex)tw+=wt(q);let r=Math.random()*tw,j=0;for(;j<ex.length-1;j++){r-=wt(ex[j]);if(r<=0)break}const m=ex[j];
     if(m.ar>0&&Math.random()<.75){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.6});continue}
     mdead(o,m);ex.splice(j,1);o.crew=Math.max(0,o.crew-.006);o.mor-=.01;stat.fmod=(stat.fmod||0)+1;fx.push({z:o.z,x,y,t0:t,d:8,r:1.8});say(o.side,'mod',o)}
   addDecal(o,x,y,vx,vy,.4,3);if(o.alive&&o.aliveN<o.total*.22)kill(o)}
@@ -1068,6 +1070,18 @@ function result(){
   const en=ships.filter(s=>s.side===1);
   return {t,mine,enemyKilled:en.filter(s=>!s.alive&&!s.esc).map(s=>s.cls),prizes:ships.filter(s=>s.prize&&s.side===0&&s.alive).map(s=>s.cls),surrendered:stat.surr?stat.surr[1]:0,wrecks:ships.filter(s=>!s.alive&&!s.esc).length,enemyAlive:en.filter(s=>s.alive||s.esc).length,mineAlive:ships.filter(s=>s.side===0&&(s.alive||s.esc)).length,stat};
 }
+function shipArms(s){
+  const cnt={},al={};for(const m of s.tur){cnt[m.k]=(cnt[m.k]||0)+1;if(m.alive)al[m.k]=(al[m.k]||0)+1}
+  const parts=[];
+  if(cnt.T){const cal=[...new Set(s.tur.filter(m=>m.k==='T').map(m=>m.cfg&&m.cfg.cal).filter(Boolean))].sort((a,b)=>a-b);parts.push(`рельсотроны ${al.T||0}/${cnt.T}${cal.length?' ('+cal.join('/')+' см)':''}`)}
+  if(cnt.G)parts.push(`гатлинги ${al.G||0}/${cnt.G}`);
+  if(cnt.A)parts.push(`ПВО ${al.A||0}/${cnt.A}`);
+  if(cnt.L)parts.push(`лазер ${al.L||0}/${cnt.L}`);
+  if(cnt.M){const am=s.tur.filter(m=>m.k==='M'&&m.alive).reduce((a,m)=>a+(m.ammo||0),0);parts.push(`ракетные ${al.M||0}/${cnt.M} (ракет ${am})`)}
+  const mag=s.magMax?`боеприпасы ${Math.round(s.mag)}/${Math.round(s.magMax)} т${s.mag<=0?' — пусто':''}`:'боеприпасы —';
+  const en=s.enR!=null&&s.enR<1?` · энергия ${Math.round(s.enR*100)}%`:'';
+  const fu=s.fuelCap?`топливо ${Math.round(s.fuel||0)}/${Math.round(s.fuelCap)} т${s.fpa?' (≈'+fmtN((s.fuel||0)/s.fpa,1)+' а.е.)':''}`:'топливо —';
+  return `Оружие: ${parts.join(' · ')||'нет'}<br>${mag}${en} · ${fu}`}
 function hud(){
   const m=Math.floor(t/60),sec=Math.floor(t%60);
   let h=`<span><b>Время боя</b>${m}:${String(sec).padStart(2,'0')}</span>`;
@@ -1082,7 +1096,7 @@ function hud(){
   $b('bstats').innerHTML=h;
   const inf=$b('binfo');
   if(sel){inf.hidden=false;const s=sel,tur=s.tur.filter(m=>m.alive).length,sk=s.tur.length?(s.tur.reduce((a,m)=>a+m.sk,0)/s.tur.length).toFixed(1):'—';
-    inf.innerHTML=`<b class="c${'ab'[s.side]}">${s.T.n}</b>${s.alive?'':' <span class="muted">(уничтожен)</span>'}<br>Водоизмещение ${fmtN(s.T.tons)} т · длина ${Math.round(s.T.L*1000)} м · модули: ${s.aliveN}/${s.total} · ядро ${s.core.alive?'цело':'уничтожено'}<br>Турели: ${tur}/${s.tur.length} · ср. навык ${sk}<br>Двигатели: ${s.engN}/${s.T.eng} · маневровые ${s.rcsN}/${s.rcs0} · радар ${s.radN}/${s.rad0} · боезапас ${Math.round((s.ammoF==null?1:s.ammoF)*100)}%${s.holdK==='cover'?' · в укрытии':s.holdK==='escort'?' · охраняет':''}${s.bst>1.1?' · форсаж '+Math.round(s.bst*100)+'%':''}${s.lrp?' · дальний бой '+s.lrp.toFixed(0):''}<br>Высота: ${s.z.toFixed(0)}<br>Броня по секторам: ${s.zones.map((z,i)=>ZN[i]+' '+(s.T.arm?Math.round(100*z.armN/(z.nc*s.T.arm)):0)+'%').join(' · ')}`}
+    inf.innerHTML=`<b class="c${'ab'[s.side]}">${s.T.n}</b>${s.alive?'':' <span class="muted">(уничтожен)</span>'}<br>Водоизмещение ${fmtN(s.T.tons)} т · длина ${Math.round(s.T.L*1000)} м · модули: ${s.aliveN}/${s.total} · ядро ${s.core.alive?'цело':'уничтожено'}<br>Турели: ${tur}/${s.tur.length} · ср. навык ${sk}<br>Двигатели: ${s.engN}/${s.T.eng} · маневровые ${s.rcsN}/${s.rcs0} · радар ${s.radN}/${s.rad0} · заряжено в башнях ${Math.round((s.ammoF==null?1:s.ammoF)*100)}%${s.holdK==='cover'?' · в укрытии':s.holdK==='escort'?' · охраняет':''}${s.bst>1.1?' · форсаж '+Math.round(s.bst*100)+'%':''}${s.lrp?' · дальний бой '+s.lrp.toFixed(0):''}<br>${shipArms(s)}<br>Высота: ${s.z.toFixed(0)}<br>Броня по секторам: ${s.zones.map((z,i)=>ZN[i]+' '+(s.T.arm?Math.round(100*z.armN/(z.nc*s.T.arm)):0)+'%').join(' · ')}`}
   else inf.hidden=true;
   {const so=$b('bsord'),ok=!!(sel&&sel.alive&&sel.side===0);so.hidden=!ok;if(ok)for(const b of so.querySelectorAll('[data-so]'))b.classList.toggle('on',b.dataset.so===(sel.ord||''))}
 }
@@ -1162,7 +1176,7 @@ export function specFromShip(s) {
   const st = s.st, cmd = effSkill(s, 'cmd');
   return {name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L, tons: st.tons,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (st.L < 1 ? 1.25 : 1),
-    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, engT: st.engM || 0, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, fuel: s.fuel != null ? s.fuel : null, fuelCap: st.fuelCap || 0, fpa: (function(){ try { return fuelPerAU(s) } catch (e) { return 0 } })(), engT: st.engM || 0, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }
