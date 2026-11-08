@@ -44,53 +44,63 @@ function nozzle(r,len,lit=true){const g=new THREE.Group();const rb=r*1.75;
   const pl=new THREE.Mesh(new THREE.ConeGeometry(rb*.95,len*1.5*PL,8,1,true),plumeM);pl.rotation.z=Math.PI/2;pl.position.x=-len-len*.75*PL;g.add(pl);
   const pl2=new THREE.Mesh(new THREE.ConeGeometry(rb*.5,len*1.0*PL,8,1,true),new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide}));pl2.rotation.z=Math.PI/2;pl2.position.x=-len-len*.5*PL;g.add(pl2)}
  return g}
-// раскладка сопел по числу
-function layout(n,r){
+// раскладка сопел в одной гондоле (до 8 штук)
+function podLayout(n,r){
  if(n<=1)return[[0,0,1]];
  if(n===2)return[[-1.5*r,0,1],[1.5*r,0,1]];
  if(n===3)return[[-1.6*r,-.8*r,1],[1.6*r,-.8*r,1],[0,1.2*r,1]];
  if(n===4)return[[-1.6*r,-1.6*r,1],[1.6*r,-1.6*r,1],[-1.6*r,1.6*r,1],[1.6*r,1.6*r,1]];
  if(n===5)return[[-2.3*r,-1.9*r,.8],[2.3*r,-1.9*r,.8],[-2.3*r,1.9*r,.8],[2.3*r,1.9*r,.8],[0,0,1.3]];
  if(n===6)return[[-3.4*r,-1.7*r,1],[0,-1.7*r,1],[3.4*r,-1.7*r,1],[-3.4*r,1.7*r,1],[0,1.7*r,1],[3.4*r,1.7*r,1]];
- // матрица: чем больше сопел, тем мельче они; ширина больше высоты
- const sc_=Math.max(.38,Math.min(.8,2.6/Math.sqrt(n))),cols=Math.ceil(Math.sqrt(n*1.7)),rows=Math.ceil(n/cols),pitch=2.9*r*sc_,out=[];
- for(let i=0;i<n;i++){const rw=Math.floor(i/cols),inRow=rw<rows-1?cols:n-cols*(rows-1),cl=i%cols;out.push([(cl-(inRow-1)/2)*pitch,(rw-(rows-1)/2)*pitch,sc_])}
- return out}
+ if(n===7){const o=[[0,0,1]];for(let k=0;k<6;k++){const a=k*Math.PI/3+Math.PI/6;o.push([Math.cos(a)*2.4*r,Math.sin(a)*2.4*r,.85])}return o} // цветок: центр + 6
+ const cols=Math.ceil(n/2),o=[];for(let i=0;i<n;i++){const rw=i<cols?0:1,inRow=rw?n-cols:cols,cl=rw?i-cols:i;o.push([(cl-(inRow-1)/2)*2.7*r,(rw-.5)*2.7*r,.85])}return o}
+const ext=(nz,r)=>{let zm=0,ym=0;for(const[z,y,s]of nz){zm=Math.max(zm,Math.abs(z)+r*1.85*s);ym=Math.max(ym,Math.abs(y)+r*1.85*s)}return[zm,ym]};
+// состав кормы: центр + боковые гондолы. До 8 — одна гондола; 9..23 — центр 7 и две боковые; больше — центр и шестиугольник из 6 гондол
+function sternPlan(n){
+ if(n<=8)return{c:n,pods:[],ring:0};
+ if(n<=23){const c=7,rest=n-c;return{c,pods:[Math.ceil(rest/2),Math.floor(rest/2)],ring:0}}
+ const c=(n-6)%6===0?6:7,rest=n-c,P=6,pods=[];for(let i=0;i<P;i++)pods.push(Math.floor(rest/P)+(i<rest%P?1:0));return{c,pods,ring:1}}
 // ---- блок двигателей для n сопел ----
-function pitchOf(nz){let m=1e9;for(let i=0;i<nz.length;i++)for(let j=i+1;j<nz.length;j++)m=Math.min(m,Math.hypot(nz[j][0]-nz[i][0],nz[j][1]-nz[i][1]));return m*1.05}
-function engineBlock(n,tons=1){PL=n>6?.3:1;const g=new THREE.Group();const r=1*Math.cbrt(tons)*(n>6?1.0:n>=6?.8:1);const nz=layout(n,r);const len=r*3.6;
- let zm=0,ym=0;for(const[z,y,s]of nz){zm=Math.max(zm,Math.abs(z)+r*2*s);ym=Math.max(ym,Math.abs(y)+r*2*s)}
- const Wd=zm*2+r*.6,Hd=ym*2+r*.6,Ld=r*(5+Math.min(n,6)*.9);
- // корпус: ступенчатый, три секции
- const h1=cb(Ld*.42,Wd,Hd,r*.55,silver);h1.position.x=Ld*.21;g.add(h1);
- const h2=cb(Ld*.34,Wd*1.08,Hd*.82,r*.5,silver2);h2.position.x=Ld*.42+Ld*.17;g.add(h2);
- const h3=cb(Ld*.26,Wd*.8,Hd*.66,r*.45,silver);h3.position.x=Ld*.76+Ld*.13;g.add(h3);
- // кормовая рама и фланец
- const fr=cb(r*.55,Wd*1.12,Hd*1.12,r*.35,dark);fr.position.x=-r*.1;g.add(fr);
- const fl=cb(r*.3,Wd*1.2,Hd*1.2,r*.22,accent);fl.position.x=-r*.5;g.add(fl);
+function engineBlock(n,tons=1){const g=new THREE.Group();const r=Math.cbrt(tons)*(n>=6?.85:1);const len=r*3.6;PL=n>8?.3:1;
+ const plan=sternPlan(n);const noz=[],pods=[];
+ const cen=podLayout(plan.c,r),[cz,cy]=ext(cen,r);pods.push({z:0,y:0,zm:cz,ym:cy,nz:cen,x:0});cen.forEach(([z,y,s])=>noz.push([z,y,s,0]));
+ plan.pods.forEach((m,i)=>{if(!m)return;const lay=podLayout(m,r*.9),[pz,py]=ext(lay,r*.9);
+  let z,y;if(plan.ring){const a=i*Math.PI/3;const D=Math.max(cz,cy)+Math.max(pz,py)+r*.5;z=Math.cos(a)*D*1.0;y=Math.sin(a)*D*.8}
+  else{const sg=i?1:-1;z=sg*(cz+pz+r*.6);y=0}
+  const xo=-r*1.0; // гондолы чуть дальше назад
+  pods.push({z,y,zm:pz,ym:py,nz:lay,x:xo});lay.forEach(([zz,yy,s])=>noz.push([z+zz,y+yy,s*.9,xo]))});
+ let zM=0,yM=0;for(const p of pods){zM=Math.max(zM,Math.abs(p.z)+p.zm);yM=Math.max(yM,Math.abs(p.y)+p.ym)}
+ const Wd=zM*2+r*.8,Hd=yM*2+r*.8,Ld=r*(5+2.6*Math.sqrt(Math.min(n,36)));
+ const sh=Math.min(1,(zM+yM)/(Math.max(zM,yM)*2.1)); // ступени корпуса
+ const h1=cb(Ld*.42,Wd,Hd,r*.7,silver);h1.position.x=Ld*.21;g.add(h1);
+ const h2=cb(Ld*.34,Wd*.92,Hd*.8,r*.6,silver2);h2.position.x=Ld*.42+Ld*.17;g.add(h2);
+ const h3=cb(Ld*.26,Wd*.66,Hd*.6,r*.5,silver);h3.position.x=Ld*.76+Ld*.13;g.add(h3);
+ const fr=cb(r*.6,Wd*1.06,Hd*1.06,r*.4,dark);fr.position.x=-r*.1;g.add(fr);
+ const fl=cb(r*.3,Wd*1.12,Hd*1.12,r*.25,accent);fl.position.x=-r*.55;g.add(fl);
+ // гондолы: рамка, фермы к центру
+ pods.forEach((p,i)=>{if(i===0)return;
+  const pw=p.zm*2,ph=p.ym*2;const pf=cb(r*1.4,pw,ph,r*.4,silver2);pf.position.set(-r*1.1+p.x*.1,p.y,p.z);g.add(pf);
+  const pa=cb(r*.3,pw*1.1,ph*1.1,r*.2,accent);pa.position.set(-r*1.95+p.x*.1,p.y,p.z);g.add(pa);
+  // косые фермы от гондолы к корпусу
+  const d=Math.hypot(p.z,p.y),ang=Math.atan2(p.y,p.z);for(const off of[-1,1]){const bm=new THREE.Mesh(new THREE.BoxGeometry(r*.45,r*.45,d*.7),steel);bm.position.set(-r*.3,p.y*.5+off*r*.4*Math.cos(ang),p.z*.5-off*r*.4*Math.sin(ang));bm.rotation.x=-Math.atan2(p.y,p.z)+Math.PI/2*0;bm.rotation.x=0;bm.lookAt(new THREE.Vector3(-r*.3,p.y,p.z).add(new THREE.Vector3(0,off*r*.4*Math.cos(ang),-off*r*.4*Math.sin(ang))));g.add(bm)}});
  // сопла
- for(const[z,y,s]of nz){const nn=nozzle(r*s,len*s);nn.position.set(-r*.7,y,z);g.add(nn)}
- // фермы между соплами (45°)
- for(let i=0;i<nz.length;i++)for(let j=i+1;j<nz.length;j++){const[z1,y1]=nz[i],[z2,y2]=nz[j];const d=Math.hypot(z2-z1,y2-y1);if(d>(n>6?pitchOf(nz):r*3.9))continue;
-  const b=cb(d,r*.35,r*.35,r*.1,steel);b.position.set(-r*.9,(y1+y2)/2,(z1+z2)/2);b.rotation.x=-Math.atan2(y2-y1,z2-z1);b.rotation.y=Math.PI/2;b.rotation.x=0;
-  const grp=new THREE.Group();grp.add(b);b.rotation.set(0,0,0);b.rotation.y=0;b.position.set(0,0,0);b.rotation.x=0;
-  const q2=new THREE.Mesh(new THREE.BoxGeometry(r*.3,r*.3,d),steel);q2.position.set(-r*.9,(y1+y2)/2,(z1+z2)/2);q2.rotation.x=Math.atan2(y2-y1,z2-z1)*-1+0;q2.rotation.x=-Math.atan2(y2-y1,z2-z1)+0;g.add(q2)}
- // радиаторные рёбра сверху и снизу
- const nf=Math.min(9,Math.max(3,n+2));for(let i=0;i<nf;i++){for(const sg of[1,-1]){const f=cb(Ld*.3,r*.12,r*.5,r*.04,steel);f.position.set(Ld*.14+i*(Ld*.5/nf)*.5+Ld*.2,sg*(Hd/2+r*.18),(i-(nf-1)/2)*Wd/nf*.9);g.add(f)}}
- // боковые стабилизаторы с рёбрами 45°/30°
- for(const sg of[-1,1]){const sp=Wd*.45,st=poly([[Ld*.62,0],[Ld*.62-sp,sp],[Ld*.62-sp-r*.8,sp],[Ld*.62-sp-r*.8+sp*T30*2,0]],r*.22,r*.08,silver);st.rotation.x=-Math.PI/2*sg;st.position.set(0,0,sg*Wd*.5);if(sg>0)st.scale.z=-1;st.rotation.x=-Math.PI/2;st.position.set(0,-Hd*.18,sg*Wd*.5);if(sg>0)st.scale.set(1,1,-1);g.add(st)}
- // акцентные полосы по бортам корпуса
+ for(const[z,y,s,xo]of noz){const nn=nozzle(r*s,len*Math.min(1,s+.15));nn.position.set(-r*.7+xo-(xo?0:0),y,z);g.add(nn)}
+ // фермы между ближайшими соплами одной гондолы
+ for(const p of pods){const nz=p.nz;for(let i=0;i<nz.length;i++)for(let j=i+1;j<nz.length;j++){const[z1,y1]=nz[i],[z2,y2]=nz[j];const dd=Math.hypot(z2-z1,y2-y1);if(dd>r*3.9)continue;
+  const q2=new THREE.Mesh(new THREE.BoxGeometry(r*.3,r*.3,dd),steel);q2.position.set(-r*.9+p.x,p.y+(y1+y2)/2,p.z+(z1+z2)/2);q2.rotation.x=-Math.atan2(y2-y1,z2-z1);g.add(q2)}}
+ // радиаторные рёбра
+ const nf=Math.min(11,Math.max(4,Math.round(Wd/(r*1.6))));for(let i=0;i<nf;i++){for(const sg of[1,-1]){const f=cb(Ld*.3,r*.12,r*.5,r*.04,steel);f.position.set(Ld*.34+(i%2)*Ld*.12,sg*(Hd/2+r*.2),(i-(nf-1)/2)*(Wd*.92/nf));g.add(f)}}
+ // стабилизаторы 45/30
+ for(const sg of[-1,1]){const sp=Wd*.3,st=poly([[Ld*.62,0],[Ld*.62-sp,sp],[Ld*.62-sp-r*.8,sp],[Ld*.62-sp-r*.8+sp*T30*2,0]],r*.22,r*.08,silver);st.rotation.x=-Math.PI/2;st.position.set(0,-Hd*.18,sg*Wd*.5);if(sg>0)st.scale.set(1,1,-1);g.add(st)}
  for(const sg of[-1,1]){const st=cb(Ld*.28,r*.1,Hd*.5,r*.03,accent);st.position.set(Ld*.28,0,sg*(Wd/2+r*.03));g.add(st)}
- // сокеты под турели: восьмигранные площадки с огоньком (тип по цвету)
- const sock=[[Ld*.48,Hd/2,0],[Ld*.6,Hd*.41,-Wd*.3],[Ld*.6,Hd*.41,Wd*.3],[Ld*.3,0,Wd/2],[Ld*.3,0,-Wd/2]];
- sock.forEach(([x,y,z],i)=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(r*.6,r*.78,r*.22,8),dark);p.position.set(x,y+r*.1,z);if(Math.abs(z)>Wd*.45){p.rotation.x=Math.PI/2*Math.sign(z)}g.add(p);
-  const dot=new THREE.Mesh(new THREE.CylinderGeometry(r*.14,r*.14,r*.26,8),cyan);dot.position.copy(p.position);dot.rotation.copy(p.rotation);g.add(dot)});
+ // сокеты под турели
+ [[Ld*.48,Hd/2,0],[Ld*.6,Hd*.41,-Wd*.28],[Ld*.6,Hd*.41,Wd*.28],[Ld*.25,Hd*.3,Wd*.5],[Ld*.25,Hd*.3,-Wd*.5]].forEach(([x,y,z])=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(r*.6,r*.78,r*.22,8),dark);p.position.set(x,y+r*.1,z);g.add(p);const dot=new THREE.Mesh(new THREE.CylinderGeometry(r*.14,r*.14,r*.26,8),cyan);dot.position.copy(p.position);g.add(dot)});
  g.userData={r,Wd,Hd,Ld};return g}
 // ---- композиция ----
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,500);
 const nq=+q.get('n');
 if(nq){const b=engineBlock(nq,1);sc.add(b);const{Ld,Wd}=b.userData;b.position.x=-Ld*.45;const az=+q.get('az')||-.9,el=+q.get('el')||.35,d=+q.get('d')||26;cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(-4,0,0)}
-else{const ns=[1,2,3,4,5,6],pos=[[-22,0,-18],[-22,0,0],[-22,0,18],[0,0,-18],[0,0,0],[0,0,18]];
+else{const ns=[1,2,3,4,5,6];
  // сетка 3×2 по Z и X
  ns.forEach((n,i)=>{const b=engineBlock(n,1);const col=i%3,row=Math.floor(i/3);b.position.set(-8+row*-0,0,0);b.position.set(row*-14*0-4,0,(col-1)*17);b.position.x=-6+row*20-10;sc.add(b)});
  cam.position.set(-48,26,40);cam.lookAt(0,0,0);}
