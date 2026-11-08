@@ -485,7 +485,10 @@ export function massParts(sp) {
   const sc = sp.scList || [], cnt = k => sc.filter(q => q.k === k).length, sm = {rad: cnt('rad') * 700, ir: cnt('ir') * 120, em: cnt('em') * 200, fcs: (sp.fcsN || 0) * 150, ew: (sp.ew || 0) * 300, dcon: (sp.dcon || 0) * 60, sink: (sp.sink || 0) * 120};
   const M = Object.values(o).reduce((a, b) => a + b, 0), S = M * (HULLK - 1); o.eng = sp.engT > 0 ? sp.engT : sp.real ? 0 : T * ENGF * (sp.spd || 1);
   // оценочная раскладка несущей массы по баку, реактору, жилым отсекам и каркасу (в конструкторе точного списка нет)
-  o.tank = S * .3; o.reactor = S * .14; o.crew = S * .16; o.frame = S * .4; if (sp.real) { if (!(sp.fuelCap > 0)) o.tank = 0; if (!(sp.energy > 0)) o.reactor = 0; } // настоящий проект: нет бака или реактора — нет и отсека
+  o.tank = S * .3; o.reactor = S * .14; o.crew = S * .16; o.frame = S * .4; if (sp.real) { // настоящий проект: каждый метр корпуса — реальный модуль, никаких оценочных отсеков
+    delete o.core; o.tank = 0; o.reactor = 0; o.crew = 0; o.frame = 0;
+    for (const [k, n] of Object.entries(sp.parts || {})) { const c = compOf(k), b = baseOf(k); if (!c || !(n > 0) || !c.mass || c.armW) continue; const m = c.mass * n;
+      if (b === 'tank') o.tank += m; else if (b === 'reactor') o.reactor += m; else if (b === 'cabin' || b === 'life' || b === 'marines') o.crew += m; else if (['cargo', 'ammo', 'xfer', 'repair', 'spares', 'lab_phys', 'lab_eng', 'lab_bio', 'hook'].includes(b)) o.frame += m; } }
   const L = T / TON_L, armor = Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L);
   return {T, parts: o, smalls: sm, armor};
 }

@@ -145,16 +145,16 @@ if (wrap && bgo) {
     g.scale(len, h, w); return g;
   }
   // сечение корпуса зависит от двигателей: сопла стоят сеткой без наложения, при тяжёлых двигателях и малом тоннаже корабль выходит короче и «квадратнее»
-  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = Math.max(1, Math.min(24, s.engN || 3)), noE = !!(s.spec && s.spec.real && !(s.spec.engT > 0)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
+  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = (s.spec && s.spec.real && s.spec.engCnt > 0) ? Math.min(48, s.spec.engCnt) : Math.max(1, Math.min(24, s.engN || 3)), noE = !!(s.spec && s.spec.real && !(s.spec.engT > 0)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
     // поперечное сечение корабля задаёт масса двигателей: 1000 т → ~44 м, 5000 т → ~220 м (массивнее прежних 20/100 м), но не тоньше 7,5% длины, независимо от длины корпуса
     const S = Math.min(L * 3, Math.max(L * .075, (mp.parts.eng || 0) / TON_L * 2.2)), d = S / Math.max(cols, rows) * .95;
     return { W: S, H: S, ne: noE ? 0 : ne, d, cols, rows } }
   function hullGeo(s: any, seed: number) {
-    const RL = !!(s.spec && s.spec.real), hasMast = !RL || ((s.spec.scList || []).length > 0 || s.spec.fcsN > 0 || s.spec.ew > 0), R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
+    const mp0 = massParts(s.spec || { rails: 10, flak: 2, tons: s.T.L * TON_L }), RL = !!(s.spec && s.spec.real), hasBr = !RL || mp0.parts.crew > 0, hasMast = !RL || ((s.spec.scList || []).length > 0 || s.spec.fcsN > 0 || s.spec.ew > 0), R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
     // хребет из блоков: участки идут по модулям корабля (корма → нос), длина участка пропорциональна массе модулей
     const x0 = -L * .5, x1 = L * .34, Lk = x1 - x0; const seg: any[] = [];
-    const mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ORD: [string, string][] = [['eng', 'e'], ['reactor', 'r'], ['tank', 't'], ['frame', 's'], ['hangF', 'f'], ['hangB', 'b'], ['crew', 'q'], ['mar', 'q'], ['flak', 'w'], ['rail', 'w'], ['miss', 'm'], ['laser', 'l'], ['core', 'c']];
+    const mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ORD: [string, string][] = [['eng', 'e'], ['reactor', 'r'], ['tank', 't'], ['frame', 's'], ['hangF', 'f'], ['hangB', 'b'], ['crew', 'q'], ['mar', 'q'], ['flak', 'w'], ['rail', 'w'], ['gat', 'w'], ['miss', 'm'], ['laser', 'l'], ['core', 'c']];
     const lst: { ty: string; len: number }[] = []; { const raw = ORD.filter(([k]) => mp.parts[k] > 0).map(([k, ty]) => ({ k, ty, w: Math.max(mp.parts[k], 1) })); const tt = raw.reduce((a, q) => a + q.w, 0);
       const sh = raw.map(q => Math.max(q.w / tt, .03)), ss = sh.reduce((a, b) => a + b, 0);
       raw.forEach((q, i) => { const share = sh[i] / ss * Lk, nb = Math.max(1, Math.min(5, Math.round(share / (Lk * .1)))); for (let j = 0; j < nb; j++) lst.push({ ty: q.ty, len: share / nb }) }) }
@@ -194,12 +194,14 @@ if (wrap && bgo) {
     for (let i = 0; i < (RL ? 0 : 9); i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
       parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() < .5 ? -1 : 1) * sg.w * .38, len, h * .7, w * .22)) }
     const bs = seg[seg.length - 1], bh = H * 1.4, bx = bs.cx;
+    if (hasBr) {
     parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
     parts.push(piece(unitBox, P.glow, bx + L * .006, bs.cy + bs.h / 2 + bh * .6, 0, L * .057, bh * .06, W * .52));
     parts.push(piece(unitBox, P.main, bx, bs.cy + bs.h / 2 + bh * .86, 0, L * .04, bh * .2, W * .36));
     if (hasMast) { for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.05, z * W * .12, L * .004, bh * .3, L * .004));
     parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3)); }
+    }
     if (s.T.role === 'station' || (s.spec && s.spec.role === 'station')) { // станция: вращающееся кольцо на спицах и солнечные панели
       const xc = x0 + Lk * .55, Rr = L * .3, tube = L * .022, ring = new THREE.TorusGeometry(Rr, tube, 8, 40).rotateY(Math.PI / 2);
       parts.push(piece(ring, shade(P.main, .9), xc, 0, 0)); parts.push(piece(new THREE.TorusGeometry(Rr * .985, tube * .45, 6, 40).rotateY(Math.PI / 2), P.glow, xc, 0, 0));
