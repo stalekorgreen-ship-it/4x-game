@@ -21,9 +21,10 @@ const silver=mk(0xa9b0bc,.8,.36),silver2=mk(0x8a929f,.8,.4),dark=mk(0x242a37,.7,
 const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
 const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
 
-function weather(m,k){m.onBeforeCompile=sh=>{
+const HU={uHits:{value:Array.from({length:24},()=>new THREE.Vector4(0,0,0,1e-3))},uNH:{value:0}};
+function weather(m,k,hit){m.onBeforeCompile=sh=>{sh.uniforms.uHits=HU.uHits;sh.uniforms.uNH=hit===false?{value:0}:HU.uNH;
  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
- sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\n').replace('#include <color_fragment>',`#include <color_fragment>
+ sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[24];uniform int uNH;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\n').replace('#include <color_fragment>',`#include <color_fragment>
  vec3 q=vWP+vec3(${k}.);
  vec3 big=floor(q/vec3(26.,15.,15.));float hz=h31(big+1.7);
  vec3 pal=vec3(1.);
@@ -44,6 +45,9 @@ function weather(m,k){m.onBeforeCompile=sh=>{
  vec2 rv=vec2(fract(q.x*.9),fract((q.y+q.z)*.9))-.5;float riv=1.-smoothstep(.07,.13,length(rv));diffuseColor.rgb*=1.+riv*step(.5,h31(cl+2.))*.25;
  float scr=h31(vec3(floor(q.y*8.),floor(q.z*8.),floor(q.x*.35)));scr=step(.955,scr)*(1.-smoothstep(.0,.14,abs(fract(q.y*8.+q.z*8.)-.5)));diffuseColor.rgb*=1.+scr*.5;
  float dirt=smoothstep(.5,1.,h31(floor(q*vec3(.5,1.6,1.6))))*.3+smoothstep(.65,1.,h31(floor(q*vec3(.15,.9,.9)+3.)))*.2;diffuseColor.rgb*=1.-dirt;
+ for(int hi=0;hi<24;hi++){if(hi>=uNH)break;vec4 hv=uHits[hi];float dh=distance(vWP,hv.xyz)/hv.w;float jag=(h31(floor(vWP*3.5))-.5)*.55;
+  float scorch=1.-smoothstep(1.1,2.6,dh+jag);float peel=1.-smoothstep(.55,1.45,dh+jag);float burn=1.-smoothstep(.0,1.05,dh);
+  diffuseColor.rgb*=1.-scorch*.55;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.62,.64,.68)*(.8+.35*h31(floor(vWP*16.))),peel*.92);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.025),burn*.9);}
  diffuseColor.rgb*=.82+.18*smoothstep(-1.,1.,vWP.y*.08+.4);`)};m.customProgramCacheKey=()=>'w'+k}
 weather(silver,1);weather(silver2,5);weather(steel,9);weather(accent,3);
 // ---- гранёные заготовки ----
@@ -313,6 +317,17 @@ function tower(g,x,y0,tiers){let y=y0;for(const[len,w,h,m]of tiers){const b=cb(l
  const arm=cb(.4,top[1]*.7,.4,.1,steel);arm.position.set(x,y+H*.75,0);g.add(arm);
  const dish=new THREE.Mesh(new THREE.CylinderGeometry(0,2.4,1.2,8,1,true),silver2);dish.position.set(x+top[0]*.25,y+.7,top[1]*.2);g.add(dish);
  const rd=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),cyan);rd.position.set(x,y+H+.3,0);g.add(rd)}
+
+const innerM=mk(0x1b2434,.6,.5);weather(innerM,11,false);
+// плотный граненый корпус: 8 граней по 6 сегментов, кольцо каждые 1.2 ед. — для вмятин, дыр и сорванной обшивки
+function denseHull(R,mat,k){const S=6,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=1.2)xs.push(x);
+ const P=[],I=[];
+ for(const x of xs){let i=0;while(i<R.length-2&&x>R[i+1].x)i++;const a=R[i],b=R[i+1],t=Math.max(0,Math.min(1,(x-a.x)/((b.x-a.x)||1)));const w=(a.w+(b.w-a.w)*t)*k,h=(a.h+(b.h-a.h)*t)*k,c=Math.min(w,h)*.3,A=w/2,B=h/2;
+  const ring=[[-(A-c),B],[A-c,B],[A,B-c],[A,-(B-c)],[A-c,-B],[-(A-c),-B],[-A,-(B-c)],[-A,B-c]];
+  for(let e=0;e<8;e++){const p=ring[e],q2=ring[(e+1)%8];for(let j=0;j<S;j++){const u=j/S;P.push(x,p[1]+(q2[1]-p[1])*u,p[0]+(q2[0]-p[0])*u)}}}
+ for(let r=0;r<xs.length-1;r++)for(let v=0;v<N;v++){const v2=(v+1)%N,a=r*N+v,b=r*N+v2,c2=(r+1)*N+v,d=(r+1)*N+v2;I.push(a,c2,b,b,c2,d)}
+ const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(P,3));ge.setIndex(I);ge.computeVertexNormals();
+ const m=new THREE.Mesh(ge,mat);m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -342,7 +357,7 @@ function spine(m){const g=new THREE.Group();
   [[0,.9,.9],[.05,1.2,1],[.3,1.1,.95],[.6,1.15,1],[.8,.9,.8],[.93,.55,.5],[1,.88,.9]]][cls];
  const R=prof.map(([t,w,h])=>({x:f(t),w:W*w,h:W*h*Hk*(cls===0?1.2:1.3)}));
  R.unshift({x:x0-6,w:R[0].w*.9,h:R[0].h*.9});
- g.add(new THREE.Mesh(loftR(R),silver));
+ {const hm=denseHull(R,silver,1);g.add(hm);g.userData.hull=hm;const inn=denseHull(R,innerM,.9);g.add(inn);g.userData.inner=inn}
  const wAt=t=>{for(let i=0;i<prof.length-1;i++)if(t<=prof[i+1][0]){const k=(t-prof[i][0])/(prof[i+1][0]-prof[i][0]);return W*(prof[i][1]+(prof[i+1][1]-prof[i][1])*k)}return W*.2};
  const hAt=t=>wAt(t)*Hk*1.3;
  // двигательное гнездо и пояса
@@ -450,10 +465,41 @@ function spine(m){const g=new THREE.Group();
  const ns=W*.88/10.6;if(nvOff){const wN=W*.88;g.add(new THREE.Mesh(loftR([{x:xe,w:wN,h:wN*.95},{x:xe+W*.7,w:wN*.55,h:wN*.5},{x:xe+W*1.3,w:wN*.2,h:wN*.2}]),silver))}
  if(!nvOff){const nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb)}
 
- g.userData.mid=0;return g}
+ g.userData.mid=0;g.userData.L=L;return g}
+
+// ===== система повреждений: кратеры в геометрии, дыры, провода, обломки, отскоки, сдираемая краска =====
+function makeDamage(ship,L){const hull=ship.userData.hull,inner=ship.userData.inner,sc2=ship.parent;let nh=0;const debris=[],sparks=[];const RC=new THREE.Raycaster();
+ const bm=[silver,silver2,steel,dark,accent];const wireM=[accent,cyan,new THREE.MeshBasicMaterial({color:0xff4a3c,toneMapped:false}),dark];
+ const addHit=(p,r)=>{if(nh>=24)return;HU.uHits.value[nh].set(p.x,p.y,p.z,r);nh++;HU.uNH.value=nh};
+ const rayHit=(x,ang)=>{const o=new THREE.Vector3(x,Math.sin(ang)*200,Math.cos(ang)*200);RC.set(o,new THREE.Vector3(0,-Math.sin(ang),-Math.cos(ang)).normalize());hull.geometry.computeBoundingSphere();const r=RC.intersectObject(hull)[0];return r?{p:r.point.clone(),n:r.face.normal.clone()}:null};
+ const spark=(p,v,life,m)=>{const e=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,.9),m||cyan);e.position.copy(p);e.lookAt(p.clone().add(v));g2.add(e);sparks.push({e,v,t:0,life})};
+ const g2=ship;
+ function crater(p,n,r,depth){const pos=hull.geometry.attributes.position,dm=hull.userData.dm,v=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);const d=v.distanceTo(p);if(d<r){const k=1-d/r,st=k>.6?1:k>.3?.6:.3;v.addScaledVector(n,-depth*st);pos.setXYZ(i,v.x,v.y,v.z);dm[i]=Math.max(dm[i],st)}}
+  const I=[],F=hull.userData.full;for(let t=0;t<F.length;t+=3)if(!(dm[F[t]]>=1&&dm[F[t+1]]>=1&&dm[F[t+2]]>=1))I.push(F[t],F[t+1],F[t+2]);hull.userData.full=F;hull.geometry.setIndex(I);hull.geometry.computeVertexNormals();hull.geometry.computeBoundingSphere();
+  addHit(p,r*.62);
+  // сорванные детали
+  for(const ch of[...ship.children]){if(ch===hull||ch===inner||ch.userData.keep)continue;const bb=new THREE.Box3().setFromObject(ch),sz=bb.getSize(new THREE.Vector3());if(sz.length()>L*.2)continue;if(bb.distanceToPoint(p)<r*.7){ship.remove(ch);ch.userData.v=n.clone().multiplyScalar(6+Math.random()*10).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));ch.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(3);ship.add(ch);debris.push({e:ch,t:0,life:5})}}
+  // осколки брони
+  for(let i=0;i<14;i++){const sz=.5+Math.random()*1.4,m=new THREE.Mesh(new THREE.BoxGeometry(sz,sz*.35,sz*.8),bm[i%3]);m.position.copy(p).addScaledVector(n,.5);m.rotation.set(Math.random()*6,Math.random()*6,0);ship.add(m);
+   const dv=n.clone().multiplyScalar(5+Math.random()*9).add(new THREE.Vector3((Math.random()-.5)*10,(Math.random()-.5)*10,(Math.random()-.5)*10));m.userData.v=dv;m.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(5);debris.push({e:m,t:0,life:5})}
+  // провода из дыры
+  for(let i=0;i<7;i++){const a=new THREE.Vector3().copy(p).addScaledVector(n,-depth*.6+Math.random()*.3).add(new THREE.Vector3((Math.random()-.5)*r*.5,(Math.random()-.5)*r*.5,(Math.random()-.5)*r*.5));
+   const dir=n.clone().add(new THREE.Vector3((Math.random()-.5)*.9,(Math.random()-.5)*.9,(Math.random()-.5)*.9)).normalize();const len=1.5+Math.random()*3;
+   const pts=[a,a.clone().addScaledVector(dir,len*.5),a.clone().addScaledVector(dir,len).add(new THREE.Vector3(0,-len*.25*Math.random(),0)),a.clone().addScaledVector(dir,len*1.3).add(new THREE.Vector3((Math.random()-.5),-len*.5,(Math.random()-.5)))];
+   const w=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),10,.07+Math.random()*.06,5),wireM[i%4]);w.userData.keep=1;ship.add(w);
+   const tip=pts[3];for(let k=0;k<2;k++)spark(tip,new THREE.Vector3((Math.random()-.5)*6,(Math.random()-.5)*6,(Math.random()-.5)*6),.5+Math.random()*.5)}
+  // вспышка и искры
+  for(let i=0;i<22;i++)spark(p,n.clone().multiplyScalar(8+Math.random()*14).add(new THREE.Vector3((Math.random()-.5)*14,(Math.random()-.5)*14,(Math.random()-.5)*14)),.5+Math.random()*.7,i%3?glowM:accent)}
+ function graze(p,n,dirv,len){// рикошет: борозда сдранной краски + искры по касательной с отражением
+  const tg=dirv.clone().sub(n.clone().multiplyScalar(dirv.dot(n))).normalize();for(let i=0;i<7;i++)addHit(p.clone().addScaledVector(tg,i*len/7),.9+Math.random()*.5);
+  for(let i=0;i<28;i++){const v=tg.clone().multiplyScalar(10+Math.random()*20).addScaledVector(n,4+Math.random()*10).add(new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*5));spark(p.clone().addScaledVector(tg,Math.random()*len),v,.35+Math.random()*.5,i%2?glowM:accent)}}
+ function step(dt){for(const d of debris){d.t+=dt;d.e.position.addScaledVector(d.e.userData.v,dt);d.e.rotation.x+=d.e.userData.w.x*dt;d.e.rotation.y+=d.e.userData.w.y*dt;d.e.rotation.z+=d.e.userData.w.z*dt}
+  for(let i=sparks.length-1;i>=0;i--){const s2=sparks[i];s2.t+=dt;s2.e.position.addScaledVector(s2.v,dt);s2.v.multiplyScalar(1-dt*.9);if(s2.t>s2.life){ship.remove(s2.e);sparks.splice(i,1)}else s2.e.scale.setScalar(1-s2.t/s2.life)}}
+ return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;if(kind==='c')crater(h.p,h.n,r,Math.min(2.8,r*.4));else graze(h.p,h.n,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),r)},step}}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
-if(m){const b=spine(m);sc.add(b);const az=+q.get('az')||.7,el=+q.get('el')||.35,d=+q.get('d')||110;const mid=b.userData.mid;cam.position.set(mid+Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(mid,0,0)}
+if(m){const b=spine(m);sc.add(b);if(q.get('dmg')){const D=makeDamage(b,b.userData.L||150);const Lx=b.userData.L||150,hs=q.get('dmg')==='2'?[[.45,.5,'c',8],[.56,.3,'g',20]]:[[.30,.5,'c',7],[.45,-1.1,'c',9],[.58,.15,'g',22],[.20,1.2,'c',6],[.70,-.35,'c',8],[.50,2.3,'g',26],[.37,2.7,'c',8],[.82,.9,'g',18],[.66,1.0,'c',7]];const x0=-Lx/2;for(const[t,a,k,r]of hs)D.shoot(x0+Lx*t,a,k,r);for(let i=0;i<30;i++)D.step(.04)}const az=+q.get('az')||.7,el=+q.get('el')||.35,d=+q.get('d')||110;const mid=b.userData.mid;cam.position.set(mid+(+q.get('cx')||0)+Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(mid+(+q.get('cx')||0),0,0)}
 else{[1,3,5,8].forEach((k,i)=>{const b=spine(k);b.position.set(0,0,(i-1.5)*60);sc.add(b)});cam.position.set(0,190,300);cam.lookAt(0,0,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
 comp.render();window.done=true;
