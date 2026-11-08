@@ -298,7 +298,7 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
  const T=inv.turrets,half=Math.ceil(T.length/2),tx0=x0+span*.22,tx1=x1-span*.08;
  for(let q=0;q<half;q++)for(const sd of[-1,1]){const t=T[q*2+(sd>0?0:1)];if(!t)continue;const x=tx0+(tx1-tx0)*(half===1?.5:q/(half-1)),p=base(x),ts=(.2+.1*t.cal)*(t.t==='flak'?.8:1);
   const pw=(.35+.3*ts)*hh*1.6,pl=L*.085*ts+hh*.5,py=p.cy-p.h*.08;
-  plate4(g,pl*1.5,pw,.05*u,pl*.55,x,py,sd*p.w*.3,C.main,sd); // палуба врастает в борт: корень внутри корпуса
+  plate4(g,pl*1.5,pw,.05*u,pl*.55,x,py,sd*p.w*.3,C.main,sd);plate4(g,pl*.9,pw*.6,.04*u,pl*.3,x+pl*.1,py+.04*u,sd*p.w*.3,C.plate,sd);box(g,pl*.3,.05*u,pw*.2,x+pl*.9,py+.07*u,sd*(p.w*.3+pw*.55),C.dark);box(g,pl*.25,.03*u,pw*.15,x+pl*.45,py+.06*u,sd*(p.w*.3+pw*.3),C.deep); // палуба врастает в борт: корень внутри корпуса
   wedge(g,pl*1.3,p.h*.42,p.w*.36,x-pl*.05,py-p.h*.2,sd*p.w*.42,C.main,.35,.25); // обтекатель-подкос от борта под палубу
   const tz=sd*p.w*.5*p.k*.72,ty=p.cy+p.h/2;
   cyl(g,.05*u,.46*ts*u,x,ty+.012,tz,C.deep);hex(g,.07*u,.07*u,.9*ts*u,x,ty+.04*u,tz,C.dark,.8);for(const a of[0,1.5708,3.1416,4.7124])wedge(g,.22*ts*u,.1*u,.12*u,x+Math.cos(a)*.5*ts*u*1,ty+.03*u,tz+Math.sin(a)*.5*ts*u,C.main,.5,.4); // гнездо: колодец, кольцо-коллар и четыре кронштейна
@@ -320,7 +320,7 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
  // скорость → стройный быстрый корпус; ракеты → широкие плечи с люками; тяжёлые орудия → передняя башенная палуба
  const sf=inv.eng.t/tons; if(sf>.2)for(const sd of[-1,1])wedge(g,eL*2.2,eH*.35,eW*.07,-L/2+eL*1.3,eH*.3,sd*(eW*.5),C.plate,.15,.3);
  if(inv.msl>=6){const p=base(x0+span*.5);for(const sd of[-1,1]){wedge(g,span*.5,p.h*.5,hh*.9,x0+span*.48,p.cy+p.h*.15,sd*(p.w*.5+hh*.25),C.main,.5,.55)}}
- const gunSum=inv.turrets.reduce((a,t)=>a+(t.t==='rail'?t.cal:0),0); if(gunSum>=8){const p=base(x1-span*.18);hex(g,span*.3,hh*.4,p.w*1.45,x1-span*.22,p.cy+p.h*.5,0,C.plate,.8)}
+ const gunSum=inv.turrets.reduce((a,t)=>a+(t.t==='rail'?t.cal:0),0); if(gunSum>=8){const p=base(x1-span*.18),y0=p.cy+p.h*.5,sx=x1-span*.22;claim('top',sx-span*.16,sx+span*.14,-p.w*.8,p.w*.8);hex(g,span*.3,hh*.3,p.w*1.1,sx,y0+hh*.1,0,C.plate,.8);hex(g,span*.2,hh*.26,p.w*.78,sx-span*.02,y0+hh*.36,0,C.main,.75);hex(g,span*.1,hh*.22,p.w*.46,sx-span*.04,y0+hh*.6,0,C.dark,.7);for(const sd of[-1,1]){box(g,span*.22,hh*.1,.03*u,sx,y0+hh*.12,sd*p.w*.56,C.deep);box(g,span*.12,hh*.06,.02*u,sx+span*.04,y0+hh*.62,sd*p.w*.2,C.or,1)}}
  // лазер: ствол в оси, линза в носу
  if(inv.laser){add(g,new THREE.CylinderGeometry(hh*.1,hh*.1,L*.12,8).rotateZ(Math.PI/2),C.deep,x1+noseL*.9,-hh*.04,0,0,false);add(g,new THREE.SphereGeometry(hh*.1,10,8),C.glow,x1+noseL*.98,-hh*.04,0,1,false)}
  // мостик и радар врезаны в палубу перед носовым клином
@@ -347,9 +347,26 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
   for(const f of[.3,.68]){const p0=base(x0+span*f),x=fit('top',x0+span*f,span*.07,-p0.w*.12,p0.w*.12);if(x==null)continue;claim('top',x-span*.035,x+span*.035,-p0.w*.12,p0.w*.12);const y=top(x),p=base(x);rb(span*.06,hh*.22,p.w*.22,x,y+hh*.08,0,C.dark,.35,0);rb(span*.035,hh*.1,p.w*.12,x+span*.01,y+hh*.2,0,C.plate,-.35,0)}
   // огни по краям: красный слева, зелёный справа
   const pn=base(x1-span*.02);box(g,.04*u,.03*u,.04*u,x1-span*.02,pn.cy,-pn.w*.5-.01,0xff3b3b,1);box(g,.04*u,.03*u,.04*u,x1-span*.02,pn.cy,pn.w*.5+.01,0x3bff6a,1)}
+
+ // РЕЛЬЕФ: никаких голых плоскостей — на палубе и бортах блоки, надстройки, пояса брони, рёбра разной высоты (с учётом занятости)
+ let GP0=null;
+ { const gp=gapIn('side',x0+span*.02,x1+noseL*.3,0,1,span*.07);if(gp){const nl=Math.min(span*.17,(gp.b-gp.a)*.9),xn=(gp.a+gp.b)/2;GP0={a:xn-nl*.56,b:xn+nl*.56};claim('side',GP0.a,GP0.b,0,1)}
+  let s2=(inv.seed||7)*7919+13;const r2=()=>{s2=(s2*16807)%2147483647;return s2/2147483647};
+  const sd0=()=>r2()<.5?-1:1;
+  const cl2=[C.plate,C.main,C.dark,C.deep,0x566178,C.plate];let pl=0;
+  for(let a=0;a<420&&pl<90;a++){const x=x0+span*(.03+.92*r2()),p=base(x),ln=hh*(.3+r2()*1.2),wd=hh*(.18+r2()*.5),ht=hh*(.05+r2()*(r2()<.3?.45:.15)),zc=(.1+.72*r2())*p.w*p.k*.5,ty=p.cy+p.h/2,col=cl2[Math.floor(r2()*cl2.length)],kind=r2();
+   if(!isFree('top',x-ln/2,x+ln/2,-zc-wd/2,-zc+wd/2)||!isFree('top',x-ln/2,x+ln/2,zc-wd/2,zc+wd/2))continue;
+   for(const sd of(r2()<.55?[-1,1]:[sd0()])){const z=sd*zc;claim('top',x-ln/2,x+ln/2,z-wd/2,z+wd/2);const y=ty+ht/2-.01*u;
+    if(kind<.5)box(g,ln,ht,wd,x,y,z,col);else if(kind<.72)hex(g,ln,ht,wd,x,y,z,col,.7);else if(kind<.88)wedge(g,ln,ht,wd,x,y,z,col,.4,.4);else{cyl(g,ht*1.4,wd*.35,x,ty+ht*.7,z,C.dark);}
+    if(kind<.5&&r2()<.4)box(g,ln*.5,ht*.5,wd*.6,x+ln*.1,y+ht*.7,z,C.dark)}pl++}
+  let pb=0;for(let a=0;a<700&&pb<100;a++){const x=x0+span*(.03+.92*r2()),p=base(x),h2=p.h/2,ln=hh*(.5+r2()*2.4),lh=hh*(.1+r2()*.22),yy=p.cy+(r2()-.5)*p.h*.7,th=hh*(.05+r2()*.1),kk=p.k||.62;
+   if((GP0&&x+ln/2>GP0.a&&x-ln/2<GP0.b)||!isFree('s2',x-ln/2,x+ln/2,yy-lh/2,yy+lh/2))continue;claim('s2',x-ln/2,x+ln/2,yy-lh/2,yy+lh/2);
+   const zs=p.w/2*(1-(1-kk)*Math.min(1,Math.abs(yy-p.cy)/h2)),col=cl2[Math.floor(r2()*cl2.length)];
+   for(const sd of[-1,1]){box(g,ln,lh,th,x,yy,sd*(zs+th*.35),col);if(r2()<.5)box(g,ln*.6,lh*.4,th*.8,x+ln*.1,yy,sd*(zs+th*.9),C.deep)}pb++}
+ }
  // ЛИВРЕЯ: цвет и номер берутся из проекта; полосы идут по профилю палубы
  { const col=hexs(inv.col||0xff7a3c),topY=x=>{const p=base(x);return p.cy+p.h/2+.006};
-  { const gp=gapIn('side',x0+span*.02,x1+noseL*.3,0,1,span*.07);if(gp){const nl=Math.min(span*.17,(gp.b-gp.a)*.9),xn=(gp.a+gp.b)/2,pn=base(xn);for(const sd of[-1,1]){const m=new THREE.Mesh(new THREE.PlaneGeometry(nl,nl*.5),new THREE.MeshBasicMaterial({map:numTex(inv.id||'00','#f2f4f8'),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));m.rotation.y=sd>0?0:Math.PI;m.position.set(xn,pn.cy,sd*(pn.w*.5+.004));g.add(m)}}}
+  { const gp=GP0;if(gp){const nl=Math.min(span*.17,(gp.b-gp.a)*.9),xn=(gp.a+gp.b)/2,pn=base(xn);for(const sd of[-1,1]){const m=new THREE.Mesh(new THREE.PlaneGeometry(nl,nl*.5),new THREE.MeshBasicMaterial({map:numTex(inv.id||'00','#f2f4f8'),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));m.rotation.y=sd>0?0:Math.PI;m.position.set(xn,pn.cy,sd*(pn.w*.5+.004));g.add(m)}}}
   if(inv.hang>0&&place.hang){const [a,b]=place.hang,p=base((a+b)/2);{const gp=gapIn('top',a,b,-p.w*.15,p.w*.15,(b-a)*.2);if(gp){const cl2=Math.min(gp.b-gp.a,(b-a)*.7),xc=(gp.a+gp.b)/2;dec(g,chevTex(col),xc,topY(xc),0,cl2,p.w*.3,0)}}}
   if(inv.eng.n>0){const p=base(-L/2+eL*.5);dec(g,hazTex('#111','#ffd23a'),-L/2+eL*.5,topY(-L/2+eL*.5),0,eL*.7,p.w*.2,0)}
   if(place.tank&&bigT){const [a,b]=place.tank,p=base((a+b)/2),rr=Math.min(hh*.75,Math.cbrt(inv.tank)*.075),n=inv.tank>300?2:1,cl=(b-a)*.95;for(const sd of[-1,1])for(let q=0;q<n;q++){const zz=sd*(p.w*.5+rr*(1.1+q*2)),yy=p.cy+(q?rr*.3:0),ty=yy+rr*.866+.004,xm=(a+b)/2;
