@@ -483,7 +483,7 @@ if (wrap && bgo) {
   function spineVis(s: any, g: THREE.Group, lv: number, det: boolean, shl: boolean) {
     const u = g.userData; if (frameNo !== spFrame) { spFrame = frameNo; spBuilds = 0 }
     const stn = s.T.role === 'station' || (s.spec && s.spec.role === 'station'); let on = !!u.spOn && !stn;
-    if (!stn) { if (!on && lv >= 3) on = true; else if (on && lv < 2) on = false }
+    if (!stn) { if (!on && lv >= 5 && shl) on = true; else if (on && (lv < 4 || !shl)) on = false }
     if (on && !u.sp) { if (spBuilds >= 1) on = false; else { spBuilds++; const tons = s.T.tons || s.T.L * TON_L, spc = s.spec || {}, m = tons < 800 ? 1 : tons < 3000 ? 2 : tons < 12000 ? 4 : tons < 60000 ? 5 : 7;
       const mp: any = massParts(spc.rails != null || spc.real ? spc : { rails: 10, flak: 2, tons }), pr = mp.parts || {}, ef = (pr.eng || 0) / Math.max(1, mp.T || tons), tf = (pr.tank || 0) / Math.max(1, mp.T || tons), rc = spc.railCfg || [], tl: number[] = [], rn = spc.rails || 0, gn = spc.gat || 0, fn = spc.flak || 0;
       const kin: number[][] = [[], [], []]; for (let i = 0; i < rn; i++) { const c = +((rc[i] || {}).cal) || 10; kin[0].push(c <= 10 ? 0 : c <= 15 ? 1 : c <= 20 ? 3 : 5) } for (let i = 0; i < gn; i++) kin[1].push(2); for (let i = 0; i < fn + (spc.lasers || 0); i++) kin[2].push(4);

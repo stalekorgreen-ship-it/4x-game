@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Модульный корабль «хребет»: секции корпуса, двигатели, носовые орудия, турели, баки/ангары, краска; повреждения в геометрии, дыры, провода, обломки.
 import * as THREE from 'three';
-import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { toCreasedNormals, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 let P:any={};
 const mk=(c,m,r)=>new THREE.MeshPhysicalMaterial({color:c,metalness:m,roughness:r,flatShading:true,envMapIntensity:1.1,side:THREE.DoubleSide});
 let silver:any,silver2:any,steel:any,accent:any;const dark=mk(0x242a37,.7,.5);
@@ -512,4 +512,12 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
   hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step}}
 
-export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
+// склейка статичной мелочи в несколько мешей по материалам: тысячи draw call'ов на корабль -> десяток
+function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(g.matrixWorld).invert(),by=new Map(),rm=[];
+ g.traverse((o:any)=>{if(o===g||o===g.userData.hull||o===g.userData.inner||!o.isMesh||o.isInstancedMesh)return;let p=o,skip=false;while(p&&p!==g){if(p===g.userData.hull||p===g.userData.inner){skip=true;break}p=p.parent}if(skip)return;
+  const mat=Array.isArray(o.material)?null:o.material;if(!mat)return;let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const k of Object.keys(ge.attributes))if(k!=='position'&&k!=='normal'&&k!=='uv'&&k!=='color')ge.deleteAttribute(k);
+  if(mat.map||mat.vertexColors){return}
+  if(!ge.attributes.normal)ge.computeVertexNormals();ge.deleteAttribute('uv');ge.deleteAttribute('color');ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
+ for(const o of rm)o.parent&&o.parent.remove(o);
+ for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(!mg)continue;const me=new THREE.Mesh(mg,mat);me.userData.keep=true;g.add(me)}}
+export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
