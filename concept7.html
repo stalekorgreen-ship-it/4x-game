@@ -42,45 +42,36 @@ function sockets(g,x,w,h,len){const n=Math.max(1,Math.floor(len/7)),s=Math.min(w
    // pad по умолчанию смотрит в +X → повернём на нужную грань
    if(fy){p.rotation.z=fy>0?Math.PI/2:-Math.PI/2;p.position.set(xx,fy*(h/2+.05),0)}else{p.rotation.y=fz>0?-Math.PI/2:Math.PI/2;p.position.set(xx,0,fz*(w/2+.05))}
    g.add(p)}}}
-function spine(m){const g=new THREE.Group();let x=0;
+function rcs(dir,s){const g=new THREE.Group();g.add(cb(s*2.2,s*2.2,s*1.1,s*.35,silver2));
+ for(const[a,b]of[[-.5,-.5],[.5,-.5],[-.5,.5],[.5,.5]]){const n=cyl(s*.34,s*.2,s*.9,dark,true);n.rotation.x=0;n.rotation.z=Math.PI/2*0;const k=new THREE.Group();k.add(n);n.rotation.set(Math.PI/8,0,Math.PI/2);n.rotation.z=0;
+  const ng=new THREE.Mesh(new THREE.CylinderGeometry(s*.3,s*.18,s*.9,8,1,true),dark);ng.position.set(a*s*1.1,s*.9,b*s*.9);g.add(ng);
+  const gl=new THREE.Mesh(new THREE.CircleGeometry(s*.17,8),cyan);gl.rotation.x=-Math.PI/2;gl.position.set(a*s*1.1,s*1.36,b*s*.9);g.add(gl)}
+ g.rotation.set(0,0,0);const o=new THREE.Group();o.add(g);if(dir==='u')return o;if(dir==='d'){o.rotation.x=Math.PI;return o}if(dir==='l'){o.rotation.x=Math.PI/2;return o}o.rotation.x=-Math.PI/2;return o}
+function spine(m){const g=new THREE.Group();
  const put=(o,x,y,z)=>{o.position.set(x,y||0,z||0);g.add(o);return o};
- const base=10,Wb=base*(1+Math.min(m,8)*.05);
- const tk=i=>1.25-.5*(m>1?i/(m-1):.5); // сужение от кормы к носу
- // корма
- const sl=13,W0=Wb*1.3;put(cb(sl,W0,W0*.95,3.5,silver2),x-sl/2,0,0);put(cb(2,W0*1.12,W0*1.05,1,steel),x-sl+1,0,0);
- put(pad(W0*.5),x-sl-.1,0,0).rotation.y=Math.PI;
- for(const sg of[-1,1]){const w=poly([[-sl/2,0],[sl/2,0],[sl/2-4,4],[-sl/2+4,4]].map(([a,z])=>[a,sg*(z+W0/2-.6)]),.8,.2,accent);w.rotation.x=-Math.PI/2;w.position.set(x-sl/2,-.4,0);g.add(w)}
- const cuts=[];let xs=0;
- for(let i=0;i<m;i++){const W=Wb*tk(i),type=i%3,len=type===1?17:type===2?14:12,h=W*(type===2?1.2:1);
-  put(cb(2.2,W*.7,h*.7,.7,steel),x+1.1,0,0);put(cb(.9,W*1.0,h*1.0,.3,accent),x+.45,0,0);
-  const c=x+2.2+len/2;
-  if(type===1){ // ферма: четыре лонжерона, рамы, видно светящееся ядро
-   const o=W*.42;for(const sy of[-1,1])for(const sz of[-1,1])put(cb(len,1.3,1.3,.4,steel),c,sy*o,sz*o);
-   for(const dx of[-len/2+1,0,len/2-1]){for(const sy of[-1,1]){put(cb(.9,W*.9,1.2,.3,silver2),c+dx,sy*o,0);put(cb(.9,1.2,W*.9,.3,silver2),c+dx,0,sy*o)}}
-   put(cb(len,W*.28,W*.28,.9,dark),c,0,0);for(const sy of[-1,1]){put(cb(len*.9,.35,.35,.1,cyan),c,sy*W*.15,0);}
-   for(const sg of[-1,1])put(cb(len*.5,W*.28,.7,.2,cyan),c,0,sg*(W*.14+.2));
-   for(const[ax,az]of[[0,0]])put(cb(len*.35,W*.5,.8,.25,silver),c,o+.9,0)
-   // гнёзда на платформах между лонжеронами
-   const sp=Math.min(W,h)*.3;const p1=pad(sp);p1.rotation.z=Math.PI/2;p1.position.set(c,o+1.4,0);g.add(p1);const p2=pad(sp);p2.rotation.z=-Math.PI/2;p2.position.set(c,-o-1.4,0);g.add(p2);
-   for(const sg of[-1,1]){const p=pad(sp);p.rotation.y=sg>0?-Math.PI/2:Math.PI/2;p.position.set(c,0,sg*(o+1.4));g.add(p);put(cb(len*.35,.8,W*.5,.25,silver),c,0,sg*(o+.9))}
-  }else{
-   put(cb(len,W,h,type===2?4:3,type===0?silver:silver2),c,0,0);
-   sockets(g,c,W,h,len);
-   if(type===2){ // гребень-плавник сверху и снизу, боковые клинья-спонсоны
-    for(const sy of[-1,1]){const cr=poly([[-len/2,0],[len/2,0],[len/2-5,5],[-len/2+8,5]].map(([a,y])=>[a,sy*y]),1.6,.3,silver);cr.position.set(c,sy*(h/2-.3),-.8);g.add(cr);put(cb(len*.5,.4,1.8,.1,cyan),c,sy*(h/2+5),0)}
-    for(const sg of[-1,1]){const w=poly([[-len/2,0],[len/2,0],[len/2-5,5],[-len/2+5,5]].map(([a,z])=>[a,sg*z]),1.8,.3,silver2);w.rotation.x=-Math.PI/2;w.position.set(c,-.9,sg*(W/2-.4));g.add(w)}
-   }else{
-    put(cb(len*.55,W*.5,.8,.25,steel),c,h/2+.4,0);put(cb(len*.55,W*.5,.8,.25,steel),c,-h/2-.4,0);
-    for(const sg of[-1,1])put(cb(.9,.6,h*.5,.2,accent),c+len*.3,0,sg*(W/2+.3))}
-  }
-  x+=2.2+len}
- // нос: двухступенчатый клин с боковыми лезвиями
- const Wn=Wb*tk(m-1);put(cb(2.2,Wn*.7,Wn*.7,.7,steel),x+1.1,0,0);
- const bl=17,rs=[{x:x+2.2,w:Wn,h:Wn},{x:x+2.2+bl*.35,w:Wn*.8,h:Wn*.8},{x:x+2.2+bl*.7,w:Wn*.55,h:Wn*.55},{x:x+2.2+bl,w:Wn*.4,h:Wn*.4}];
- g.add(new THREE.Mesh(loftR(rs),silver));put(cb(.9,Wn*.82,Wn*.82,.3,accent),x+2.2+bl*.35,0,0);
- for(const sg of[-1,1]){const w=poly([[0,0],[bl*.75,0],[bl*.75-4,4],[3,4]].map(([a,z])=>[a,sg*(z+Wn*.35)]),.7,.2,silver2);w.rotation.x=-Math.PI/2;w.position.set(x+2.2,-.35,0);g.add(w)}
- const bp=pad(Wn*.3);bp.position.set(x+2.2+bl+.2,0,0);g.add(bp);
- g.userData.mid=x/2;return g}
+ const Wb=10*(1+Math.min(m,8)*.05),tk=t=>1.3-.55*t;
+ const secL=15,L=secL*m,x0=-L/2;
+ // литое тело: единый лофт со ступенчатыми рёбрами
+ const R=[{x:x0-14,w:Wb*1.0,h:Wb*.9},{x:x0-12,w:Wb*1.4,h:Wb*1.2},{x:x0-1,w:Wb*1.4,h:Wb*1.2}];
+ for(let i=0;i<m;i++){const t0=i/m,t1=(i+1)/m,a=x0+i*secL,w0=Wb*tk(t0),w1=Wb*tk(t1),bulge=(i%2?1.1:1);
+  R.push({x:a+2,w:w0*bulge,h:w0*bulge*.92},{x:a+secL-2,w:w1*bulge,h:w1*bulge*.92},{x:a+secL-.6,w:w1*.9,h:w1*.84})}
+ const xe=x0+L,wn=Wb*tk(1);R.push({x:xe+2,w:wn*.85,h:wn*.8},{x:xe+9,w:wn*.6,h:wn*.55},{x:xe+16,w:wn*.4,h:wn*.36});
+ g.add(new THREE.Mesh(loftR(R),silver));
+ // рёбра-пояса и стыки
+ for(let i=0;i<=m;i++){const w=Wb*tk(i/m);put(cb(1.1,w*1.06,w*.98,.35,accent),x0+i*secL,0,0)}
+ // гребень сверху и снизу вдоль хребта + гнёзда
+ for(let i=0;i<m;i++){const t=(i+.5)/m,w=Wb*tk(t),c=x0+i*secL+secL/2;
+  for(const sy of[-1,1])put(cb(secL*.6,w*.4,.9,.3,steel),c,sy*(w*.46+.4),0);
+  sockets(g,c,w*.96,w*.88,secL)}
+ // литые боковые клинья на стыках через одну
+ for(let i=1;i<m;i+=2){const w=Wb*tk(i/m),c=x0+i*secL;for(const sg of[-1,1]){const p=poly([[-6,0],[6,0],[2,4],[-2,4]].map(([a,z])=>[a,sg*z]),1.6,.3,silver2);p.rotation.x=-Math.PI/2;p.position.set(c,-.8,sg*(w/2-.3));g.add(p)}}
+ // кормовое гнездо двигателей
+ const p=pad(Wb*.8);p.rotation.y=Math.PI;p.position.set(x0-14.1,0,0);g.add(p);
+ // манёвровые двигатели: корма, середина, нос; вверх/вниз/в стороны
+ const rc=[[x0-6,Wb*1.2,Wb*.6,.9],[0,Wb*tk(.5),0,.8],[xe+4,wn*.58,0,.7]];
+ for(const[x,w,_,s]of rc){for(const d of['u','d','l','r']){const r=rcs(d,s*2.4);const o=w*.46+s*1.2;
+   if(d==='u')r.position.set(x,o,0);if(d==='d')r.position.set(x,-o,0);if(d==='l')r.position.set(x,0,-o);if(d==='r')r.position.set(x,0,o);g.add(r)}}
+ g.userData.mid=-7;return g}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
 if(m){const b=spine(m);sc.add(b);const az=+q.get('az')||.7,el=+q.get('el')||.35,d=+q.get('d')||110;const mid=b.userData.mid;cam.position.set(mid+Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(mid,0,0)}
