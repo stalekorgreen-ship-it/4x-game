@@ -240,15 +240,17 @@ if (wrap && bgo) {
       x += len;
     }
     if (!seg.length) seg.push({ cx: (x0 + x1) / 2, w: W, h: H, len: Lk, cy: 0, weapon: true, ty: 's', col: P.main });
+    let sty: any = null, extraM: any[] = [];
     if (RL) { // плавный корпус по параметрам проекта: нос заострён тем сильнее, чем мощнее двигатели; ангары и орудия расширяют середину; броня задаёт наклон граней
       const old2 = seg.splice(0), tot = Math.max(1, Object.values(mp.parts).reduce((a: number, b: any) => a + (+b || 0), 0)), eS = Math.min(1, (mp.parts.eng || 0) / tot * 5), hS = Math.min(1, ((mp.parts.hangF || 0) + (mp.parts.hangB || 0)) / tot * 3), wS = Math.min(1, ((mp.parts.rail || 0) + (mp.parts.flak || 0) + (mp.parts.gat || 0) + (mp.parts.miss || 0) + (mp.parts.laser || 0)) / tot * 2), aS = Math.min(1, (mp.armor || 0) / Math.max(1, tot) * 3);
       const nF = .2 + .28 * eS, wMid = 1.15 + .2 * hS + .15 * wS, sm = (a: number) => a * a * (3 - 2 * a);
+      const nose0 = R(), nose = nose0 < .4 ? 'wedge' : nose0 < .7 ? 'prong' : 'ram', sweep = (R() - .5) * 1.0, island = R() < .25 + hS * .5; sty = { eS, hS, wS, aS, nose, sweep, island, tot };
       for (const e of old2) { const n = Math.max(1, Math.round(e.len / (L * .04)));
         for (let j = 0; j < n; j++) { const len = e.len / n, cx = e.cx - e.len / 2 + (j + .5) * len, t = Math.max(0, Math.min(1, (cx - x0) / Lk)); let pw: number, ph: number;
           if (t < .14) { pw = 1; ph = 1 } else if (t < .45) { const k = sm((t - .14) / .31); pw = 1 + (wMid - 1) * k; ph = 1 } else if (t < 1 - nF) { pw = wMid; ph = 1 } else { const k = Math.pow((t - (1 - nF)) / nF, 1.4); pw = wMid * (1 - .75 * k); ph = 1 - .5 * k }
-          const w = e.ty === 'e' ? e.w : W * pw, h = e.ty === 'e' ? e.h : H * ph, c = Math.min(w, h) * (.2 + .1 * aS + .08 * Math.min(1, t * t * 2));
+          const kk = t < .14 ? 1 : 1 - .6 * sm(Math.min(1, (t - .14) / .12)), kh2 = t < .14 ? 1 : 1 - .35 * sm(Math.min(1, (t - .14) / .12)), w = e.ty === 'e' ? e.w : W * pw * kk, h = e.ty === 'e' ? e.h : H * ph * kh2, c = Math.min(w, h) * (.2 + .1 * aS + .08 * Math.min(1, t * t * 2));
           seg.push({ ...e, cx, len, w, h, cy: 0, c, col: e.col });
-          if ((e.ty === 'f' || e.ty === 'b') && j === (n >> 1)) for (const sd of [-1, 1]) { const gl = e.len * .8, gh = h * (1 - 2 * c / h) * .45; parts.push(piece(unitBox, 0x0b0d12, cx, -h * .05, sd * (w / 2 + w * .004), gl, gh, w * .012)); parts.push(piece(unitBox, P.glow, cx, -h * .05 - gh / 2, sd * (w / 2 + w * .006), gl, h * .02, w * .014)) } } } }
+          if ((e.ty === 'f' || e.ty === 'b') && hS <= .15 && j === (n >> 1)) for (const sd of [-1, 1]) { const gl = e.len * .8, gh = h * (1 - 2 * c / h) * .45; parts.push(piece(unitBox, 0x0b0d12, cx, -h * .05, sd * (w / 2 + w * .004), gl, gh, w * .012)); parts.push(piece(unitBox, P.glow, cx, -h * .05 - gh / 2, sd * (w / 2 + w * .006), gl, h * .02, w * .014)) } } } }
     const finI: any[] = [];
     // жёсткий корпус: ступенчатые призмы с фасками (сечение — прямоугольник со срезанными углами), никаких сглаживаний
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
@@ -256,6 +258,26 @@ if (wrap && bgo) {
       if (RL) { // настоящий корабль: отдельные блоки-модули со скошенными гранями, встык, без наложений
         for (const e of seg) parts.push(chamPrism(e.len, e.h, e.w, e.c, e.col, e.cy, e.cx));
         const lst0 = seg[seg.length - 1], nl = L * .2; parts.push(chamPrism(nl * .55, lst0.h, lst0.w, Math.min(lst0.h, lst0.w) * .3, shade(P.main, 1.1), lst0.cy, x1 + nl * .275, .55)); parts.push(chamPrism(nl * .45, lst0.h * .55, lst0.w * .55, Math.min(lst0.h, lst0.w) * .12, shade(P.main, 1.2), lst0.cy - lst0.h * .1, x1 + nl * .55 + nl * .225, .3)); // клиновидный нос
+        if (sty) { // навесные узлы: орудийные платформы, броневые щёки, ангарные коробки, радиаторы, варианты носа — по параметрам проекта
+          const Lk2 = x1 - x0, xa = x0 + (lst.filter(q => q.ty === 'e').reduce((a, q) => a + q.len, 0)) + Lk2 * .04, th = L * .04, dm = (xx: number) => dimsAt(xx);
+          const att = (len: number, h: number, w: number, c: number, col: number, x: number, y: number, z: number, o: { rot?: number; nose?: number } = {}) => { const g = chamPrism(len, h, w, c, col, 0, 0, o.nose ?? 1); if (o.rot) g.rotateY(o.rot); g.translate(x, y, z); return g };
+          const nl2 = L * .2;
+          if (sty.nose === 'prong') for (const sd of [-1, 1]) { parts.push(att(nl2 * 1.6, lst0.h * .7, lst0.w * .38, lst0.h * .12, shade(P.main, 1.1), x1 + nl2 * .5, lst0.cy, sd * lst0.w * .3, { nose: .25 })) }
+          else if (sty.nose === 'ram') parts.push(att(nl2 * .7, lst0.h * 1.05, lst0.w * 1.25, lst0.h * .3, shade(P.main, 1.15), x1 + nl2 * .2, lst0.cy, 0, { nose: .8 }));
+          // броневые щёки на носу
+          { const cw = L * (.03 + .06 * sty.aS), cLn = L * (.1 + .16 * sty.aS), xc = x1 - cLn * .35, d0 = dm(xc); for (const sd of [-1, 1]) parts.push(att(cLn, d0.h * .55, cw, cw * .3, shade(P.light || P.main, 1.15), xc, d0.cy - d0.h * .1, sd * (d0.w / 2 + cw / 2 - L * .004), { nose: .4 })) }
+          // орудийные платформы: плоские палубы по бортам с башнями на палубе
+          const np = Math.max(sty.wS > .05 ? 1 : 0, Math.round(1 + sty.wS * 3)), xs0 = xa + Lk2 * .1, xs1 = x1 - Lk2 * .18;
+          for (let i = 0; i < np; i++) { const px = np === 1 ? (xs0 + xs1) / 2 : xs0 + (xs1 - xs0) * i / (np - 1), wl = L * (.13 + .09 * sty.wS), ww = L * (.075 + .09 * sty.wS) * (1 - i * .12), dd = dm(px), y = dd.cy + dd.h * .05;
+            for (const sd of [-1, 1]) { const z = sd * (dd.w / 2 + ww / 2 - L * .005); parts.push(att(wl, th, ww, th * .3, shade(P.main, .72), px, y, z, { rot: sd * sty.sweep * .8, nose: .7 })); parts.push(att(wl * .55, th * .6, ww * .55, th * .15, P.dark, px - wl * .1, y - th * .8, z));
+              for (let k = 0; k < 2; k++) extraM.push({ x: px + (k ? -wl * .22 : wl * .2), y: y + th / 2, z: z + sd * ww * (k ? -.05 : .05), face: 0, plat: true }) } }
+          // ангарные коробки по бортам
+          if (sty.hS > .15) { const hl = L * (.12 + .26 * sty.hS), hw = L * (.05 + .09 * sty.hS), px = xa + Lk2 * .25 + hl / 2, dd = dm(px), hh = dd.h * .95;
+            for (const sd of [-1, 1]) { const z = sd * (dd.w / 2 + hw / 2 + L * .008); parts.push(att(hl, hh, hw, hh * .15, shade(P.main, .95), px, dd.cy - dd.h * .05, z, { nose: .92 })); parts.push(piece(unitBox, 0x0b0e14, px, dd.cy - dd.h * .1, z + sd * (hw / 2 + L * .0005), hl * .88, hh * .5, L * .002)); parts.push(piece(unitBox, P.glow, px, dd.cy - dd.h * .1 - hh * .27, z + sd * (hw / 2 + L * .001), hl * .88, L * .003, L * .003));
+              for (let k = 0; k < 2; k++) extraM.push({ x: px + (k ? -hl * .25 : hl * .25), y: dd.cy - dd.h * .05 + hh / 2, z, face: 0, plat: true }); parts.push(att(L * .02, dd.h * .3, hw * .6, L * .004, P.dark, px, dd.cy - dd.h * .05, sd * (dd.w / 2 + L * .004), {})) } }
+          // V-радиаторы у кормы
+          if (sty.eS > .25) { const xr = xa + Lk2 * .03, d1 = dm(xr); for (const sd of [-1, 1]) { const g = chamPrism(L * .12, L * .006, L * (.025 + .03 * sty.eS), L * .002, shade(P.dark, 1.15), 0, 0); g.rotateX(sd * .9); g.translate(xr, d1.cy + d1.h * .45, sd * (d1.w / 2 + L * .012)); parts.push(g) } }
+        }
       } else {
         for (let i = 0; i <= NS; i++) { const xx = x0 + (xe - x0) * i / NS; let d: any = dimsAt(Math.min(xx, x1)), k = 1;
           if (xx > x1) { const t = Math.min(1, (xx - x1) / (xe - x1)); k = 1 - t * .35 } // тупой срез носа вместо иглы
@@ -276,10 +298,11 @@ if (wrap && bgo) {
     const bs = seg[seg.length - 1], bh = RL ? Math.min(H * 1.4, L * .07) : H * 1.4, bx = bs.cx;
     if (hasBr && RL) { // рубка: два ступенчатых блока со скосами и светящимся остеклением, сверху мачта (только если есть сенсоры)
       const top = bs.cy + bs.h / 2 + thL0() * 1.1, b1 = bh * .5, b2 = bh * .38, l1 = L * .075, l2 = L * .045;
-      parts.push(chamPrism(l1, b1, W * .6, b1 * .3, P.dark, top + b1 / 2, bx, .8));
-      parts.push(chamPrism(l2, b2, W * .4, b2 * .3, P.main, top + b1 + b2 / 2, bx - L * .006, .75));
-      parts.push(piece(unitBox, P.glow, bx - L * .006 + l2 * .5 * .93, top + b1 + b2 * .55, 0, L * .002, b2 * .26, W * .34));
-      if (hasMast) { parts.push(piece(unitBox, 0x8a8f99, bx - L * .02, top + b1 + b2 + bh * .22, 0, L * .004, bh * .44, L * .004)); parts.push(piece(unitBox, 0x8a8f99, bx - L * .02, top + b1 + b2 + bh * .4, 0, L * .003, L * .003, W * .22)) }
+      const bz0 = sty && sty.island ? bs.w * .42 : 0;
+      parts.push(chamPrism(l1, b1, W * .5, b1 * .3, P.dark, top + b1 / 2, bx, .8).translate(0, 0, bz0));
+      parts.push(chamPrism(l2, b2, W * .34, b2 * .3, P.main, top + b1 + b2 / 2, bx - L * .006, .75).translate(0, 0, bz0));
+      parts.push(piece(unitBox, P.glow, bx - L * .006 + l2 * .5 * .93, top + b1 + b2 * .55, bz0, L * .002, b2 * .26, W * .28));
+      if (hasMast) { parts.push(piece(unitBox, 0x8a8f99, bx - L * .02, top + b1 + b2 + bh * .22, bz0, L * .004, bh * .44, L * .004)); parts.push(piece(unitBox, 0x8a8f99, bx - L * .02, top + b1 + b2 + bh * .4, bz0, L * .003, L * .003, W * .18)) }
     } else if (hasBr) {
     parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
@@ -329,6 +352,7 @@ if (wrap && bgo) {
       const Dm = Math.min(D, L * .03), bx = m.x + n[0] * Dm * .22, by = m.y + n[1] * Dm * .22, bz = m.z + n[2] * Dm * .22, dm = (a: number, t: number) => (n[a] ? t : Dm);
       if (q.k === 'rad') { parts.push(piece(unitBox, 0x3a3f4a, bx, by, bz, dm(0, Dm * .44), dm(1, Dm * .44), dm(2, Dm * .44) * .6)); parts.push(piece(unitBox, 0xc9ced8, m.x + n[0] * Dm * .5, m.y + n[1] * Dm * .5, m.z + n[2] * Dm * .5, dm(0, Dm * .1), dm(1, Dm * .1), dm(2, Dm * .1))) }
       else parts.push(piece(unitBox, q.k === 'ew' ? P.acc2 : q.k === 'ir' ? 0x8a6a4a : q.k === 'sink' ? 0x707682 : 0x6a707c, bx, by, bz, dm(0, Dm * .44), dm(1, Dm * .44), dm(2, Dm * .44))) });
+    for (const m of extraM) mounts.push(m);
     const cell = Math.sqrt(tiles.length ? tiles[0].len * tiles[0].cs : 1);
     const finV: any[] = []; { let o = 0, k = 0; for (let i = 0; i < parts.length && k < finI.length; i++) { const n = parts[i].attributes.position.count; if (finI[k].pi === i) { const f = finI[k++]; finV.push({ ...f, v0: o, n }) } o += n } }
     const g = mergeGeometries(parts, false)!; (g as any).userData = { finV, armorT: mp.armor, x1, x0v: x0, tiles, mounts, cell, nozz, W, H, x0, Lk, gridRows, gridCols, seg: seg.map(q => ({ cx: q.cx, top: q.cy + q.h / 2, w: q.w, len: q.len, h: q.h, cy: q.cy, col: q.col })) }; return g;
