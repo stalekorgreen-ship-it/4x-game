@@ -208,10 +208,10 @@ if (wrap && bgo) {
     let x = x0;
     for (const e of lst) {
       const ty = e.ty, len = e.len, wF = ty === 'e' ? .95 : ty === 'f' || ty === 'b' ? 1.1 : ty === 'w' || ty === 'm' ? .8 : .62 + R() * .38, hF = ty === 'e' ? 1.1 : ty === 'f' || ty === 'b' ? 1.05 : ty === 'w' || ty === 'm' ? .8 : .65 + R() * .45;
-      const w = (RL && ty === 'e') ? W * .98 : W * wF, h = (RL && ty === 'e') ? H * .98 : H * hF, cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
+      const tpar = Math.max(0, Math.min(1, ((x + len / 2 - x0) / Lk - .5) / .5)), tp = RL ? 1 - .55 * tpar * tpar : 1, w = (RL && ty === 'e') ? W * .98 : W * wF * tp * (RL ? 1.6 : 1), h = (RL && ty === 'e') ? H * .98 : H * hF * (RL ? .55 : 1), cx = x + len / 2, cy = ty === 's' ? (R() - .5) * H * .25 : 0;
       const col = ty === 'e' ? P.dark : ty === 'f' ? P.main : ty === 'b' ? P.acc2 : ty === 't' ? 0x9aa3b2 : ty === 'r' ? P.dark : R() < .55 ? P.main : R() < .6 ? P.dark : P.acc2;
       const cF = ty === 'e' ? .1 : ty === 'w' || ty === 'm' || ty === 'l' ? .24 : ty === 'f' || ty === 'b' ? .12 : ty === 'q' ? .16 : .12 + R() * .16; // наклон угловых плит: оружейные блоки скошены сильнее всего
-      seg.push({ cx, w, h, len, cy, c: RL ? Math.min(w, h) * cF : 0, weapon: ty === 'w' || ty === 'm' || ty === 'l', ty, col: shade(col, .85 + R() * .3) });
+      seg.push({ cx, w, h, len, cy, c: RL ? Math.min(w, h) * (cF + .12) : 0, weapon: ty === 'w' || ty === 'm' || ty === 'l', ty, col: shade(col, .85 + R() * .3) });
       if (RL && ty === 'q') for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) parts.push(piece(unitBox, P.glow, cx - len * .4 + (i + .5) * len * .8 / 5, cy + h * .1, sd * (w / 2 + w * .01), len * .1, h * .22, w * .03));
       if (false) { const Rr = Math.max(w, h) * .78, tb = Math.max(w, h) * .05; parts.push(piece(new THREE.TorusGeometry(Rr, tb, 6, 28).rotateY(Math.PI / 2), 0x9aa3b2, cx, cy, 0)); parts.push(piece(new THREE.TorusGeometry(Rr * .985, tb * .4, 6, 28).rotateY(Math.PI / 2), P.glow, cx, cy, 0)); for (let q = 0; q < 4; q++) { const a = q * Math.PI / 2 + Math.PI / 4; parts.push(piece(unitBox, 0x7d8696, cx, cy + Math.sin(a) * Rr * .5, Math.cos(a) * Rr * .5, len * .06, tb * .8 + Math.abs(Math.sin(a)) * Rr * .9, tb * .8 + Math.abs(Math.cos(a)) * Rr * .9)) } } // обитаемое кольцо вокруг жилого отсека
       if (false) for (const sd of [-1, 1]) { parts.push(piece(wingH(.45, .9, sd), shade(P.main, .8), cx, cy, sd * (w / 2 + w * .5), len * 1.2, h * .03, w)); parts.push(piece(unitBox, P.glow, cx - len * .25, cy, sd * (w / 2 + w), len * .5, h * .035, w * .02)) } // крылья-радиаторы реактора
@@ -347,10 +347,6 @@ if (wrap && bgo) {
     const P = PAL[s.side], R = rng((u.seed ^ 0x9e3779b9) >>> 0), L = u.L, parts: THREE.BufferGeometry[] = [], seg: any[] = u.seg || [], zA = ((s.zones && s.zones[0] && s.zones[0].arm) || 0) * thL(u) * 1.05, zS = ((s.zones && s.zones[1] && s.zones[1].arm) || 0) * thL(u) * 1.05, eps = L * .0012;
     const win = 0xffe9a8, dk = 0x15181e, gr = 0x59606d, wins: any[] = [];
     for (const g of seg) { const top = g.top + zA, wS = g.w / 2 + zS, n = Math.max(2, Math.round(g.len / (L * .028))), y0 = g.cy;
-      // линии панелей поперёк верха
-      for (let i = 1; i < n; i++) parts.push(piece(unitBox, dk, g.cx - g.len / 2 + i * g.len / n, top + eps * .3, 0, L * .0012, eps, g.w * .96));
-      // осевой хребет и боковые полосы
-      parts.push(piece(unitBox, shade2(P.acc, .9), g.cx, top + eps, 0, g.len * .96, eps * 1.4, L * .004));
       for (const sd of [-1, 1]) { parts.push(piece(unitBox, P.acc2, g.cx, y0 - g.h * .12, sd * (wS + eps), g.len * .94, L * .004, eps * 1.4));
         // ряды иллюминаторов
         const nw = Math.max(3, Math.round(g.len / (L * .012))); for (let i = 0; i < nw; i++) if (R() < .85) { wins.push({ pi: parts.length, x: g.cx - g.len * .46 + (i + .5) * g.len * .92 / nw, sd, y: y0 + g.h * .1, cy: y0, h: g.h }); parts.push(piece(unitBox, R() < .9 ? win : P.glow, g.cx - g.len * .46 + (i + .5) * g.len * .92 / nw, y0 + g.h * .1, sd * (wS + eps), L * .0035, L * .0022, eps * 1.6)) } }

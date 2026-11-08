@@ -573,14 +573,15 @@ export function addNewGameButton() {
 export let lastT = performance.now(), lastUi = 0;
 export function frame(now) {
   const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
-  const WARM = !!(hooks.warActive && hooks.warActive());
+  const WARM = !!(hooks.warActive && hooks.warActive()); let days_ = 0;
   if (WARM) hooks.warFrame(dt);
   else if (Battle.active() && state.demo) { if (!state.paused) Battle.frame(dt); }
   else if (!state.paused) {
     let days = dt * SPEEDS[state.speedIdx].m / 1440;
     if (Battle.active()) days = Math.min(days, (Battle.hot() ? 4 : 300) * dt / 86400);
-    advance(days);
+    advance(days); days_ = days;
   }
+  if (hooks.bgStep) hooks.bgStep(WARM || state.paused || (Battle.active() && state.demo) ? 0 : days_, dt, state.paused ? 0 : SPEEDS[state.speedIdx].m / 1440);
   if (ui.skip > 0 && !Battle.active()) { const t0 = performance.now(); while (ui.skip > 1e-9 && performance.now() - t0 < 14) { const d = Math.min(0.25, ui.skip); advance(d); ui.skip -= d; } }
   if (!WARM && Battle.active()) { if (ui.bfollow) { const p = objPos('earth', state.t); ui.cam.x = p.x; ui.cam.y = p.y; } else if (ui.bship) { const q = Battle.anchorSel(), e = objPos('earth', state.t); if (q && q.alive) { ui.cam.x = e.x + q.x / 149597870.7; ui.cam.y = e.y + q.y / 149597870.7; } } Battle.hud(); }
   if (ui.follow) { const sp = selPos(); if (sp) { ui.cam.x = sp.x; ui.cam.y = sp.y; } }

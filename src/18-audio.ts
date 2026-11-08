@@ -74,6 +74,7 @@ export const Sfx = (() => {
   /* --- двигатели: непрерывный гул (низкий саунд + турбулентный шум), растёт с тягой флота и форсажем --- */
   let eng = null;
   const engine = (level, boost) => {
+    return; // звук двигателей отключён по просьбе игрока
     const a = ctx(); if (!a) return;
     if (!eng) {
       if (level <= 0 || !on) return;
