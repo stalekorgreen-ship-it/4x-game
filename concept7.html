@@ -519,10 +519,10 @@ function makeDamage(ship,L){const hull=ship.userData.hull,inner=ship.userData.in
   const mk=(c,rx,ry,depth,hole)=>({c,rx,ry,th:rr()*Math.PI,depth,hole,s:S+rr()*9});
   if(kind==='g'){graze(h.p,h.n,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),r);return}
   let lobes=[];const t1=new THREE.Vector3().crossVectors(h.n,Math.abs(h.n.y)<.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).normalize(),t2=new THREE.Vector3().crossVectors(h.n,t1);
-  if(kind==='c')lobes=[mk(h.p,r,r*(.55+rr()*.45),r*.3,.38)];
-  else if(kind==='b'){for(let i=0;i<4;i++){const o=new THREE.Vector3().addScaledVector(t1,(rr()-.5)*r*.9).addScaledVector(t2,(rr()-.5)*r*.9);lobes.push(mk(h.p.clone().add(o),r*(.45+rr()*.4),r*(.3+rr()*.4),r*.28,.35+rr()*.2))}lobes.push(mk(h.p,r*.9,r*.6,r*.18,0))}
-  else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*.5,.75),mk(h.p,r*2.4,r*2.1,r*.25,0)];
-  else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.35,.5),mk(h.p,r*3.4,r*.6,r*.15,0)];
+  if(kind==='c')lobes=[mk(h.p,r,r*(.55+rr()*.45),r*.85,.38)];
+  else if(kind==='b'){for(let i=0;i<4;i++){const o=new THREE.Vector3().addScaledVector(t1,(rr()-.5)*r*.9).addScaledVector(t2,(rr()-.5)*r*.9);lobes.push(mk(h.p.clone().add(o),r*(.45+rr()*.4),r*(.3+rr()*.4),r*.65,.35+rr()*.2))}lobes.push(mk(h.p,r*.9,r*.6,r*.4,0))}
+  else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*1.2,.75),mk(h.p,r*2.4,r*2.1,r*.6,0)];
+  else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
   crater(h.p,h.n,r,r*.3,lobes)},step}}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
