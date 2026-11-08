@@ -378,7 +378,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false}))};
  {const tD=cls<2?.5:.27,w0=wAt(tD),dw=L*(cls<2?.34:.085),dh=dw*.26,nm=['ПОЯС-4X','ПБ-217','ЛК «ЗАРЯ»','ЛК-04 «ПОЯС»'][cls];
   for(const sg of[-1,1]){const d=mkDecal(nm,'№ '+(cls*131+407)+' · ПРИПИСКА: ПОЯС',dw,dh);d.position.set(f(tD),0,sg*(cls<2?w0/2+.15:wAt(.45)/2+(cls===3?2.3:1.8)+.15));if(sg<0)d.rotation.y=Math.PI;g.add(d)}}
- if(cls>=2){
+ if(cls>=2&&P.tank!==0){
   // баки: стойка из горизонтальных цилиндров по бортам, с рёбрами и датчиками
   const tank=(l,r)=>{const t=new THREE.Group();const b=cyl(r,r,l,silver2);t.add(b);
    for(const sx of[-1,1]){const c=cyl(r*.75,r*.9,r*.5,steel);c.position.x=sx*(l/2+r*.25);t.add(c)}
@@ -388,7 +388,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
   for(const sg of[-1,1])for(let a=0;a<nTx;a++)for(const yy of[-1,1]){const xx=f(.74+a*.0)-0;const tt=.62+a*.12,t=tank(L*.1,rT);t.position.set(f(tt),yy*(rT+.15),sg*(wAt(tt)/2+rT+.3));g.add(t)}
   for(const sg of[-1,1]){const x1=f(.62)+(nTx-1)*L*.06,len=nTx*L*.12;put(cb(len,.5,rT*4.4,.2,steel),x1,0,sg*(wAt(.7)/2+.2));for(let a=0;a<=nTx;a++)put(cb(.6,rT*1.2,rT*4.6,.2,accent),f(.62)-L*.06+a*L*.12,0,sg*(wAt(.7)/2+rT*2.1+.4)).scale.set(1,1,.001)}
  }
- if(cls===3){
+ if(cls===3&&P.hang!==0){
   // ангар: бортовая рампа — тёмный проём с рамой, огнями и полосами
   const tH=.42,ho=wAt(tH)/2+3.4,hl=L*.2,hh=hAt(tH)*.42;
   for(const sg of[-1,1]){put(cb(hl,.7,hh,.4,dark),f(tH),0,sg*ho);
@@ -425,7 +425,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    // ориентация: локальная ось X → нормаль
    if(N[1]){gp.rotation.z=N[1]>0?Math.PI/2:-Math.PI/2}else{gp.rotation.y=N[2]>0?-Math.PI/2:Math.PI/2}
    gp.position.set(...P);g.add(gp);
-   if(P.tr!==0){const kt=i%6,ts=sz/6.4*(tn>3000?.85:.55),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
+   if(P.tr!==0){const kt=P.tl&&P.tl.length?P.tl[i%P.tl.length]:i%6,ts=sz/6.4*(tn>3000?.85:.55),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
  g.userData.sockets=SOC;
  if(tn>3000){
   for(const sg of[-1,1])for(const t0 of[.16,.78]){const wA=wAt(t0),hA=hAt(t0);faceDeco(g,f(t0),0,sg*(wA/2+.05),L*.14,hA*.6,'z',sg)}
@@ -451,7 +451,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    const pod=cb(wl*.9,1.5,1.5,.5,silver);pod.position.set(xt-wl*.35,0,tip);wg.add(pod);const ac=cb(.5,1.7,1.7,.2,accent);ac.position.set(xt-wl*.55,0,tip);wg.add(ac);
    const pp=port(r);pp.position.set(xt+.1,0,tip);wg.add(pp);const ro=railOut(4,r);ro.position.set(xt+.1,0,tip);wg.add(ro);
    wg.rotation.x=an;g.add(wg)}}
- const eN=[3,6,15,30][cls],nvOff=(tn<=3000&&ax>=2&&centerN===0),nV=centerN>=5?'x':centerN>=3?'c':centerN>=2?'b':'f';
+ const eN=P.en||[3,6,15,30][cls],nvOff=(tn<=3000&&ax>=2&&centerN===0),nV=centerN>=5?'x':centerN>=3?'c':centerN>=2?'b':'f';
  const eng=engineBlock(eN,1),{Ld,Wd}=eng.userData,es=Math.min(1.6,W*(cls===3?1.15:1.05)/Wd);eng.scale.setScalar(es);eng.position.x=x0-6-Ld*es*.5+1;g.add(eng);
  const ns=W*.88/10.6;if(nvOff){const wN=W*.88;g.add(new THREE.Mesh(loftR([{x:xe,w:wN,h:wN*.95},{x:xe+W*.7,w:wN*.55,h:wN*.5},{x:xe+W*1.3,w:wN*.2,h:wN*.2}]),silver))}
  if(!nvOff){const nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb)}
