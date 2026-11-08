@@ -259,9 +259,18 @@ export function openDesigner() {
   if (!curDesign()) { const d = {id: uid(), name: 'Новый проект', parts: {}, prio: {cmd: 0, eng: 0, pil: 0, min: 0}}; state.designs.push(d); ui.dsel = d.id; }
   $('designer').hidden = false; renderDesigner(true);
 }
-export function closeDesigner() { $('designer').hidden = true; if (ui.tab === 'yard') renderYard(); }
+export function closeDesigner() { pv3d(false); $('designer').hidden = true; if (ui.tab === 'yard') renderYard(); }
+let pvT: any = 0;
+function pv3d(on, refresh?) {
+  const h = $('dpv'); if (!h) return;
+  if (on === false) { clearTimeout(pvT); h.hidden = true; ui.dpv = false; hooks.preview3dOff && hooks.preview3dOff(); const b = $('dpvb'); if (b) b.classList.remove('on'); return; }
+  if (on === true) { ui.dpv = true; h.hidden = false; const b = $('dpvb'); if (b) b.classList.add('on'); }
+  const d = curDesign(); if (!ui.dpv || !d) return;
+  clearTimeout(pvT); pvT = setTimeout(() => { if (ui.dpv && hooks.preview3d) hooks.preview3d(d.parts, h); }, refresh ? 120 : 30);
+}
 export function renderDesigner(full) {
   const d = curDesign(); if (!d) return;
+  if (ui.dpv) pv3d(null, true);
   $('dlist').innerHTML = state.designs.map(x => `<div class="item${x.id === d.id ? ' sel' : ''}" data-d="${x.id}">${esc(x.name)}<span class="muted">${designTag(x)}</span></div>`).join('');
   if (full) $('dname').value = d.name;
   $('dflags').innerHTML = prioHtml(d); if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
@@ -321,6 +330,7 @@ export function renderDesigner(full) {
     state.designs = state.designs.filter(d => d.id !== ui.dsel); ui.dsel = state.designs[0].id; renderDesigner(true);
   };
   $('dclose').onclick = closeDesigner;
+  $('dpvb').onclick = () => pv3d(!ui.dpv);
   $('designer').addEventListener('pointerdown', e => { if (e.target === $('designer')) closeDesigner(); });
 })();
 

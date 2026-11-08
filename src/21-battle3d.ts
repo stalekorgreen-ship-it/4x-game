@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { Battle } from './05-battle.ts';
+import { Battle, Battles, makeBattle } from './05-battle.ts';
+import { previewSpec } from './16b-botdesign.ts';
 import { massParts, TON_L, RAIL_CAL } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 
@@ -597,10 +598,12 @@ if (wrap && bgo) {
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
   const LODT = [.002, .004, .007, .011, .017, .026, .04, .06, .09, .14]; // пороги видимого размера для уровней 1..10
-  function frame() {
+  function frame() { if (!pv) return frame0(); const pc = Battles.cur; Battles.cur = pv.b; try { frame0() } finally { Battles.cur = pc } }
+  function frame0() {
     raf = requestAnimationFrame(frame); if (!ren) return; const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
-    const r = wrap!.getBoundingClientRect(); if (ren.domElement.width !== Math.round(r.width * ren.getPixelRatio())) { ren.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix() }
+    const r = (pv ? pv.host : wrap!).getBoundingClientRect(); if (pv) { const cs = ren.domElement.style; cs.position = 'fixed'; cs.left = r.left + 'px'; cs.top = r.top + 'px'; cs.width = r.width + 'px'; cs.height = r.height + 'px'; cs.zIndex = '70'; if (!pv.drag) yaw += .004 }
+    if (ren.domElement.width !== Math.round(r.width * ren.getPixelRatio()) || ren.domElement.height !== Math.round(r.height * ren.getPixelRatio())) { ren.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix() }
     const selS = Battle.anchorSel && Battle.anchorSel();
     if (!ring) { ring = new THREE.LineLoop(new THREE.RingGeometry(.98, 1, 48).setFromPoints ? new THREE.BufferGeometry().setFromPoints(Array.from({ length: 49 }, (_, i) => new THREE.Vector3(Math.cos(i / 48 * 6.2832), 0, Math.sin(i / 48 * 6.2832)))) : undefined, new THREE.LineBasicMaterial({ color: 0xffffff })); scene.add(ring) }
     ring.visible = !!(selS && selS.alive && models.get(selS)); if (ring.visible) { const g = models.get(selS)!; ring.position.copy(g.position); ring.scale.setScalar(Math.max(selS.T.L * SC * .75, dist * .02)) }
@@ -865,8 +868,26 @@ if (wrap && bgo) {
     follow = true; fitAll = true; curSky = undefined;
   }
   (hooks as any).reset3d = reset3d;
+  // превью корабля из конструктора: отдельный мини-бой с одним кораблём, камера медленно крутится вокруг него
+  let pv: any = null;
+  function pvShow(parts: any, host: HTMLElement) {
+    const spec = previewSpec(parts); if (!spec) return;
+    const cfg = { fleets: [[spec], []], env: false, title: 'Превью', onEnd: () => {} };
+    if (!pv) { pv = { b: makeBattle(), host, drag: false, wasOn: on, SC0: SC, v0: [yaw, pitch, dist] }; if (!ren) init(); const cvp = ren!.domElement as HTMLElement; cvp.addEventListener('pointerdown', pv.dn = () => { if (pv) pv.drag = true }); addEventListener('pointerup', pv.up = () => { if (pv) pv.drag = false }); (pv.b as any).beginBg(cfg); on = true; SC = 1; reset3d(); pvAim(true) }
+    else { pv.host = host; (pv.b as any).beginBg(cfg); const k = [yaw, pitch, dist]; reset3d(); pvAim(false); yaw = k[0]; pitch = k[1] }
+    (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'none'; cancelAnimationFrame(raf); frame();
+  }
+  function pvAim(first: boolean) {
+    const s = (pv.b as any).ships()[0]; if (!s) return; follow = false; fitAll = false; tgt.set(s.x, s.z, s.y); if (first) { yaw = .6; pitch = .3 } dist = s.T.L * 1.15;
+  }
+  function pvHide() {
+    if (!pv) return; const p = pv; pv = null; cancelAnimationFrame(raf); const cvp = ren!.domElement as HTMLElement; cvp.removeEventListener('pointerdown', p.dn); removeEventListener('pointerup', p.up);
+    cvp.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:3;display:' + (p.wasOn ? 'block' : 'none'); ren!.setSize(1, 1, false);
+    SC = p.SC0; on = p.wasOn; yaw = p.v0[0]; pitch = p.v0[1]; dist = p.v0[2]; reset3d(); if (on) { hud.style.display = 'block'; frame() }
+  }
+  (hooks as any).preview3d = pvShow; (hooks as any).preview3dOff = pvHide;
   btn.onclick = () => {
-    on = !on; btn.classList.toggle('on', on);
+    if (pv) return; on = !on; btn.classList.toggle('on', on);
     if (on) { if (!ren) init(); (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'block'; follow = true; const s = Battle.ships().find((q: any) => q.alive); if (s) { tgt.set(s.x, s.z, s.y); fitAll = true; dist = 120 } cancelAnimationFrame(raf); frame() }
     else { cancelAnimationFrame(raf); if (ren) (ren.domElement as HTMLElement).style.display = 'none'; hud.style.display = 'none' }
   };

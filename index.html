@@ -72,12 +72,12 @@
 
 <div id="designer" hidden>
   <div class="dwin" role="dialog" aria-label="Конструктор кораблей">
-    <div class="dhead"><h3>Конструктор кораблей</h3><button class="btn" id="dclose">Закрыть</button></div>
+    <div class="dhead"><h3>Конструктор кораблей</h3><button class="btn" id="dpvb" title="Объёмный вид проекта, медленно вращается">3D</button><button class="btn" id="dclose">Закрыть</button></div>
     <div class="dbody">
       <div class="dcol"><h2>Проекты</h2><div class="dl" id="dlist"></div>
         <button class="btn" id="dnew">Новый проект</button><button class="btn" id="dcopy">Копировать</button><button class="btn danger" id="ddel">Удалить</button></div>
       <div class="dcol"><div class="row"><input type="text" id="dname" class="grow" aria-label="Название проекта"></div><div class="flags" id="dflags"></div><h2>Компоненты</h2><div class="dl" id="dcomps"></div></div>
-      <div class="dcol"><h2>Характеристики</h2><div id="dstats"></div></div>
+      <div class="dcol"><div id="dpv" hidden></div><h2>Характеристики</h2><div id="dstats"></div></div>
     </div>
   </div>
 </div>

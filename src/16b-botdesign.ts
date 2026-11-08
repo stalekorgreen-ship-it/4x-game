@@ -116,3 +116,13 @@ export function botSpec(sp) {
     return out;
   } catch (e) { return sp; }
 }
+// Спек для 3D-превью в конструкторе: один корабль по текущему проекту игрока.
+export function previewSpec(parts) {
+  try {
+    const st = designStats(parts); if (!st || !(st.L > 0)) return null;
+    const ship = {name: 'Превью', id: 'pv', st, air: {F: st.hangF || 0, B: st.hangB || 0}, hullDmg: 0, crew: {}, fuel: st.fuelCap, cargo: {}};
+    const out = specFromShip(ship);
+    out.ref = null; out.real = 1; out.parts = parts; out.fid = 0; out.spd = 0; out.fuel = out.fuelCap;
+    return out;
+  } catch (e) { return null; }
+}
