@@ -160,13 +160,10 @@ COMP.flak.ap = (c, s) => {
   c.desc = `взрыв ${B.blast} км, дальность ${B.rng} км, перезарядка ${Math.round(60 * c.fcfg.rel)} с, ${b ? 'очередями' : 'обычный темп'}, осечка ${(c.fcfg.fail * 100).toFixed(1)}%`;
 };
 // --- броня ---
-COMP.armor.opts = [O('th', 'Толщина', '1', [['1', '1 слой'], ['2', '2 слоя'], ['3', '3 слоя']]), O('mat', 'Материал', 's', [['s', 'сталь'], ['t', 'титан (легче)'], ['r', 'реактивная (отражает 20%)']])];
+COMP.armor.opts = [];
 COMP.armor.ap = (c, s) => {
-  const th = +s.th.v, m = s.mat.v;
-  c.armor = th; c.mass = 0; c.armW = th * (m === 't' ? 0.7 : m === 'r' ? 1.25 : 1); c.cost = {fe: 40 * th, ti: 10 * th};
-  if (m === 't') { c.cost = {fe: 15 * th, ti: 35 * th}; }
-  if (m === 'r') { c.cost = {fe: 40 * th, ti: 10 * th, cu: 12 * th, si: 8 * th}; c.defl = 0.2; }
-  c.desc = `+${th} слоя брони на каждом секторе${m === 'r' ? ', 20% попаданий отражается' : ''} · масса зависит от длины корабля (~${Math.round(ARM_K * c.armW)} т на км² поверхности)`;
+  c.armor = 1; c.mass = 0; c.armW = 1; c.cost = {fe: 40, ti: 10};
+  c.desc = `+1 слой брони на каждом секторе · масса зависит от длины корабля (~${Math.round(ARM_K)} т на км² поверхности)`;
 };
 // --- ангары ---
 // --- лёгкие аппараты: обычные корабли с маленьким двигателем; скорость = тяга/масса, запас хода и боезапас ограничены массой ---
@@ -549,7 +546,7 @@ export function designStats(parts, flags) {
   }
   // боевые корабли: двигатели питаются от реактора (0,5 МВт на единицу тяги) и берут энергию первыми, остаток идёт орудиям
   { const ws = r.rail + r.flak + r.gat + r.lgun + r.msl + r.hangF + r.hangB > 0, ed = r.engDraw || 0; r.engFactor = 1;
-    if (ws && ed > 0) { r.engFactor = Math.max(0.2, Math.min(1, (r.energy || 0) / ed)); effSum *= r.engFactor; r.power *= r.engFactor; }
+    if (ws && ed > 0) { r.powerNom = r.power; r.engFactor = Math.max(0.2, Math.min(1, (r.energy || 0) / ed)); effSum *= r.engFactor; r.power *= r.engFactor; }
     r.energyLeft = ws ? Math.max(0, (r.energy || 0) - ed) : (r.energy || 0); }
   r.eff = r.power ? effSum / r.power : 1;
   r.defl = r.armor ? r.defl / r.armor : 0;
@@ -572,7 +569,7 @@ export function designStats(parts, flags) {
   }
   if (r.warship || r.armW) { // водоизмещение: модули ×1.15 (корпус) + броня по площади, длина = т / 50 000 км
     let T = Math.max(1, r.dry * 1.15); const M = T;
-    for (let i = 0; i < 40; i++) T = M + Math.min(M * .7, ARM_K * (r.armW || 0) * Math.pow(T / TON_L, 2));
+    for (let i = 0; i < 60; i++) T = M + Math.min(M * 6, ARM_K * (r.armW || 0) * Math.pow(Math.max(0.08, T / TON_L), 2)); // длина не меньше 80 м, иначе у малых кораблей броня ничего не весит
     r.armT = Math.round(T - M); r.dry = Math.round(T); r.L = Math.max(0.08, Math.min(6, T / TON_L));
   } else r.L = Math.max(0.3, Math.min(3, 0.25 * Math.cbrt(r.dry)));
   r.bspd = r.power ? (r.warship ? Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.25)) : Math.max(0.5, Math.min(1.5, (r.power / Math.max(1, r.dry)) / 0.35))) : 1;

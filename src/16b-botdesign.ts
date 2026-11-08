@@ -39,7 +39,7 @@ function weaponsPart(sp, g) {
   if (sp.F) { const key = mkKey('hangar_f', {cl: g.cl, en: '100', fu: '20', gn: g.gn, am: '120'}); add(p, key, Math.max(1, Math.ceil(sp.F / (compOf(key).hangF || 10)))); }
   if (sp.B) { const key = mkKey('hangar_b', {cl: g.cl === 'l' ? 's' : g.cl, en: '100', fu: '30'}); add(p, key, Math.max(1, Math.ceil(sp.B / (compOf(key).hangB || 5)))); }
   const arm = Math.max(0, Math.min(12, (sp.arm || 0) + g.armAdj));
-  if (arm) { for (let q = 0; q < Math.floor(arm / 3); q++) add(p, mkKey('armor', {th: '3', mat: g.mat}), 1); if (arm % 3) add(p, mkKey('armor', {th: String(arm % 3), mat: g.mat}), 1); }
+  if (arm) add(p, 'armor', arm);
   for (const s of sp.scList || []) { if (s.k === 'ir') add(p, mkKey('irs', {res: s.res >= 1 ? 'n' : 'w'}), 1); else if (s.k === 'em') add(p, mkKey('ems', {res: 'w'}), 1); else if (s.k === 'rad') add(p, mkKey('radar', {pw: s.rng >= 500 ? 'l' : s.rng >= 250 ? 'm' : 's', res: s.fine ? 'f' : 'c'}), 1); }
   { let n = sp.fcsN || 0; while (n >= 8) { add(p, mkKey('fcs', {ch: '8'}), 1); n -= 8; } if (n >= 4) { add(p, mkKey('fcs', {ch: '4'}), 1); n -= 4; } if (n >= 2) { add(p, mkKey('fcs', {ch: '2'}), 1); n -= 2; } if (n >= 1) add(p, mkKey('fcs', {ch: '1'}), 1); }
   if (sp.mar) add(p, 'marines', Math.max(1, Math.ceil(sp.mar / 10)));

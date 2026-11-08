@@ -51,8 +51,9 @@ s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.effdrive || s().tprog.effdrive > 0, 'купленные очки идут игроку');
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
 // закупки руды: политика игрока
-s().buyPol = {fe: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.fe || 0, si0 = s().stock.si || 0;
+s().buyPol = {fe: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.fe || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
 for (let i = 0; i < 120; i++) g.advance(2);
+s().ships = _sv;
 ok((s().stock.fe || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.fe || 0) - fe0) + ' т железа)');
 ok((s().stock.si || 0) <= si0 + 1e-6, 'при слишком низкой максимальной цене ничего не покупается');
 
