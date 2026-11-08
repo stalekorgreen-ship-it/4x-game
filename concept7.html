@@ -20,6 +20,19 @@ const mk=(c,m,r)=>new THREE.MeshPhysicalMaterial({color:c,metalness:m,roughness:
 const silver=mk(0xa9b0bc,.8,.36),silver2=mk(0x8a929f,.8,.4),dark=mk(0x242a37,.7,.5),accent=mk(0xd9822b,.5,.45),steel=mk(0x6c7482,.85,.42);
 const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
 const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+
+function weather(m,k){m.onBeforeCompile=sh=>{
+ sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+ sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\n').replace('#include <color_fragment>',`#include <color_fragment>
+ vec3 q=vWP+vec3(${k}.);vec3 sz=vec3(7.,4.8,4.8);vec3 cl=floor(q/sz);
+ diffuseColor.rgb*=1.+(h31(cl)-.5)*.2;
+ vec3 fr=fract(q/sz);vec3 dd=min(fr,1.-fr)*sz;float edge=min(dd.x,min(dd.y,dd.z));
+ float seam=1.-smoothstep(.04,.13,edge);diffuseColor.rgb*=1.-seam*.5;
+ float rivet=1.-smoothstep(.05,.11,length(vec2(fract(q.x*.7)-.5,fract(q.y*.7+q.z*.7)-.5)*1.43))*step(.18,edge)*step(edge,.5);rivet*=step(.55,h31(cl+7.));diffuseColor.rgb*=1.-rivet*.0;
+ float scr=h31(vec3(floor(q.y*8.),floor(q.z*8.),floor(q.x*.35)));scr=step(.955,scr)*(1.-smoothstep(.0,.14,abs(fract(q.y*8.+q.z*8.)-.5)));diffuseColor.rgb*=1.+scr*.45;
+ float dirt=smoothstep(.5,1.,h31(floor(q*vec3(.5,1.6,1.6))))*.3+smoothstep(.65,1.,h31(floor(q*vec3(.15,.9,.9)+3.)))*.2;diffuseColor.rgb*=1.-dirt;
+ diffuseColor.rgb*=.82+.18*smoothstep(-1.,1.,vWP.y*.08+.4);`)};m.customProgramCacheKey=()=>'w'+k}
+weather(silver,1);weather(silver2,5);weather(steel,9);weather(accent,3);
 // ---- гранёные заготовки ----
 function loftR(rings){const P=[],I=[];const n=rings.length;
  for(let r=0;r<n;r++){const{x,w,h}=rings[r],c=Math.min(w,h)*.3,a=w/2,b=h/2;const ring=[[-(a-c),b],[a-c,b],[a,b-c],[a,-(b-c)],[a-c,-b],[-(a-c),-b],[-a,-(b-c)],[-a,b-c]];for(let k=0;k<=8;k++){const[z,y]=ring[k%8];P.push(x,y,z)}}
@@ -358,6 +371,36 @@ function spine(m){const g=new THREE.Group();
  const eng=engineBlock(eN,1),{Ld,Wd}=eng.userData,es=Math.min(1.6,W*(cls===3?1.15:1.05)/Wd);eng.scale.setScalar(es);eng.position.x=x0-6-Ld*es*.5+1;g.add(eng);
  const ns=W*.88/10.6;if(nvOff){const wN=W*.88;g.add(new THREE.Mesh(loftR([{x:xe,w:wN,h:wN*.95},{x:xe+W*.7,w:wN*.55,h:wN*.5},{x:xe+W*1.3,w:wN*.2,h:wN*.2}]),silver))}
  if(!nvOff){const nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb)}
+
+ // надписи и маркировка (канвас-декали)
+ const hgl=new THREE.MeshBasicMaterial({color:0x0d3342,toneMapped:false});
+ const mkDecal=(txt,sub,w,h)=>{const c=document.createElement('canvas');c.width=1024;c.height=Math.round(1024*h/w);const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+  x.fillStyle='#e8eef7';x.font='bold '+Math.round(c.height*.5)+'px "Arial Narrow",Arial,sans-serif';x.textBaseline='middle';x.fillText(txt,20,c.height*.38);
+  x.fillStyle='#d9822b';x.fillRect(20,c.height*.74,c.width*.46,c.height*.1);for(let i=0;i<9;i++){x.beginPath();x.moveTo(c.width*.5+i*34,c.height*.84);x.lineTo(c.width*.5+i*34+22,c.height*.84);x.lineTo(c.width*.5+i*34+44,c.height*.64);x.lineTo(c.width*.5+i*34+22,c.height*.64);x.fill()}
+  x.fillStyle='#cfd8e6';x.font=Math.round(c.height*.2)+'px monospace';x.fillText(sub,22,c.height*.62);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false}))};
+ {const tD=cls<2?.5:.27,w0=wAt(tD),dw=L*(cls<2?.34:.085),dh=dw*.26,nm=['ПОЯС-4X','ПБ-217','ЛК «ЗАРЯ»','ЛК-04 «ПОЯС»'][cls];
+  for(const sg of[-1,1]){const d=mkDecal(nm,'№ '+(cls*131+407)+' · ПРИПИСКА: ПОЯС',dw,dh);d.position.set(f(tD),0,sg*(cls<2?w0/2+.15:wAt(.45)/2+(cls===3?2.3:1.8)+.15));if(sg<0)d.rotation.y=Math.PI;g.add(d)}}
+ if(cls>=2){
+  // баки: стойка из горизонтальных цилиндров по бортам, с рёбрами и датчиками
+  const tank=(l,r)=>{const t=new THREE.Group();const b=cyl(r,r,l,silver2);t.add(b);
+   for(const sx of[-1,1]){const c=cyl(r*.75,r*.9,r*.5,steel);c.position.x=sx*(l/2+r*.25);t.add(c)}
+   for(const px of[-.35,0,.35]){const band=cyl(r*1.06,r*1.06,.5,accent);band.position.x=px*l;t.add(band)}
+   const gg=cb(l*.5,.12,.5,.05,cyan);gg.position.set(0,0,r*1.0);t.add(gg);return t};
+  const nTx=cls===2?2:3,rT=cls===2?1.7:2.3;
+  for(const sg of[-1,1])for(let a=0;a<nTx;a++)for(const yy of[-1,1]){const xx=f(.74+a*.0)-0;const t=tank(L*.1,rT);t.position.set(f(.62)+a*L*.12,yy*(rT+.15),sg*(wAt(.7)/2+rT+.3));g.add(t)}
+  for(const sg of[-1,1]){const x1=f(.62)+(nTx-1)*L*.06,len=nTx*L*.12;put(cb(len,.5,rT*4.4,.2,steel),x1,0,sg*(wAt(.7)/2+.2));for(let a=0;a<=nTx;a++)put(cb(.6,rT*1.2,rT*4.6,.2,accent),f(.62)-L*.06+a*L*.12,0,sg*(wAt(.7)/2+rT*2.1+.4)).scale.set(1,1,.001)}
+ }
+ if(cls===3){
+  // ангар: бортовая рампа — тёмный проём с рамой, огнями и полосами
+  const tH=.42,ho=wAt(tH)/2+3.4,hl=L*.2,hh=hAt(tH)*.42;
+  for(const sg of[-1,1]){put(cb(hl,.7,hh,.4,dark),f(tH),0,sg*ho);
+   put(cb(hl*1.08,.6,.7,.2,accent),f(tH),hh/2+.3,sg*(ho+.1));put(cb(hl*1.08,.6,.7,.2,accent),f(tH),-hh/2-.3,sg*(ho+.1));
+   for(const sx of[-1,1])put(cb(.7,.6,hh+.8,.2,accent),f(tH)+sx*(hl/2+.2),0,sg*(ho+.1));
+   put(cb(hl*.85,.1,hh*.6,.05,hgl),f(tH),0,sg*(ho+.4));
+   for(let i=0;i<9;i++)put(cb(.5,.3,.3,.05,cyan),f(tH)-hl*.45+i*hl*.1125,-hh/2+.4,sg*(ho+.5));
+   for(let i=0;i<8;i++){const st=cb(.8,.2,.5,.05,i%2?dark:accent);st.position.set(f(tH)-hl*.4+i*hl*.115,-hh/2-.8,sg*(ho+.4));g.add(st)}}
+ }
  g.userData.mid=0;return g}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
