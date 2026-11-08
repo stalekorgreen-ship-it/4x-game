@@ -1,0 +1,74 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#000"><canvas id=c></canvas>
+<script type=module>
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+const q=new URLSearchParams(location.search),W=+q.get('w')||1600,H=+q.get('h')||1000;
+const cv=document.getElementById('c');const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setSize(W,H,false);ren.setPixelRatio(1);ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=.85;
+const sc=new THREE.Scene();
+{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');const gr=x.createRadialGradient(W*.5,H*.45,50,W*.5,H*.5,W*.7);gr.addColorStop(0,'#1c2231');gr.addColorStop(1,'#07090f');x.fillStyle=gr;x.fillRect(0,0,W,H);
+ let s=11;const r=()=>{s=(s*16807)%2147483647;return s/2147483647};for(let i=0;i<500;i++){x.fillStyle=`rgba(255,255,255,${.15+r()*.6})`;x.fillRect(r()*W,r()*H,1.2,1.2)}
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;sc.background=t}
+const pm=new THREE.PMREMGenerator(ren);sc.environment=pm.fromScene(new RoomEnvironment(),.03).texture;sc.environmentIntensity=.5;
+sc.add(new THREE.HemisphereLight(0xaac4ff,0x40302a,.3));
+const sun=new THREE.DirectionalLight(0xfff2e0,1.8);sun.position.set(-14,18,10);sc.add(sun);
+const rim=new THREE.DirectionalLight(0x7fa8ff,1.2);rim.position.set(14,4,-12);sc.add(rim);
+const mk=(c,m,r)=>new THREE.MeshPhysicalMaterial({color:c,metalness:m,roughness:r,flatShading:true,envMapIntensity:1.1,side:THREE.DoubleSide});
+const silver=mk(0xa9b0bc,.8,.36),silver2=mk(0x8a929f,.8,.4),dark=mk(0x242a37,.7,.5),accent=mk(0xd9822b,.5,.45),steel=mk(0x6c7482,.85,.42);
+const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
+const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+// ---- гранёные заготовки ----
+function loftR(rings){const P=[],I=[];const n=rings.length;
+ for(let r=0;r<n;r++){const{x,w,h}=rings[r],c=Math.min(w,h)*.3,a=w/2,b=h/2;const ring=[[-(a-c),b],[a-c,b],[a,b-c],[a,-(b-c)],[a-c,-b],[-(a-c),-b],[-a,-(b-c)],[-a,b-c]];for(let k=0;k<=8;k++){const[z,y]=ring[k%8];P.push(x,y,z)}}
+ for(let r=0;r<n-1;r++)for(let k=0;k<8;k++){const a=r*9+k,b=a+9;I.push(a,b,a+1,b,b+1,a+1)}
+ for(const[r,dir]of[[0,-1],[n-1,1]]){const ci=P.length/3;P.push(rings[r].x,0,0);for(let k=0;k<8;k++){const a=r*9+k;if(dir>0)I.push(ci,a,a+1);else I.push(ci,a+1,a)}}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);g.computeVertexNormals();return g}
+// коробка с фасками 45° по всем рёбрам вдоль X и по торцам
+function cb(l,w,h,ch,mat){ch=Math.min(ch,w*.3,h*.3,l*.3);const m=new THREE.Mesh(loftR([{x:-l/2,w:w-2*ch,h:h-2*ch},{x:-l/2+ch,w,h},{x:l/2-ch,w,h},{x:l/2,w:w-2*ch,h:h-2*ch}]),mat);return m}
+function poly(pts,th,bev,mat){const sh=new THREE.Shape();pts.forEach((p,i)=>i?sh.lineTo(p[0],p[1]):sh.moveTo(p[0],p[1]));sh.closePath();const ge=new THREE.ExtrudeGeometry(sh,{depth:th,bevelEnabled:true,bevelThickness:bev,bevelSize:bev,bevelSegments:1});ge.translate(0,0,-th/2);return new THREE.Mesh(ge,mat)}
+const T30=Math.tan(Math.PI/6);
+function cyl(r0,r1,len,mat,open){const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,len,8,1,!!open),mat);m.rotation.z=Math.PI/2;m.rotation.x=Math.PI/8;return m} // ось вдоль X: r0 у корпуса (+X), r1 на срезе (−X)
+
+// ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
+function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
+ for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
+// гнёздо на грани: face 'u','d','l','r', центр (x), смещение от оси
+function sockets(g,x,w,h,len){const n=Math.max(1,Math.floor(len/7)),s=Math.min(w,h)*.42;
+ for(let i=0;i<n;i++){const xx=x+(i-(n-1)/2)*(len/n);
+  for(const[fy,fz,ry,rz]of[[1,0,0,-Math.PI/2],[-1,0,0,Math.PI/2],[0,1,Math.PI/2,0],[0,-1,-Math.PI/2,0]]){const p=pad(s);
+   // pad по умолчанию смотрит в +X → повернём на нужную грань
+   if(fy){p.rotation.z=fy>0?Math.PI/2:-Math.PI/2;p.position.set(xx,fy*(h/2+.05),0)}else{p.rotation.y=fz>0?-Math.PI/2:Math.PI/2;p.position.set(xx,0,fz*(w/2+.05))}
+   g.add(p)}}}
+function spine(m){const g=new THREE.Group();let x=0;const segs=[];
+ const base=10,hs=[];for(let i=0;i<m;i++){const t=m>1?i/(m-1):.5;hs.push(1+.35*Math.sin(Math.PI*t))}
+ const W=base*(1+Math.min(m,8)*.04);
+ const put=(o,x,y,z)=>{o.position.set(x,y||0,z||0);g.add(o);return o};
+ // корма: расширяющийся блок под двигатели
+ const sl=12;put(cb(sl,W*1.25,W*1.1,3,silver2),x-sl/2,0,0);put(cb(2,W*1.4,W*1.25,.9,steel),x-sl+1,0,0);
+ put(pad(W*.55),x-sl-.1,0,0).rotation.y=Math.PI;
+ for(const sg of[-1,1])put(cb(sl*.7,.7,W*.8,.25,accent),x-sl*.45,0,sg*(W*.625+.35));
+ x+=0;
+ // секции
+ for(let i=0;i<m;i++){const h=W*hs[i],len=12+(i%2)*3;
+  // шея-стык
+  put(cb(2.2,W*.7,h*.7,.7,steel),x+1.1,0,0);put(cb(.9,W*.95,h*.95,.3,accent),x+.45,0,0);
+  const c=x+2.2+len/2;put(cb(len,W,h,3,i%2?silver:silver2),c,0,0);
+  // ребро жёсткости сверху/снизу
+  put(cb(len*.6,W*.45,.8,.25,steel),c,h/2+.4,0);put(cb(len*.6,W*.45,.8,.25,steel),c,-h/2-.4,0);
+  sockets(g,c,W,h,len);x+=2.2+len}
+ // нос: фасеточный клин 30°/45° с большим гнездом
+ put(cb(2.2,W*.7,W*.7,.7,steel),x+1.1,0,0);
+ const bl=14,rs=[{x:x+2.2,w:W,h:W},{x:x+2.2+bl*.45,w:W*.78,h:W*.78},{x:x+2.2+bl,w:W*.5,h:W*.5}];
+ const bow=new THREE.Mesh(loftR(rs),silver);g.add(bow);put(cb(.9,W*.7,W*.7,.35,accent),x+2.2+bl*.45,0,0).scale.set(1,1.02,1.02);
+ const bp=pad(W*.34);bp.position.set(x+2.2+bl+.2,0,0);g.add(bp);
+ g.userData.len=x+2.2+bl+sl;g.userData.mid=x/2;return g}
+const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
+const m=+q.get('m');
+if(m){const b=spine(m);sc.add(b);const az=+q.get('az')||.7,el=+q.get('el')||.35,d=+q.get('d')||110;const mid=b.userData.mid;cam.position.set(mid+Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(mid,0,0)}
+else{[1,3,5,8].forEach((k,i)=>{const b=spine(k);b.position.set(-b.userData.mid,0,(i-1.5)*55);sc.add(b)});cam.position.set(0,150,260);cam.lookAt(0,0,0)}
+const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
+comp.render();window.done=true;
+</script>
