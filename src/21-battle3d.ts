@@ -268,8 +268,9 @@ if (wrap && bgo) {
           { const cw = L * (.03 + .06 * sty.aS), cLn = L * (.1 + .16 * sty.aS), xc = x1 - cLn * .35, d0 = dm(xc); for (const sd of [-1, 1]) parts.push(att(cLn, d0.h * .55, cw, cw * .3, shade(P.light || P.main, 1.15), xc, d0.cy - d0.h * .1, sd * (d0.w / 2 + cw / 2 - L * .004), { nose: .4 })) }
           // орудийные платформы: плоские палубы по бортам с башнями на палубе
           const np = Math.max(sty.wS > .05 ? 1 : 0, Math.round(1 + sty.wS * 3)), xs0 = xa + Lk2 * .1, xs1 = x1 - Lk2 * .18;
-          for (let i = 0; i < np; i++) { const px = np === 1 ? (xs0 + xs1) / 2 : xs0 + (xs1 - xs0) * i / (np - 1), wl = L * (.13 + .09 * sty.wS), ww = L * (.075 + .09 * sty.wS) * (1 - i * .12), dd = dm(px), y = dd.cy + dd.h * .05;
-            for (const sd of [-1, 1]) { const z = sd * (dd.w / 2 + ww / 2 - L * .005); parts.push(att(wl, th, ww, th * .3, shade(P.main, .72), px, y, z, { rot: sd * sty.sweep * .8, nose: .7 })); parts.push(att(wl * .55, th * .6, ww * .55, th * .15, P.dark, px - wl * .1, y - th * .8, z));
+          const spanP = xs1 - xs0;
+          for (let i = 0; i < np; i++) { const px = np === 1 ? (xs0 + xs1) / 2 : xs0 + (xs1 - xs0) * i / (np - 1), wl = Math.min(L * (.13 + .09 * sty.wS), spanP / np * .86 + L * .02), ww = L * (.075 + .09 * sty.wS) * (1 - i * .12), dd = dm(px), y = dd.cy + dd.h * .05;
+            for (const sd of [-1, 1]) { const z = sd * (dd.w / 2 + ww / 2 - L * .005); parts.push(att(wl, th, ww, th * .3, shade(P.main, .72), px, y, z, { nose: .78 })); parts.push(att(wl * .55, th * .6, ww * .55, th * .15, P.dark, px - wl * .1, y - th * .8, z));
               for (let k = 0; k < 2; k++) extraM.push({ x: px + (k ? -wl * .22 : wl * .2), y: y + th / 2, z: z + sd * ww * (k ? -.05 : .05), face: 0, plat: true }) } }
           // ангарные коробки по бортам
           if (sty.hS > .15) { const hl = L * (.12 + .26 * sty.hS), hw = L * (.05 + .09 * sty.hS), px = xa + Lk2 * .25 + hl / 2, dd = dm(px), hh = dd.h * .95;
@@ -517,7 +518,7 @@ if (wrap && bgo) {
       else { for (const q of free) if (!q.used && q.face === f) { const d = (q.x - px) ** 2 + (q.z + q.y) ** 2 * .02 + Math.random() * u.L * u.L * 1e-5; if (d < bd) { bd = d; best = q } }
         if (!best) continue; best.used = true; placed.push(best) }
       const mass = m.k === 'T' ? ((RAIL_CAL as any)[(m.cfg && m.cfg.cal) || 10] || RAIL_CAL[10]).m * (1 + 1.03 * (((m.cfg && m.cfg.bar) || 1) - 1)) * 1.25 : m.k === 'A' ? 110 : m.k === 'G' ? 160 : m.k === 'M' ? 320 : 9000, r0 = Math.max(mass / TON_L * .55 / (isAx ? 3 : 1), u.L * .0025), r = isAx ? Math.min(r0, axPos[axi].pitch * .45) : r0; // диаметр башни = масса / 50 т на метр
-      const t = new THREE.Group(), lift = r * .3, zA = isAx ? 0 : (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
+      const t = new THREE.Group(), lift = r * .3, zA = isAx || (best && best.plat) ? 0 : (s.zones[f] || s.zones[0]).arm || 0, ped = Math.max(lift * 1.4, zA * thL(u) * 1.15); // стойка поднимает башню над бронёй
       const base = new THREE.Mesh(geoBox, matDark); base.scale.set(r * 1.8, ped, r * 1.8); base.position.y = ped / 2 - lift * .5; t.add(base);
       const head = new THREE.Group(); head.name = 'head'; head.position.y = ped - lift * 1.4; t.add(head); // голова башни: поворачивается по полусфере
       const nb = m.k === 'T' || (m.k === 'G' && m.cfg && m.cfg.tw) ? 2 : 1, tips: THREE.Object3D[] = [], hp: THREE.BufferGeometry[] = [], cD = (matDark as any).color.getHex(), cT = (matTur[s.side] as any).color.getHex();
@@ -539,7 +540,7 @@ if (wrap && bgo) {
       g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: true, bevelThickness: .03, bevelSize: .015, bevelSegments: 1 }); g.translate(0, 0, -.5); g.rotateX(Math.PI / 2) }
     return (tileGeos[v] = g) }
   const tileMat = new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true });
-  const thL = (u: any) => Math.max(.001, u.L * .0034 * Math.max(1, Math.min(8, (((u.s && u.s.zones && u.s.zones[0] && u.s.zones[0].arm) || 1)) / 10))); // толщина слоя (преувеличена, чтобы слои были видны)
+  const thL = (u: any) => { const arm = (u.s && u.s.zones && u.s.zones[0] && u.s.zones[0].arm) || 1, n = Math.max(1, Math.min(10, Math.round(arm))); return Math.max(.001, Math.min(u.L * .0034 * Math.max(1, Math.min(8, arm / 10)), u.L * .03 / n)) }; // толщина слоя (преувеличена, чтобы слои были видны)
   function buildTiles(s: any, g: THREE.Group, _placed: any[]) {
     const u = g.userData; if (u.arm) { for (const m of u.arm) { g.remove(m); m.dispose() } u.arm = null } if (!u.tilesL || !u.tilesL.length) return;
     const tiles = u.tilesL as any[], PALc = PAL[s.side]; let cnt = 0; u.arm = []; const col = new THREE.Color();
