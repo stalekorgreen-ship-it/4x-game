@@ -31,6 +31,7 @@ let seed=+q.get('s')||7;const R=()=>{seed=(seed*16807)%2147483647;return seed/21
  for(let i=0;i<7000;i++){const a=.2+r()*.8,rr=r()<.015?1.5:r()<.2?.95:.55;x.fillStyle=r()<.1?`rgba(255,${200+r()*50|0},160,${a})`:r()<.15?`rgba(170,200,255,${a})`:`rgba(255,255,255,${a})`;x.beginPath();x.arc(r()*W,r()*H,rr,0,6.3);x.fill()}
  for(let i=0;i<6;i++){const px=r()*W,py=r()*H*.6,rr=5+r()*10;blob(x,px,py,rr*3,'rgba(190,210,255,.45)');x.fillStyle='rgba(255,255,255,.85)';x.fillRect(px-rr*3,py-.7,rr*6,1.4);x.fillRect(px-.7,py-rr*3,1.4,rr*6);x.beginPath();x.arc(px,py,2,0,6.3);x.fill()}
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;sc.background=t}
+if(q.get('plain'))sc.background=new THREE.Color(0x181b22);
 const pm=new THREE.PMREMGenerator(ren);sc.environment=pm.fromScene(new RoomEnvironment(),.03).texture;sc.environmentIntensity=.45;
 sc.add(new THREE.HemisphereLight(0xaac4ff,0x40302a,.35));
 const sun=new THREE.DirectionalLight(0xfff2e0,1.6);sun.position.set(-12,16,8);sc.add(sun);
@@ -91,7 +92,7 @@ if(q.get('fleet')){
  for(const[L,sd,x,y,z]of spec){const s=makeShip(L,sd);s.position.set(x,y,z);s.rotation.y=-.5+((sd*37)%7-3)*.03;s.rotation.z=((sd*17)%5-2)*.012;sc.add(s)}
  for(let i=0;i<6;i++){const s=makeShip(1.7+(i%2)*.3,20+i);s.position.set(38+(i%3)*2.2,.5+(i%2)*.8,-4+i*2.4);s.rotation.y=-.55;sc.add(s)}
  cam.position.set(-10,24,48);cam.lookAt(5,-1,-2);
-}else{const L=12,s=makeShip(L,+q.get('i')||1);sc.add(s);const az=+q.get('az')||.5,el=+q.get('el')||.35,d=L*1.5;cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(0,0,0)}
+}else{const L=12,s=makeShip(L,+q.get('i')||1);sc.add(s);const az=+q.get('az')||.5,el=+q.get('el')||.35,d=L*(+q.get('d')||2.1);cam.position.set(Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(0,0,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.25,.6,.95));comp.addPass(new OutputPass());
 comp.render();window.done=true;
 </script>
