@@ -23,6 +23,18 @@ if (wrap && bgo) {
   function camTurret() { let g: any = null, bd = 1e18; for (const [, m] of models) if (m.userData.det && m.userData.tur.children.length) { const d = m.position.distanceToSquared(cam.position); if (d < bd) { bd = d; g = m } } if (!g) { // нет детальных кораблей: подлетаем к ближайшему, башню выберем, когда он прорисуется
       let b2: any = null, bd2 = 1e18; for (const [sh, m] of models) if (sh.alive) { const d = m.position.distanceToSquared(cam.position); if (d < bd2) { bd2 = d; b2 = sh } } if (b2) { Battle.select(b2); follow = true; fitAll = false; dist = Math.max(.05, b2.T.L * .35); pendT = 90 } return }
     const c = (g.userData.tur.children as any[]).filter(t => t.visible && t.userData.m && t.userData.m.alive).sort((a, b) => (b.userData.m.rt || 0) - (a.userData.m.rt || 0)).slice(0, 6); if (!c.length) return; tcam = c[tcamN++ % c.length]; fcam = null; follow = false; fitAll = false; dist = Math.max(.002, tcam.userData.r * 70 * (g.scale.x || 1)) }
+  // камера не ближе 10 м (0.01 мировой ед.) к корпусу любого корабля: так не видны огрехи модели
+  const KEEP_OFF = .01, _kb = new THREE.Box3(), _kc = new THREE.Vector3(), _ks = new THREE.Vector3(), _kp = new THREE.Vector3(), _kd = new THREE.Vector3();
+  function keepOff() {
+    for (const [, g] of models) {
+      if (!g.visible) continue; const Lw = (g.userData.L || 0) * g.scale.x; if (!(Lw > 0) || cam.position.distanceTo(g.position) > Lw * 3 + 1) continue;
+      _kb.setFromObject(g); _kb.expandByScalar(KEEP_OFF); if (!_kb.containsPoint(cam.position)) continue;
+      _kb.getCenter(_kc); _kd.copy(cam.position).sub(_kc); if (_kd.lengthSq() < 1e-14) _kd.set(0, 1, 0); _kd.normalize();
+      const stp = _kb.getSize(_ks).length() / 160; let t = 0; _kp.copy(_kc);
+      while (_kb.containsPoint(_kp) && t < 1e4) { t += stp; _kp.copy(_kc).addScaledVector(_kd, t) }
+      cam.position.copy(_kp)
+    }
+  }
   let lastTr = 0; let qual = 1, lastFT = 0, dtEma = 16, qT = 0; let lastSel: any = null, deadAt = 0; let fitAll = true; let yaw = .6, pitch = .45, dist = 40, SC = 1.5, follow = true;
   const tgt = new THREE.Vector3();
   const models = new Map<any, THREE.Group>();
@@ -856,7 +868,7 @@ if (wrap && bgo) {
     if (fcam) { if (fcam.state === 'fly') { tgt.lerp(v3.set(fcam.x, fcam._yv || 0, fcam.y), .4) } else fcam = null }
     if (pendT > 0 && !tcam && !fcam) { pendT--; camTurret() }
     if (tcam && tcam.parent) { tcam.getWorldPosition(v3); tgt.lerp(v3, .35) } else tcam = null; { const nr = tcam ? Math.max(.0005, Math.min(.05, dist * .01)) : .05; if (cam.near !== nr) { cam.near = nr; cam.updateProjectionMatrix() } }
-    cam.position.set(tgt.x + dist * Math.cos(pitch) * Math.sin(yaw), tgt.y + dist * Math.sin(pitch), tgt.z + dist * Math.cos(pitch) * Math.cos(yaw)); cam.lookAt(tgt);
+    cam.position.set(tgt.x + dist * Math.cos(pitch) * Math.sin(yaw), tgt.y + dist * Math.sin(pitch), tgt.z + dist * Math.cos(pitch) * Math.cos(yaw)); keepOff(); cam.lookAt(tgt);
     // истребители и бомбардировщики
     let fc = 0, fh = 0; const col = new THREE.Color(); for (const M of fmods.values()) { M.nh = 0; M.nl = 0 }
     for (const c of Battle.air() as any[]) {
