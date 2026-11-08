@@ -596,6 +596,7 @@ if (wrap && bgo) {
     if (chg) { im.instanceMatrix.needsUpdate = true; u.shellDirty = true } u.fresh = false;
   }
   const dummy = new THREE.Object3D(), v3 = new THREE.Vector3(); const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), vX = new THREE.Vector3(1, 0, 0), vY = new THREE.Vector3(0, 1, 0), vZ = new THREE.Vector3(0, 0, 1);
+  const LODT = [.002, .004, .007, .011, .017, .026, .04, .06, .09, .14]; // пороги видимого размера для уровней 1..10
   function frame() {
     raf = requestAnimationFrame(frame); if (!ren) return; const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
@@ -607,6 +608,10 @@ if (wrap && bgo) {
     for (const s of ships) if (s.alive) { cx += s.x; cy += s.y; cz += s.z; n++ }
     if (n) { cx /= n; cy /= n; cz /= n; const ds: number[] = []; for (const s of ships) if (s.alive) ds.push(Math.hypot(s.x - cx, s.y - cy, (s.z - cz) * 2)); ds.sort((a, b) => a - b); rad = ds[Math.floor(ds.length * .9)] || 0 }
     _fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)); // видимый объём камеры: что вне его — не обновляем и не рисуем
+    // бюджет детализации: полную модель с башнями и броней получают только ближайшие к камере корабли
+    const detOK = new Set<any>(), shellOK = new Set<any>();
+    { const cand: [number, any][] = []; for (const s of ships) { if (!s.alive) continue; const dd = Math.hypot(cam.position.x - s.x, cam.position.y - s.z, cam.position.z - s.y), L = s.T.L, sc = Math.max(SC, dd * .011 / L), a = L * sc / Math.max(dd, .01); if (a > .026) cand.push([a, s]) }
+      cand.sort((a, b) => b[0] - a[0]); const slow = dtEma > 34, nD = slow ? 4 : 8, nS = slow ? 8 : 16; for (let i = 0; i < cand.length; i++) { if (i < nS) shellOK.add(cand[i][1]); if (i < nD && cand[i][0] > .04) detOK.add(cand[i][1]) } }
     for (const s of ships) {
       if (!s.alive) { const g = models.get(s); if (g) { models.delete(s); makeWreck(g, s) } continue }
       alive.add(s);
@@ -617,8 +622,10 @@ if (wrap && bgo) {
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
       if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
       const app = L * sc / Math.max(dd, .01); // видимый размер
-      setLod(s, g, app > .035 ? 2 : app > .012 ? 1 : 0);
-      detail(s, g, g.userData.lod === 2 && app > .04); shell(s, g, g.userData.lod === 2); ultra(s, g, g.userData.lod === 2 && app > .22 && dd < 400);
+      // 11 уровней детализации (0..10) с гистерезисом ±10%: корабль теряет детали постепенно, без скачков
+      let lv = ud.lv | 0; while (lv < 10 && app > LODT[lv] * 1.1) lv++; while (lv > 0 && app < LODT[lv - 1] * .9) lv--; ud.lv = lv;
+      setLod(s, g, lv >= 6 ? 2 : lv >= 3 ? 1 : 0);
+      detail(s, g, g.userData.lod === 2 && lv >= 7 && detOK.has(s)); shell(s, g, g.userData.lod === 2 && shellOK.has(s)); ultra(s, g, g.userData.lod === 2 && app > .22 && dd < 400 && detOK.has(s));
       if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
           // направление на цель в системе корабля, зажатое в полусферу вокруг нормали площадки
@@ -706,8 +713,8 @@ if (wrap && bgo) {
     }
     updateEnv(); stepWrecks(performance.now());
     { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
-      for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); g.updateMatrixWorld(true); const sc = g.scale.x;
-        const nz = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, y: 0, r: L * .04 }];
+      for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); if ((u.lv | 0) < 3) { h.length = 0; continue } g.updateMatrixWorld(true); const sc = g.scale.x;
+        const nz0 = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, y: 0, r: L * .04 }], nz = (u.lv | 0) < 6 ? nz0.slice(0, 1) : nz0; // далеко — одна общая струя
         if (sp > .02) { st.set(-L * .67, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.c.distanceTo(st) > L * sc * .02) { h.push({ c: st.clone(), ps: nz.map((n: any) => { const q = new THREE.Vector3(-L * .67, n.y || 0, n.z); g.localToWorld(q); return q }), t: nE }); if (h.length > 18) h.shift() } }
         while (h.length && nE - h[0].t > 2200) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1];
         // дым идёт из среза каждого сопла: сколько двигателей, столько и струй
@@ -815,7 +822,7 @@ if (wrap && bgo) {
     {const tb = Battle.time(); let k = 0; const col2 = new THREE.Color();
       for (const f of Battle.fx() as any[]) { if (k >= MAXFX) break; const life = (tb - f.t0) / (f.d || 3); if (life < 0 || life > 1) continue;
         dummy.position.set(f.x, f.z || 0, f.y); const rr = Math.max((f.r || .6) * (.5 + life) * .12, cam.position.distanceTo(dummy.position) * .003); dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
-        fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar(1 - life)); k++ }
+        fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar((1 - life) * (1 - life))); k++ }
       fxMesh.count = k; fxMesh.instanceMatrix.needsUpdate = true; if (fxMesh.instanceColor) fxMesh.instanceColor.needsUpdate = true}
     { const cf = Battle.cfg && Battle.cfg(), sk = cf ? cf.sky : null; if (sk !== curSky) buildSky(sk || null); if (skyG) skyG.position.copy(cam.position) }
     const rT0 = performance.now(); ren.render(scene, cam);

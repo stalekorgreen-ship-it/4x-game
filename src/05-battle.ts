@@ -298,7 +298,7 @@ function steer(s,dt){
   // поломка двигателя при форсаже: чем сильнее ускорение, тем выше шанс
   if(boost>1.02&&s.engN>0&&Math.random()<.00006*(1+3*(boost-1))*dt*s.engN){
     const em=[];for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive)em.push(m);
-    if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:8,r:2});boost=1}}
+    if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:5,r:1.2});boost=1}}
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
   vm*=boost;const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   // инерция: ускорение ограничено тягой и массой
@@ -486,7 +486,7 @@ function podStep(dt){
     if(dead){fx.push({x:l.x,y:l.y,z:l.z,t0:t,d:3,r:1.1});spawnShards(l.x,l.y,l.z,4,5);SFX.boom(4);stat.landLost=(stat.landLost||0)+1;lands.splice(i,1);continue}
     if(d<o.T.L*.5+.8){lands.splice(i,1);resolveBoard(l)}}
 }
-function kill(o){if(!o.alive)return;o.alive=false;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:40,r:26});SFX.boom(26);stat.lost[o.side]++;
+function kill(o){if(!o.alive)return;o.alive=false;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(4,o.T.L*7)});SFX.boom(26);stat.lost[o.side]++;
   {const L=o.T.L;spawnFrags(o.x,o.y,o.z,6+Math.floor(L*6),1.2,L,o);
    let ammo=(o.pool&&(o.pool.torp||0)+(o.pool.ammo||0)/10)||0;for(const m of o.tur)if(m.k==='M'&&m.alive)ammo+=m.ammo||0;
    if(ammo>0)pyro.push({x:o.x,y:o.y,z:o.z,hd:o.hd,L,vx:o.sx*.3,vy:o.sy*.3,n:4+Math.min(14,Math.round(L*3+ammo/3)),next:t+.3,t0:t,side:o.side});
@@ -721,10 +721,18 @@ function step(dt){
   for(let i=proj.length-1;i>=0;i--){
     const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null,fr=false;
     const dx=nx-p.x,dy=ny-p.y,l2=dx*dx+dy*dy||1,x0=Math.floor(Math.min(p.x,nx)/CS)-1,x1=Math.floor(Math.max(p.x,nx)/CS)+1,y0=Math.floor(Math.min(p.y,ny)/CS)-1,y1=Math.floor(Math.max(p.y,ny)/CS)+1;
-    const scan=(g,self)=>{for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=g.get(ckey(gx,gy));if(!a)continue;
-      for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;if(o.T.tons<15000&&p.dmg>=1.5&&p.ev>.55)continue; // малые корабли уворачиваются от тяжёлых снарядов
-        let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
-        if(Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.38)return o}}return null};
+    const scan=(g,self)=>{let best=null,bu=2;
+      const chk=(gx,gy)=>{const a=g.get(ckey(gx,gy));if(!a)return;
+        for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;if(o.T.tons<15000&&p.dmg>=1.5&&p.ev>.55)continue; // малые корабли уворачиваются от тяжёлых снарядов
+          let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
+          if(u<bu&&Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.38){bu=u;best=o}}};
+      const nxc=x1-x0+1,nyc=y1-y0+1;
+      if(nxc*nyc<=40){for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)chk(gx,gy)}
+      else if(nxc>=nyc){const lo=Math.min(p.x,nx),hi=Math.max(p.x,nx); // быстрый снаряд: идём по клеткам вдоль отрезка, а не по всему прямоугольнику
+        for(let gx=x0+1;gx<=x1-1;gx++){const xa=Math.max(lo,gx*CS),xb=Math.min(hi,(gx+1)*CS);if(xb<xa)continue;const ya=p.y+dy*((xa-p.x)/(dx||1e-9)),yb=p.y+dy*((xb-p.x)/(dx||1e-9));const g0=Math.floor(Math.min(ya,yb)/CS)-1,g1=Math.floor(Math.max(ya,yb)/CS)+1;for(let gy=g0;gy<=g1;gy++)chk(gx,gy)}}
+      else{const lo=Math.min(p.y,ny),hi=Math.max(p.y,ny);
+        for(let gy=y0+1;gy<=y1-1;gy++){const ya=Math.max(lo,gy*CS),yb=Math.min(hi,(gy+1)*CS);if(yb<ya)continue;const xa=p.x+dx*((ya-p.y)/(dy||1e-9)),xb=p.x+dx*((yb-p.y)/(dy||1e-9));const g0=Math.floor(Math.min(xa,xb)/CS)-1,g1=Math.floor(Math.max(xa,xb)/CS)+1;for(let gx=g0;gx<=g1;gx++)chk(gx,gy)}}
+      return best};
     if(env.length){let ee=null;for(const e of env)if(Math.abs(e.x-p.x)<e.r+14&&Math.abs(e.y-p.y)<e.r+14&&segHit(p.x,p.y,nx,ny,e)){ee=e;break}
       if(ee){endTr(p,nx,ny);fx.push({x:nx,y:ny,z:p.z,t0:t,d:3,r:.6});if(ee.t==='debris')ee.ttl-=4;if(Math.random()<.02)say(p.side,'rock',p.src);proj[i]=proj[proj.length-1];proj.pop();continue}}
     if(p.cd&&fly[1-p.side].length){let hc=null,bu=2;const mnx=Math.min(p.x,nx)-.12,mxx=Math.max(p.x,nx)+.12,mny=Math.min(p.y,ny)-.12,mxy=Math.max(p.y,ny)+.12;
