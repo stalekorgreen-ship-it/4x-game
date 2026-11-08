@@ -80,8 +80,20 @@ function spine(m){const g=new THREE.Group();
   for(const sg of[-1,1]){put(cb(L*.32,W*.32,W*.55,2.4,silver2),f(.88),0,sg*W*.62);wing([[-L*.1,0],[L*.12,0],[L*.12-5,5],[-L*.1+5,5]].map(([a,z])=>[f(.8)+a,sg*(z+W*.5)]),2,silver,0);
    put(cb(L*.55,3,hAt(.5)*.7,1,steel),f(.45),0,sg*(wAt(.45)/2+.8))}
   put(cb(L*.34,W*.8,W*.4,1.8,silver2),f(.45),hAt(.45)/2+W*.18,0);put(cb(L*.2,W*.55,W*.35,1.4,silver),f(.5),hAt(.45)/2+W*.5,0);put(cb(L*.1,W*.3,W*.3,1,silver2),f(.52),hAt(.45)/2+W*.8,0)}
- // гнёзда на бортах/верху по длине
- const n=Math.max(1,Math.floor(L/22));for(let i=0;i<n;i++){const t=.2+.45*(n>1?i/(n-1):.5);sockets(g,f(t),wAt(t)*.96,hAt(t)*.96,L/n*.5)}
+ // стандартные гнёзда: плоская палуба-площадка под основание турели (9.3 при масштабе 1.5), сверху и снизу
+ const SOC=[];const n=Math.max(2,Math.floor(L/18));
+ for(let i=0;i<n;i++){const t=.18+.5*(n>1?i/(n-1):.5),w=wAt(t),h=hAt(t),sz=Math.min(10,w*.85);
+  for(const sy of[-1,1]){const y=sy*(h/2+.35);put(cb(sz*1.1,sz*1.1,.8,.3,steel),f(t),y,0);put(cb(sz*.8,sz*.8,.3,.3,dark),f(t),y+sy*.5,0);
+   const rr=put(cb(sz*.9,sz*.9,.2,.25,accent),f(t),y+sy*.3,0);rr.scale.y=1;
+   for(const[a,b]of[[1,1],[-1,1],[1,-1],[-1,-1]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.5,.2,.5),cyan);d.position.set(f(t)+a*sz*.47,y+sy*.45,b*sz*.47);g.add(d)}
+   SOC.push({x:f(t),y:y+sy*.4,z:0,n:[0,sy,0],size:sz})}}
+ // детализация: швы панелей, вентрешётки, рёбра, навигационные огни
+ for(let t=.12;t<.95;t+=.055){const w=wAt(t),h=hAt(t);put(cb(.22,w*.98,.12,.05,dark),f(t),h/2+.02,0);put(cb(.22,w*.98,.12,.05,dark),f(t),-h/2-.02,0);
+  for(const sg of[-1,1])put(cb(.22,.12,h*.7,.05,dark),f(t),0,sg*(w/2+.02))}
+ for(let t=.2;t<.9;t+=.16){const w=wAt(t),h=hAt(t);for(const sg of[-1,1])for(let k=0;k<5;k++)put(cb(2.6,.15,.55,.05,dark),f(t),-h*.2+k*.9,sg*(w/2+.1)).scale.y=1}
+ for(const t of[.14,.5,.9]){const w=wAt(t);for(const sg of[-1,1]){const l=new THREE.Mesh(new THREE.BoxGeometry(.7,.7,.7),sg>0?cyan:new THREE.MeshBasicMaterial({color:0xff5a3c,toneMapped:false}));l.position.set(f(t),0,sg*(w/2+.5));g.add(l)}}
+ for(const sg of[-1,1])for(let t=.1;t<.9;t+=.1){const w=wAt(t),h=hAt(t);put(cb(1.2,.5,h*.55,.15,steel),f(t),0,sg*(w/2+.15))}
+ g.userData.sockets=SOC;
  // манёвровые двигатели: корма, середина, нос
  for(const t of[.1,.5,.9]){const w=wAt(t),h=hAt(t),s=[1.6,2,2.6,3][cls]*.6;for(const d of['u','d','l','r']){const r=rcs(d,s*2.4);const o=(d==='u'||d==='d'?h:w)/2+s*1.2;
    if(d==='u')r.position.set(f(t),o,0);if(d==='d')r.position.set(f(t),-o,0);if(d==='l')r.position.set(f(t),0,-o);if(d==='r')r.position.set(f(t),0,o);g.add(r)}}
