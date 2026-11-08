@@ -41,7 +41,7 @@ function mkShip(side,sp,x,y){
   const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
   const sh={hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
-  {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;sh.fuel=sp.fuel!=null?sp.fuel:null;sh.fuelCap=sp.fuelCap||0;sh.fpa=sp.fpa||0;
+  {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;if(sp.fuel!=null&&sp.fuelCap>0){sh.fuel=sp.fuel;sh.fuelCap=sp.fuelCap;sh.fpa=sp.fpa||T.tons}else{sh.fuelCap=Math.round(T.tons*.04);sh.fuel=sh.fuelCap;sh.fpa=T.tons} // у налётчиков бак по умолчанию
    const draw=(sp.railCfg||[]).slice(0,sp.rails||0).reduce((a,q)=>a+((q&&q.draw)||0),0)+(sp.lasers?800:0);sh.enR=sp.energy!=null&&draw>0?Math.max(.1,Math.min(1,sp.energy/draw)):1}
   for(const m of tur){if(m.k==='L')sh.lrp+=m.cfg.dmg*Math.min(300,m.cfg.rng)/100*.5;else if(m.k==='M')sh.lrp+=m.cfg.dmg*.8*m.cfg.ammo/8;else if(m.k==='T')sh.srp+=m.cfg.dmg*m.cfg.shells}
   sh.lrR=Math.max(0,...tur.filter(m=>m.k==='L').map(m=>Math.min(300,m.cfg.rng)));
@@ -302,11 +302,11 @@ function steer(s,dt){
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
   vm*=boost;const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   // инерция: ускорение ограничено тягой и массой
-  const a=.035*VMK*(eng+.1)/(1+3*Math.pow(T.L/.5,1.5))*dt*(1+(boost-1)*1.2),dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
+  const a=(s.fuelCap&&s.fuel<=0?0:1)*.035*VMK*(eng+.1)/(1+3*Math.pow(T.L/.5,1.5))*dt*(1+(boost-1)*1.2),dvx=vx*eng-s.sx,dvy=vy*eng-s.sy,dl=Math.hypot(dvx,dvy);
   { // тяга только по оси корабля: вперёд — полная, назад — 35%, боком — 12% (маневровые); скорость сохраняется по инерции
     const ch=Math.cos(s.hd),sh=Math.sin(s.hd);let df=dvx*ch+dvy*sh,dlt=-dvx*sh+dvy*ch;
     df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt))}
-    s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.sx*=1-.0006*dt;s.sy*=1-.0006*dt}
+    s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.sx*=1-.0006*dt;s.sy*=1-.0006*dt;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);if(s.fuelCap){s.fuel=Math.max(0,s.fuel-s.fpa*Math.hypot(df,dlt)*BFK);if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+s.T.L*.3;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
@@ -1065,11 +1065,12 @@ function checkEnd(){
   if((!aliveBy(1)&&!pend.length)||(!aliveBy(0)&&t-lastFriend>1800)||t>((cfgNow&&cfgNow.maxT)||14400)||((()=>{const na=aliveBy(0)+aliveBy(1);if(na!==lastNa){lastNa=na;lastNaT=t}return lastDmgT>0&&t-lastNaT>1800&&aliveBy(0)&&aliveBy(1)&&!pend.length})()))done=true; // ничья: никто никого не бьёт уже 8 минут (кончились снаряды, сдавшиеся)
 }
 function result(){
-  const mine=ships.filter(s=>s.side===0).map(s=>({ref:s.spec.ref,alive:s.alive||!!s.esc,lost:1-s.aliveN/s.total,
+  const mine=ships.filter(s=>s.side===0).map(s=>({ref:s.spec.ref,alive:s.alive||!!s.esc,lost:1-s.aliveN/s.total,fuel:s.spec.fuel!=null&&s.spec.fuelCap>0?s.fuel:null,
     F:air.filter(c=>c.own===s&&c.type==='F'&&c.state!=='dead').length,B:air.filter(c=>c.own===s&&c.type==='B'&&c.state!=='dead').length}));
   const en=ships.filter(s=>s.side===1);
   return {t,mine,enemyKilled:en.filter(s=>!s.alive&&!s.esc).map(s=>s.cls),prizes:ships.filter(s=>s.prize&&s.side===0&&s.alive).map(s=>s.cls),surrendered:stat.surr?stat.surr[1]:0,wrecks:ships.filter(s=>!s.alive&&!s.esc).length,enemyAlive:en.filter(s=>s.alive||s.esc).length,mineAlive:ships.filter(s=>s.side===0&&(s.alive||s.esc)).length,stat};
 }
+const BFK=.001; // а.е.-эквивалент на единицу набранной скорости: расход топлива в бою = fuelPerAU корабля × Δv × BFK
 function shipArms(s){
   const cnt={},al={};for(const m of s.tur){cnt[m.k]=(cnt[m.k]||0)+1;if(m.alive)al[m.k]=(al[m.k]||0)+1}
   const parts=[];
@@ -1217,7 +1218,7 @@ export function applyRaid(res) {
   const lostNames = [];
   for (const r of res.mine) {
     const s = state.ships.find(x => x.id === r.ref); if (!s) continue;
-    if (!r.alive) { lostNames.push(s.name); removeShip(s); } else { s.hullDmg = Math.max(s.hullDmg || 0, r.lost); s.air = {F: r.F, B: r.B}; }
+    if (!r.alive) { lostNames.push(s.name); removeShip(s); } else { s.hullDmg = Math.max(s.hullDmg || 0, r.lost); if (r.fuel != null) s.fuel = Math.max(0, Math.min(s.fuel, r.fuel)); s.air = {F: r.F, B: r.B}; }
   }
   if (!res.enemyAlive) {
     const W = {dd: 1, fr: 1, hc: 3, cv: 3}; let w = 0; for (const c of res.enemyKilled) w += W[c] || 1;

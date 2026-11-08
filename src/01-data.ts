@@ -9,7 +9,7 @@ import { H, bar } from './08-map-ui.ts';
 /* ===== ДАННЫЕ ===== */
 export const SAVE_KEY = 'poyas4x-save-v8';
 export const SPEED_K = 0.25;   // а.е./сутки на (мощность/масса)
-export const FUEL_K = 0.15;    // т топлива на а.е. на тонну массы / КПД
+export const FUEL_K = 1;       // т топлива на а.е. на тонну массы / КПД
 export const WEAR_AU = 1.0;    // % износа на а.е. пути
 export const WEAR_MINE = 0.1;  // % износа в сутки добычи
 export const REPAIR_RATE = 8;  // % ремонта в сутки
