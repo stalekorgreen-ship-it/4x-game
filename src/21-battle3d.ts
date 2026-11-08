@@ -193,11 +193,12 @@ if (wrap && bgo) {
     M = { hi: mk(true, 160), lo: mk(false, 1200), nh: 0, nl: 0 }; fmods.set(P.mk, M); return M }
   // блок корпуса: восьмигранная призма (скошенные грани по углам — наклонная броня), торцы плоские, без швов и пересечений
   let curL = 1;
-  function chamPrism(len: number, h: number, w: number, c: number, col: number, cy: number, cx: number, nose = 1) {
-    const hh = h / 2, ww = w / 2, pts = [[hh, -(ww - c)], [hh, ww - c], [hh - c, ww], [-(hh - c), ww], [-hh, ww - c], [-hh, -(ww - c)], [-(hh - c), -ww], [hh - c, -ww]], pos: number[] = [], x0 = -len / 2, x1 = len / 2;
+  function chamPrism(len: number, h: number, w: number, c: number, col: number, cy: number, cx: number, nose = 1, hex = false) {
+    const hh = h / 2, ww = w / 2, pts = hex ? [[hh, -(ww - c)], [hh, ww - c], [0, ww], [-hh, ww - c], [-hh, -(ww - c)], [0, -ww]] : [[hh, -(ww - c)], [hh, ww - c], [hh - c, ww], [-(hh - c), ww], [-hh, ww - c], [-hh, -(ww - c)], [-(hh - c), -ww], [hh - c, -ww]], pos: number[] = [], x0 = -len / 2, x1 = len / 2;
     const q = (a: number[], b: number[], c2: number[], d: number[]) => { for (const v of [a, b, c2, a, c2, d]) pos.push(v[0], v[1], v[2]) };
-    for (let i = 0; i < 8; i++) { const A = pts[i], B = pts[(i + 1) % 8]; q([x0, A[0], A[1]], [x1, A[0] * nose, A[1] * nose], [x1, B[0] * nose, B[1] * nose], [x0, B[0], B[1]]) }
-    for (let i = 1; i < 7; i++) { const A = pts[0], B = pts[i], C = pts[i + 1]; pos.push(x0, A[0], A[1], x0, C[0], C[1], x0, B[0], B[1]); pos.push(x1, A[0] * nose, A[1] * nose, x1, B[0] * nose, B[1] * nose, x1, C[0] * nose, C[1] * nose) }
+    const NP = pts.length;
+    for (let i = 0; i < NP; i++) { const A = pts[i], B = pts[(i + 1) % NP]; q([x0, A[0], A[1]], [x1, A[0] * nose, A[1] * nose], [x1, B[0] * nose, B[1] * nose], [x0, B[0], B[1]]) }
+    for (let i = 1; i < NP - 1; i++) { const A = pts[0], B = pts[i], C = pts[i + 1]; pos.push(x0, A[0], A[1], x0, C[0], C[1], x0, B[0], B[1]); pos.push(x1, A[0] * nose, A[1] * nose, x1, B[0] * nose, B[1] * nose, x1, C[0] * nose, C[1] * nose) }
     // грани должны смотреть наружу: проверяем каждый треугольник (призма выпуклая, центр в нуле по y,z и в середине по x) и при необходимости меняем обход
     for (let t = 0; t + 8 < pos.length; t += 9) { const ax = pos[t], ay = pos[t + 1], az = pos[t + 2], bx = pos[t + 3], by = pos[t + 4], bz = pos[t + 5], cx2 = pos[t + 6], cy2 = pos[t + 7], cz2 = pos[t + 8];
       const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx2 - ax, vy = cy2 - ay, vz = cz2 - az, nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, mx = (ax + bx + cx2) / 3, my = (ay + by + cy2) / 3, mz = (az + bz + cz2) / 3;
@@ -254,7 +255,7 @@ if (wrap && bgo) {
         for (let j = 0; j < n; j++) { const len = e.len / n, cx = e.cx - e.len / 2 + (j + .5) * len, t = Math.max(0, Math.min(1, (cx - x0) / Lk)); let pw: number, ph: number;
           const kT = t > 1 - nF ? Math.pow((t - (1 - nF)) / nF, 1.2) : 0; pw = .5 * (1 - .3 * kT); ph = .82 * (1 - .22 * kT);
           const w = e.ty === 'e' ? e.w : W * pw, h = e.ty === 'e' ? e.h : H * ph, c = Math.min(w, h) * (e.ty === 'e' ? .14 : .1 + .05 * aS);
-          seg.push({ ...e, cx, len, w, h, cy: 0, c, col: e.col });
+          seg.push({ ...e, cx, len, w, h, cy: 0, c: e.ty === 'e' ? c : w * .2, col: e.col });
           if (e.ty === 'm' && j % 2 === 0) for (const sd of [-1, 1]) for (let q = 0; q < 2; q++) parts.push(piece(unitBox, 0x1a1e26, cx, h / 2 + L * .0012, sd * (w * .2 + q * w * .17 * sd), len * .7, L * .0025, w * .13)); // шахты ракет: плоские люки вровень с палубой
           if ((e.ty === 'f' || e.ty === 'b') && hS <= .15 && j === (n >> 1)) for (const sd of [-1, 1]) { const gl = e.len * .8, gh = h * (1 - 2 * c / h) * .45; parts.push(piece(unitBox, 0x0b0d12, cx, -h * .05, sd * (w / 2 + w * .004), gl, gh, w * .012)); parts.push(piece(unitBox, P.glow, cx, -h * .05 - gh / 2, sd * (w / 2 + w * .006), gl, h * .02, w * .014)) } } } }
     const finI: any[] = [];
@@ -262,7 +263,7 @@ if (wrap && bgo) {
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
     { const NS = 56, xe = x1 + L * .05, pos: number[] = [], col: number[] = [], idx: number[] = [], nrm: number[] = [], uv: number[] = [], NR = RING.length;
       if (RL) { // настоящий корабль: отдельные блоки-модули со скошенными гранями, встык, без наложений
-        for (const e of seg) parts.push(chamPrism(e.len, e.h, e.w, e.c, e.col, e.cy, e.cx));
+        for (const e of seg) parts.push(chamPrism(e.len, e.h, e.w, e.ty === 'e' ? e.c : e.w * .2, e.col, e.cy, e.cx, 1, e.ty !== 'e'));
         const lst0 = seg[seg.length - 1], nl = L * .2; parts.push(chamPrism(nl * .55, lst0.h, lst0.w, Math.min(lst0.h, lst0.w) * .3, shade(P.main, 1.1), lst0.cy, x1 + nl * .275, .55)); parts.push(chamPrism(nl * .45, lst0.h * .55, lst0.w * .55, Math.min(lst0.h, lst0.w) * .12, shade(P.main, 1.2), lst0.cy - lst0.h * .1, x1 + nl * .55 + nl * .225, .3)); // клиновидный нос
         if (sty) { // навесные узлы: орудийные платформы, броневые щёки, ангарные коробки, радиаторы, варианты носа — по параметрам проекта
           const Lk2 = x1 - x0, xa = x0 + (lst.filter(q => q.ty === 'e').reduce((a, q) => a + q.len, 0)) + Lk2 * .04, th = L * .03, dm = (xx: number) => dimsAt(xx);
