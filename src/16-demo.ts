@@ -9,6 +9,7 @@ import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
+import { botSpec } from './16b-botdesign.ts';
 
 const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), TAU = Math.PI * 2;
@@ -102,7 +103,8 @@ function fleet(n, mixOrDoc, fid, speed, W) {
     const cap = Math.min(8, Math.floor(out.length / 10)), ls = out.filter(sp => sp.lasers > 0);
     ls.slice(cap).forEach(sp => { sp.lasers = 0; sp.laserCfg = []; sp.name = sp.name.replace('Лазерный линкор', 'Линкор').replace('Лазерный крейсер', 'Крейсер'); });
   }
-  return outfit(out);
+  for (const sp of out) sp.spdMul = speed;
+  return outfit(out).map(botSpec); // все корабли — из настоящих деталей: бот проектирует и пробует варианты
 }
 const fleetW = specs => specs.reduce((a, sp) => a + W3(sp), 0);
 // сколько кораблей: размер 1 — от 4 до 10, 2 — до 40, 3 — до 200 на сторону
@@ -112,7 +114,7 @@ export const warFleet = (n, fid, speed) => fleet(n, BYSIZE(n), fid, speed);
 export const warStrength = specs => fleetW(specs);
 export const rockField = (n, cx, cy, sx, sy, r0, r1) => Array.from({length: n}, () => ({t: 'rock', x: cx + R(-sx, sx), y: cy + R(-sy, sy), r: R(r0, r1)}));
 // стреляющая станция: неподвижна, много орудий, толстая броня
-export function stationSpec(fid) { return {name: 'Орбитальная станция', role: 'station', rails: 14, railCfg: Array.from({length: 14}, () => RCf(15, 2)), flak: 8, lasers: 2, laserCfg: LC(2, 'l', 'f'), arm: 7, eng: 1, L: .9, spd: 0, tons: 90000, sk: 6, fid, station: 1, F: 0, B: 0, dmg: 0}; }
+export function stationSpec(fid) { return botSpec({name: 'Орбитальная станция', role: 'station', rails: 14, railCfg: Array.from({length: 14}, () => RCf(15, 2)), flak: 8, lasers: 2, laserCfg: LC(2, 'l', 'f'), arm: 7, eng: 1, L: .9, spd: 0, tons: 90000, sk: 6, fid, station: 1, F: 0, B: 0, dmg: 0}); }
 export const SCENARIOS = {
   line: 'Линия фронта: два флота лоб в лоб',
   pincer: 'Клещи: один флот против нескольких с разных сторон',
