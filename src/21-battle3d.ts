@@ -25,7 +25,7 @@ if (wrap && bgo) {
       let b2: any = null, bd2 = 1e18; for (const [sh, m] of models) if (sh.alive) { const d = m.position.distanceToSquared(cam.position); if (d < bd2) { bd2 = d; b2 = sh } } if (b2) { Battle.select(b2); follow = true; fitAll = false; dist = Math.max(.05, b2.T.L * .35); pendT = 90 } return }
     const c = (g.userData.tur.children as any[]).filter(t => t.visible && t.userData.m && t.userData.m.alive).sort((a, b) => (b.userData.m.rt || 0) - (a.userData.m.rt || 0)).slice(0, 6); if (!c.length) return; tcam = c[tcamN++ % c.length]; fcam = null; follow = false; fitAll = false; dist = Math.max(.002, tcam.userData.r * 70 * (g.scale.x || 1)) }
   // камера не ближе 10 м (0.01 мировой ед.) к корпусу любого корабля: так не видны огрехи модели
-  const KEEP_OFF = .01, _kb = new THREE.Box3(), _kc = new THREE.Vector3(), _ks = new THREE.Vector3(), _kp = new THREE.Vector3(), _kd = new THREE.Vector3();
+  const KEEP_OFF = .005, _kb = new THREE.Box3(), _kc = new THREE.Vector3(), _ks = new THREE.Vector3(), _kp = new THREE.Vector3(), _kd = new THREE.Vector3();
   function keepOff() {
     for (const [, g] of models) {
       if (!g.visible) continue; const Lw = (g.userData.L || 0) * g.scale.x; if (!(Lw > 0) || cam.position.distanceTo(g.position) > Lw * 3 + 1) continue;
@@ -506,7 +506,8 @@ if (wrap && bgo) {
     if (u.spQ.length && now - (u.spT || 0) > 160 && u.lod != null) { u.spT = now; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
       const oL = _rc.set(a, v, 0).addScaledVector(h.dL, R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84)) }
-    D.step(dt * (1 / Math.max(1e-3, u.spK)) * .0 + dt);
+    { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
+    D.step(dt);
   }
   let frameNo = 0, spFrame = -1;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)

@@ -498,8 +498,9 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   for(let i=0;i<nseg;i++){ang+=(Math.random()-.5)*.5;const stp=len/nseg;cur=cur.clone().addScaledVector(tg,stp*Math.cos(ang)).addScaledVector(sd,stp*Math.sin(ang));lobes.push({c:cur.clone(),rx:stp*.9,ry:.3+Math.random()*.4,th:Math.atan2(Math.sin(ang),Math.cos(ang)),depth:.12+Math.random()*.25,hole:0,s:seed});
    if(Math.random()<.35)for(let k=0;k<3;k++)spark(cur,tg.clone().multiplyScalar(8+Math.random()*16).addScaledVector(n,3+Math.random()*9).add(new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*5)),.3+Math.random()*.5,k%2?glowM:accent)}
   deform(p,n,lobes)}
- function step(dt){for(const d of debris){d.t+=dt;d.e.position.addScaledVector(d.e.userData.v,dt);d.e.rotation.x+=d.e.userData.w.x*dt;d.e.rotation.y+=d.e.userData.w.y*dt;d.e.rotation.z+=d.e.userData.w.z*dt}
-  for(let i=sparks.length-1;i>=0;i--){const s2=sparks[i];s2.t+=dt;s2.e.position.addScaledVector(s2.v,dt);s2.v.multiplyScalar(1-dt*.9);if(s2.t>s2.life){ship.remove(s2.e);sparks.splice(i,1)}else s2.e.scale.setScalar(1-s2.t/s2.life)}}
+ function step(dt){for(let i=debris.length-1;i>=0;i--){const d=debris[i];if(d.rel&&d.t>28){d.e.parent&&d.e.parent.remove(d.e);d.e.geometry&&d.e.geometry.dispose&&d.e.geometry.dispose();debris.splice(i,1);continue}d.t+=dt;d.e.position.addScaledVector(d.e.userData.v,dt);d.e.rotation.x+=d.e.userData.w.x*dt;d.e.rotation.y+=d.e.userData.w.y*dt;d.e.rotation.z+=d.e.userData.w.z*dt}
+  for(let i=sparks.length-1;i>=0;i--){const s2=sparks[i];s2.t+=dt;s2.e.position.addScaledVector(s2.v,dt);s2.v.multiplyScalar(1-dt*.9);if(s2.t>s2.life){s2.e.parent&&s2.e.parent.remove(s2.e);sparks.splice(i,1)}else s2.e.scale.setScalar((s2.ws||1)*(1-s2.t/s2.life))}}
+ function release(sc,ws,q,vel){for(const d of debris){if(d.rel)continue;d.rel=1;const e=d.e;sc.attach(e);e.userData.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}for(const d of sparks){if(d.rel)continue;d.rel=1;sc.attach(d.e);d.ws=ws;d.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}}
  const doHit=(h,gd,kind,r)=>{const rr=()=>Math.random(),S=rr()*100;
   const mk=(c,rx,ry,depth,hole)=>({c,rx,ry,th:rr()*Math.PI,depth,hole,s:S+rr()*9});
   if(kind==='g'){graze(h.p,h.n,gd,r);return}
@@ -510,7 +511,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
   crater(h.p,h.n,r,r*.3,lobes)};
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
-  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step}}
+  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
 
 // склейка статичной мелочи в несколько мешей по материалам: тысячи draw call'ов на корабль -> десяток
 function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(g.matrixWorld).invert(),by=new Map(),rm=[];
