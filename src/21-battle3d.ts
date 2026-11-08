@@ -484,7 +484,7 @@ if (wrap && bgo) {
     const u = g.userData; if (frameNo !== spFrame) { spFrame = frameNo; spBuilds = 0 }
     const stn = s.T.role === 'station' || (s.spec && s.spec.role === 'station'); let on = !!u.spOn && !stn;
     if (!stn) { if (!on && lv >= 7 && det) on = true; else if (on && (lv < 6 || !shl)) on = false }
-    if (on && !u.sp) { if (spBuilds >= 1) on = false; else { spBuilds++; const tons = s.T.tons || s.T.L * TON_L, spc = s.spec || {}, m = tons < 800 ? 1 : tons < 3000 ? 2 : tons < 12000 ? 4 : tons < 60000 ? 5 : 7;
+    if (on && !u.sp) { if (spBuilds >= 1) on = false; else { spBuilds++; const tons = s.T.tons || s.T.L * TON_L, spc = s.spec || {}, m = tons < 400 ? 1 : tons < 1500 ? 2 : tons < 3000 ? 3 : Math.max(4, Math.min(30, Math.round(4 + 2.2 * Math.log2(tons / 3000))));
       const mp: any = massParts(spc.rails != null || spc.real ? spc : { rails: 10, flak: 2, tons }), pr = mp.parts || {}, ef = (pr.eng || 0) / Math.max(1, mp.T || tons), tf = (pr.tank || 0) / Math.max(1, mp.T || tons), rc = spc.railCfg || [], tl: number[] = [], rn = spc.rails || 0, gn = spc.gat || 0, fn = spc.flak || 0;
       const kin: number[][] = [[], [], []]; for (let i = 0; i < rn; i++) { const c = +((rc[i] || {}).cal) || 10; kin[0].push(c <= 10 ? 0 : c <= 15 ? 1 : c <= 20 ? 3 : 5) } for (let i = 0; i < gn; i++) kin[1].push(2); for (let i = 0; i < fn + (spc.lasers || 0); i++) kin[2].push(4);
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
@@ -503,7 +503,7 @@ if (wrap && bgo) {
   function spineUpdate(g: THREE.Group) {
     const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
     const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
-    if (u.spQ.length && now - (u.spT || 0) > 700 && spDmgFrame !== frameNo && (u.spN || 0) < 24) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+    if (u.spQ.length && now - (u.spT || 0) > 1200 && spDmgFrame !== frameNo && (u.spN || 0) < 24) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
       const oL = _rc.set(a, v, 0).addScaledVector(h.dL, R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84))) sp.userData.inner.visible = true }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }

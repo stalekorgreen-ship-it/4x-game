@@ -3,6 +3,15 @@
 import * as THREE from 'three';
 import { toCreasedNormals, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 let P:any={};
+// быстрые «рёберные» нормали: усредняем нормали соседних граней, если угол между ними меньше порога (вместо медленного toCreasedNormals)
+function fastCrease(src:any,ang:number){if(!src.index)return src;const P0=src.attributes.position.array,ix=src.index.array,nt=ix.length/3,nv=P0.length/3,ck=Math.cos(ang),fn=new Float32Array(nt*3),cnt=new Int32Array(nv+1);
+ for(let t=0;t<nt;t++){const a=ix[t*3]*3,b=ix[t*3+1]*3,c=ix[t*3+2]*3,ux=P0[b]-P0[a],uy=P0[b+1]-P0[a+1],uz=P0[b+2]-P0[a+2],vx=P0[c]-P0[a],vy=P0[c+1]-P0[a+1],vz=P0[c+2]-P0[a+2];let x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx;const m=Math.hypot(x,y,z)||1;fn[t*3]=x/m;fn[t*3+1]=y/m;fn[t*3+2]=z/m;cnt[ix[t*3]+1]++;cnt[ix[t*3+1]+1]++;cnt[ix[t*3+2]+1]++}
+ for(let i=0;i<nv;i++)cnt[i+1]+=cnt[i];const fill=cnt.slice(0,nv),adj=new Int32Array(nt*3);
+ for(let t=0;t<nt;t++)for(let k=0;k<3;k++){const v=ix[t*3+k];adj[fill[v]++]=t}
+ const po=new Float32Array(nt*9),no=new Float32Array(nt*9);
+ for(let t=0;t<nt;t++){const nx=fn[t*3],ny=fn[t*3+1],nz=fn[t*3+2];for(let k=0;k<3;k++){const v=ix[t*3+k],o=t*9+k*3;po[o]=P0[v*3];po[o+1]=P0[v*3+1];po[o+2]=P0[v*3+2];let sx=0,sy=0,sz=0;for(let q=cnt[v];q<cnt[v+1];q++){const u=adj[q]*3;if(fn[u]*nx+fn[u+1]*ny+fn[u+2]*nz>=ck){sx+=fn[u];sy+=fn[u+1];sz+=fn[u+2]}}const m=Math.hypot(sx,sy,sz)||1;no[o]=sx/m;no[o+1]=sy/m;no[o+2]=sz/m}}
+ const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.BufferAttribute(po,3));ge.setAttribute('normal',new THREE.BufferAttribute(no,3));return ge}
+
 const mk=(c,m,r)=>new THREE.MeshPhysicalMaterial({color:c,metalness:m,roughness:r,flatShading:true,envMapIntensity:1.1,side:THREE.DoubleSide});
 let silver:any,silver2:any,steel:any,accent:any;const dark=mk(0x242a37,.7,.5);
 const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
@@ -311,14 +320,14 @@ function tower(g,x,y0,tiers){let y=y0;for(const[len,w,h,m]of tiers){const b=cb(l
  const rd=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),cyan);rd.position.set(x,y+H+.3,0);g.add(rd)}
 
 // плотный граненый корпус: 8 граней по 6 сегментов, кольцо каждые 1.2 ед. — для вмятин, дыр и сорванной обшивки
-function denseHull(R,mat,k,S0,dx0){const S=S0||12,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=(dx0||.6))xs.push(x);
+function denseHull(R,mat,k,S0,dx0){const S=S0||10,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=(dx0||.8))xs.push(x);
  const P=[],I=[];
  for(const x of xs){let i=0;while(i<R.length-2&&x>R[i+1].x)i++;const a=R[i],b=R[i+1],t=Math.max(0,Math.min(1,(x-a.x)/((b.x-a.x)||1)));const w=(a.w+(b.w-a.w)*t)*k,h=(a.h+(b.h-a.h)*t)*k,c=Math.min(w,h)*.3,A=w/2,B=h/2;
   const ring=[[-(A-c),B],[A-c,B],[A,B-c],[A,-(B-c)],[A-c,-B],[-(A-c),-B],[-A,-(B-c)],[-A,B-c]];
   for(let e=0;e<8;e++){const p=ring[e],q2=ring[(e+1)%8];for(let j=0;j<S;j++){const u=j/S;P.push(x,p[1]+(q2[1]-p[1])*u,p[0]+(q2[0]-p[0])*u)}}}
  for(let r=0;r<xs.length-1;r++)for(let v=0;v<N;v++){const v2=(v+1)%N,a=r*N+v,b=r*N+v2,c2=(r+1)*N+v,d=(r+1)*N+v2;I.push(a,c2,b,b,c2,d)}
  const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(P,3));ge.setIndex(I);ge.computeVertexNormals();
- const m=new THREE.Mesh(toCreasedNormals(ge.clone(),.7),mat);m.userData.base=ge;m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
+ const m=new THREE.Mesh(fastCrease(ge,.7),mat);m.userData.base=ge;m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -337,9 +346,9 @@ function rcs(dir,s){const g=new THREE.Group();g.add(cb(s*2.2,s*2.2,s*1.1,s*.35,s
 function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
  const put=(o,x,y,z)=>{o.position.set(x,y||0,z||0);g.add(o);return o};
  const wing=(pts,th,mat,y)=>{const p=poly(pts,th,.3,mat);p.rotation.x=-Math.PI/2;p.position.set(0,y-th/2,0);g.add(p)};
- const cls=m<2?0:m<4?1:m<6?2:3,L=[34,58,84,128][cls]+(m-[1,2,4,6][cls])*10,x0=-L/2,xe=L/2;
+ const cls=m<2?0:m<4?1:m<6?2:3,L=[34,58,84,128][cls]+(m-[1,2,4,6][cls])*(cls===3?18:10),x0=-L/2,xe=L/2;
  const tn=+P.tn||[300,1500,8000,40000][cls],ax=P.ax||[4,3,0,0][cls];let centerN=0;
- const W=[8,8,15,20][cls],Hk=[.95,.62,.8,.7][cls],f=t=>x0+L*t;
+ const W=[8,8,15,20][cls]+(cls===3?Math.min(16,(m-6)*1.1):cls===2?(m-4)*.8:0),Hk=[.95,.62,.8,.7][cls],f=t=>x0+L*t;
  // профиль корпуса по классам (t, ширина, высота)
  const prof=[
   [[0,.7,.8],[.1,1.2,1],[.45,1,.95],[.75,.55,.6],[1,.88,.9]],
@@ -473,12 +482,13 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
  function deform(p,n,lobes){const t1=new THREE.Vector3().crossVectors(n,Math.abs(n.y)<.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).normalize(),t2=new THREE.Vector3().crossVectors(n,t1);
   const pos=hull.userData.base.attributes.position,v=new THREE.Vector3(),rel=new THREE.Vector3();
   const infl=(vec,lb)=>{rel.copy(vec).sub(lb.c);const u0=rel.dot(t1),w0=rel.dot(t2),cs=Math.cos(lb.th),sn=Math.sin(lb.th),u=u0*cs+w0*sn,w=-u0*sn+w0*cs;let d=Math.hypot(u/lb.rx,w/lb.ry);d/=1+.45*(vnoise(rel.x*.3+lb.s,rel.y*.3,rel.z*.3)-.5)+.2*(vnoise(rel.x*.9,rel.y*.9+lb.s,rel.z*.9)-.5);return d};
+  for(const lb of lobes){const R=Math.max(lb.rx,lb.ry)*2.1;lb.R2=R*R}
   for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);let off=0;
-   for(const lb of lobes){const d=infl(v,lb);if(d<1){const k=1-d;off=Math.max(off,lb.depth*Math.pow(k,.65))}else if(d<1.3)off=Math.min(off,0)-lb.depth*.1*(1-(d-1)/.3)*(1-off*0)}
+   for(const lb of lobes){if(v.distanceToSquared(lb.c)>lb.R2)continue;const d=infl(v,lb);if(d<1){const k=1-d;off=Math.max(off,lb.depth*Math.pow(k,.65))}else if(d<1.3)off=Math.min(off,0)-lb.depth*.1*(1-(d-1)/.3)*(1-off*0)}
    if(off!==0){v.addScaledVector(n,-off);pos.setXYZ(i,v.x,v.y,v.z)}}
   for(const lb of lobes)if(lb.hole>0&&holes.length<16){const cs=Math.cos(lb.th),sn=Math.sin(lb.th),i2=holes.length;holes.push(lb);
    HU.hoA.value[i2].set(t1.x*cs+t2.x*sn,t1.y*cs+t2.y*sn,t1.z*cs+t2.z*sn,lb.rx);HU.hoB.value[i2].set(-t1.x*sn+t2.x*cs,-t1.y*sn+t2.y*cs,-t1.z*sn+t2.z*cs,lb.ry);HU.hoC.value[i2].set(lb.c.x,lb.c.y,lb.c.z,lb.hole);HU.nHo.value=holes.length}
-  hull.userData.base.computeVertexNormals();hull.geometry.dispose();hull.geometry=toCreasedNormals(hull.userData.base.clone(),.7);hull.geometry.computeBoundingSphere();
+  hull.userData.base.computeVertexNormals();hull.geometry.dispose();hull.geometry=fastCrease(hull.userData.base,.7);hull.geometry.computeBoundingSphere();
   for(const lb of lobes){const k=Math.max(1,Math.min(7,Math.round(lb.rx/lb.ry)));for(let i=0;i<k;i++){const o=k>1?(i/(k-1)-.5)*2*(lb.rx-lb.ry):0;addHit(lb.c.clone().addScaledVector(t1,o*Math.cos(lb.th)).addScaledVector(t2,o*Math.sin(lb.th)),lb.ry*(lb.ry<1?1.6:.85))}}}
  function crater(p,n,r,depth,lobes){deform(p,n,lobes);
   // сорванные детали
