@@ -24,12 +24,25 @@ const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacit
 function weather(m,k){m.onBeforeCompile=sh=>{
  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\n').replace('#include <color_fragment>',`#include <color_fragment>
- vec3 q=vWP+vec3(${k}.);vec3 sz=vec3(7.,4.8,4.8);vec3 cl=floor(q/sz);
- diffuseColor.rgb*=1.+(h31(cl)-.5)*.2;
- vec3 fr=fract(q/sz);vec3 dd=min(fr,1.-fr)*sz;float edge=min(dd.x,min(dd.y,dd.z));
- float seam=1.-smoothstep(.04,.13,edge);diffuseColor.rgb*=1.-seam*.5;
- float rivet=1.-smoothstep(.05,.11,length(vec2(fract(q.x*.7)-.5,fract(q.y*.7+q.z*.7)-.5)*1.43))*step(.18,edge)*step(edge,.5);rivet*=step(.55,h31(cl+7.));diffuseColor.rgb*=1.-rivet*.0;
- float scr=h31(vec3(floor(q.y*8.),floor(q.z*8.),floor(q.x*.35)));scr=step(.955,scr)*(1.-smoothstep(.0,.14,abs(fract(q.y*8.+q.z*8.)-.5)));diffuseColor.rgb*=1.+scr*.45;
+ vec3 q=vWP+vec3(${k}.);
+ vec3 big=floor(q/vec3(26.,15.,15.));float hz=h31(big+1.7);
+ vec3 pal=vec3(1.);
+ if(hz<.12)pal=vec3(.55,.68,.95);else if(hz<.24)pal=vec3(.3,.38,.6);else if(hz<.34)pal=vec3(1.05,.8,.62);else if(hz<.44)pal=vec3(.55,.95,.95);else if(hz<.54)pal=vec3(.85,.9,.7);else if(hz<.62)pal=vec3(1.0,.62,.58);else if(hz<.72)pal=vec3(1.15,1.15,1.1);
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*pal,.8);
+ vec3 sz=vec3(7.,4.8,4.8);vec3 cl=floor(q/sz);
+ vec3 tintc=vec3(h31(cl),h31(cl+3.1),h31(cl+6.2));diffuseColor.rgb*=1.+(tintc-.5)*.22;
+ // три уровня швов: 26 / 7 / 2.4
+ float ln=0.;
+ for(int lv=0;lv<3;lv++){vec3 s3=lv==0?vec3(26.,15.,15.):(lv==1?sz:vec3(2.4,1.8,1.8));vec3 fr=fract(q/s3);vec3 d3=min(fr,1.-fr)*s3;float e=min(d3.x,min(d3.y,d3.z));float w=lv==0?.2:(lv==1?.11:.05);ln=max(ln,(1.-smoothstep(w*.4,w,e))*(lv==2?.55:1.));}
+ diffuseColor.rgb*=1.-ln*.62;
+ // тонкие светлые «травленые» линии вдоль корпуса и поперечные пояса
+ float lite=(1.-smoothstep(.0,.05,abs(fract(q.y*.55+q.z*.55)-.5)))*step(.6,h31(cl+9.))*.35;diffuseColor.rgb+=lite;
+ float band=1.-smoothstep(.0,.07,abs(fract(q.y/9.+hz)-.5)-.38);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.88,.45,.12),band*step(.7,hz)*.7);
+ // шевронные полосы предупреждения на части ячеек
+ float hzd=step(.975,h31(cl+4.4));float ch=step(.5,fract((q.x+q.y+q.z)*.5));diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.08),vec3(.95,.7,.1),ch),hzd*.9);
+ // заклёпки
+ vec2 rv=vec2(fract(q.x*.9),fract((q.y+q.z)*.9))-.5;float riv=1.-smoothstep(.07,.13,length(rv));diffuseColor.rgb*=1.+riv*step(.5,h31(cl+2.))*.25;
+ float scr=h31(vec3(floor(q.y*8.),floor(q.z*8.),floor(q.x*.35)));scr=step(.955,scr)*(1.-smoothstep(.0,.14,abs(fract(q.y*8.+q.z*8.)-.5)));diffuseColor.rgb*=1.+scr*.5;
  float dirt=smoothstep(.5,1.,h31(floor(q*vec3(.5,1.6,1.6))))*.3+smoothstep(.65,1.,h31(floor(q*vec3(.15,.9,.9)+3.)))*.2;diffuseColor.rgb*=1.-dirt;
  diffuseColor.rgb*=.82+.18*smoothstep(-1.,1.,vWP.y*.08+.4);`)};m.customProgramCacheKey=()=>'w'+k}
 weather(silver,1);weather(silver2,5);weather(steel,9);weather(accent,3);
@@ -270,6 +283,36 @@ function gatTurret(s,tw){const g=new THREE.Group();g.add(base(s));const y=3.1*s;
   const belt=cb(2.6*s,.35*s,1.2*s,.1*s,steel);belt.position.set(.4*s,y+.2*s,z*.8);belt.rotation.z=.25;g.add(belt)});
  return g}
 
+
+// детали на плоскости: u вдоль X, v по второй оси; ax: 'z' — боковая грань (нормаль ±Z, v по Y), 'y' — верх/низ (нормаль ±Y, v по Z)
+let _sd=7;const rnd=()=>{_sd=(_sd*16807)%2147483647;return _sd/2147483647};
+function faceDeco(g,cx,cy,cz,len,hh,ax,sg){const put=(o,u,v,n)=>{if(ax==='z')o.position.set(cx+u,cy+v,cz+sg*n);else o.position.set(cx+u,cy+sg*n,cz+v);g.add(o)};
+ const box=(l,w,h,m)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(l,ax==='z'?h:w,ax==='z'?w:h),m);return b};
+ const ncol=Math.max(2,Math.floor(len/5));
+ for(let i=0;i<ncol;i++){const u=-len/2+(i+.5)*len/ncol,kind=Math.floor(rnd()*6);
+  if(kind===0){for(let k=0;k<5;k++)put(box(len/ncol*.7,.14,.28,dark),u,-hh*.35+k*hh*.17,.12)}                 // вентрешётка
+  else if(kind===1){put(box(len/ncol*.6,.3,hh*.4,steel),u,hh*.1,.15);put(box(len/ncol*.5,.32,.3,accent),u,hh*.1,.2)} // накладка
+  else if(kind===2){for(let k=0;k<4;k++)put(box(.35,.3,.35,k%2?cyan:accent),u+(k-1.5)*.5,hh*.3,.15)}              // огни
+  else if(kind===3){const c=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,hh*.7,8),steel);if(ax==='z'){c.position.set(cx+u,cy,cz+sg*.5)}else{c.rotation.x=Math.PI/2;c.position.set(cx+u,cy+sg*.5,cz)}g.add(c)} // труба
+  else if(kind===4){put(box(len/ncol*.75,.25,hh*.55,dark),u,0,.1);put(box(len/ncol*.55,.3,.18,cyan),u,hh*.12,.2);put(box(len/ncol*.55,.3,.18,cyan),u,-hh*.12,.2)} // люк-иллюминаторы
+  else{put(box(len/ncol*.8,.2,.2,accent),u,-hh*.3,.1);put(box(len/ncol*.8,.2,.2,accent),u,hh*.3,.1);put(box(.2,.2,hh*.62,accent),u-len/ncol*.4,0,.1)} } // рамка
+}
+// бронепояс из сегментов с швами, болтами и рёбрами вместо цельной гладкой плиты
+function armorBelt(g,cx,cy,cz,len,th,hh,sg){const n=Math.max(3,Math.round(len/9)),sl=len/n;
+ for(let i=0;i<n;i++){const hj=hh*(.92+rnd()*.1),m=i%2?silver:silver2;const p=cb(sl-.5,th,hj,.7,m);p.position.set(cx-len/2+(i+.5)*sl,cy,cz);g.add(p);
+  const bevel=cb(sl-.9,.35,hj*.7,.2,steel);bevel.position.set(cx-len/2+(i+.5)*sl,cy,cz+sg*(th/2+.15));g.add(bevel);
+  for(const yy of[-1,1]){for(const xx of[-.35,.35]){const bt=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.3,6),accent);bt.rotation.x=Math.PI/2;bt.position.set(cx-len/2+(i+.5)*sl+xx*sl,cy+yy*hj*.4,cz+sg*(th/2+.35));g.add(bt)}}}
+ faceDeco(g,cx,cy,cz+sg*(th/2+.3),len*.95,hh*.8,'z',sg)}
+
+function tower(g,x,y0,tiers){let y=y0;for(const[len,w,h,m]of tiers){const b=cb(len,w,h,Math.min(w,h)*.22,m);b.position.set(x,y+h/2,0);g.add(b);
+  for(const sg of[-1,1])faceDeco(g,x,y+h/2,sg*w/2,len*.9,h*.8,'z',sg);faceDeco(g,x,y+h,0,len*.85,w*.7,'y',1);
+  // ступенчатые фаски-уступы и рёбра
+  for(const ex of[-1,1]){const r=cb(.8,w*1.04,h*1.06,.3,steel);r.position.set(x+ex*(len/2-.4),y+h/2,0);g.add(r)}
+  y+=h}
+ const top=tiers[tiers.length-1],H=top[2]*1.2;const mast=cb(.5,.5,H,.15,steel);mast.position.set(x,y+H/2,0);g.add(mast);
+ const arm=cb(.4,top[1]*.7,.4,.1,steel);arm.position.set(x,y+H*.75,0);g.add(arm);
+ const dish=new THREE.Mesh(new THREE.CylinderGeometry(0,2.4,1.2,8,1,true),silver2);dish.position.set(x+top[0]*.25,y+.7,top[1]*.2);g.add(dish);
+ const rd=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),cyan);rd.position.set(x,y+H+.3,0);g.add(rd)}
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -314,12 +357,12 @@ function spine(m){const g=new THREE.Group();
    wing([[-6,0],[16,0],[10,6],[-2,6]].map(([a,z])=>[f(.72)+a,sg*(z+W*.3)]),1.4,steel,-.5)}
   put(cb(L*.5,2,3,.8,steel),f(.4),hAt(.4)/2+1,0)}
  if(cls===2){ // крейсер: цитадель-надстройка, бортовые пояса брони
-  put(cb(L*.3,W*.7,W*.4,1.6,silver2),f(.5),hAt(.5)/2+W*.18,0);put(cb(L*.15,W*.45,W*.35,1.2,silver),f(.55),hAt(.5)/2+W*.5,0);
-  for(const sg of[-1,1])put(cb(L*.5,2.4,hAt(.5)*.7,.9,steel),f(.45),0,sg*(wAt(.45)/2+.6))}
+  tower(g,f(.5),hAt(.5)/2-.5,[[L*.3,W*.7,W*.4,silver2],[L*.15,W*.45,W*.35,silver],[L*.07,W*.25,W*.25,silver2]]);
+  for(const sg of[-1,1])armorBelt(g,f(.45),0,sg*(wAt(.45)/2+.6),L*.5,2.4,hAt(.5)*.7,sg)}
  if(cls===3){ // линкор: раздвоенный «рогатый» нос, ярусная надстройка, пояса
-  for(const sg of[-1,1]){put(cb(L*.32,W*.32,W*.55,2.4,silver2),f(.88),0,sg*W*.62);wing([[-L*.1,0],[L*.12,0],[L*.12-5,5],[-L*.1+5,5]].map(([a,z])=>[f(.8)+a,sg*(z+W*.5)]),2,silver,0);
-   put(cb(L*.55,3,hAt(.5)*.7,1,steel),f(.45),0,sg*(wAt(.45)/2+.8))}
-  put(cb(L*.34,W*.8,W*.4,1.8,silver2),f(.45),hAt(.45)/2+W*.18,0);put(cb(L*.2,W*.55,W*.35,1.4,silver),f(.5),hAt(.45)/2+W*.5,0);put(cb(L*.1,W*.3,W*.3,1,silver2),f(.52),hAt(.45)/2+W*.8,0)}
+  for(const sg of[-1,1]){{const hb=cb(L*.32,W*.32,W*.55,2.4,silver2);hb.position.set(f(.88),0,sg*W*.62);g.add(hb);faceDeco(g,f(.88),0,sg*(W*.62+W*.16),L*.28,W*.45,'z',sg);faceDeco(g,f(.88),W*.275,sg*W*.62,L*.28,W*.25,'y',1)}wing([[-L*.1,0],[L*.12,0],[L*.12-5,5],[-L*.1+5,5]].map(([a,z])=>[f(.8)+a,sg*(z+W*.5)]),2,silver,0);
+   armorBelt(g,f(.45),0,sg*(wAt(.45)/2+.8),L*.55,3,hAt(.5)*.7,sg)}
+  tower(g,f(.45),hAt(.45)/2-.5,[[L*.34,W*.8,W*.4,silver2],[L*.2,W*.55,W*.35,silver],[L*.1,W*.3,W*.3,silver2],[L*.05,W*.15,W*.2,silver]])}
  // турельные гнёзда: до 100, размер падает с числом, раскладка сеткой по 4 поверхностям
  const SOC=[],NT=Math.min(100,+q.get('t')||12);
  {const avail=[0,0,0,0];const x1=.12,x2=.9;let area=0;for(let t=x1;t<x2;t+=.02)area+=wAt(t)*L*.02*(1+1)+hAt(t)*L*.02*(.7+.7);
@@ -346,6 +389,8 @@ function spine(m){const g=new THREE.Group();
    if(q.get('tr')!=='0'){const kt=i%6,ts=sz/6.4*(tn>3000?.85:.55),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
  g.userData.sockets=SOC;console.log('sockets',SOC.length);
  if(tn>3000){
+  for(const sg of[-1,1])for(const t0 of[.16,.78]){const wA=wAt(t0),hA=hAt(t0);faceDeco(g,f(t0),0,sg*(wA/2+.05),L*.14,hA*.6,'z',sg)}
+  for(const t0 of[.2,.74,.86]){const w1=wAt(t0),h1=hAt(t0);faceDeco(g,f(t0),h1/2+.05,0,L*.1,w1*.5,'y',1);faceDeco(g,f(t0),-h1/2-.05,0,L*.1,w1*.5,'y',-1)}
  // детализация: швы панелей, вентрешётки, рёбра, навигационные огни
  for(let t=.12;t<.95;t+=.055){const w=wAt(t),h=hAt(t);put(cb(.22,w*.5,.12,.05,dark),f(t),h/2+.02,0);put(cb(.22,w*.5,.12,.05,dark),f(t),-h/2-.02,0);
   for(const sg of[-1,1])put(cb(.22,.12,h*.45,.05,dark),f(t),0,sg*(w/2+.02))}
