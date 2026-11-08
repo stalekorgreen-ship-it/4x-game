@@ -198,6 +198,10 @@ if (wrap && bgo) {
     const q = (a: number[], b: number[], c2: number[], d: number[]) => { for (const v of [a, b, c2, a, c2, d]) pos.push(v[0], v[1], v[2]) };
     for (let i = 0; i < 8; i++) { const A = pts[i], B = pts[(i + 1) % 8]; q([x0, A[0], A[1]], [x1, A[0] * nose, A[1] * nose], [x1, B[0] * nose, B[1] * nose], [x0, B[0], B[1]]) }
     for (let i = 1; i < 7; i++) { const A = pts[0], B = pts[i], C = pts[i + 1]; pos.push(x0, A[0], A[1], x0, C[0], C[1], x0, B[0], B[1]); pos.push(x1, A[0] * nose, A[1] * nose, x1, B[0] * nose, B[1] * nose, x1, C[0] * nose, C[1] * nose) }
+    // грани должны смотреть наружу: проверяем каждый треугольник (призма выпуклая, центр в нуле по y,z и в середине по x) и при необходимости меняем обход
+    for (let t = 0; t + 8 < pos.length; t += 9) { const ax = pos[t], ay = pos[t + 1], az = pos[t + 2], bx = pos[t + 3], by = pos[t + 4], bz = pos[t + 5], cx2 = pos[t + 6], cy2 = pos[t + 7], cz2 = pos[t + 8];
+      const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx2 - ax, vy = cy2 - ay, vz = cz2 - az, nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, mx = (ax + bx + cx2) / 3, my = (ay + by + cy2) / 3, mz = (az + bz + cz2) / 3;
+      if (nx * mx + ny * my + nz * mz < 0) { pos[t + 3] = cx2; pos[t + 4] = cy2; pos[t + 5] = cz2; pos[t + 6] = bx; pos[t + 7] = by; pos[t + 8] = bz } }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const n = pos.length / 3, cc = new THREE.Color(col), arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { arr[i * 3] = cc.r; arr[i * 3 + 1] = cc.g; arr[i * 3 + 2] = cc.b } g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); g.computeVertexNormals(); g.translate(cx, cy, 0);
     { const P = g.attributes.position as THREE.BufferAttribute, N = g.attributes.normal as THREE.BufferAttribute, uv = new Float32Array(n * 2), k = 1 / (curL * .05);
