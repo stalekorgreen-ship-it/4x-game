@@ -1,0 +1,91 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#05070d"><canvas id=c></canvas>
+<script type=module>
+import * as THREE from 'three';
+const W=1500,H=1500, cv=document.getElementById('c'); const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true}); ren.setSize(W,H,false); ren.setPixelRatio(1);
+const sc=new THREE.Scene(); sc.background=new THREE.Color(0x05070d);
+sc.add(new THREE.HemisphereLight(0xaab8d8,0x1a2030,1.15)); const sun=new THREE.DirectionalLight(0xffffff,2.4); sun.position.set(-6,12,8); sc.add(sun); const rim=new THREE.DirectionalLight(0x6aa8ff,.8); rim.position.set(8,-3,-6); sc.add(rim);
+let seed=7; const R=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const C={main:0x6e7a93,plate:0x8f9bb3,dark:0x2b3243,eng:0x3b4358,deep:0x181c27,or:0xff9a2e,glow:0x57d4ff,bridge:0x7c8aa6};
+const mats=new Map(); const M=(c,e=0)=>{const k=c+'_'+e; if(!mats.has(k))mats.set(k,new THREE.MeshStandardMaterial({color:c,roughness:.62,metalness:.25,flatShading:true,emissive:e?c:0,emissiveIntensity:e?.55:0}));return mats.get(k)};
+const edgeMat=new THREE.LineBasicMaterial({color:0x0a0d14,transparent:true,opacity:.35});
+function add(g,geo,col,x,y,z,e=0,edges=true){const m=new THREE.Mesh(geo,M(col,e));m.position.set(x,y,z);g.add(m);if(edges){const l=new THREE.LineSegments(new THREE.EdgesGeometry(geo,20),edgeMat);l.position.copy(m.position);l.rotation.copy(m.rotation);g.add(l)}return m}
+// бокс len(x) h(y) w(z)
+const box=(g,len,h,w,x,y,z,col,e=0)=>add(g,new THREE.BoxGeometry(len,h,w),col,x,y,z,e);
+// шестигранная призма вдоль x: верх узкий, бока широкие
+function hex(g,len,h,w,x,y,z,col,k=.55){const s=new THREE.Shape();const hw=w/2,hh=h/2;s.moveTo(-hw*k,hh);s.lineTo(hw*k,hh);s.lineTo(hw,0);s.lineTo(hw*k,-hh);s.lineTo(-hw*k,-hh);s.lineTo(-hw,0);s.closePath();
+ const geo=new THREE.ExtrudeGeometry(s,{depth:len,bevelEnabled:false});geo.rotateY(Math.PI/2);geo.translate(-len/2,0,0);return add(g,geo,col,x,y,z)}
+// клин (сужающийся к носу): усечённая пирамида вдоль x
+function wedge(g,len,h,w,x,y,z,col,tip=.2,tipH=.5,rotY=0){const geo=new THREE.CylinderGeometry(.5,.5,len,4,1);geo.rotateZ(-Math.PI/2);geo.rotateX(Math.PI/4);const p=geo.attributes.position;for(let i=0;i<p.count;i++){const t=(p.getX(i)/len)+.5;const k=1-(1-tip)*t;const kh=1-(1-tipH)*t;p.setY(i,p.getY(i)*Math.SQRT2*h*kh);p.setZ(i,p.getZ(i)*Math.SQRT2*w*k)}geo.computeVertexNormals();if(rotY)geo.rotateY(rotY);return add(g,geo,col,x,y,z)}
+// дельта-плита (план: корень вдоль x, кончик смещён)
+function plate(g,len,span,th,tipX,x,y,z,col,sd){const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(len,0);s.lineTo(tipX,-sd*span);s.closePath();let geo=new THREE.ExtrudeGeometry(s,{depth:th,bevelEnabled:false});geo.rotateX(-Math.PI/2);geo.translate(-len*.5,-th,0);return add(g,geo,col,x,y+th,z)}
+function plate4(g,len,span,th,sweep,x,y,z,col,sd){const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(len,0);s.lineTo(len*.55-sweep,-sd*span);s.lineTo(len*.15-sweep,-sd*span*.92);s.closePath();let geo=new THREE.ExtrudeGeometry(s,{depth:th,bevelEnabled:false});geo.rotateX(-Math.PI/2);geo.translate(-len*.5,-th,0);return add(g,geo,col,x,y+th,z)}
+const capsule=(g,len,r,x,y,z,col)=>{cyl(g,len,r,x,y,z,col);for(const d of[-1,1])add(g,new THREE.SphereGeometry(r,10,8,0,6.283,0,1.5708).rotateZ(-d*Math.PI/2),col,x+d*len/2,y,z,0,false)};
+function turret(g,x,y,z,s=1,twin=true){s*=(window.U||1)*.5;const gg=new THREE.Group();gg.position.set(x,y,z);g.add(gg);add(gg,new THREE.CylinderGeometry(.2*s,.26*s,.12*s,8),C.dark,0,.06*s,0,0,false);add(gg,new THREE.SphereGeometry(.2*s,10,8),0x20252f,0,.2*s,0,0,false);
+ for(const d of twin?[-1,1]:[0])add(gg,new THREE.CylinderGeometry(.04*s,.05*s,.5*s,6).rotateZ(Math.PI/2),0x12151c,.38*s,.22*s,d*.09*s,0,false)}
+function nozzle(g,x,y,z,r){add(g,new THREE.CylinderGeometry(r,r*1.25,r*1.6,10).rotateZ(Math.PI/2),0x14171f,x-r*.8,y,z,0,false);add(g,new THREE.CylinderGeometry(r*.8,r*.8,.04,10).rotateZ(Math.PI/2),C.glow,x-r*1.6,y,z,1,false)}
+function bridge(g,x,y,z,s=1){s*=window.U||1;box(g,.9*s,.32*s,.7*s,x,y+.16*s,z,C.bridge);box(g,.3*s,.07*s,.5*s,x+.2*s,y+.34*s,z,C.or,1);const a=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.7*s,4),M(0x9aa5bd));a.position.set(x-.2*s,y+.7*s,z);g.add(a)}
+function vents(g,x,y,z,n,len){for(let i=0;i<n;i++)box(g,len*.12,.015,.18,x-len*.4+i*len*.8/Math.max(1,n-1),y,z,C.deep,0)}
+// ===== дизайн рождается из состава корабля: у каждой детали есть причина =====
+// inv: тонны по отделам, число двигателей, орудия, ракеты, экипаж...
+const cyl=(g,len,r,x,y,z,col,e=0)=>add(g,new THREE.CylinderGeometry(r,r,len,10).rotateZ(Math.PI/2),col,x,y,z,e);
+function ship(inv){
+ seed=inv.seed||7; const g=new THREE.Group();
+ const tons=inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo+inv.turrets.length*8+inv.msl*.6+60;
+ const L=1.75*Math.cbrt(tons), hh=L*.085; window.U=hh/.7; const u=hh/.7;
+ // 1. двигатели: размер блока от массы, сопла = число двигателей, каждое сопло по тяге
+ const es=Math.cbrt(inv.eng.t)*.26, eL=Math.min(L*.2,es*1.2), eH=Math.min(hh*2,es*1.1), eW=eH*1.1;
+ wedge(g,eL,eH,eW,-L/2+eL/2,0,0,C.eng,.6,.75);hex(g,eL*.35,eH*1.02,eW*1.02,-L/2+eL*.25,0,0,C.dark,.7); 
+ const cols=Math.ceil(Math.sqrt(inv.eng.n*eW/eH)),rows=Math.ceil(inv.eng.n/cols),nr=Math.min(eW/cols,eH/rows)*.42;
+ for(let k=0;k<inv.eng.n;k++){const c=k%cols,r=Math.floor(k/cols);nozzle(g,-L/2,(r-(rows-1)/2)*eH/rows,(c-(cols-1)/2)*eW/cols,nr)}
+ // 2. хребет несёт остальное: считаем длины отсеков из их масс
+ const mods=[['reac',inv.reac],['tank',inv.tank],['cab',inv.cab*.6],['mag',inv.mag],['cargo',inv.cargo]].filter(m=>m[1]>0);
+ const x0=-L/2+eL, x1=L*.5-L*.08, span=x1-x0, totM=mods.reduce((a,m)=>a+Math.pow(m[1],.8),0)||1;
+ hex(g,span,hh*.45,hh*.8,(x0+x1)/2,0,0,C.main,.55);wedge(g,span*.7,hh*.5,hh*.05,(x0+x1)/2-span*.05,-hh*.45,0,C.dark,.3,.3);for(let q=0;q<9;q++)hex(g,span*.018,hh*.52,hh*.86,x0+span*(.04+q*.11),0,0,C.dark,.55);wedge(g,span*.45,hh*.35,hh*.04,x0+span*.3,hh*.55,0,C.main,.25,.25);
+ let cx=x0; const place={};
+ for(const [k,m] of mods){const ml=span*.82*Math.pow(m,.8)/totM*(k==='reac'?.55:1); place[k]=[cx,ml];
+  if(k==='reac'){cyl(g,ml,hh*.4,cx+ml/2,hh*.18,0,C.dark);for(let q=0;q<3;q++)cyl(g,ml*.07,hh*.43,cx+ml*(.2+q*.3),hh*.18,0,C.or,1) } // реактор: корпус с кольцами
+  else if(k==='tank'){for(const sd of[-1,1])capsule(g,ml*.8,Math.min(hh*.42,Math.cbrt(m)*.05),cx+ml/2,-hh*.02,sd*hh*.45,C.plate)} // баки по бортам
+  else if(k==='cab'){wedge(g,ml,hh*.55,hh*.85,cx+ml/2,hh*.3,0,C.main,.6,.55);const nw=Math.max(3,Math.round(inv.cab/6));for(let q=0;q<nw;q++)box(g,ml*.5/nw,.03,.02,cx+ml*.25+q*ml*.5/nw,hh*.38,hh*.43,0xffe9a8,1)&&0,box(g,.05,.03,.012,cx+ml*.15+q*ml*.7/nw,hh*.4,hh*.43,0xffe9a8,1)} // каюты: окна по числу экипажа
+  else if(k==='mag'){hex(g,ml,hh*.4,hh*.8,cx+ml/2,hh*.25,0,C.dark,.5)} // погреб: низкий бронированный
+  else if(k==='cargo'){hex(g,ml,hh*.65,hh*1.15,cx+ml/2,hh*.15,0,C.plate,.6);for(let q=1;q<4;q++)box(g,.02,hh*.6,hh*1.12,cx+ml*q/4,hh*.15,0,C.deep)}
+  cx+=ml*1.02}
+ // 3. радиаторы: площадь ∝ мощности реактора — это и есть «крылья»
+ if(inv.reac>0){const [rx,rl]=place.reac||[x0,L*.1],area=Math.sqrt(inv.reac)*.17,len=Math.min(L*.28,area*1.4),sp=Math.min(hh*2.2,area*.8);for(const sd of[-1,1]){plate4(g,len,sp,.035*u,len*.45,rx+rl*.25+len*.5,hh*.0,sd*hh*.4,C.plate,sd);for(let q=1;q<5;q++)box(g,len*(.8-q*.12),.012,.02,rx+rl*.25+len*(.5-q*.05)-len*.02,hh*.0+.04*u,sd*(hh*.4+sp*q/5.5),C.deep)}}
+ // 4. броня: плиты сверху, слои по толщине; нос = клин из брони
+ const nPl=Math.round(inv.armor*6); for(let q=0;q<nPl;q++){const bl=span*.1;wedge(g,bl,(.05+.06*inv.armor)*u,hh*.6,x0+span*(.08+q*.13),hh*.48,0,C.plate,.8,.2)}
+ wedge(g,L*(.1+.12*inv.armor),hh*(.4+.25*inv.armor),hh*(.7+.3*inv.armor),x1+L*.06,0,0,C.plate,.12,.3);wedge(g,L*.07,hh*.3,hh*.1,x1+L*.02,hh*.2,0,C.main,.2,.2);
+ // 5. ангары: коробка с лётной щелью, размер ∝ вместимости
+ if(inv.hang>0){const hl=Math.min(L*.4,Math.cbrt(inv.hang)*.5),hy=Math.min(hh*1.4,Math.cbrt(inv.hang)*.17),hw=hy*.9;for(const sd of[-1,1]){const z=sd*(hh*.4+hw*.5);wedge(g,hl,hy,hw,x0+span*.45,-hh*.05,z,C.plate,.5,.7);box(g,hl*.85,hy*.4,.02,x0+span*.45,-hh*.1,z+sd*hw*.5,C.deep);box(g,hl*.85,.02,.02,x0+span*.45,-hh*.1-hy*.2,z+sd*hw*.5,C.or,1)}}
+ // 6. ракеты: плоские люки, число = число ракет
+ if(inv.msl>0){const rowsN=Math.ceil(inv.msl/2),pitch=Math.min(.34*u*2,span*.4/rowsN);for(let q=0;q<inv.msl;q++){const row=Math.floor(q/2),sd=q%2?1:-1;box(g,pitch*.8,.02,pitch*.8,x0+span*.42+row*pitch,hh*.24+.01,sd*hh*.14,C.deep);box(g,pitch*.5,.025,pitch*.5,x0+span*.42+row*pitch,hh*.24+.012,sd*hh*.14,C.dark)}}
+ // 7. орудия: площадки под башни — размер площадки = размер башен на ней, пары по бортам
+ const T=inv.turrets,half=Math.ceil(T.length/2);for(let q=0;q<half;q++){for(const sd of[-1,1]){const t=T[q*2+(sd>0?0:1)];if(!t)continue;const ts=(.9+.4*t.cal)*.8,pl=ts*.55,x=x0+span*(.28+.6*q/Math.max(1,half-1)),y=-hh*.02;
+  const pw=ts*.45*u+hh*.15;plate4(g,pl*u*1.8,pw,.04*u,pl*u*.5,x,y,sd*hh*.22,C.main,sd);turret(g,x+pl*.05*u,y+.04*u,sd*(hh*.22+pw*.3),ts*(t.t==='flak'?.7:1)/(window.U||1)*u,t.t!=='gat')}}
+ // 7b. скошенные детали по бортам и палубе: больше косых плоскостей
+ for(const sd of[-1,1])for(let q=0;q<Math.round(3+inv.armor*6);q++){const bl=span*(.06+R()*.05),xx=x0+span*(.06+q*(.84/Math.round(3+inv.armor*6)));wedge(g,bl,hh*(.12+.12*R()),hh*(.2+.1*R()),xx,-hh*.02+hh*.12*R(),sd*(hh*.38+hh*.04),R()<.5?C.plate:C.main,.5,.35)}
+ for(let q=0;q<Math.round(4+L*.5);q++){const xx=x0+span*(.04+R()*.88),sd=R()<.5?-1:1,w=hh*(.1+.18*R());wedge(g,span*(.025+.03*R()),hh*.08,w,xx,hh*.27,sd*hh*(.12+.18*R()),R()<.5?C.dark:C.plate,.4,.4)}
+ for(const sd of[-1,1])wedge(g,eL*.9,eH*.9,eW*.1,-L/2+eL*.55,0,sd*(eW*.5),C.plate,.4,.5);
+ // 8. лазер: ствол по оси, линза на носу
+ if(inv.laser){cyl(g,L*.5,hh*.14,x0+span*.5,0,0,C.deep);cyl(g,hh*.5,hh*.2,x1+L*.1,0,0,C.dark);add(g,new THREE.SphereGeometry(hh*.14,10,8),C.glow,x1+L*.1+hh*.3,0,0,1,false)}
+ // 9. мостик и радар: радар = тарелка на мачте
+ bridge(g,x1-span*.05,hh*.2,0,.5);
+ if(inv.radar){const m=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.9*u,4),M(0x9aa5bd));m.position.set(x1-span*.08,hh*.2+.7*u,0);g.add(m);add(g,new THREE.SphereGeometry(.28*u,10,6,0,6.283,0,1.4),C.plate,x1-span*.08,hh*.2+1.15*u,0,0,false)}
+ return g}
+const specs=[
+ {n:'корвет',eng:{n:2,t:25},reac:15,tank:25,cab:12,mag:8,hang:0,cargo:0,armor:.2,turrets:[{t:'rail',cal:1},{t:'rail',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:0,radar:1},
+ {n:'авианосец',eng:{n:4,t:90},reac:50,tank:90,cab:120,mag:20,hang:260,cargo:0,armor:.4,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'эсминец',eng:{n:3,t:55},reac:40,tank:50,cab:30,mag:25,hang:0,cargo:0,armor:.3,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:1},{t:'rail',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'крейсер',eng:{n:4,t:100},reac:80,tank:90,cab:70,mag:60,hang:0,cargo:0,armor:.6,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'ракетный катер',eng:{n:2,t:30},reac:20,tank:30,cab:15,mag:10,hang:0,cargo:0,armor:.15,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:16,laser:0,radar:1},
+ {n:'линкор',eng:{n:6,t:240},reac:180,tank:200,cab:200,mag:150,hang:0,cargo:0,armor:.9,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:8,laser:0,radar:1},
+ {n:'лазерный крейсер',eng:{n:4,t:100},reac:160,tank:80,cab:60,mag:10,hang:0,cargo:0,armor:.5,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:1,radar:1},
+ {n:'танкер',eng:{n:3,t:50},reac:30,tank:420,cab:20,mag:0,hang:0,cargo:0,armor:.05,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:0},
+ {n:'транспорт',eng:{n:3,t:50},reac:30,tank:50,cab:30,mag:0,hang:0,cargo:380,armor:.05,turrets:[],msl:0,laser:0,radar:1},
+ {n:'авианосный крейсер',eng:{n:5,t:150},reac:90,tank:120,cab:160,mag:40,hang:300,cargo:0,armor:.5,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:6,laser:0,radar:1}];
+specs.forEach((s,i)=>{s.seed=11+i*7;const m=ship(s);m.position.set((i%2?1:-1)*11.5,0,(Math.floor(i/2)-2)*10);m.rotation.y=-.55;sc.add(m)});
+const q=new URLSearchParams(location.search),one=q.get('one');
+const cam=new THREE.PerspectiveCamera(46,1,1,500);
+if(one!==null){sc.children.filter(o=>o.isGroup).forEach((o,i)=>{o.visible=(i==+one);o.position.set(0,0,0)});cam.position.set(-5,16,22);cam.lookAt(0,-.5,0);cam.fov=36;cam.updateProjectionMatrix()}
+else{cam.position.set(-4,38,50);cam.lookAt(1,0,4)}
+ren.render(sc,cam);window.done=true;
+</script>

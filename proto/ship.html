@@ -1,0 +1,67 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#05070d"><canvas id=c></canvas>
+<script type=module>
+import * as THREE from 'three';
+const W=1500,H=1500, cv=document.getElementById('c'); const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true}); ren.setSize(W,H,false); ren.setPixelRatio(1);
+const sc=new THREE.Scene(); sc.background=new THREE.Color(0x05070d);
+sc.add(new THREE.HemisphereLight(0xaab8d8,0x1a2030,1.15)); const sun=new THREE.DirectionalLight(0xffffff,2.4); sun.position.set(-6,12,8); sc.add(sun); const rim=new THREE.DirectionalLight(0x6aa8ff,.8); rim.position.set(8,-3,-6); sc.add(rim);
+let seed=7; const R=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const C={main:0x6e7a93,plate:0x8f9bb3,dark:0x2b3243,eng:0x3b4358,deep:0x181c27,or:0xff9a2e,glow:0x57d4ff,bridge:0x7c8aa6};
+const mats=new Map(); const M=(c,e=0)=>{const k=c+'_'+e; if(!mats.has(k))mats.set(k,new THREE.MeshStandardMaterial({color:c,roughness:.62,metalness:.25,flatShading:true,emissive:e?c:0,emissiveIntensity:e?.55:0}));return mats.get(k)};
+const edgeMat=new THREE.LineBasicMaterial({color:0x0a0d14,transparent:true,opacity:.35});
+function add(g,geo,col,x,y,z,e=0,edges=true){const m=new THREE.Mesh(geo,M(col,e));m.position.set(x,y,z);g.add(m);if(edges){const l=new THREE.LineSegments(new THREE.EdgesGeometry(geo,20),edgeMat);l.position.copy(m.position);l.rotation.copy(m.rotation);g.add(l)}return m}
+// бокс len(x) h(y) w(z)
+const box=(g,len,h,w,x,y,z,col,e=0)=>add(g,new THREE.BoxGeometry(len,h,w),col,x,y,z,e);
+// шестигранная призма вдоль x: верх узкий, бока широкие
+function hex(g,len,h,w,x,y,z,col,k=.55){const s=new THREE.Shape();const hw=w/2,hh=h/2;s.moveTo(-hw*k,hh);s.lineTo(hw*k,hh);s.lineTo(hw,0);s.lineTo(hw*k,-hh);s.lineTo(-hw*k,-hh);s.lineTo(-hw,0);s.closePath();
+ const geo=new THREE.ExtrudeGeometry(s,{depth:len,bevelEnabled:false});geo.rotateY(Math.PI/2);geo.translate(-len/2,0,0);return add(g,geo,col,x,y,z)}
+// клин (сужающийся к носу): усечённая пирамида вдоль x
+function wedge(g,len,h,w,x,y,z,col,tip=.2,tipH=.5,rotY=0){const geo=new THREE.CylinderGeometry(.5,.5,len,4,1);geo.rotateZ(-Math.PI/2);geo.rotateX(Math.PI/4);const p=geo.attributes.position;for(let i=0;i<p.count;i++){const t=(p.getX(i)/len)+.5;const k=1-(1-tip)*t;const kh=1-(1-tipH)*t;p.setY(i,p.getY(i)*Math.SQRT2*h*kh);p.setZ(i,p.getZ(i)*Math.SQRT2*w*k)}geo.computeVertexNormals();if(rotY)geo.rotateY(rotY);return add(g,geo,col,x,y,z)}
+// дельта-плита (план: корень вдоль x, кончик смещён)
+function plate(g,len,span,th,tipX,x,y,z,col,sd){const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(len,0);s.lineTo(tipX,-sd*span);s.closePath();let geo=new THREE.ExtrudeGeometry(s,{depth:th,bevelEnabled:false});geo.rotateX(-Math.PI/2);geo.translate(-len*.5,-th,0);return add(g,geo,col,x,y+th,z)}
+function turret(g,x,y,z,s=1,twin=true){s*=(window.U||1)*.5;const gg=new THREE.Group();gg.position.set(x,y,z);g.add(gg);add(gg,new THREE.CylinderGeometry(.2*s,.26*s,.12*s,8),C.dark,0,.06*s,0,0,false);add(gg,new THREE.SphereGeometry(.2*s,10,8),0x20252f,0,.2*s,0,0,false);
+ for(const d of twin?[-1,1]:[0])add(gg,new THREE.CylinderGeometry(.04*s,.05*s,.9*s,6).rotateZ(Math.PI/2),0x12151c,.55*s,.22*s,d*.09*s,0,false)}
+function nozzle(g,x,y,z,r){add(g,new THREE.CylinderGeometry(r,r*1.25,r*1.6,10).rotateZ(Math.PI/2),0x14171f,x-r*.8,y,z,0,false);add(g,new THREE.CylinderGeometry(r*.8,r*.8,.04,10).rotateZ(Math.PI/2),C.glow,x-r*1.6,y,z,1,false)}
+function bridge(g,x,y,z,s=1){s*=window.U||1;box(g,.9*s,.32*s,.7*s,x,y+.16*s,z,C.bridge);box(g,.3*s,.07*s,.5*s,x+.2*s,y+.34*s,z,C.or,1);const a=new THREE.Mesh(new THREE.CylinderGeometry(.01,.01,.7*s,4),M(0x9aa5bd));a.position.set(x-.2*s,y+.7*s,z);g.add(a)}
+function vents(g,x,y,z,n,len){for(let i=0;i<n;i++)box(g,len*.12,.015,.18,x-len*.4+i*len*.8/Math.max(1,n-1),y,z,C.deep,0)}
+// ===== генератор: параметры → корабль. Все числа непрерывные, никаких «классов» =====
+function ship(p){ // p: L длина, e двигатели 0..1, w оружие 0..1, h ангары 0..1, a броня 0..1, n нос (0 клин,1 копья,2 таран), seed
+ seed=p.seed||7; window.U=0; const g=new THREE.Group(), L=p.L, hh=L*(.085+.02*p.a), u=hh/.7; window.U=u;
+ const eL=L*.17, eH=hh*(1.15+.45*p.e), eW=eH*.95; // двигательный блок: большой, как на концептах
+ const xE=-L/2+eL/2;
+ if(p.e>.55){ // две гондолы
+   for(const sd of[-1,1]){const pw=eW*.55,py=sd*0;box(g,eL*1.5,eH*.7,pw,-L/2+eL*.75,0,sd*(eW*.38),C.eng);for(const k of[-.4,.4])nozzle(g,-L/2,k*eH*.5,sd*eW*.38,pw*.2)}
+   box(g,eL*.9,eH*.5,eW*.5,-L/2+eL*.55,0,0,C.dark)
+ } else { box(g,eL,eH,eW,xE,0,0,C.eng); for(let i=0;i<2+Math.round(p.e*4);i++){const zz=((i%2)-.5)*eW*.5,yy=(Math.floor(i/2)-.5)*eH*.45; nozzle(g,-L/2,yy,zz,Math.min(eW,eH)*.17)} box(g,eL*.12,eH*1.05,eW*1.05,-L/2+eL*.2,0,0,C.dark) }
+ // хребет
+ const sx0=-L/2+eL, sx1=L*.5, sl=sx1-sx0; hex(g,sl*.78,hh*.45,hh*.8,sx0+sl*.39,0,0,C.main,.55);
+ // ступенчатые модульные блоки по хребту
+ const nb=2+Math.round(1+p.w*2); let cx=sx0+sl*.02; for(let i=0;i<nb;i++){const bl=sl*(.08+R()*.07),bh=hh*(.3+R()*.35),bw=hh*(.55+R()*.4)*(.7+.3*p.w);box(g,bl,bh,bw,cx+bl/2,hh*.15+bh/2-hh*.35,0,i%2?C.main:C.plate);if(R()<.6)vents(g,cx+bl/2,hh*.15+bh-hh*.35+.01,0,3,bl);cx+=bl*.92}
+ const xD=sx0+sl*.78; // конец хребта
+ // броневые плиты сверху (больше брони — больше плит)
+ for(let i=0;i<Math.round(2+p.a*5);i++){const bl=sl*.1,xx=sx0+sl*(.1+i*.11);box(g,bl,(.03+.05*p.a)*u,hh*.4,xx,hh*.4+.03*u,0,C.plate)}
+ // крылья-платформы с башнями
+ const nt=Math.round(2+p.w*6),np=Math.max(1,Math.round(1+p.w*2));
+ for(let q=0;q<np;q++){for(const sd of[-1,1]){const len=sl*(.28-q*.07),span=hh*(.9+p.w*1.0)*(1-q*.18),x=sx0+sl*(.3+q*.2),y=hh*.02-q*.1*u;
+   plate(g,len,span,.07*u,-len*.45,x+len*.5,y,sd*hh*.5,q?C.main:C.plate,sd); const ts=Math.max(.5,1.1-q*.25);
+   turret(g,x+len*.28,y+.04*u,sd*(hh*.5+span*.25),ts);if(p.w>.3)turret(g,x+len*.1,y+.04*u,sd*(hh*.5+span*.55),ts*.9)}}
+ // башни на хребте
+ for(let i=0;i<Math.round(p.w*3);i++)turret(g,sx0+sl*(.25+i*.18),hh*.55,0,.9);
+ // ангарные коробки с светящейся щелью
+ if(p.h>.2){const hl=L*(.14+.16*p.h),hy=hh*(.55+.4*p.h),hw=hh*(.5+.45*p.h);for(const sd of[-1,1]){const z=sd*(hh*.4+hw*.5);box(g,hl,hy,hw,sx0+sl*.36,-hh*.05,z,C.plate);box(g,hl*.9,hy*.35,.02,sx0+sl*.36,-hh*.12,z+sd*hw*.5,C.deep);box(g,hl*.9,.025,.025,sx0+sl*.36,-hh*.12-hy*.18,z+sd*hw*.5,C.or,1);turret(g,sx0+sl*.36-hl*.25,-hh*.05+hy/2,z,.8)}}
+ // мостик
+ bridge(g,xD-sl*.04,hh*.22,0,.55+.15*p.a);
+ // нос
+ const nx=sx0+sl*.78; if(p.n===1){for(const sd of[-1,1])wedge(g,sl*.6,hh*.2,hh*.14,nx+sl*.2,-hh*.05,sd*hh*.2,C.plate,.1,.45,-sd*.05)}
+ else if(p.n===2){wedge(g,sl*.3,hh*.5,hh*.8,nx+sl*.12,0,0,C.plate,.35,.5);box(g,.35,hh*.3,hh*.3,nx+sl*.3,0,0,C.dark)}
+ else {wedge(g,sl*.45,hh*.4,hh*.7,nx+sl*.12,0,0,C.plate,.1,.4)}
+ return g}
+const specs=[ // L e w h a n
+ {L:12,e:.3,w:.7,h:0,a:.3,n:1},{L:14,e:.6,w:.3,h:.8,a:.4,n:0},{L:13,e:.5,w:.6,h:0,a:.2,n:1},{L:15,e:.3,w:.9,h:.1,a:.5,n:1},{L:9,e:.4,w:.5,h:0,a:.1,n:0},
+ {L:16,e:.3,w:.7,h:.2,a:.8,n:2},{L:11,e:.4,w:.4,h:.1,a:.3,n:0},{L:13,e:.7,w:.5,h:.5,a:.4,n:0},{L:10,e:.3,w:.2,h:.6,a:.2,n:2},{L:17,e:.5,w:.4,h:1,a:.6,n:0}];
+specs.forEach((s,i)=>{s.seed=11+i*7;const m=ship(s);m.position.set((i%2?1:-1)*11.5,0,(Math.floor(i/2)-2)*10);m.rotation.y=-.55;sc.add(m)});
+const q=new URLSearchParams(location.search),one=q.get('one');
+const cam=new THREE.PerspectiveCamera(46,1,1,500);
+if(one!==null){sc.children.filter(o=>o.isGroup).forEach((o,i)=>{o.visible=(i==+one);o.position.set(0,0,0)});cam.position.set(-5,16,22);cam.lookAt(0,-.5,0);cam.fov=36;cam.updateProjectionMatrix()}
+else{cam.position.set(-4,38,50);cam.lookAt(1,0,4)}
+ren.render(sc,cam);window.done=true;
+</script>

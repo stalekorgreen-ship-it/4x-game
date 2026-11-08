@@ -1,0 +1,82 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#000"><canvas id=c></canvas>
+<script type=module>
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { buildLoft, turretGeo, triMat, loftMats } from '/src/21c-loft.ts';
+const q=new URLSearchParams(location.search),W=+q.get('w')||1600,H=+q.get('h')||900,idx=+q.get('i')||0,az=+(q.get('az')||.6),el=+(q.get('el')||.25),zoom=+(q.get('z')||1),sx=+(q.get('sx')||0);
+const cv=document.getElementById('c');const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setSize(W,H,false);ren.setPixelRatio(1);ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=1.05;
+const sc=new THREE.Scene();
+// фон: звёздное поле и столпы туманности
+{const c=document.createElement('canvas');c.width=4096;c.height=2048;const x=c.getContext('2d');
+ let s=+q.get('bg')||3;const R=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ const gr=x.createLinearGradient(0,0,0,2048);gr.addColorStop(0,'#050a1c');gr.addColorStop(.6,'#0a1230');gr.addColorStop(1,'#0c1126');x.fillStyle=gr;x.fillRect(0,0,4096,2048);
+ const blob=(px,py,r,col)=>{const g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(px-r,py-r,r*2,r*2)};
+ for(let i=0;i<16;i++)blob(R()*4096,R()*2048,300+R()*600,['rgba(40,70,140,.35)','rgba(20,50,100,.35)','rgba(90,50,110,.22)'][i%3]);
+ // столпы: вертикальные колонны из тысяч мягких пятен, свет слева
+ const pil=(cx0,base,h,w)=>{x.save();for(let i=0;i<1800;i++){const t=R(),y=base-t*h,wd=w*(.55+.5*Math.sin(t*3.1+cx0))*(1-.35*t)+R()*w*.08,px=cx0+(R()-.5)*wd+Math.sin(t*6+cx0)*w*.15,r=6+R()*26,l=.35+.65*R();
+   const lit=(px-(cx0-wd/2))/wd<.35;const col=lit?`rgba(${190+R()*50|0},${110+R()*40|0},${50+R()*30|0},${.18+.2*l})`:`rgba(${70+R()*40|0},${38+R()*25|0},${22+R()*14|0},${.2+.2*l})`;
+   x.fillStyle=col;x.beginPath();x.ellipse(px,y,r,r*1.3,0,0,6.3);x.fill()}x.restore();
+  const g=x.createRadialGradient(cx0,base-h*.6,0,cx0,base-h*.6,h*.9);g.addColorStop(0,'rgba(230,140,70,.20)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(cx0-h,base-h*1.6,h*2,h*2)};
+ pil(1500,2300,1700,330);pil(2400,2300,1500,260);pil(3100,2300,1250,220);pil(700,2300,1000,200);
+ // звёзды и яркие звёзды с лучами
+ for(let i=0;i<9000;i++){const a=.25+R()*.75,r=R()<.02?1.6:R()<.2?1.0:.55;x.fillStyle=R()<.1?`rgba(255,${200+R()*50|0},160,${a})`:R()<.15?`rgba(170,200,255,${a})`:`rgba(255,255,255,${a})`;x.beginPath();x.arc(R()*4096,R()*2048,r,0,6.3);x.fill()}
+ for(let i=0;i<14;i++){const px=R()*4096,py=R()*1400,r=14+R()*30;blob(px,py,r*3,'rgba(190,210,255,.5)');x.fillStyle='rgba(255,255,255,.9)';x.fillRect(px-r*3,py-.8,r*6,1.6);x.fillRect(px-.8,py-r*3,1.6,r*6);x.beginPath();x.arc(px,py,2.2,0,6.3);x.fill()}
+ const t=new THREE.CanvasTexture(c);t.mapping=THREE.EquirectangularReflectionMapping;t.colorSpace=THREE.SRGBColorSpace;sc.background=t}
+const pm=new THREE.PMREMGenerator(ren);sc.environment=pm.fromScene(new RoomEnvironment(),.04).texture;sc.environmentIntensity=.9;
+const sun=new THREE.DirectionalLight(0xfff4e6,3.6);sun.position.set(-10,14,6);sc.add(sun);const rim=new THREE.DirectionalLight(0x6aa8ff,2.2);rim.position.set(10,3,-12);sc.add(rim);sc.add(new THREE.HemisphereLight(0x8aa0d0,0x151a2a,.6));
+const SP=[
+ {n:'корвет',eng:{n:2,t:25},reac:15,tank:25,cab:12,mag:8,hang:0,cargo:0,armor:.2,turrets:[{t:'rail',cal:1},{t:'rail',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:0,radar:1},
+ {n:'авианосец',eng:{n:4,t:90},reac:50,tank:90,cab:120,mag:20,hang:260,cargo:0,armor:.4,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'эсминец',eng:{n:3,t:55},reac:40,tank:50,cab:30,mag:25,hang:0,cargo:0,armor:.3,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:1},{t:'rail',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'крейсер',eng:{n:4,t:100},reac:80,tank:90,cab:70,mag:60,hang:0,cargo:0,armor:.6,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'ракетный катер',eng:{n:2,t:30},reac:20,tank:30,cab:15,mag:10,hang:0,cargo:0,armor:.15,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:16,laser:0,radar:1},
+ {n:'линкор',eng:{n:6,t:240},reac:180,tank:200,cab:200,mag:150,hang:0,cargo:0,armor:.9,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:8,laser:0,radar:1},
+ {n:'лазерный крейсер',eng:{n:4,t:100},reac:160,tank:80,cab:60,mag:10,hang:0,cargo:0,armor:.5,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:1,radar:1},
+ {n:'танкер',eng:{n:3,t:50},reac:30,tank:420,cab:20,mag:0,hang:0,cargo:0,armor:.05,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:0},
+ {n:'транспорт',eng:{n:3,t:50},reac:30,tank:50,cab:30,mag:0,hang:0,cargo:380,armor:.05,turrets:[],msl:0,laser:0,radar:1},
+ {n:'авианосный крейсер',eng:{n:5,t:150},reac:90,tank:120,cab:160,mag:40,hang:300,cargo:0,armor:.5,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:6,laser:0,radar:1},
+ {n:'разведчик',eng:{n:1,t:10},reac:5,tank:8,cab:3,mag:0,hang:0,cargo:0,armor:.05,turrets:[{t:'gat',cal:1}],msl:0,laser:0,radar:1},
+ {n:'дредноут',eng:{n:9,t:900},reac:700,tank:800,cab:600,mag:500,hang:0,cargo:0,armor:.95,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:24,laser:0,radar:1}];
+const COLS=[0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a],IDS=['07','CV-12','21','44','M-3','01','LZ-9','T-07','C-31','CV-5','S-2','BB-01'];
+function makeShip(i){const inv={...SP[i],seed:11+i*7,col:COLS[i],id:IDS[i]};const tons=inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo+inv.turrets.length*8+inv.msl*.6+60,L=1.75*Math.cbrt(tons);
+ const pk=buildLoft(inv,L),g=new THREE.Group();
+ const hm=new THREE.Mesh(pk.hull,pk.mat);g.add(hm);
+ if(pk.parts)g.add(new THREE.Mesh(pk.parts,pk.partsMat));if(pk.glow)g.add(new THREE.Mesh(pk.glow,loftMats.glow));if(pk.lines)g.add(new THREE.LineSegments(pk.lines,loftMats.lines));for(const d of pk.decals)g.add(d.clone());
+ // башни на сокетах
+ const hhk=pk.wd.hh*pk.k,u=hhk/.7;const used=[];
+ for(const m of pk.mounts){if(!m.tt)continue;const ts=(.2+.1*m.cal)*(m.tt==='flak'?.8:1),S=ts*u*pk.k/ (pk.k||1) ;const tg=turretGeo(m.tt,m.cal,inv.seed,ts*u*pk.k*1.0);const t=new THREE.Group();if(tg.parts)t.add(new THREE.Mesh(tg.parts,tg.mat));if(tg.glow)t.add(new THREE.Mesh(tg.glow,loftMats.glow));if(tg.lines)t.add(new THREE.LineSegments(tg.lines,loftMats.lines));t.position.set(m.x,m.y,m.z);g.add(t)}
+ // выхлоп
+ const gc=document.createElement('canvas');gc.width=gc.height=128;const gx=gc.getContext('2d'),gr=gx.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(140,220,255,.85)');gr.addColorStop(1,'rgba(40,120,255,0)');gx.fillStyle=gr;gx.fillRect(0,0,128,128);const gt=new THREE.CanvasTexture(gc);
+ for(const n of pk.nozz){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:gt,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));s.scale.setScalar(n.r*7);s.position.set(pk.x0-n.r*2.2,n.y,n.z);g.add(s);
+  const tr=new THREE.Mesh(new THREE.ConeGeometry(n.r*.8,n.r*16,12,1,true).rotateZ(Math.PI/2),new THREE.MeshBasicMaterial({color:0x6ab8ff,transparent:true,opacity:.16,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));tr.position.set(pk.x0-n.r*2-n.r*8,n.y,n.z);g.add(tr)}
+ g.userData={L,pk};return g}
+
+const silverGeo=(ge,mix=.12)=>{if(!ge)return ge;const ca=ge.attributes.color;if(!ca)return ge;const a=ca.array;for(let i=0;i<a.length;i+=3){const l=(a[i]*.3+a[i+1]*.55+a[i+2]*.15);const v=Math.min(1,.55+.9*Math.pow(l,.6)*mix*2+.25);a[i]=v;a[i+1]=v*1.01;a[i+2]=v*1.03}ca.needsUpdate=true;return ge};
+const silM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:.9,flatShading:true,envMapIntensity:1.6});
+const hullM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.38,metalness:.85,flatShading:true,envMapIntensity:1.6,bumpMap:null});
+function silverShip(i){const g=makeShip(i);const hm=g.children[0];
+  const hg=hm.geometry.clone();silverGeo(hg,.35);hm.geometry=hg;hm.material=hullM;
+  for(const o of g.children){if(o===hm)continue;if(o.isMesh&&o.material&&o.material.vertexColors&&o.material!==loftMats.glow){const gg=o.geometry.clone();silverGeo(gg,.3);o.geometry=gg;o.material=silM}
+   else if(o.isGroup||o.children.length)o.traverse(k=>{if(k.isMesh&&k.material.vertexColors&&k.material!==loftMats.glow){const gg=k.geometry.clone();silverGeo(gg,.3);k.geometry=gg;k.material=silM}})}
+  // дельта-крылья и хвостовые плавники в духе референса
+  const {L,pk}=g.userData,hh=pk.wd.hh*pk.k;const wm=new THREE.MeshStandardMaterial({color:0xdfe3ea,roughness:.3,metalness:.9,flatShading:true,envMapIntensity:1.6});
+  const wing=(sd,len,span,th,x0w,y0w,sweep)=>{const sh=new THREE.Shape();sh.moveTo(0,0);sh.lineTo(len,0);sh.lineTo(len*.35-sweep,span);sh.lineTo(-sweep*.4,span*.8);sh.closePath();const ge=new THREE.ExtrudeGeometry(sh,{depth:th,bevelEnabled:true,bevelThickness:th*.25,bevelSize:th*.4,bevelSegments:1});ge.rotateX(-Math.PI/2);if(sd<0)ge.scale(1,1,-1);const m=new THREE.Mesh(ge,wm);m.position.set(x0w,y0w,0);return m};
+  const span=L*.28,x0w=pk.x0+(pk.x1-pk.x0)*.25;
+  for(const sd of[-1,1]){const w=wing(sd,L*.42,span,hh*.14,x0w,-hh*.2,L*.16);w.position.z=sd*pk.W*.45;g.add(w);
+   const w2=wing(sd,L*.2,span*.55,hh*.1,x0w+L*.38,-hh*.1,L*.06);w2.position.z=sd*pk.W*.4;g.add(w2);
+   // хвостовые плавники
+   const f=new THREE.Mesh(new THREE.ExtrudeGeometry((()=>{const q2=new THREE.Shape();q2.moveTo(0,0);q2.lineTo(L*.16,0);q2.lineTo(L*.05,hh*2.2);q2.lineTo(-L*.02,hh*2.2);q2.closePath();return q2})(),{depth:hh*.1,bevelEnabled:false}),wm);f.position.set(pk.x0+L*.06,pk.H*.4,sd*pk.W*.28);g.add(f)}
+  return g}
+const mode=q.get('fleet');let camT=new THREE.Vector3(),camP;
+if(mode){const order=[3,5,11,9,1,2,6,4,0,7,8,10],pos=[[-.3,-1.1],[.9,-1.6],[-1.6,-.1],[1.4,-.2],[-.2,.2],[-1.3,1.0],[.5,.9],[2.0,.7],[-.7,1.5],[1.3,1.5],[.2,1.9],[2.2,1.8]];
+  const Lm=Math.max(...order.map(i=>{const inv=SP[i];return 1.75*Math.cbrt(inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo+inv.turrets.length*8+inv.msl*.6+60)}));
+  order.forEach((i,k)=>{const sg=silverShip(i);sg.position.set(pos[k][0]*Lm*1.15,(((k*37)%7)-3)*Lm*.03,pos[k][1]*Lm*.85);sg.rotation.y=-.45+(((k*53)%9)-4)*.035;sc.add(sg)});
+  var cam=new THREE.PerspectiveCamera(+q.get('fov')||38,W/H,Lm*.01,Lm*60);cam.position.set(-Lm*.6,Lm*3.0,Lm*4.3);cam.lookAt(Lm*.35,0,Lm*.35);}
+else{var ship=silverShip(idx);sc.add(ship);const L=ship.userData.L;var cam=new THREE.PerspectiveCamera(+q.get('fov')||34,W/H,L*.01,L*30);const d=L*1.6/zoom;cam.position.set(Math.cos(el)*Math.cos(az)*d+sx,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(sx*.5,0,0)}
+const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.5,.9,.78));comp.addPass(new OutputPass());
+comp.render();window.done=true;window.info=1;
+</script>

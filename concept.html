@@ -1,0 +1,54 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#000"><canvas id=c></canvas>
+<script type=module>
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { buildLoft, turretGeo, triMat, loftMats } from '/src/21c-loft.ts';
+const q=new URLSearchParams(location.search),W=+q.get('w')||1600,H=+q.get('h')||900,idx=+q.get('i')||0,az=+(q.get('az')||.6),el=+(q.get('el')||.25),zoom=+(q.get('z')||1),sx=+(q.get('sx')||0);
+const cv=document.getElementById('c');const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setSize(W,H,false);ren.setPixelRatio(1);ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=1.05;
+const sc=new THREE.Scene();
+// фон: туманность и звёзды
+{const c=document.createElement('canvas');c.width=4096;c.height=2048;const x=c.getContext('2d');x.fillStyle='#04060d';x.fillRect(0,0,4096,2048);
+ const blob=(px,py,r,col)=>{const g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(px-r,py-r,r*2,r*2)};
+ let s=+q.get('bg')||3;const R=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ const pal=[['rgba(60,40,120,.55)','rgba(20,90,140,.45)','rgba(150,50,90,.35)'],['rgba(20,80,120,.5)','rgba(30,40,100,.5)','rgba(200,120,60,.3)'],['rgba(90,30,70,.5)','rgba(30,60,130,.45)','rgba(40,140,150,.3)']][(+q.get('pal')||0)%3];
+ for(let i=0;i<22;i++)blob(R()*4096,R()*2048,300+R()*700,pal[i%3].replace(/[\d.]+\)$/,'.42)'));
+ for(let i=0;i<5000;i++){const a=.25+R()*.75,r=R()<.02?1.8:R()<.2?1.1:.6;x.fillStyle='rgba(255,255,255,'+a+')';x.beginPath();x.arc(R()*4096,R()*2048,r,0,6.3);x.fill()}
+ const t=new THREE.CanvasTexture(c);t.mapping=THREE.EquirectangularReflectionMapping;t.colorSpace=THREE.SRGBColorSpace;sc.background=t}
+const pm=new THREE.PMREMGenerator(ren);sc.environment=pm.fromScene(new RoomEnvironment(),.04).texture;sc.environmentIntensity=.5;
+const sun=new THREE.DirectionalLight(0xfff0dc,3.2);sun.position.set(-8,10,12);sc.add(sun);const rim=new THREE.DirectionalLight(0x6aa8ff,2.2);rim.position.set(10,3,-12);sc.add(rim);sc.add(new THREE.HemisphereLight(0x8aa0d0,0x151a2a,.6));
+const SP=[
+ {n:'корвет',eng:{n:2,t:25},reac:15,tank:25,cab:12,mag:8,hang:0,cargo:0,armor:.2,turrets:[{t:'rail',cal:1},{t:'rail',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:0,radar:1},
+ {n:'авианосец',eng:{n:4,t:90},reac:50,tank:90,cab:120,mag:20,hang:260,cargo:0,armor:.4,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'эсминец',eng:{n:3,t:55},reac:40,tank:50,cab:30,mag:25,hang:0,cargo:0,armor:.3,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:1},{t:'rail',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'крейсер',eng:{n:4,t:100},reac:80,tank:90,cab:70,mag:60,hang:0,cargo:0,armor:.6,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:1},
+ {n:'ракетный катер',eng:{n:2,t:30},reac:20,tank:30,cab:15,mag:10,hang:0,cargo:0,armor:.15,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:16,laser:0,radar:1},
+ {n:'линкор',eng:{n:6,t:240},reac:180,tank:200,cab:200,mag:150,hang:0,cargo:0,armor:.9,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1}],msl:8,laser:0,radar:1},
+ {n:'лазерный крейсер',eng:{n:4,t:100},reac:160,tank:80,cab:60,mag:10,hang:0,cargo:0,armor:.5,turrets:[{t:'flak',cal:1},{t:'flak',cal:1},{t:'gat',cal:1},{t:'gat',cal:1}],msl:0,laser:1,radar:1},
+ {n:'танкер',eng:{n:3,t:50},reac:30,tank:420,cab:20,mag:0,hang:0,cargo:0,armor:.05,turrets:[{t:'flak',cal:1},{t:'flak',cal:1}],msl:0,laser:0,radar:0},
+ {n:'транспорт',eng:{n:3,t:50},reac:30,tank:50,cab:30,mag:0,hang:0,cargo:380,armor:.05,turrets:[],msl:0,laser:0,radar:1},
+ {n:'авианосный крейсер',eng:{n:5,t:150},reac:90,tank:120,cab:160,mag:40,hang:300,cargo:0,armor:.5,turrets:[{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:6,laser:0,radar:1},
+ {n:'разведчик',eng:{n:1,t:10},reac:5,tank:8,cab:3,mag:0,hang:0,cargo:0,armor:.05,turrets:[{t:'gat',cal:1}],msl:0,laser:0,radar:1},
+ {n:'дредноут',eng:{n:9,t:900},reac:700,tank:800,cab:600,mag:500,hang:0,cargo:0,armor:.95,turrets:[{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:3},{t:'rail',cal:2},{t:'rail',cal:2},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1},{t:'flak',cal:1}],msl:24,laser:0,radar:1}];
+const COLS=[0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a,0x2f9fbf,0xf2a65a],IDS=['07','CV-12','21','44','M-3','01','LZ-9','T-07','C-31','CV-5','S-2','BB-01'];
+function makeShip(i){const inv={...SP[i],seed:11+i*7,col:COLS[i],id:IDS[i]};const tons=inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo+inv.turrets.length*8+inv.msl*.6+60,L=1.75*Math.cbrt(tons);
+ const pk=buildLoft(inv,L),g=new THREE.Group();
+ const hm=new THREE.Mesh(pk.hull,pk.mat);g.add(hm);
+ if(pk.parts)g.add(new THREE.Mesh(pk.parts,pk.partsMat));if(pk.glow)g.add(new THREE.Mesh(pk.glow,loftMats.glow));if(pk.lines)g.add(new THREE.LineSegments(pk.lines,loftMats.lines));for(const d of pk.decals)g.add(d.clone());
+ // башни на сокетах
+ const hhk=pk.wd.hh*pk.k,u=hhk/.7;const used=[];
+ for(const m of pk.mounts){if(!m.tt)continue;const ts=(.2+.1*m.cal)*(m.tt==='flak'?.8:1),S=ts*u*pk.k/ (pk.k||1) ;const tg=turretGeo(m.tt,m.cal,inv.seed,ts*u*pk.k*1.0);const t=new THREE.Group();if(tg.parts)t.add(new THREE.Mesh(tg.parts,tg.mat));if(tg.glow)t.add(new THREE.Mesh(tg.glow,loftMats.glow));if(tg.lines)t.add(new THREE.LineSegments(tg.lines,loftMats.lines));t.position.set(m.x,m.y,m.z);g.add(t)}
+ // выхлоп
+ const gc=document.createElement('canvas');gc.width=gc.height=128;const gx=gc.getContext('2d'),gr=gx.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(140,220,255,.85)');gr.addColorStop(1,'rgba(40,120,255,0)');gx.fillStyle=gr;gx.fillRect(0,0,128,128);const gt=new THREE.CanvasTexture(gc);
+ for(const n of pk.nozz){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:gt,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));s.scale.setScalar(n.r*7);s.position.set(pk.x0-n.r*2.2,n.y,n.z);g.add(s);
+  const tr=new THREE.Mesh(new THREE.ConeGeometry(n.r*.8,n.r*16,12,1,true).rotateZ(Math.PI/2),new THREE.MeshBasicMaterial({color:0x6ab8ff,transparent:true,opacity:.16,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));tr.position.set(pk.x0-n.r*2-n.r*8,n.y,n.z);g.add(tr)}
+ g.userData={L,pk};return g}
+const ship=makeShip(idx);sc.add(ship);
+const L=ship.userData.L,cam=new THREE.PerspectiveCamera(+q.get('fov')||34,W/H,L*.01,L*30);const d=L*1.6/zoom;
+cam.position.set(Math.cos(el)*Math.cos(az)*d+sx,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(sx*.5,0,0);
+const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.35,.6,.9));comp.addPass(new OutputPass());
+comp.render();window.done=true;window.info={L,name:SP[idx].n};
+</script>
