@@ -250,7 +250,7 @@ if (wrap && bgo) {
     if (RL) { // плавный корпус по параметрам проекта: нос заострён тем сильнее, чем мощнее двигатели; ангары и орудия расширяют середину; броня задаёт наклон граней
       const old2 = seg.splice(0), tot = Math.max(1, Object.values(mp.parts).reduce((a: number, b: any) => a + (+b || 0), 0)), eS = Math.min(1, (mp.parts.eng || 0) / tot * 5), hS = Math.min(1, ((mp.parts.hangF || 0) + (mp.parts.hangB || 0)) / tot * 3), wS = Math.min(1, ((mp.parts.rail || 0) + (mp.parts.flak || 0) + (mp.parts.gat || 0) + (mp.parts.miss || 0) + (mp.parts.laser || 0)) / tot * 2), aS = Math.min(1, (mp.armor || 0) / Math.max(1, tot) * 3);
       const nF = .2 + .28 * eS, wMid = 1.15 + .2 * hS + .15 * wS, sm = (a: number) => a * a * (3 - 2 * a);
-      const nose0 = R(), nose = nose0 < .4 ? 'wedge' : nose0 < .7 ? 'prong' : 'ram', sweep = (R() - .5) * 1.0, island = R() < .25 + hS * .5; sty = { eS, hS, wS, aS, nose, sweep, island, tot };
+      const nose0 = R(), nose = wS > .4 && hS < .3 ? 'prong' : nose0 < .4 ? 'wedge' : nose0 < .7 ? 'prong' : 'ram', sweep = nose === 'prong' && wS > .4 ? .75 + R() * .25 : (R() - .5) * 1.0, island = R() < .25 + hS * .5; sty = { eS, hS, wS, aS, nose, sweep, island, tot };
       for (const e of old2) { const n = Math.max(1, Math.round(e.len / (L * .04)));
         for (let j = 0; j < n; j++) { const len = e.len / n, cx = e.cx - e.len / 2 + (j + .5) * len, t = Math.max(0, Math.min(1, (cx - x0) / Lk)); let pw: number, ph: number;
           const kT = t > 1 - nF ? Math.pow((t - (1 - nF)) / nF, 1.2) : 0; pw = .5 * (1 - .3 * kT); ph = .82 * (1 - .22 * kT);
@@ -269,14 +269,25 @@ if (wrap && bgo) {
           const Lk2 = x1 - x0, xa = x0 + (lst.filter(q => q.ty === 'e').reduce((a, q) => a + q.len, 0)) + Lk2 * .04, th = L * .03, dm = (xx: number) => dimsAt(xx);
           const att = (len: number, h: number, w: number, c: number, col: number, x: number, y: number, z: number, o: { rot?: number; nose?: number } = {}) => { const g = chamPrism(len, h, w, c, col, 0, 0, o.nose ?? 1); if (o.rot) g.rotateY(o.rot); g.translate(x, y, z); return g };
           const nl2 = L * .2;
-          if (sty.nose === 'prong') for (const sd of [-1, 1]) { parts.push(att(nl2 * 1.6, lst0.h * .7, lst0.w * .38, lst0.h * .12, neu(P.main, .75), x1 + nl2 * .5, lst0.cy, sd * lst0.w * .3, { nose: .25 })) }
+          const delta = (len: number, span: number, th2: number, tipX: number, col: number, sd: number) => { // стреловидное крыло-дельта: корень вдоль корпуса, кончик смещён назад/вбок
+            const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(len, 0); sh.lineTo(tipX, sd * span); sh.closePath();
+            let g = new THREE.ExtrudeGeometry(sh, { depth: th2 * 1.2, bevelEnabled: true, bevelThickness: th2 * .25, bevelSize: th2 * .3, bevelOffset: -th2 * .3, bevelSegments: 1 }); g.rotateX(-Math.PI / 2); g.translate(0, 0, 0); g = g.toNonIndexed(); g.clearGroups(); g.deleteAttribute('uv'); g.computeVertexNormals();
+            const n = g.attributes.position.count, cc = new THREE.Color(col), arr = new Float32Array(n * 3); for (let i = 0; i < n; i++) { arr[i * 3] = cc.r; arr[i * 3 + 1] = cc.g; arr[i * 3 + 2] = cc.b }
+            g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2)); return g };
+          const isDelta = sty.nose === 'prong' && sty.wS > .4;
+          if (sty.nose === 'prong') for (const sd of [-1, 1]) { parts.push(att(nl2 * 3.6, lst0.h * .42, lst0.w * .2, lst0.h * .08, neu(P.main, .7), x1 + nl2 * 1.5, lst0.cy - lst0.h * .12, sd * lst0.w * .36, { nose: .1, rot: -sd * .1 })); parts.push(att(nl2 * .7, lst0.h * .6, lst0.w * .26, lst0.h * .1, neu(P.dark, .9), x1 + nl2 * .1, lst0.cy - lst0.h * .1, sd * lst0.w * .34, { nose: .6 })) } // два длинных копья-клинка с корнем
           else if (sty.nose === 'ram') parts.push(att(nl2 * .7, lst0.h * 1.05, lst0.w * 1.25, lst0.h * .3, neu(P.main, .75), x1 + nl2 * .2, lst0.cy, 0, { nose: .8 }));
           // броневые щёки на носу
           { const cw = L * (.03 + .06 * sty.aS), cLn = L * (.1 + .16 * sty.aS), xc = x1 - cLn * .35, d0 = dm(xc); for (const sd of [-1, 1]) parts.push(att(cLn, d0.h * .55, cw, cw * .3, neu(P.main, .9), xc, d0.cy - d0.h * .1, sd * (d0.w / 2 + cw / 2 - L * .004), { nose: .4 })) }
           // орудийные платформы: плоские палубы по бортам с башнями на палубе
           const np = Math.max(sty.wS > .05 ? 1 : 0, Math.round(1 + sty.wS * 3)), xs0 = xa + Lk2 * .1, xs1 = x1 - Lk2 * .18;
           const spanP = xs1 - xs0;
-          for (let i = 0; i < np; i++) { const px = np === 1 ? (xs0 + xs1) / 2 : xs0 + (xs1 - xs0) * i / (np - 1), wl = Math.min(L * (.13 + .09 * sty.wS), spanP / np * .86 + L * .02), ww = L * (.075 + .09 * sty.wS) * (1 - i * .12), dd = dm(px), y = dd.cy + dd.h * .05;
+          if (isDelta) for (const sd of [-1, 1]) { // два яруса дельта-крыльев с башнями на палубе
+            for (const [k, rl, sp, tx, yy] of [[0, .46, .26, .1, .04], [1, .3, .17, .02, -.09]] as number[][]) { const len = Lk2 * rl, x00 = k ? xs1 - len * .9 : xa + Lk2 * .08, dd = dm(x00 + len * .4), y0 = dd.cy + dd.h * yy, span = L * sp * (.7 + .5 * sty.wS);
+              const wg = delta(len, span, th, len * tx, neu(P.main, .8 - k * .1), sd); wg.translate(x00, y0, sd * (dd.w / 2 - L * .004)); parts.push(wg);
+              const under = delta(len * .8, span * .8, th * .5, len * tx * .8, neu(P.dark, .8), sd); under.translate(x00 + len * .05, y0 - th * .6, sd * (dd.w / 2 - L * .004)); parts.push(under);
+              for (const [fx, fz] of k ? [[.4, .3], [.62, .2]] : [[.35, .22], [.52, .14], [.34, .52], [.55, .36]]) extraM.push({ x: x00 + len * fx, y: y0 + th, z: sd * (dd.w / 2 + span * fz), face: 0, plat: true }) } }
+          else for (let i = 0; i < np; i++) { const px = np === 1 ? (xs0 + xs1) / 2 : xs0 + (xs1 - xs0) * i / (np - 1), wl = Math.min(L * (.13 + .09 * sty.wS), spanP / np * .86 + L * .02), ww = L * (.075 + .09 * sty.wS) * (1 - i * .12), dd = dm(px), y = dd.cy + dd.h * .05;
             for (const sd of [-1, 1]) { const z = sd * (dd.w / 2 + ww / 2 - L * .005); { const gp = chamPrism(wl, th, ww, th * .14, neu(P.main, .8), 0, 0, .78); gp.translate(0, 0, sd * ww / 2); gp.rotateY(-sd * sty.sweep * .6); gp.translate(px, y, sd * (dd.w / 2 - L * .004)); parts.push(gp) } parts.push(att(wl * .5, th * .7, ww * .5, th * .15, neu(P.dark, .8), px - wl * .1, y - th * .85, z));
               for (let k = 0; k < 2; k++) extraM.push({ x: px + (k ? -wl * .22 : wl * .2), y: y + th / 2, z: z + sd * ww * (k ? -.05 : .05), face: 0, plat: true }) } }
           // ангарные коробки по бортам
