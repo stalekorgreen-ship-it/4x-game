@@ -494,7 +494,7 @@ if (wrap && bgo) {
     return on;
   }
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
-    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 40) return; g.updateMatrixWorld(true);
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 5 || (u.spN || 0) >= 24) return; g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 }
     const dL = _sv.set(q.nx, 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now() });
@@ -503,13 +503,13 @@ if (wrap && bgo) {
   function spineUpdate(g: THREE.Group) {
     const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
     const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
-    if (u.spQ.length && now - (u.spT || 0) > 160 && u.lod != null) { u.spT = now; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+    if (u.spQ.length && now - (u.spT || 0) > 700 && spDmgFrame !== frameNo && (u.spN || 0) < 24) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
       const oL = _rc.set(a, v, 0).addScaledVector(h.dL, R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84)) }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
     D.step(dt);
   }
-  let frameNo = 0, spFrame = -1;
+  let frameNo = 0, spFrame = -1, spDmgFrame = -1;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 2) {
