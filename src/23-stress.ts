@@ -48,8 +48,8 @@ export function bgStep(days, dt, reqDays) {
     const n = bg.states.length; while (bg.pend.length < n) bg.pend.push(0);
     for (let i = 0; i < n; i++) bg.pend[i] = Math.min(20, bg.pend[i] + (days > 0 ? days : 0));
     if (days > 0) bg.need += days * n;
-    const tEnd = t0 + BUD; let k = 0;
-    while (k < n && performance.now() < tEnd) { const i = bg.rr = (bg.rr + 1) % n; k++; const d = Math.min(.25, bg.pend[i]); if (d < 1e-4) continue; setState(bg.states[i]); try { advance(d) } catch (e) { bg.errs++; if (bg.errs < 3) console.error('stress', e) } bg.pend[i] -= d; bg.done += d }
+    const tEnd = t0 + BUD; let k = 0; // далёкие системы считаются крупными шагами (сутки), а не 48 раз в сутки
+    while (k < n && performance.now() < tEnd) { const i = bg.rr = (bg.rr + 1) % n; k++; if (bg.pend[i] < 1) continue; const d = Math.min(5, bg.pend[i]); setState(bg.states[i]); try { advance(d, 1) } catch (e) { bg.errs++; if (bg.errs < 3) console.error('stress', e) } bg.pend[i] -= d; bg.done += d }
     setState(orig);
     const nb = bg.bats.length; for (let j = 0; j < nb; j++) { const i = bg.rb = (bg.rb + 1) % nb; if (j > 0 && performance.now() > tEnd + BUD * .6) break; try { bg.bats[i].tickN(2) } catch (e) { bg.errs++; if (bg.errs < 3) console.error('stress battle', e) } if (bg.bats[i].isDone()) { bg.batDone++; bg.bats[i] = mkBattle() } }
   } finally { setState(orig); hooks.onLog = onLog0 }
