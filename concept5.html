@@ -45,28 +45,39 @@ function railOut(L,r){const g=new THREE.Group();
  const mg=new THREE.Mesh(new THREE.CircleGeometry(r*.5,8),cyan);mg.rotation.y=Math.PI/2;mg.position.x=L+r*1.42;g.add(mg);
  return g}
 function laserOut(L,r){const g=new THREE.Group();
- const barrel=cyl(r*1.0,r*.85,L*.88+r*6,steel,false);barrel.position.x=(L*.88-r*6)/2;g.add(barrel);
- for(let i=0;i<4;i++){const rg=cyl(r*1.5,r*1.5,L*.05,i%2?silver:accent,false);rg.position.x=L*(.2+i*.15);g.add(rg)}
- for(let k=0;k<4;k++){const fn=poly([[0,0],[L*.28,0],[L*.1,r*1.3],[0,r*1.3]],r*.2,r*.06,silver);const gg=new THREE.Group();fn.position.set(L*.05,r*.95,0);gg.add(fn);gg.rotation.x=k*Math.PI/2+Math.PI/4;g.add(gg)}
- const sh=cyl(r*2.1,r*1.3,L*.2,dark,true);sh.material=dark.clone();sh.material.side=THREE.DoubleSide;sh.position.x=L*.93;g.add(sh);
- const rim=cyl(r*2.25,r*2.25,L*.04,accent,true);rim.position.x=L*1.02;g.add(rim);
- const lens=new THREE.Mesh(new THREE.CircleGeometry(r*1.1,8),cyan);lens.rotation.y=Math.PI/2;lens.position.x=L*1.0;g.add(lens);return g}
+ // ступенчатый ствол из трёх граненых секций
+ const sec=[[-6*r,L*.3,1.15],[L*.3,L*.6,.95],[L*.6,L*.84,.74]];
+ sec.forEach(([x0,x1,k],i)=>{const m=cyl(r*k*.92,r*k,x1-x0,i%2?steel:silver2,false);m.position.x=(x0+x1)/2;g.add(m)});
+ // стыки: кольца + светящиеся щели вдоль граней
+ [L*.3,L*.6,L*.84].forEach((x,i)=>{const k=[1.15,.95,.74][i];const rg=cyl(r*k*1.38,r*k*1.38,r*.5,i%2?silver:accent,false);rg.position.x=x;g.add(rg);
+  for(let q=0;q<8;q++){const gg=new THREE.Group();const sl=new THREE.Mesh(new THREE.BoxGeometry(i===2?L*.1:L*.22,r*.1,r*.34),cyan);sl.position.set(x-(i===2?L*.07:L*.15),r*k*1.01*Math.cos(Math.PI/8)+r*.02,0);gg.add(sl);gg.rotation.x=q*Math.PI/4+Math.PI/8;g.add(gg)}});
+ // клетка из четырёх лап вокруг фокус-кристалла
+ for(let k=0;k<4;k++){const lp=L*.34;const pr=poly([[0,r*.35],[lp,-r*.3],[lp,-r*.02],[0,r*.95]],r*.28,r*.08,silver);const gg=new THREE.Group();pr.position.set(L*.82,r*1.55,0);gg.add(pr);gg.rotation.x=k*Math.PI/2+Math.PI/4;g.add(gg)}
+ const halo=cyl(r*1.95,r*1.95,r*.3,accent,true);halo.position.x=L*1.0;g.add(halo);
+ const gl=cyl(r*1.7,r*1.7,r*.1,cyan,true);gl.position.x=L*1.0;g.add(gl);
+ const cr=new THREE.Mesh(new THREE.OctahedronGeometry(r*.95,0),cyan);cr.scale.set(1.7,1,1);cr.position.x=L*1.0;g.add(cr);
+ const core=new THREE.Mesh(new THREE.OctahedronGeometry(r*.5,0),glowM);core.scale.set(1.7,1,1);core.position.x=L*1.0;g.add(core);
+ return g}
 function horn(len,w,h){return new THREE.Mesh(loftR([{x:0,w:w,h:h},{x:len*.7,w:w,h:h},{x:len,w:w*.82,h:h*.82}]),silver)}
 function noseBlock(v){const g=new THREE.Group();
  const body=(x0,x1,w,h)=>new THREE.Mesh(loftR([{x:x0,w:w*.8,h:h*.8},{x:x0+w*.25,w,h},{x:x1,w,h}]),silver);
  const put=(m,x,y,z)=>{m.position.set(x,y,z);g.add(m);return m};
  const gun=(x,y,z,r,L)=>{put(port(r),x,y,z);put(railOut(L,r),x,y,z)};
  const las=(x,y,z,r,L)=>{put(port(r*1.4),x,y,z);put(laserOut(L,r),x,y,z)};
- if(v==='a'){ // один лазер: корпус сужается и охватывает ствол
-  put(new THREE.Mesh(loftR([{x:-14,w:6,h:6},{x:-11,w:7.6,h:7.6},{x:-2,w:7.6,h:7.6},{x:4,w:6.6,h:6.6},{x:9,w:5.4,h:5.4}]),silver),0,0,0);
-  const pl=cb(.7,5.4,5.4,.5,silver2);put(pl,9,0,0);las(9.3,0,0,1.5,15)}
- if(v==='b'){ // два рельса
+ if(v==='a'){ // один лазер: ступенчатые блоки, ствол выходит из порта
+  put(cb(10,8.4,8.4,1.7,silver),-9,0,0);put(cb(8,7,7,1.4,silver2),-1.5,0,0);put(cb(5.4,5.8,5.8,1.2,silver),4.9,0,0);
+  put(cb(7,5.2,.6,.2,steel),1,3.9,0);put(cb(7,5.2,.6,.2,steel),1,-3.9,0);
+  for(const sg of[-1,1]){put(cb(5,.5,3.6,.2,accent),-4,0,sg*4.4);put(cb(3,.5,2.6,.2,steel),3,0,sg*3.6)}
+  put(cb(.7,5.8,5.8,.5,silver2),7.7,0,0);las(8.0,0,0,1.5,16)}
+  if(v==='b'){ // два рельса
   put(new THREE.Mesh(loftR([{x:-14,w:8,h:6},{x:-11,w:10,h:7.5},{x:-2,w:10,h:7.5},{x:4,w:9,h:6.8},{x:8,w:8.2,h:6}]),silver),0,0,0);
   put(cb(.7,8.2,6,.5,silver2),8,0,0);for(const sg of[-1,1])gun(8.3,0,sg*2.5,1.05,13)}
- if(v==='c'){ // четыре рельса
-  put(new THREE.Mesh(loftR([{x:-14,w:8,h:8},{x:-11,w:10,h:10},{x:-2,w:10,h:10},{x:4,w:9,h:9},{x:8,w:8.2,h:8.2}]),silver),0,0,0);
-  put(cb(.7,8.2,8.2,.5,silver2),8,0,0);for(const sy of[-1,1])for(const sg of[-1,1])gun(8.3,sy*2.2,sg*2.2,.85,12)}
- if(v==='d'){ // «П»: рога по краям с пушками, лазер из центральной стенки
+ if(v==='c'){ // четыре рельса: ступенчатые блоки с угловыми щитками
+  put(cb(10,10.4,10.4,2,silver),-9,0,0);put(cb(8,9,9,1.6,silver2),-1.5,0,0);put(cb(5,8.2,8.2,1.4,silver),4.8,0,0);
+  put(cb(8,6,.7,.2,steel),0,5.5,0);put(cb(8,6,.7,.2,steel),0,-5.5,0);
+  for(const sg of[-1,1]){put(cb(7,.6,5,.2,accent),-3,0,sg*5.4);put(cb(4,.6,3.4,.2,steel),3,0,sg*4.8)}
+  put(cb(.7,8.2,8.2,.5,silver2),7.65,0,0);for(const sy of[-1,1])for(const sg of[-1,1])gun(7.95,sy*2.2,sg*2.2,.85,12)}
+  if(v==='d'){ // «П»: рога по краям с пушками, лазер из центральной стенки
   put(body(-14,3,16,8),0,0,0);
   for(const sg of[-1,1]){const h=horn(11,4.4,6.4);put(h,0,0,sg*5.8);put(cb(.6,4.4*.82,6.4*.82,.4,silver2),11,0,sg*5.8);gun(11.2,0,sg*5.8,.95,10)}
   put(cb(.8,6.2,5.5,.5,silver2),3.3,0,0);las(3.6,0,0,1.25,13)}
