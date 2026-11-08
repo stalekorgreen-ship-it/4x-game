@@ -222,6 +222,41 @@ function noseBlock(v){const g=new THREE.Group();
  // стабилизаторы 45/30
  for(const sg of[-1,1]){const sp=5,st=poly([[-4,0],[-4-sp,sp],[-4-sp-1.4,sp],[-4-sp-1.4+sp*T30*2,0]],.5,.15,silver);st.rotation.x=-Math.PI/2;st.position.set(-3,0,sg*(v==='d'||v==='e'?8.2:5));if(sg>0)st.scale.set(1,1,-1);g.add(st)}
  g.userData={};return g}
+function base(s){const g=new THREE.Group();
+ const p=cb(6.2*s,6.2*s,1.2*s,.45*s,silver2);p.position.y=.6*s;g.add(p);
+ const r=cb(5.4*s,5.4*s,.35*s,.15*s,accent);r.position.y=1.35*s;g.add(r);
+ const q=cb(4.2*s,4.2*s,.4*s,.18*s,dark);q.position.y=1.7*s;g.add(q);return g}
+function railTurret(s,n){const g=new THREE.Group();g.add(base(s));const y=3.2*s,rr=.55*s,L=9*s;
+ const HH=n>=4?4.6*s:3.2*s,MH=n>=4?4.1*s:2.7*s;const hz=cb(6.4*s,5.8*s,HH,1.0*s,silver);hz.position.set(0,y,0);g.add(hz);
+ const up=cb(4.2*s,4.2*s,.6*s,.2*s,steel);up.position.set(-.3*s,y+HH*.56,0);g.add(up);
+ const man=cb(1.6*s,5.4*s,MH,.85*s,silver2);man.position.set(3.7*s,y,0);g.add(man);
+ const rear=cb(1.8*s,4.4*s,2.4*s,.7*s,silver2);rear.position.set(-3.8*s,y-.1*s,0);g.add(rear);
+ for(const sg of[-1,1]){const cap=cb(3.2*s,1.3*s,2.2*s,.45*s,steel);cap.position.set(-.4*s,y-.2*s,sg*3.45*s);g.add(cap);
+  const st=new THREE.Mesh(new THREE.BoxGeometry(2.2*s,.14*s,.9*s),cyan);st.position.set(-.4*s,y+.4*s,sg*(3.45*s+.66*s)*.995);st.scale.z=.1;g.add(st);
+  const ac=cb(2*s,.3*s,1.3*s,.1*s,accent);ac.position.set(1.2*s,y,sg*(2.9*s+.15*s));g.add(ac)}
+ const zs=n===1?[[0,0]]:n===2?[[-1.45*s,0],[1.45*s,0]]:n===3?[[-1.8*s,0],[0,0],[1.8*s,0]]:[[-1.5*s,1.05*s],[1.5*s,1.05*s],[-1.5*s,-1.05*s],[1.5*s,-1.05*s]];
+ zs.forEach(([z,dy])=>{const p=port(rr);p.position.set(4.5*s,y+dy,z);g.add(p);const b=railOut(L,rr);b.position.set(4.5*s,y+dy,z);g.add(b)});
+ if(n>=2){const tr=cb(L*.3,.4*s,3.4*s,.12*s,steel);tr.position.set(4.5*s+L*.45,y,0);g.add(tr)} // стяжка стволов
+ return g}
+function gatTurret(s,tw){const g=new THREE.Group();g.add(base(s));const y=3.1*s;
+ const hz=cb(5*s,tw?7.4*s:4.4*s,3*s,.95*s,silver);hz.position.set(-.4*s,y,0);g.add(hz);
+ const up=cb(3.4*s,tw?5.4*s:2.8*s,.6*s,.2*s,steel);up.position.set(-.6*s,y+1.75*s,0);g.add(up);
+ const mot=cb(1.8*s,2.6*s,2.6*s,.7*s,steel);
+ const cl=tw?[-1.9*s,1.9*s]:[0];
+ cl.forEach(z=>{
+  const m=mot.clone();m.position.set(-3.4*s,y,z);g.add(m);
+  const front=cb(1.6*s,2.6*s,2.6*s,.8*s,silver2);front.position.set(2.5*s,y,z);g.add(front);
+  const ax=cb(8*s,.55*s,.55*s,.15*s,steel);ax.position.set(3.2*s,y,z);g.add(ax);
+  for(let k=0;k<6;k++){const a=k*Math.PI/3;const b=cb(8.2*s,.42*s,.42*s,.12*s,k%2?steel:silver2);b.position.set(4.2*s,y+Math.cos(a)*.95*s,z+Math.sin(a)*.95*s);g.add(b)}
+  for(const x of[3.6*s,6.2*s,8.0*s]){const d=cb(.4*s,2.3*s,2.3*s,.2*s,x>7?dark:accent);d.position.set(x,y,z);g.add(d)}
+  const mz=cb(.5*s,2.5*s,2.5*s,.25*s,dark);mz.position.set(8.5*s,y,z);g.add(mz)});
+ // барабаны с лентой по бокам
+ const dz=tw?[-5*s,5*s]:[-3.1*s,3.1*s];
+ dz.forEach((z,i)=>{const dr=new THREE.Mesh(new THREE.CylinderGeometry(1.5*s,1.5*s,2.2*s,8),silver2);dr.rotation.x=Math.PI/2;dr.position.set(-1.6*s,y-.3*s,z);g.add(dr);
+  const dc=new THREE.Mesh(new THREE.CylinderGeometry(1.0*s,1.0*s,2.5*s,8),accent);dc.rotation.x=Math.PI/2;dc.position.set(-1.6*s,y-.3*s,z);g.add(dc);
+  const belt=cb(2.6*s,.35*s,1.2*s,.1*s,steel);belt.position.set(.4*s,y+.2*s,z*.8);belt.rotation.z=.25;g.add(belt)});
+ return g}
+
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -273,24 +308,27 @@ function spine(m){const g=new THREE.Group();
  // турельные гнёзда: до 100, размер падает с числом, раскладка сеткой по 4 поверхностям
  const SOC=[],NT=Math.min(100,+q.get('t')||12);
  {const avail=[0,0,0,0];const x1=.12,x2=.9;let area=0;for(let t=x1;t<x2;t+=.02)area+=wAt(t)*L*.02*(1+1)+hAt(t)*L*.02*(.7+.7);
-  let sz=10,sh,cand;const big=cls>=2;
+  let sz=Math.max(2.4,Math.min(8,Math.sqrt(L*W*2.2/Math.max(NT,1)))),sh,cand;const big=cls>=2;
   for(;;){sh=sz*1.18;cand=[];
   for(const[surf,wgt]of[['u',1],['d',1],['l',.6],['r',.6]]){const lenX=L*(x2-x1);const cols=Math.max(1,Math.floor(lenX/sh));
    for(let c=0;c<cols;c++){const t=x1+(c+.5)/cols*(x2-x1),w=wAt(t),h=hAt(t),span=(surf==='u'||surf==='d'?w:h*.8)*.82;const rows=Math.max(1,Math.floor(span/sh));
     for(let r=0;r<rows;r++){const o=(r-(rows-1)/2)*sh;
-     if(big&&surf==='u'&&Math.abs(t-.5)<.17&&Math.abs(o)<W*.48)continue;
+     if(big&&surf==='u'&&Math.abs(t-.47)<.13&&Math.abs(o)<W*.4)continue;
      if(big&&(surf==='l'||surf==='r')&&Math.abs(t-.45)<.28)continue;
      cand.push({surf,t,o,w,h,pr:c*.9+r*.3+(surf==='u'||surf==='d'?0:.5)})}}}
-  if(cand.length>=NT||sz<=2.2)break;sz-=.4}
-  // выбираем NT штук равномерно по списку, порядок по приоритету колонок
-  cand.sort((p,q2)=>p.t-q2.t||p.pr-q2.pr);const step=cand.length/Math.max(1,Math.min(NT,cand.length));
-  for(let i=0;i<Math.min(NT,cand.length);i++){const k=cand[Math.floor(i*step)],X=f(k.t);let P,N;
+  if(cand.length>=NT*1.1||sz<=2.2)break;sz-=.3}
+  const sel=[];const wt={u:.4,d:.3,l:.15,r:.15};
+  for(const sf of['u','d','l','r']){const cs=cand.filter(c=>c.surf===sf);const cols=[...new Set(cs.map(c=>c.t))].sort((a,b)=>a-b);
+   cs.forEach(c=>{const ci=cols.indexOf(c.t);c.key=Math.abs(c.o)/sh*1.01+((ci*.618)%1)*.9});cs.sort((a,b)=>a.key-b.key);sel.push(...cs.slice(0,Math.round(NT*wt[sf])))}
+  const cand2=sel;const step=1;
+  for(let i=0;i<cand2.length;i++){const k=cand2[i],X=f(k.t);let P,N;
    if(k.surf==='u'){P=[X,k.h/2+.35,k.o];N=[0,1,0]}else if(k.surf==='d'){P=[X,-k.h/2-.35,k.o];N=[0,-1,0]}else if(k.surf==='l'){P=[X,k.o,-(k.w/2+.35)];N=[0,0,-1]}else{P=[X,k.o,k.w/2+.35];N=[0,0,1]}
    const gp=new THREE.Group();gp.add(cb(sz*1.1,sz*1.1,.8,.3,steel));const rg=cb(sz*.9,sz*.9,.2,.25,accent);rg.position.y=0;gp.add(rg.clone());const dk=cb(sz*.75,sz*.75,.4,.3,dark);dk.position.x=0;gp.add(dk);
    gp.children.forEach(m=>m.rotation.z=Math.PI/2);gp.children.forEach((m,ix)=>m.position.x=ix*.22);
    // ориентация: локальная ось X → нормаль
    if(N[1]){gp.rotation.z=N[1]>0?Math.PI/2:-Math.PI/2}else{gp.rotation.y=N[2]>0?-Math.PI/2:Math.PI/2}
-   gp.position.set(...P);g.add(gp);SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
+   gp.position.set(...P);g.add(gp);
+   if(q.get('tr')!=='0'){const kt=i%6,ts=Math.min(1.7,sz/6.4),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
  g.userData.sockets=SOC;console.log('sockets',SOC.length);
  // детализация: швы панелей, вентрешётки, рёбра, навигационные огни
  for(let t=.12;t<.95;t+=.055){const w=wAt(t),h=hAt(t);put(cb(.22,w*.98,.12,.05,dark),f(t),h/2+.02,0);put(cb(.22,w*.98,.12,.05,dark),f(t),-h/2-.02,0);
@@ -301,9 +339,20 @@ function spine(m){const g=new THREE.Group();
  g.userData.sockets=SOC;
 
  // двигатели и носовое оружие из наших блоков
- const eN=[3,6,15,30][cls],nV=['f','b','c','x'][cls];
+
+ // крылья малых кораблей: aw = число осевых пушек. 2/3/4 — крылья (X-wing), пушки на кончиках; сверх 4 — в центр
+ const tn=+q.get('tn')||[300,1500,8000,40000][cls],ax=+q.get('ax')||[4,3,0,0][cls];let centerN=0;
+ if(tn<=3000&&ax>=2){const nw=Math.min(4,ax);centerN=ax>4?ax-4:0;const angs={2:[0,Math.PI],3:[-Math.PI/2,Math.PI/6,5*Math.PI/6],4:[Math.PI/4,3*Math.PI/4,5*Math.PI/4,7*Math.PI/4]}[nw];
+  const xr=f(.62),root=wAt(.62)/2-1,span=W*.9,wl=W*1.1,r=.6;
+  for(const an of angs){const wg=new THREE.Group();
+   const wp=poly([[-wl*.5,0],[wl*.4,0],[wl*.4-span*.25,span*.55],[wl*.4-span*.25-span*.4,span*.9+2],[-wl*.5+3,span*.9+2]].map(([a,z])=>[a,z+root]),1.6,.3,silver2);wp.rotation.x=-Math.PI/2;wp.position.set(xr,-.8,0);wg.add(wp);
+   const tip=span*.9+2+root-.5,xt=xr+wl*.4-span*.25-span*.4+1;
+   const blk=cb(6,2.2,2.2,.7,silver);blk.position.set(xt-3.5+1.6,0,tip);wg.add(blk);const ac=cb(.6,2.4,2.4,.2,accent);ac.position.set(xt+1.6,0,tip);wg.add(ac);
+   const pp=port(r);pp.position.set(xt+1.9,0,tip);wg.add(pp);const ro=railOut(6,r);ro.position.set(xt+1.9,0,tip);wg.add(ro);
+   wg.rotation.x=an;g.add(wg)}}
+ const eN=[3,6,15,30][cls],nvOff=(tn<=3000&&ax>=2&&centerN===0),nV=centerN>=5?'x':centerN>=3?'c':centerN>=2?'b':'f';
  const eng=engineBlock(eN,1),{Ld,Wd}=eng.userData,es=Math.min(1.6,W*(cls===3?1.15:1.05)/Wd);eng.scale.setScalar(es);eng.position.x=x0-6-Ld*es*.5+1;g.add(eng);
- const ns=W*.88/10.6,nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb);
+ const ns=W*.88/10.6;if(!nvOff){const nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb)}
  g.userData.mid=0;return g}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
