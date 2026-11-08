@@ -133,9 +133,32 @@ function woundFx(H,base,hh,u){const g=new THREE.Group(),uS_={value:1};g.userData
 // ===== пробоины текстурой: форма рисуется в высоком разрешении (круглые и рваные, не по сетке корпуса) =====
 
 // ран текстурами: форма рисуется в высоком разрешении; рисуется инкрементально по новым попаданиям
-function makeWoundTex(len,xmin,hh,Wd,Hd){
- const W=Wd||2048,Hh=Hd||512,ks=W/4096,mk=f=>{const c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d');x.fillStyle=f;x.fillRect(0,0,W,Hh);return[c,x]};
- const [cm,xm]=mk('#fff'),[ce,xe]=mk('#000'),[cb,xb]=mk('#808080');
+const LW=4096,LH=1024;
+// детальная «хоумворлдовская» обшивка: панели с фасками, швы, люки, вентиляция, габаритные огни, жёлто-чёрные метки — нарисованы на текстуре корпуса
+function makeGreeble(len,hh,fw){
+ const mk=(w,h,f)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle=f;x.fillRect(0,0,w,h);x.scale(w/LW,h/LH);return[c,x]};
+ const [cm,xm]=mk(4096,1024,'#d6d9de'),[ce,xe]=mk(1024,256,'#000'),[cb,xb]=mk(2048,512,'#808080');
+ let sq=91;const rn=()=>{sq=(sq*16807)%2147483647;return sq/2147483647};
+ const fh=LH/6,cw=Math.max(40,LW*hh*.85/len);
+ for(let j=0;j<6;j++){const y0=j*fh,rh=Math.max(26,fh*hh*.85/Math.max(fw[j],hh*.3)),nr=Math.max(1,Math.round(fh/rh)),ch=fh/nr,nc=Math.round(LW/cw);
+  for(let r=0;r<nr;r++)for(let c=0;c<nc;c++){const x0=c*LW/nc,w=LW/nc,y=y0+r*ch,tone=rn(),kind=rn();
+   const g=Math.floor(150+tone*70);xm.fillStyle='rgba('+g+','+(g+3)+','+(g+8)+',.55)';xm.fillRect(x0,y,w,ch);
+   // фаска панели: светлая сверху-слева, тёмная снизу-справа
+   xm.fillStyle='rgba(255,255,255,.35)';xm.fillRect(x0+2,y+2,w-4,3);xm.fillRect(x0+2,y+2,3,ch-4);xm.fillStyle='rgba(0,0,0,.4)';xm.fillRect(x0+2,y+ch-5,w-4,3);xm.fillRect(x0+w-5,y+2,3,ch-4);
+   xb.fillStyle='#d0d0d0';xb.fillRect(x0+2,y+2,w-4,3);xb.fillRect(x0+2,y+2,3,ch-4);xb.fillStyle='#303030';xb.fillRect(x0+2,y+ch-5,w-4,3);xb.fillRect(x0+w-5,y+2,3,ch-4);
+   xm.fillStyle='rgba(10,12,18,.85)';xm.fillRect(x0,y,w,2.5);xm.fillRect(x0,y,2.5,ch);xb.fillStyle='#101010';xb.fillRect(x0,y,w,3);xb.fillRect(x0,y,3,ch);
+   if(kind<.16){const n=3+Math.floor(rn()*3);for(let k=0;k<n;k++){const yy=y+ch*.22+k*ch*.56/n;xm.fillStyle='rgba(8,10,14,.9)';xm.fillRect(x0+w*.2,yy,w*.6,ch*.07);xb.fillStyle='#202020';xb.fillRect(x0+w*.2,yy,w*.6,ch*.09)}} // вентиляция
+   else if(kind<.27){xm.fillStyle='rgba(30,34,44,.75)';xm.fillRect(x0+w*.2,y+ch*.2,w*.6,ch*.6);xm.fillStyle='rgba(255,255,255,.3)';xm.fillRect(x0+w*.2,y+ch*.2,w*.6,3);xb.fillStyle='#c0c0c0';xb.fillRect(x0+w*.2,y+ch*.2,w*.6,ch*.6)} // люк-ниша
+   else if(kind<.33){xm.fillStyle='#e8c53a';xm.fillRect(x0+4,y+4,w-8,ch-8);xm.fillStyle='#14161b';for(let q=-ch;q<w;q+=22){xm.beginPath();xm.moveTo(x0+4+q,y+ch-4);xm.lineTo(x0+4+q+11,y+ch-4);xm.lineTo(x0+4+q+11+ch,y+4);xm.lineTo(x0+4+q+ch,y+4);xm.fill()}xm.clearRect(0,0,0,0)} // жёлто-чёрная метка
+   else if(kind<.42){const n=4+Math.floor(rn()*4);for(let k=0;k<n;k++){const px=x0+w*(.15+.7*k/n),py=y+ch*.5;xm.fillStyle='#fff';xm.fillRect(px,py,6,6);xe.fillStyle=rn()<.7?'#ffd890':'#8fe8ff';xe.fillRect(px,py,8,8)}} // огоньки
+   else if(kind<.5){xm.fillStyle='rgba(255,255,255,.22)';xm.fillRect(x0+w*.12,y+ch*.12,w*.76,ch*.76);xb.fillStyle='#b8b8b8';xb.fillRect(x0+w*.12,y+ch*.12,w*.76,ch*.76)} // накладка
+  }}
+ const T=(c,s)=>{const t=new THREE.CanvasTexture(c);t.flipY=false;t.anisotropy=4;if(s)t.colorSpace=THREE.SRGBColorSpace;return t};
+ return{cm,ce,cb,tm:T(cm,true),te:T(ce,true),tb:T(cb,false)}}
+function makeWoundTex(len,xmin,hh,base){
+ const W=LW,Hh=LH,mk=(src)=>{const c=document.createElement('canvas');c.width=src.width;c.height=src.height;const x=c.getContext('2d');x.drawImage(src,0,0);x.scale(src.width/LW,src.height/LH);return[c,x]};
+ const ks=1;
+ const [cm,xm]=mk(base.cm),[ce,xe]=mk(base.ce),[cb,xb]=mk(base.cb);
  const poly=(x,cx,cy,rx,ry,k,h)=>{x.beginPath();for(let a=0;a<=6.2832+.001;a+=.03){const rad=k*(1+.28*Math.sin(3*a+h.p1)+.18*Math.sin(5*a+h.p2)+.1*Math.sin(9*a+h.p1*2)+.035*Math.sin(17*a+h.p2*3));const px=cx+Math.cos(a)*rx*rad,py=cy+Math.sin(a)*ry*rad;a?x.lineTo(px,py):x.moveTo(px,py)}x.closePath()};
  const grad=(x,cx,cy,rx,ry,r0,r1,c0,c1)=>{x.save();x.translate(cx,cy);x.scale(1,ry/rx);const g=x.createRadialGradient(0,0,r0,0,0,r1);g.addColorStop(0,c0);g.addColorStop(1,c1);x.fillStyle=g;x.beginPath();x.arc(0,0,r1,0,6.2832);x.fill();x.restore()};
  let sq=11;const rn=()=>{sq=(sq*16807)%2147483647;return sq/2147483647};
@@ -162,7 +185,7 @@ function makeWoundTex(len,xmin,hh,Wd,Hd){
 function ship(inv,dmg){
  seed=inv.seed||7;const DG=dmg||{},DM=DG.mod||{},hp=i=>(DG.tur&&DG.tur[i]!=null)?DG.tur[i]:1;const V=k=>{const v=Math.sin((inv.seed||7)*12.9898+k*78.233)*43758.5453;return Math.floor((v-Math.floor(v))*3)}; const g=new THREE.Group();const MOUNTS=[],NOZ=[];
  const tons=inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo+inv.turrets.length*8+inv.msl*.6+60;
- const L=inv.L||1.75*Math.cbrt(tons), hh=L*.085, u=hh/.7; UU=u*.7;
+ const L=inv.L||1.75*Math.cbrt(tons), hh=L*.15, u=hh/.7; UU=u*.7;
  const es=Math.cbrt(inv.eng.t)*.26, eL=Math.min(L*.2,es*1.2), eH=Math.min(hh*2,es*1.1), eW=eH*1.15;
  const bigT=inv.tank>(inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo)*.4,bigC=inv.cargo>(inv.eng.t+inv.reac+inv.tank+inv.cab*.6+inv.mag+inv.hang+inv.cargo)*.4;
  const mods=[['reac',inv.reac],['tank',inv.tank],['hang',inv.hang*.5],['cab',inv.cab*.6],['mag',inv.mag],['cargo',inv.cargo]].filter(m=>m[1]>0);
@@ -209,14 +232,14 @@ const occ=[],claim=(zone,a,b,z0,z1)=>occ.push({zone,a,b,z0:Math.min(z0,z1),z1:Ma
    else{c=plates(c,2,0);
     // окна: ряд по всему борту, на каютах двойной и ярче
     const wc=(x+L/2)/(span*.011),wf=wc-Math.floor(wc),wi=Math.floor(wc),rowT=t>.55&&t<.82;
-    if(win&&((t>.36&&t<.58)||(t>.66&&t<.88))){const rowc=t<.62?.47:.77,inner=Math.abs(t-rowc)<.07&&wf>.12&&wf<.58;c=wf<.7?(inner?(hs(wi,j,1)>.15+(DM.cab||0)*.85?0xffe9a8:0x15130f):0x131824):sh(C.main,.45)}
-    else if(rowT&&!(place.hang&&inR(place.hang,x))&&x>-L/2+eL*1.1&&wf<.7){const inner=t>.62&&t<.74&&wf>.12&&wf<.58;c=inner?(hs(wi,j,2)>.3+(DM.cab||0)*.6?0xbfeaff:0x1a2433):0x131824}
+    if(win&&((t>.36&&t<.58)||(t>.66&&t<.88))){const rowc=t<.62?.47:.77,inner=Math.abs(t-rowc)<.07&&wf>.12&&wf<.58;c=wf<.7?(inner?(hs(wi,j,1)>.15+(DM.cab||0)*.85?0xffe9a8:0x15130f):sh(C.main,.6)):sh(C.main,.45)}
+    else if(rowT&&!(place.hang&&inR(place.hang,x))&&x>-L/2+eL*1.1&&wf<.7){const inner=t>.62&&t<.74&&wf>.12&&wf<.58;c=inner?(hs(wi,j,2)>.3+(DM.cab||0)*.6?0xbfeaff:0x1a2433):sh(C.main,.6)}
     if(x>x1-span*.1&&x<x1+noseL*.2&&t>.4&&t<.9&&wf<.7)c=0xbdf0ff} // остекление мостика
-   if(place.hang&&inR(place.hang,x)&&t>.45){c=sh(C.main,.35);if(t>.95||x<place.hang[0]+pw*.2||x>place.hang[1]-pw*.2)c=0xff9a2e;else if(((x*60/L)%1+1)%1<.04)c=sh(C.main,.6)}
+   if(place.hang&&inR(place.hang,x)&&t>.45){c=sh(C.main,.7);if(t>.95||x<place.hang[0]+pw*.2||x>place.hang[1]-pw*.2)c=0xff9a2e;else if(((x*60/L)%1+1)%1<.04)c=sh(C.main,.6)}
    if(place.tank&&inR(place.tank,x)&&(Math.floor(px*1.5)%3===0)&&t>.4)c=sh(C.main,.45);
    return c}
   if(lo){if(t>.7)c=sh(C.main,.55);else c=plates(c,3,.5);if(t<.1)c=sh(TC,.8);if(pi%6===2&&t>.2&&t<.45)c=0xffd23a;
-   if(place.hang&&inR(place.hang,x)&&t<.5)c=sh(C.main,.35);return c}
+   if(place.hang&&inR(place.hang,x)&&t<.5)c=sh(C.main,.7);return c}
   if(bot){c=sh(C.main,.55);if(t>.4&&t<.6)c=sh(TC,.7);return c}
   return c};
 const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h.x)/(h.r*h.asp),dd=dv*hh*.7/(h.r/h.asp),a=Math.atan2(dd,dx),rad=1+.28*Math.sin(3*a+h.p1)+.18*Math.sin(5*a+h.p2)+.1*Math.sin(9*a+h.p1*2);return Math.sqrt(dx*dx+dd*dd)/rad};
@@ -237,7 +260,7 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
    if(kk>k||kk<0&&k===0)k=kk}return k};
  const cl01=v=>Math.max(0,Math.min(1,v)),ssm=(a,b,v)=>{const q=cl01((v-a)/(b-a));return q*q*(3-2*q)};
  const ao=(x,j,t)=>{const px=(x+L/2)/pw,pf=px-Math.floor(px),dd=Math.min(pf,1-pf);let v=.8+.2*ssm(0,.18,dd); // затенение у швов
-  if(j===0)v*=1.06-.14*Math.pow(Math.abs(2*t-1),2);else if(j===1||j===5)v*=1.1-.32*t;else if(j===2||j===4)v*=.82-.3*t;else v*=.5;
+  if(j===0)v*=1.06-.14*Math.pow(Math.abs(2*t-1),2);else if(j===1||j===5)v*=1.35-.3*t;else if(j===2||j===4)v*=1.35-.3*t;else v*=.7;
   if(place.tank&&inR(place.tank,x)&&(j===2||j===4||j===1||j===5))v*=.85; // тень под баками/гондолами
   if(x<-L/2+eL)v*=.7+.3*ssm(0,eL,x+L/2);
   if(x>x1)v*=1.05;return v};
@@ -252,6 +275,9 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
  const cols=Math.ceil(Math.sqrt(inv.eng.n*eW/eH)),rows=Math.ceil(inv.eng.n/cols),nr=Math.min(eW/cols,eH/rows)*.42;
  for(let k=0;k<inv.eng.n;k++){const c=k%cols,r=Math.floor(k/cols);nozzle(g,-L/2,(r-(rows-1)/2)*eH/rows,(c-(cols-1)/2)*eW/cols*.8,nr,V(1),k<Math.round((DM.eng||0)*inv.eng.n)?1:0);NOZ.push({y:(r-(rows-1)/2)*eH/rows,z:(c-(cols-1)/2)*eW/cols*.8,r:nr})}
  for(const sd of[-1,1])wedge(g,eL*.9,eH*.8,.03,-L/2+eL*.5,0,sd*eW*.52,C.plate,.4,.4);
+ if(inv.eng.n>=2)for(const sd of[-1,1]){const nl=eL*1.9,nh=eH*.92,nw=eW*.78,zc=sd*(eW/2+nw*.36),xc=-L/2+nl*.3;
+  hex(g,nl,nh,nw,xc,0,zc,C.dark,.8);box(g,.03*u,nh*.7,nw*.78,xc-nl/2-.012*u,0,zc,C.glow,1);dec(g,hazTex('#111','#ffd23a'),xc+nl*.1,nh/2+.004,zc,nl*.45,nw*.62,0);
+  box(g,nl*.7,nh*.45,.02*u,xc+nl*.05,0,zc+sd*(nw/2+.008),C.deep);box(g,nl*.7,.02*u,.02*u,xc+nl*.05,-nh*.3,zc+sd*(nw/2+.012),C.or,1)}
  // реактор: кольца-светлые на хребте и радиаторы, растущие из борта
  if(inv.reac>0){const [ra,rb]=place.reac,pr=base((ra+rb)/2);for(let q=0;q<3;q++){const x=ra+(rb-ra)*(.2+.3*q),p=base(x);hex(g,(rb-ra)*.035,p.h*1.05,p.w*1.05,x,p.cy,0,C.or,p.k)}
   const area=Math.sqrt(inv.reac)*.17,len=Math.min(L*.3,area*1.5),sp=Math.min(hh*2.2,area*.8);claim('side',ra,ra+len,0,1);for(const sd of[-1,1]){plate4(g,len,sp,.035*u,len*.45,ra+len*.5,pr.cy,sd*pr.w*.4,C.plate,sd);const rv=V(3);if(rv===0)for(let q=1;q<5;q++)box(g,len*(.8-q*.12),.012,.02,ra+len*(.5-q*.05)-len*.02,pr.cy+.03*u,sd*(pr.w*.4+sp*q/5.5),C.deep);
@@ -301,7 +327,7 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
  { const bx=x1-span*.03,p=base(bx);const bvr=V(2),by=p.cy+p.h/2;if(bvr===0){wedge(g,L*.04,p.h*.5,p.w*.55,bx,by+p.h*.12,0,C.bridge,.6,.6);box(g,L*.012,p.h*.1,p.w*.4,bx+L*.012,by+p.h*.2,0,C.or,1)}
   else if(bvr===1){box(g,L*.03,hh*.5,p.w*.4,bx-L*.005,by+hh*.25,0,C.bridge);box(g,L*.02,hh*.4,p.w*.28,bx-L*.008,by+hh*.7,0,C.plate);box(g,.012,hh*.14,p.w*.3,bx+L*.008,by+hh*.7,0,C.glow,1);box(g,L*.012,hh*.1,p.w*.3,bx-L*.008,by+hh*.95,0,C.dark)}
   else{hex(g,L*.04,hh*.3,p.w*.55,bx,by+hh*.12,0,C.bridge,.6);wedge(g,L*.022,hh*.25,p.w*.4,bx+L*.012,by+hh*.33,0,C.plate,.5,.3);box(g,.012,hh*.1,p.w*.3,bx+L*.028,by+hh*.3,0,C.glow,1)}
-  radarTower(g,bx-L*.05,p.cy+p.h/2,L,hh,tons,inv.radar,base,V(0),DM.radar||0) }
+  radarTower(g,bx-L*.05,p.cy+p.h/2,L,hh*.5,tons,inv.radar,base,V(0),DM.radar||0) }
 
  // ДЕТАЛИ: косые углы, лезвия, плиты брони, мачты, жалюзи — всё растёт из корпуса
  { const rb=(len,h,w,x,y,z,col,ry=0,rz=0,e=0)=>{const geo=new THREE.BoxGeometry(len,h,w);geo.rotateZ(rz);geo.rotateY(ry);return add(g,geo,col,x,y,z,e)};
@@ -337,8 +363,8 @@ const hitD=(h,x,j,t)=>{let dv=j+t-h.v;if(dv>3)dv-=6;if(dv<-3)dv+=6;const dx=(x-h
 // ===================== запечка и интерфейс для игры =====================
 const edgeMatB = new THREE.LineBasicMaterial({ color: 0x0a0d14, transparent: true, opacity: .35 });
 export const loftMats = {
-  hull: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .25, flatShading: true, envMapIntensity: 1.5 }),
-  parts: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .25, flatShading: true, envMapIntensity: 1.5 }),
+  hull: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .25, flatShading: true, envMapIntensity: 3.2 }),
+  parts: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .25, flatShading: true, envMapIntensity: 3.2 }),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
   lines: edgeMatB,
 };
@@ -387,7 +413,7 @@ export function invFromSpec(s: any, mp: any, D0: any, P: any, seed: number, hasR
   };
 }
 
-export type LoftPack = { key: string; k: number; hull: THREE.BufferGeometry; li: any; parts: THREE.BufferGeometry | null; glow: THREE.BufferGeometry | null; lines: THREE.BufferGeometry | null; decals: THREE.Mesh[]; mounts: any[]; nozz: any[]; seg: any[]; W: number; H: number; x0: number; x1: number; Lk: number; wd: any; L0: number };
+export type LoftPack = { key: string; k: number; hull: THREE.BufferGeometry; li: any; parts: THREE.BufferGeometry | null; glow: THREE.BufferGeometry | null; lines: THREE.BufferGeometry | null; decals: THREE.Mesh[]; seedv: number; mat: THREE.MeshStandardMaterial; base: any; mounts: any[]; nozz: any[]; seg: any[]; W: number; H: number; x0: number; x1: number; Lk: number; wd: any; L0: number };
 const cache = new Map<string, LoftPack>();
 export function buildLoft(inv: any, Lgame: number): LoftPack {
   const key = JSON.stringify(inv) + '|' + Math.round(Lgame * 1e5);
@@ -419,7 +445,9 @@ export function buildLoft(inv: any, Lgame: number): LoftPack {
   for (const e of extra.slice(0, 220)) mounts.push(sc(e));
   const seg = pk.segs.map((q: any) => ({ cx: (q.a + q.b) / 2 * k, top: (q.cy + q.h / 2) * k, w: q.w * k, len: (q.b - q.a) * k, h: q.h * k, cy: q.cy * k, col: C.main }));
   let W = 0, H = 0; for (const q of seg) { W = Math.max(W, q.w); H = Math.max(H, q.h) }
-  const out: LoftPack = { key, k, hull, li, parts: b.parts, glow: b.glow, lines: b.lines, decals: b.decals, mounts, nozz: pk.NOZ.map((n: any) => ({ y: n.y * k, z: n.z * k, r: n.r * k })), seg, W, H, x0: -L / 2 * k, x1: (x1 + pk.noseL) * k, Lk: (x1 + pk.noseL + L / 2) * k, wd, L0: L };
+  const pm = base((x0 + x1) / 2), fwd = Math.hypot(pm.h / 2, pm.w * (1 - pm.k) / 2), gb = makeGreeble(x1 + pk.noseL + L / 2, hh, [pm.w * pm.k, fwd, fwd, pm.w * pm.k, fwd, fwd]);
+  const mat = loftMats.hull.clone(); mat.map = gb.tm; mat.emissiveMap = gb.te; mat.emissive = new THREE.Color(1, 1, 1); mat.emissiveIntensity = 1.0; mat.bumpMap = gb.tb; mat.bumpScale = 1.5;
+  const out: LoftPack = { key, k, hull, li, seedv: inv.seed, mat, base: gb, parts: b.parts, glow: b.glow, lines: b.lines, decals: b.decals, mounts, nozz: pk.NOZ.map((n: any) => ({ y: n.y * k, z: n.z * k, r: n.r * k })), seg, W, H, x0: -L / 2 * k, x1: (x1 + pk.noseL) * k, Lk: (x1 + pk.noseL + L / 2) * k, wd, L0: L };
   cache.set(key, out); if (cache.size > 24) cache.delete(cache.keys().next().value as string);
   return out;
 }
@@ -448,4 +476,26 @@ export function faceV(pk: LoftPack, x: number, ang: number) {
   for (let j = 0; j < 6; j++) { const a = R[j], c = R[(j + 1) % 6], ey = c[0] - a[0], ez = c[1] - a[1], den = dy * ez - dz * ey; if (Math.abs(den) < 1e-9) continue;
     const s = ((a[0] - p.cy) * ez - a[1] * ey) / den, t = ((a[0] - p.cy) * dz - a[1] * dy) / den; if (s > 0 && t >= -1e-6 && t <= 1 + 1e-6 && s < bs) { bs = s; best = j; bt = Math.max(0, Math.min(1, t)) } }
   return best + bt;
+}
+
+// башня в том же стиле, что и корпус: 3 варианта на тип орудия, стволы вдоль +x, начало — на основании; возвращает склеенные геометрии и кончики стволов
+export function turretGeo(tt: string, cal: number, seed: number, S: number, hp0 = 1) {
+  const gg = new THREE.Group(), tips: any[] = [], t = { t: tt, cal };
+  const V = (k: number) => { const v = Math.sin((seed || 7) * 12.9898 + k * 78.233) * 43758.5453; return Math.floor((v - Math.floor(v)) * 3) };
+  { const hpv=hp0,tv=V(100+(t.t==='rail'?0:t.t==='flak'?1:2)),brl=(len,r,y,z,x0=.1)=>{tips.push({x:(x0+len)*S+.12*S,y:y*S,z:z*S});return add(gg,new THREE.CylinderGeometry(r*S,r*1.25*S,len*S,6).rotateZ(Math.PI/2),0x12151c,(x0+len/2)*S,y*S,z*S,0,false)};
+   add(gg,new THREE.CylinderGeometry(.24*S,.3*S,.1*S,6),C.dark,0,.05*S,0,0,true);
+   if(hpv<=.15){add(gg,new THREE.IcosahedronGeometry(.2*S,0),0x1b1714,0,.12*S,0,0,true);add(gg,new THREE.BoxGeometry(.3*S,.08*S,.12*S),0x2a2622,.05*S,.25*S,0,0,true);add(gg,new THREE.SphereGeometry(.05*S,6,4),0xff6a1a,.1*S,.2*S,0,1,false)}
+   else if(tv===0){add(gg,new THREE.SphereGeometry(.2*S,10,8),0x20252f,0,.17*S,0,0,false);if(t.t==='gat')brl(.5,.04,.19,0,.2);else{brl(.5,.035,.19,-.075,.2);brl(.5,.035,.19,.075,.2)}}
+   else if(tv===1){add(gg,new THREE.BoxGeometry(.5*S,.2*S,.42*S),0x2a3040,0,.17*S,0,0,true);const sl=new THREE.BoxGeometry(.3*S,.12*S,.36*S);sl.rotateZ(.5);add(gg,sl,0x394258,.22*S,.27*S,0,0,true);
+    if(t.t==='rail'){brl(.95,.05,.2,0,.25);add(gg,new THREE.BoxGeometry(.14*S,.1*S,.14*S),0x20252f,1.15*S,.2*S,0,0,true)}
+    else if(t.t==='flak'){for(const yy of[.15,.25])for(const zz of[-.08,.08])brl(.4,.025,yy,zz,.25)}
+    else{brl(.45,.03,.15,-.06,.25);brl(.45,.03,.15,.06,.25);brl(.45,.03,.24,0,.25)}}
+   else{add(gg,new THREE.CylinderGeometry(.18*S,.3*S,.14*S,6),0x20252f,0,.15*S,0,0,true);for(const sd2 of[-1,1]){const ck=new THREE.BoxGeometry(.3*S,.14*S,.06*S);add(gg,ck,0x394258,0,.17*S,sd2*.26*S,0,true)}
+    if(t.t==='rail'){for(const zz of[-.09,0,.09])brl(.38,.03,.18,zz,.2)}
+    else if(t.t==='flak'){add(gg,new THREE.BoxGeometry(.4*S,.16*S,.34*S),0x2a3040,.1*S,.24*S,0,0,true);add(gg,new THREE.BoxGeometry(.04*S,.12*S,.28*S),C.or,.31*S,.24*S,0,1,false)}
+    else{for(let k=0;k<6;k++){const an=k*1.047;brl(.42,.022,.19+Math.cos(an)*.05,Math.sin(an)*.05,.2)}}}
+}
+  if (hp0 <= .5 && hp0 > .15) gg.rotation.z = .3 * (1 - hp0 * 2);
+  if (!tips.length) tips.push({ x: .45 * S, y: .22 * S, z: 0 });
+  const b = bakeGroup(gg); return { parts: b.parts, glow: b.glow, lines: b.lines, tips };
 }
