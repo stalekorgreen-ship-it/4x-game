@@ -63,12 +63,12 @@ function sternPlan(n){
 // ---- блок двигателей для n сопел ----
 function engineBlock(n,tons=1){const g=new THREE.Group();const r=Math.cbrt(tons)*(n>=6?.85:1);const len=r*3.6;PL=n>8?.3:1;
  const plan=sternPlan(n);const noz=[],pods=[];
- const cen=podLayout(plan.c,r),[cz,cy]=ext(cen,r);pods.push({z:0,y:0,zm:cz,ym:cy,nz:cen,x:0});cen.forEach(([z,y,s])=>noz.push([z,y,s,0]));
- plan.pods.forEach((m,i)=>{if(!m)return;const lay=podLayout(m,r*.9),[pz,py]=ext(lay,r*.9);
+ const cs=plan.pods.length?(plan.ring?1.45:1.6):1,ps=plan.ring?.62:.7;const cen=podLayout(plan.c,r*cs),[cz,cy]=ext(cen,r*cs);pods.push({z:0,y:0,zm:cz,ym:cy,nz:cen,x:0});cen.forEach(([z,y,s])=>noz.push([z,y,s*cs,0]));
+ plan.pods.forEach((m,i)=>{if(!m)return;const lay=podLayout(m,r*ps),[pz,py]=ext(lay,r*ps);
   let z,y;if(plan.ring){const a=i*Math.PI/3;const D=Math.max(cz,cy)+Math.max(pz,py)+r*.5;z=Math.cos(a)*D*1.0;y=Math.sin(a)*D*.8}
   else{const sg=i?1:-1;z=sg*(cz+pz+r*.6);y=0}
   const xo=-r*1.0; // гондолы чуть дальше назад
-  pods.push({z,y,zm:pz,ym:py,nz:lay,x:xo});lay.forEach(([zz,yy,s])=>noz.push([z+zz,y+yy,s*.9,xo]))});
+  pods.push({z,y,zm:pz,ym:py,nz:lay,x:xo});lay.forEach(([zz,yy,s])=>noz.push([z+zz,y+yy,s*ps,xo]))});
  let zM=0,yM=0;for(const p of pods){zM=Math.max(zM,Math.abs(p.z)+p.zm);yM=Math.max(yM,Math.abs(p.y)+p.ym)}
  const Wd=zM*2+r*.8,Hd=yM*2+r*.8,Ld=r*(5+2.6*Math.sqrt(Math.min(n,36)));
  const sh=Math.min(1,(zM+yM)/(Math.max(zM,yM)*2.1)); // ступени корпуса
@@ -84,7 +84,7 @@ function engineBlock(n,tons=1){const g=new THREE.Group();const r=Math.cbrt(tons)
   // косые фермы от гондолы к корпусу
   const d=Math.hypot(p.z,p.y),ang=Math.atan2(p.y,p.z);for(const off of[-1,1]){const bm=new THREE.Mesh(new THREE.BoxGeometry(r*.45,r*.45,d*.7),steel);bm.position.set(-r*.3,p.y*.5+off*r*.4*Math.cos(ang),p.z*.5-off*r*.4*Math.sin(ang));bm.rotation.x=-Math.atan2(p.y,p.z)+Math.PI/2*0;bm.rotation.x=0;bm.lookAt(new THREE.Vector3(-r*.3,p.y,p.z).add(new THREE.Vector3(0,off*r*.4*Math.cos(ang),-off*r*.4*Math.sin(ang))));g.add(bm)}});
  // сопла
- for(const[z,y,s,xo]of noz){const nn=nozzle(r*s,len*Math.min(1,s+.15));nn.position.set(-r*.7+xo-(xo?0:0),y,z);g.add(nn)}
+ for(const[z,y,s,xo]of noz){const nn=nozzle(r*s,len*Math.max(.5,Math.min(1.6,s+.15)));nn.position.set(-r*.7+xo-(xo?0:0),y,z);g.add(nn)}
  // фермы между ближайшими соплами одной гондолы
  for(const p of pods){const nz=p.nz;for(let i=0;i<nz.length;i++)for(let j=i+1;j<nz.length;j++){const[z1,y1]=nz[i],[z2,y2]=nz[j];const dd=Math.hypot(z2-z1,y2-y1);if(dd>r*3.9)continue;
   const q2=new THREE.Mesh(new THREE.BoxGeometry(r*.3,r*.3,dd),steel);q2.position.set(-r*.9+p.x,p.y+(y1+y2)/2,p.z+(z1+z2)/2);q2.rotation.x=-Math.atan2(y2-y1,z2-z1);g.add(q2)}}
