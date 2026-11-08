@@ -240,6 +240,14 @@ if (wrap && bgo) {
       x += len;
     }
     if (!seg.length) seg.push({ cx: (x0 + x1) / 2, w: W, h: H, len: Lk, cy: 0, weapon: true, ty: 's', col: P.main });
+    if (RL) { // плавный корпус по параметрам проекта: нос заострён тем сильнее, чем мощнее двигатели; ангары и орудия расширяют середину; броня задаёт наклон граней
+      const old2 = seg.splice(0), tot = Math.max(1, Object.values(mp.parts).reduce((a: number, b: any) => a + (+b || 0), 0)), eS = Math.min(1, (mp.parts.eng || 0) / tot * 5), hS = Math.min(1, ((mp.parts.hangF || 0) + (mp.parts.hangB || 0)) / tot * 3), wS = Math.min(1, ((mp.parts.rail || 0) + (mp.parts.flak || 0) + (mp.parts.gat || 0) + (mp.parts.miss || 0) + (mp.parts.laser || 0)) / tot * 2), aS = Math.min(1, (mp.armor || 0) / Math.max(1, tot) * 3);
+      const nF = .2 + .28 * eS, wMid = 1.15 + .2 * hS + .15 * wS, sm = (a: number) => a * a * (3 - 2 * a);
+      for (const e of old2) { const n = Math.max(1, Math.round(e.len / (L * .04)));
+        for (let j = 0; j < n; j++) { const len = e.len / n, cx = e.cx - e.len / 2 + (j + .5) * len, t = Math.max(0, Math.min(1, (cx - x0) / Lk)); let pw: number, ph: number;
+          if (t < .14) { pw = 1; ph = 1 } else if (t < .45) { const k = sm((t - .14) / .31); pw = 1 + (wMid - 1) * k; ph = 1 } else if (t < 1 - nF) { pw = wMid; ph = 1 } else { const k = Math.pow((t - (1 - nF)) / nF, 1.4); pw = wMid * (1 - .75 * k); ph = 1 - .5 * k }
+          const w = e.ty === 'e' ? e.w : W * pw, h = e.ty === 'e' ? e.h : H * ph, c = Math.min(w, h) * (.2 + .1 * aS + .08 * Math.min(1, t * t * 2));
+          seg.push({ ...e, cx, len, w, h, cy: 0, c, col: e.col }) } } }
     const finI: any[] = [];
     // жёсткий корпус: ступенчатые призмы с фасками (сечение — прямоугольник со срезанными углами), никаких сглаживаний
     const dimsAt = (xx: number) => { const q = seg; let i = 0; while (i < q.length - 1 && xx > (q[i].cx + q[i + 1].cx) / 2) i++; return q[i] };
