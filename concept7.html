@@ -49,33 +49,47 @@ function rcs(dir,s){const g=new THREE.Group();g.add(cb(s*2.2,s*2.2,s*1.1,s*.35,s
  g.rotation.set(0,0,0);const o=new THREE.Group();o.add(g);if(dir==='u')return o;if(dir==='d'){o.rotation.x=Math.PI;return o}if(dir==='l'){o.rotation.x=Math.PI/2;return o}o.rotation.x=-Math.PI/2;return o}
 function spine(m){const g=new THREE.Group();
  const put=(o,x,y,z)=>{o.position.set(x,y||0,z||0);g.add(o);return o};
- const Wb=10*(1+Math.min(m,8)*.05),tk=t=>1.3-.55*t;
- const secL=15,L=secL*m,x0=-L/2;
- // литое тело: единый лофт со ступенчатыми рёбрами
- const R=[{x:x0-14,w:Wb*1.0,h:Wb*.9},{x:x0-12,w:Wb*1.4,h:Wb*1.2},{x:x0-1,w:Wb*1.4,h:Wb*1.2}];
- for(let i=0;i<m;i++){const t0=i/m,t1=(i+1)/m,a=x0+i*secL,w0=Wb*tk(t0),w1=Wb*tk(t1),bulge=(i%2?1.1:1);
-  R.push({x:a+2,w:w0*bulge,h:w0*bulge*.92},{x:a+secL-2,w:w1*bulge,h:w1*bulge*.92},{x:a+secL-.6,w:w1*.9,h:w1*.84})}
- const xe=x0+L,wn=Wb*tk(1);R.push({x:xe+2,w:wn*.85,h:wn*.8},{x:xe+9,w:wn*.6,h:wn*.55},{x:xe+16,w:wn*.4,h:wn*.36});
+ const wing=(pts,th,mat,y)=>{const p=poly(pts,th,.3,mat);p.rotation.x=-Math.PI/2;p.position.set(0,y-th/2,0);g.add(p)};
+ const cls=m<2?0:m<4?1:m<6?2:3,L=[34,58,84,128][cls]+(m-[1,2,4,6][cls])*10,x0=-L/2,xe=L/2;
+ const W=[11,10,15,20][cls],Hk=[.95,.62,.8,.7][cls],f=t=>x0+L*t;
+ // профиль корпуса по классам (t, ширина, высота)
+ const prof=[
+  [[0,.7,.8],[.1,1.2,1],[.45,1,.95],[.75,.55,.6],[1,.1,.2]],
+  [[0,.8,.9],[.08,1,1],[.55,.95,.95],[.8,.7,.7],[.93,.5,.45],[1,.2,.2]],
+  [[0,.95,1],[.06,1.15,1.1],[.3,1.05,1],[.62,1,1.05],[.85,.7,.75],[1,.3,.3]],
+  [[0,.9,.9],[.05,1.2,1],[.3,1.1,.95],[.6,1.15,1],[.8,.9,.8],[.93,.55,.5],[1,.3,.3]]][cls];
+ const R=prof.map(([t,w,h])=>({x:f(t),w:W*w,h:W*h*Hk*(cls===0?1.2:1.3)}));
+ R.unshift({x:x0-6,w:R[0].w*.9,h:R[0].h*.9});
  g.add(new THREE.Mesh(loftR(R),silver));
- // рёбра-пояса и стыки
- for(let i=0;i<=m;i++){const w=Wb*tk(i/m);put(cb(1.1,w*1.06,w*.98,.35,accent),x0+i*secL,0,0)}
- // гребень сверху и снизу вдоль хребта + гнёзда
- for(let i=0;i<m;i++){const t=(i+.5)/m,w=Wb*tk(t),c=x0+i*secL+secL/2;
-  for(const sy of[-1,1])put(cb(secL*.6,w*.4,.9,.3,steel),c,sy*(w*.46+.4),0);
-  sockets(g,c,w*.96,w*.88,secL)}
- // литые боковые клинья на стыках через одну
- for(let i=1;i<m;i+=2){const w=Wb*tk(i/m),c=x0+i*secL;for(const sg of[-1,1]){const p=poly([[-6,0],[6,0],[2,4],[-2,4]].map(([a,z])=>[a,sg*z]),1.6,.3,silver2);p.rotation.x=-Math.PI/2;p.position.set(c,-.8,sg*(w/2-.3));g.add(p)}}
- // кормовое гнездо двигателей
- const p=pad(Wb*.8);p.rotation.y=Math.PI;p.position.set(x0-14.1,0,0);g.add(p);
- // манёвровые двигатели: корма, середина, нос; вверх/вниз/в стороны
- const rc=[[x0-6,Wb*1.2,Wb*.6,.9],[0,Wb*tk(.5),0,.8],[xe+4,wn*.58,0,.7]];
- for(const[x,w,_,s]of rc){for(const d of['u','d','l','r']){const r=rcs(d,s*2.4);const o=w*.46+s*1.2;
-   if(d==='u')r.position.set(x,o,0);if(d==='d')r.position.set(x,-o,0);if(d==='l')r.position.set(x,0,-o);if(d==='r')r.position.set(x,0,o);g.add(r)}}
- g.userData.mid=-7;return g}
+ const wAt=t=>{for(let i=0;i<prof.length-1;i++)if(t<=prof[i+1][0]){const k=(t-prof[i][0])/(prof[i+1][0]-prof[i][0]);return W*(prof[i][1]+(prof[i+1][1]-prof[i][1])*k)}return W*.2};
+ const hAt=t=>wAt(t)*Hk*1.3;
+ // двигательное гнездо и пояса
+ const p=pad(W*.7);p.rotation.y=Math.PI;p.position.set(x0-6.1,0,0);g.add(p);
+ for(const t of[.08,.3,.55,.8])put(cb(1,wAt(t)*1.05,hAt(t)*1.04,.35,accent),f(t),0,0);
+ // классовые формы
+ if(cls===0){ // дротик: стреловидные дельта-крылья
+  for(const sg of[-1,1])wing([[-8,0],[10,0],[2,10],[-10,16]].map(([a,z])=>[f(.45)+a,sg*(z+W*.45)]),1.6,silver2,-1)}
+ if(cls===1){ // клинок: плоские лезвия-крылья и гребень
+  for(const sg of[-1,1]){wing([[-14,0],[12,0],[0,12],[-20,12]].map(([a,z])=>[f(.35)+a,sg*(z+W*.45)]),1.8,silver2,-.6);
+   wing([[-6,0],[16,0],[10,6],[-2,6]].map(([a,z])=>[f(.72)+a,sg*(z+W*.3)]),1.4,steel,-.5)}
+  put(cb(L*.5,2,3,.8,steel),f(.4),hAt(.4)/2+1,0)}
+ if(cls===2){ // крейсер: цитадель-надстройка, бортовые пояса брони
+  put(cb(L*.3,W*.7,W*.4,1.6,silver2),f(.5),hAt(.5)/2+W*.18,0);put(cb(L*.15,W*.45,W*.35,1.2,silver),f(.55),hAt(.5)/2+W*.5,0);
+  for(const sg of[-1,1])put(cb(L*.5,2.4,hAt(.5)*.7,.9,steel),f(.45),0,sg*(wAt(.45)/2+.6))}
+ if(cls===3){ // линкор: раздвоенный «рогатый» нос, ярусная надстройка, пояса
+  for(const sg of[-1,1]){put(cb(L*.32,W*.32,W*.55,2.4,silver2),f(.88),0,sg*W*.62);wing([[-L*.1,0],[L*.12,0],[L*.12-5,5],[-L*.1+5,5]].map(([a,z])=>[f(.8)+a,sg*(z+W*.5)]),2,silver,0);
+   put(cb(L*.55,3,hAt(.5)*.7,1,steel),f(.45),0,sg*(wAt(.45)/2+.8))}
+  put(cb(L*.34,W*.8,W*.4,1.8,silver2),f(.45),hAt(.45)/2+W*.18,0);put(cb(L*.2,W*.55,W*.35,1.4,silver),f(.5),hAt(.45)/2+W*.5,0);put(cb(L*.1,W*.3,W*.3,1,silver2),f(.52),hAt(.45)/2+W*.8,0)}
+ // гнёзда на бортах/верху по длине
+ const n=Math.max(1,Math.floor(L/22));for(let i=0;i<n;i++){const t=.2+.45*(n>1?i/(n-1):.5);sockets(g,f(t),wAt(t)*.96,hAt(t)*.96,L/n*.5)}
+ // манёвровые двигатели: корма, середина, нос
+ for(const t of[.1,.5,.9]){const w=wAt(t),h=hAt(t),s=[1.6,2,2.6,3][cls]*.6;for(const d of['u','d','l','r']){const r=rcs(d,s*2.4);const o=(d==='u'||d==='d'?h:w)/2+s*1.2;
+   if(d==='u')r.position.set(f(t),o,0);if(d==='d')r.position.set(f(t),-o,0);if(d==='l')r.position.set(f(t),0,-o);if(d==='r')r.position.set(f(t),0,o);g.add(r)}}
+ g.userData.mid=0;return g}
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||36,W/H,.1,800);
 const m=+q.get('m');
 if(m){const b=spine(m);sc.add(b);const az=+q.get('az')||.7,el=+q.get('el')||.35,d=+q.get('d')||110;const mid=b.userData.mid;cam.position.set(mid+Math.cos(el)*Math.cos(az)*d,Math.sin(el)*d,Math.sin(az)*Math.cos(el)*d);cam.lookAt(mid,0,0)}
-else{[1,3,5,8].forEach((k,i)=>{const b=spine(k);b.position.set(-b.userData.mid,0,(i-1.5)*55);sc.add(b)});cam.position.set(0,150,260);cam.lookAt(0,0,0)}
+else{[1,3,5,8].forEach((k,i)=>{const b=spine(k);b.position.set(0,0,(i-1.5)*60);sc.add(b)});cam.position.set(0,190,300);cam.lookAt(0,0,0)}
 const comp=new EffectComposer(ren);comp.setSize(W,H);comp.addPass(new RenderPass(sc,cam));comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.3,.7,.9));comp.addPass(new OutputPass());
 comp.render();window.done=true;
 </script>
