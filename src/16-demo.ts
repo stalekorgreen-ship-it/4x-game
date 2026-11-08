@@ -9,7 +9,8 @@ import { COLONIZABLE, colInfo, earthF, mkCol } from './07-population.ts';
 import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.ts';
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
-import { botSpec } from './16b-botdesign.ts';
+import { botSpec, previewSpec } from './16b-botdesign.ts';
+import { designStats } from './01-data.ts';
 
 const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), TAU = Math.PI * 2;
@@ -161,6 +162,7 @@ export function startDemo(kind, size) {
 }
 export function refreshDemo() {
   const p = $('p-demo'); if (!p) return;
+  setTimeout(() => colInit(p), 0);
   if (!p._built) {
     p._built = true;
     p.innerHTML = `<div class="box"><h2>Бой-демо</h2><div class="help">Запускает случайное сражение у Земли, не влияющее на игру: можно посмотреть, как выглядят корабли, турели, повреждения и дым. Флоты подходят с разных сторон.</div>
@@ -172,6 +174,59 @@ export function refreshDemo() {
     p.addEventListener('click', e => { if (e.target.id === 'dm-war' && hooks.startWar) hooks.startWar(); });
     p.addEventListener('click', e => { if (e.target.id === 'dm-go') { startDemo($('dm-kind').value, +$('dm-size').value); } });
   }
+}
+
+// ===== Колизей: у каждой стороны 100 000 т водоизмещения; игрок набирает флот из своих проектов, бот собирает свой — потом бой =====
+export const COL_BUDGET = 100000;
+const col = {mine: {}, bot: [], botName: ''};
+const colTons = sp => Math.round(sp.tons || 0);
+function colMineSpecs() {
+  const out = [];
+  for (const d of state.designs) { const n = col.mine[d.id] || 0; if (!n) continue; const sp = previewSpec(d.parts); if (!sp) continue; for (let i = 0; i < n; i++) out.push({...sp, name: d.name + ' №' + (i + 1), spd: sp.spd || 1}); }
+  return out;
+}
+function colDesigns() { return state.designs.map(d => { const sp = previewSpec(d.parts), st = designStats(d.parts); return {d, sp, st, tons: sp ? colTons(sp) : 0, ok: !!sp && !st.errors.length}; }); }
+export function colBuildBot() { // бот пробует несколько флотов разных доктрин и берёт тот, что полнее использует бюджет
+  let best = null, bn = '';
+  for (let k = 0; k < 6; k++) {
+    const mix = MIXNAMES[RI(0, MIXNAMES.length - 1)], pool = fleet(80, mix, 10 + k, 1), pick = []; let sum = 0;
+    for (const sp of pool.sort(() => Math.random() - .5)) { const t = colTons(sp); if (t > 0 && sum + t <= COL_BUDGET) { pick.push(sp); sum += t; } if (sum > COL_BUDGET * .985) break; }
+    if (pick.length && (!best || sum > best.sum)) { best = {pick, sum}; bn = DOCT[mix].n; }
+  }
+  col.bot = best ? best.pick : []; col.botName = bn;
+}
+function colRender() {
+  const box = $('col-box'); if (!box) return;
+  const ds = colDesigns(), used = ds.reduce((a, x) => a + (x.ok ? (col.mine[x.d.id] || 0) * x.tons : 0), 0), botT = col.bot.reduce((a, sp) => a + colTons(sp), 0);
+  const by = {}; for (const sp of col.bot) by[sp.name.replace(/ №\d+$/, '')] = (by[sp.name.replace(/ №\d+$/, '')] || 0) + 1;
+  $('col-list').innerHTML = ds.map(x => `<div class="row"><span class="grow">${x.d.name} <span class="muted">${x.ok ? fmtT(x.tons) + ' т' : 'проект не готов'}</span></span>${x.ok ? `<span class="ct">${[-5, -1].map(v => `<button class="btn sm" data-cd="${x.d.id}" data-cv="${v}">${v < -1 ? '−5' : '−'}</button>`).join('')}<b>${col.mine[x.d.id] || 0}</b>${[1, 5, 25].map(v => `<button class="btn sm" data-cd="${x.d.id}" data-cv="${v}">${v > 1 ? '+' + v : '+'}</button>`).join('')}</span>` : ''}</div>`).join('') || '<div class="muted">Нет проектов: создайте корабль в конструкторе.</div>';
+  $('col-sum').innerHTML = `<div class="row"><span>Ваш флот: <b class="${used > COL_BUDGET ? 'warn' : ''}">${fmtT(used)}</b> / ${fmtT(COL_BUDGET)} т</span><span>Бот: <b>${fmtT(botT)}</b> / ${fmtT(COL_BUDGET)} т${col.botName ? ' · ' + col.botName : ''}${col.bot.length ? ' · ' + Object.entries(by).map(([k, v]) => v + '× ' + k).join(', ') : ''}</span></div>`;
+  $('col-go').disabled = !(used > 0 && used <= COL_BUDGET && col.bot.length);
+}
+const fmtT = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+export function startColiseum() {
+  if (Battle.active()) return;
+  const mine = colMineSpecs(), bot = col.bot; if (!mine.length || !bot.length) return;
+  const late = [], ang0 = R(0, TAU);
+  [mine, bot].forEach((f, side) => { for (const sp of f) late.push({t: R(0, 20), side, spec: sp, edge: 400, ang: ang0 + side * Math.PI + R(-.12, .12)}); });
+  const cfg = {title: `Колизей: ${mine.length} против ${bot.length}`, fleets: [[], []], late, demo: true, maxT: 14400, names: ['Игрок', 'Бот'], onEnd: res => { state.demo = false; log(`Колизей завершён. ${res && res.win != null ? 'Победа: ' + (res.win === 0 ? 'игрок' : 'бот') + '.' : ''}`); }};
+  state.demo = true; state.paused = false; Battle.begin(cfg); ui.bfollow = true; focusBattle(); ui.bfollow = false;
+  log(cfg.title + '.'); const mc = $('mclose'); if (mc) mc.click();
+}
+function colInit(p) {
+  if ($('col-box')) { colRender(); return; }
+  p.insertAdjacentHTML('beforeend', `<div class="box" id="col-box"><h2>Колизей</h2><div class="help">У вас и у бота по ${fmtT(COL_BUDGET)} т водоизмещения. Соберите флот из своих проектов, бот соберёт свой (он сам пробует разные доктрины и конструкции) — после этого начнётся бой.</div>
+    <div id="col-list"></div><div id="col-sum"></div>
+    <div class="row"><button class="btn" id="col-bot">Собрать флот бота</button><button class="btn" id="col-clear">Очистить мой флот</button><button class="btn on" id="col-go">В бой</button></div></div>`);
+  p.addEventListener('click', e => {
+    const b = e.target.closest('[data-cd]');
+    if (b) { const id = +b.dataset.cd, dd = colDesigns().find(x => x.d.id === id); if (!dd || !dd.ok) return; const cur = col.mine[id] || 0, v = +b.dataset.cv;
+      let n = Math.max(0, cur + v); const others = colDesigns().reduce((a, x) => a + (x.ok && x.d.id !== id ? (col.mine[x.d.id] || 0) * x.tons : 0), 0); n = Math.min(n, Math.floor((COL_BUDGET - others) / Math.max(1, dd.tons))); col.mine[id] = n; if (!n) delete col.mine[id]; colRender(); return; }
+    if (e.target.id === 'col-bot') { colBuildBot(); colRender(); }
+    else if (e.target.id === 'col-clear') { col.mine = {}; colRender(); }
+    else if (e.target.id === 'col-go') { startColiseum(); }
+  });
+  colBuildBot(); colRender();
 }
 
 // Зрелая система: 12 заселённых тел, ~100 млрд человек, тысячи кораблей корпораций. Только для просмотра, лучше начать потом «Новую игру».
