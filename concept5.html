@@ -148,22 +148,17 @@ function noseBlock(v){const g=new THREE.Group();
   put(cb(8,6.5,.7,.2,steel),0,4.4,0);put(cb(8,6.5,.7,.2,steel),0,-4.4,0);
   for(const sg of[-1,1]){put(cb(7,.6,4.6,.2,accent),-3,0,sg*5.7);put(cb(4,.6,3,.2,steel),3,0,sg*5.2);put(cb(3.4,4.2,4.2,1,silver2),8.2,0,sg*2.7)}
   put(cb(.7,9.4,6.6,.5,silver2),7.7,0,0);for(const sg of[-1,1]){put(port(1.15),10,0,sg*2.7);put(gatOut(11,1.1),10,0,sg*2.7)}}
- if(v==='x'){ // батарея: центр из 6-7 стволов и шестиугольник гондол, как у двигателей
-  const n=+q.get('n')||30,plan=sternPlan(n),r=.9;const pods=[];
-  const cs=plan.pods.length?1.25:1,ps=.8;const cen=podLayout(plan.c,r*cs);const[cz,cy]=ext(cen,r*cs);pods.push({z:0,y:0,nz:cen,s:cs,x:0,zm:cz,ym:cy});
-  plan.pods.forEach((m,i)=>{if(!m)return;const lay=podLayout(m,r*ps),[pz,py]=ext(lay,r*ps);let z,y;if(plan.ring){const a=i*Math.PI/3;const D=Math.max(cz,cy)+Math.max(pz,py)+r*.6;z=Math.cos(a)*D;y=Math.sin(a)*D*.85}else{const sg=i?1:-1;z=sg*(cz+pz+r*.8);y=0}
-   pods.push({z,y,nz:lay,s:ps,x:-2,zm:pz,ym:py})});
-  let zM=0,yM=0;for(const p of pods){zM=Math.max(zM,Math.abs(p.z)+p.zm);yM=Math.max(yM,Math.abs(p.y)+p.ym)}
-  const Wd=zM*2+2,Hd=yM*2+2;
-  put(cb(10,Wd*.8,Hd*.8,2.4,silver),-9,0,0);put(cb(8,Wd*.92,Hd*.92,2.2,silver2),-1.5,0,0);put(cb(4,Wd,Hd,2,silver),4,0,0);
-  put(cb(8,Wd*.5,.8,.3,steel),0,Hd*.5+.4,0);put(cb(8,Wd*.5,.8,.3,steel),0,-Hd*.5-.4,0);
-  for(const sg of[-1,1])put(cb(6,.7,Hd*.5,.25,accent),-3,0,sg*(Wd*.5+.35));
-  put(cb(.8,Wd,Hd,.6,silver2),6.4,0,0);
-  pods.forEach((p,i)=>{
-   const len=i?4.2:6.5,x0=6.8;const blk=cb(len,p.zm*2+.6,p.ym*2+.6,Math.min(p.zm,p.ym)*.35,i?silver:silver2);put(blk,x0+len/2,p.y,p.z);
-   put(cb(len*.55,p.zm*2+.9,.5,.15,steel),x0+len*.4,p.y+p.ym+.55,p.z);put(cb(.5,.5,p.ym*2+.4,.15,accent),x0+len*.5,p.y,p.z+p.zm+.4);
-   const xf=x0+len;
-   for(const[zz,yy,s2]of p.nz){const rr=r*p.s*s2*.62;put(port(rr),xf+.15,p.y+yy,p.z+zz);put(railOut(i?4.2:6,rr),xf+.15,p.y+yy,p.z+zz)}});
+ if(v==='x'){ // батарея: единая броневая морда, решётка портов, стволы лишь выглядывают
+  const n=+q.get('n')||30,r=.8,pt=r*3.3;
+  const rows=Math.max(1,Math.round(Math.sqrt(n/1.8))),cols=Math.ceil(n/rows);
+  const Wd=cols*pt+3,Hd=rows*pt*.9+3;
+  put(cb(12,Wd*.7,Hd*.7,2.4,silver),-10,0,0);put(cb(9,Wd*.88,Hd*.88,2.6,silver2),-2,0,0);put(cb(5,Wd,Hd,3,silver),5,0,0);
+  put(cb(1,Wd*.96,Hd*.96,2.8,steel),8,0,0);
+  for(const sg of[-1,1]){put(cb(7,.5,Hd*.5,.2,accent),0,0,sg*(Wd*.5+.1));put(cb(7,Wd*.5,.5,.2,steel),0,sg*(Hd*.5+.1),0)}
+  
+  let k=0;for(let i=0;i<rows&&k<n;i++){const cnt=Math.min(cols,n-k);for(let j=0;j<cnt;j++,k++){
+   const z=(j-(cnt-1)/2)*pt+((i%2&&cnt===cols)?pt*.0:0),y=((rows-1)/2-i)*pt*.9;
+   put(port(r),8.55,y,z);put(railOut(2.2,r),8.55,y,z)}}
  }
  // стабилизаторы 45/30
  for(const sg of[-1,1]){const sp=5,st=poly([[-4,0],[-4-sp,sp],[-4-sp-1.4,sp],[-4-sp-1.4+sp*T30*2,0]],.5,.15,silver);st.rotation.x=-Math.PI/2;st.position.set(-3,0,sg*(v==='d'||v==='e'?8.2:5));if(sg>0)st.scale.set(1,1,-1);g.add(st)}
