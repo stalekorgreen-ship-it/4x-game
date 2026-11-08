@@ -145,12 +145,12 @@ if (wrap && bgo) {
     g.scale(len, h, w); return g;
   }
   // сечение корпуса зависит от двигателей: сопла стоят сеткой без наложения, при тяжёлых двигателях и малом тоннаже корабль выходит короче и «квадратнее»
-  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = Math.max(1, Math.min(24, s.engN || 3)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
+  function shipDims(s: any) { const L = s.T.L, mp = massParts(s.spec || { rails: 10, flak: 2, tons: L * TON_L }), ne = Math.max(1, Math.min(24, s.engN || 3)), noE = !!(s.spec && s.spec.real && !(s.spec.engT > 0)), cols = Math.ceil(Math.sqrt(ne)), rows = Math.ceil(ne / cols);
     // поперечное сечение корабля задаёт масса двигателей: 1000 т → ~44 м, 5000 т → ~220 м (массивнее прежних 20/100 м), но не тоньше 7,5% длины, независимо от длины корпуса
     const S = Math.min(L * 3, Math.max(L * .075, (mp.parts.eng || 0) / TON_L * 2.2)), d = S / Math.max(cols, rows) * .95;
-    return { W: S, H: S, ne, d, cols, rows } }
+    return { W: S, H: S, ne: noE ? 0 : ne, d, cols, rows } }
   function hullGeo(s: any, seed: number) {
-    const R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
+    const RL = !!(s.spec && s.spec.real), hasMast = !RL || ((s.spec.scList || []).length > 0 || s.spec.fcsN > 0 || s.spec.ew > 0), R = rng(seed), P = PAL[s.side], L = s.T.L, D0 = s._dims || (s._dims = shipDims(s)), W = D0.W, H = D0.H, parts: THREE.BufferGeometry[] = [];
     const shade = (c: number, f: number) => new THREE.Color(c).multiplyScalar(f).getHex();
     // хребет из блоков: участки идут по модулям корабля (корма → нос), длина участка пропорциональна массе модулей
     const x0 = -L * .5, x1 = L * .34, Lk = x1 - x0; const seg: any[] = [];
@@ -189,30 +189,30 @@ if (wrap && bgo) {
       { const dN = dimsAt(x1); parts.push(piece(unitBox, shade(dN.col, .8), xe - L * .004, dN.cy, 0, L * .008, dN.h * .65 * .985, dN.w * .65 * .985)) } // торцевая плита носа
       // кормовые стабилизаторы и бортовые спонсоны — силуэт «как на концептах»
       const fin = (sd: number, vy: number) => parts.push(piece(taper(1, 1, 1, .15), shade(P.dark, 1.1), x0 + L * .1, vy * H * .5, sd * W * .62, L * .2, H * .08, W * .5, 0));
-      for (const sd of [-1, 1]) { finI.push({ pi: parts.length, sd, xc: x0 + L * .1, hl: L * .1 }); fin(sd, 0); finI.push({ pi: parts.length, sd, xc: x0 + L * .3, hl: L * .15 }); parts.push(piece(taper(1, 1, 1, .2), shade(P.main, .8), x0 + L * .3, 0, sd * W * .5, L * .3, H * .15, W * .55)) } }
+      for (const sd of (RL && !(D0.ne > 0) ? [] : [-1, 1])) { finI.push({ pi: parts.length, sd, xc: x0 + L * .1, hl: L * .1 }); fin(sd, 0); finI.push({ pi: parts.length, sd, xc: x0 + L * .3, hl: L * .15 }); parts.push(piece(taper(1, 1, 1, .2), shade(P.main, .8), x0 + L * .3, 0, sd * W * .5, L * .3, H * .15, W * .55)) } }
     // верхние блоки и рубка
-    for (let i = 0; i < 9; i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
+    for (let i = 0; i < (RL ? 0 : 9); i++) { const sg = seg[Math.floor(R() * seg.length)], len = sg.len * (.4 + R() * .5), h = H * (.15 + R() * .3), w = sg.w * (.3 + R() * .5);
       parts.push(piece(unitBox, shade(R() < .5 ? P.dark : P.main, .8 + R() * .4), sg.cx + (R() - .5) * sg.len * .5, sg.cy + sg.h / 2 + h / 2, (R() < .5 ? -1 : 1) * sg.w * .38, len, h * .7, w * .22)) }
     const bs = seg[seg.length - 1], bh = H * 1.4, bx = bs.cx;
     parts.push(piece(unitBox, P.dark, bx, bs.cy + bs.h / 2 + bh * .25, 0, L * .07, bh * .5, W * .55));
     parts.push(piece(unitBox, P.acc2, bx + L * .005, bs.cy + bs.h / 2 + bh * .6, 0, L * .055, bh * .22, W * .5));
     parts.push(piece(unitBox, P.glow, bx + L * .006, bs.cy + bs.h / 2 + bh * .6, 0, L * .057, bh * .06, W * .52));
     parts.push(piece(unitBox, P.main, bx, bs.cy + bs.h / 2 + bh * .86, 0, L * .04, bh * .2, W * .36));
-    for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.05, z * W * .12, L * .004, bh * .3, L * .004));
-    parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3));
+    if (hasMast) { for (const z of [-1, 1]) parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.05, z * W * .12, L * .004, bh * .3, L * .004));
+    parts.push(piece(unitBox, 0x8a8f99, bx - L * .01, bs.cy + bs.h / 2 + bh * 1.6, 0, L * .004, L * .004, W * .3)); }
     if (s.T.role === 'station' || (s.spec && s.spec.role === 'station')) { // станция: вращающееся кольцо на спицах и солнечные панели
       const xc = x0 + Lk * .55, Rr = L * .3, tube = L * .022, ring = new THREE.TorusGeometry(Rr, tube, 8, 40).rotateY(Math.PI / 2);
       parts.push(piece(ring, shade(P.main, .9), xc, 0, 0)); parts.push(piece(new THREE.TorusGeometry(Rr * .985, tube * .45, 6, 40).rotateY(Math.PI / 2), P.glow, xc, 0, 0));
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; parts.push(piece(unitBox, shade(P.dark, 1.2), xc, Math.sin(a) * Rr * .5, Math.cos(a) * Rr * .5, L * .012, L * .012 + Math.abs(Math.sin(a)) * Rr, L * .012 + Math.abs(Math.cos(a)) * Rr)) }
       for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { parts.push(piece(unitBox, 0x1d3a5e, x0 + Lk * (.25 + k * .25), 0, sd * (W * 1.6 + Rr * .0), L * .2, L * .004, L * .12)); parts.push(piece(unitBox, 0x8a8f99, x0 + Lk * (.25 + k * .25), 0, sd * W * .6, L * .01, L * .008, W * 1.2)) } }
     // грибы мелкой фурнитуры
-    for (let i = 0; i < 50; i++) { const sg = seg[Math.floor(R() * seg.length)], a = R() < .6, r = L * (.003 + R() * .006);
+    for (let i = 0; i < (RL ? 0 : 50); i++) { const sg = seg[Math.floor(R() * seg.length)], a = R() < .6, r = L * (.003 + R() * .006);
       parts.push(piece(unitBox, shade(R() < .5 ? P.acc : 0x6a707c, .8 + R() * .4), sg.cx + (R() - .5) * sg.len, a ? sg.cy + sg.h / 2 + r / 2 : sg.cy + (R() - .5) * sg.h, a ? (R() < .5 ? -1 : 1) * sg.w * (.3 + R() * .15) : (R() < .5 ? -1 : 1) * (sg.w / 2 + r / 2), r * (1 + R() * 2), r, r * (1 + R() * 1.5))) }
     // кормовой блок и сопла
     const ne = D0.ne;
-    parts.push(piece(unitBox, P.dark, x0 - L * .02, 0, 0, L * .06, H * 1.15, W * 1.05));
+    if (ne > 0) parts.push(piece(unitBox, P.dark, x0 - L * .02, 0, 0, L * .06, H * 1.15, W * 1.05));
     const nozz: any[] = [];
-    { const cols = D0.cols, rows = D0.rows, pz = W * .94 / cols, py = H * .94 / rows, r = Math.min(D0.d / 2, pz * .46, py * .46); let i = 0;
+    if (ne > 0) { const cols = D0.cols, rows = D0.rows, pz = W * .94 / cols, py = H * .94 / rows, r = Math.min(D0.d / 2, pz * .46, py * .46); let i = 0;
       for (let rw = 0; rw < rows && i < ne; rw++) for (let c = 0; c < cols && i < ne; c++, i++) { const zz = (c - (cols - 1) / 2) * pz, yy = (rw - (rows - 1) / 2) * py;
         parts.push(piece(unitCyl, 0x16181d, x0 - L * .06, yy, zz, L * .07, r * 2.1, r * 2.1)); parts.push(piece(unitCyl, 0x23262d, x0 - L * .105, yy, zz, L * .045, r * 2.5, r * 2.5)); nozz.push({ z: zz, y: yy, r }) } }
     // 200 жёстких точек крепления по всему корпусу: сверху, снизу и с обоих бортов (грани 0 верх, 1 правый, 2 низ, 3 левый)
@@ -871,8 +871,8 @@ if (wrap && bgo) {
   // превью корабля из конструктора: отдельный мини-бой с одним кораблём, камера медленно крутится вокруг него
   let pv: any = null;
   function pvShow(parts: any, host: HTMLElement) {
-    const spec = previewSpec(parts); if (!spec) return;
-    const cfg = { fleets: [[spec], []], env: false, title: 'Превью', onEnd: () => {} };
+    const spec = previewSpec(parts); // пустой или негодный проект: корабля нет
+    const cfg = { fleets: [spec ? [spec] : [], []], env: false, title: 'Превью', onEnd: () => {} };
     if (!pv) { pv = { b: makeBattle(), host, drag: false, wasOn: on, SC0: SC, v0: [yaw, pitch, dist] }; if (!ren) init(); const cvp = ren!.domElement as HTMLElement; cvp.addEventListener('pointerdown', pv.dn = () => { if (pv) pv.drag = true }); addEventListener('pointerup', pv.up = () => { if (pv) pv.drag = false }); (pv.b as any).beginBg(cfg); on = true; SC = 1; reset3d(); pvAim(true) }
     else { pv.host = host; (pv.b as any).beginBg(cfg); const k = [yaw, pitch, dist]; reset3d(); pvAim(false); yaw = k[0]; pitch = k[1] }
     (ren!.domElement as HTMLElement).style.display = 'block'; hud.style.display = 'none'; cancelAnimationFrame(raf); frame();
