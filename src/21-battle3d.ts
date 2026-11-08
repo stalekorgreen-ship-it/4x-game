@@ -4,7 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Battle, Battles, makeBattle } from './05-battle.ts';
 import { previewSpec } from './16b-botdesign.ts';
-import { massParts, TON_L, RAIL_CAL } from './01-data.ts';
+import { massParts, TON_L, RAIL_CAL, TRAIL_COL } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 
 const wrap = document.getElementById('mapwrap');
@@ -345,7 +345,7 @@ if (wrap && bgo) {
     else { u.body.geometry = simpleGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) }
     u.lod = lod;
   }
-  let stepFreeze = false; let ultraBuilds = 0; // вблизи — слой мелких деталей поверх полного корпуса (строится лениво, по одному на кадр)
+  const shTr = new Map<any, number[][]>(); let stepFreeze = false; let ultraBuilds = 0; // вблизи — слой мелких деталей поверх полного корпуса (строится лениво, по одному на кадр)
   function ultra(s: any, g: THREE.Group, want: boolean) {
     const u = g.userData; if (!want) { if (u.ultra) u.ultra.visible = false; return } if (u.ultra) { u.ultra.visible = true; return } if (u.ultraTried || ultraBuilds >= 1 || !u.full) return; ultraBuilds++; u.ultraTried = true;
     const ge = ultraGeo(s, u); if (!ge) return; u.ultra = new THREE.Mesh(ge, hullMat); u.ultra.frustumCulled = false; g.add(u.ultra);
@@ -771,11 +771,18 @@ if (wrap && bgo) {
       flashPts.geometry.setDrawRange(0, m); (flashPts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (flashPts.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true }
     // следы истребителей и бомбардировщиков
     {const ta = (trailLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, tc = (trailLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0;
-      for (const c of Battle.air() as any[]) { if (c.state !== 'fly' || !c.tr || c.tr.length < 4) continue; const y0 = c.home ? c.home.z : 0, y = c._yv != null ? c._yv : y0, n2 = c.tr.length, base = c.side ? [1, .55, .25] : [.45, .8, 1];
+      for (const c of Battle.air() as any[]) { if (c.state !== 'fly' || !c.tr || c.tr.length < 4) continue; const y0 = c.home ? c.home.z : 0, y = c._yv != null ? c._yv : y0, n2 = c.tr.length, sf = c._sf != null ? c._sf : 1, base = (c.P && c.P.trail && TRAIL_COL[c.P.trail] ? TRAIL_COL[c.P.trail] : (c.side ? [1, .55, .25] : [.45, .8, 1])).map((v: number) => v * (.2 + .8 * sf));
         let px = c.x, py = c.y; const cnt = n2 / 2;
         for (let i = n2 - 2, q = 0; i >= 0 && k < MAXT; i -= 2, q++) { const o = k * 6, f = Math.max(0, 1 - q / cnt) * .8, f2 = Math.max(0, 1 - (q + 1) / cnt) * .8;
           ta[o] = px; ta[o + 1] = y0 + (y - y0) * Math.max(0, 1 - q / cnt); ta[o + 2] = py; ta[o + 3] = c.tr[i]; ta[o + 4] = y0 + (y - y0) * Math.max(0, 1 - (q + 1) / cnt); ta[o + 5] = c.tr[i + 1];
           tc[o] = base[0] * f; tc[o + 1] = base[1] * f; tc[o + 2] = base[2] * f; tc[o + 3] = base[0] * f2; tc[o + 4] = base[1] * f2; tc[o + 5] = base[2] * f2; px = c.tr[i]; py = c.tr[i + 1]; k++ } }
+      // следы кораблей: чем быстрее корабль, тем ярче и длиннее трассер
+      for (const sh of Battle.ships() as any[]) { let tr = shTr.get(sh); if (!sh.alive) { shTr.delete(sh); continue } if (!tr) shTr.set(sh, tr = []);
+        const sp = Math.hypot(sh.sx || 0, sh.sy || 0), sf = Math.min(1, sp / 1.2), zz = sh.z || 0, last = tr.length ? tr[tr.length - 1] : null;
+        if (!stepFreeze && (!last || Math.hypot(last[0] - sh.x, last[2] - sh.y) > .12 + sh.T.L * .15)) { tr.push([sh.x, zz, sh.y]); } const cap = Math.round(4 + 36 * sf); while (tr.length > cap) tr.shift();
+        if (sf < .04 || tr.length < 2) continue; const base = (sh.trail && TRAIL_COL[sh.trail] ? TRAIL_COL[sh.trail] : (sh.side ? [1, .55, .25] : [.45, .8, 1]));
+        let px = sh.x, py = zz, pz = sh.y; for (let i = tr.length - 1, q = 0; i >= 0 && k < MAXT; i--, q++) { const o = k * 6, f = Math.max(0, 1 - q / tr.length) * (.15 + .85 * sf), f2 = Math.max(0, 1 - (q + 1) / tr.length) * (.15 + .85 * sf);
+          ta[o] = px; ta[o + 1] = py; ta[o + 2] = pz; ta[o + 3] = tr[i][0]; ta[o + 4] = tr[i][1]; ta[o + 5] = tr[i][2]; tc[o] = base[0] * f; tc[o + 1] = base[1] * f; tc[o + 2] = base[2] * f; tc[o + 3] = base[0] * f2; tc[o + 4] = base[1] * f2; tc[o + 5] = base[2] * f2; px = tr[i][0]; py = tr[i][1]; pz = tr[i][2]; k++ } }
       trailLines.geometry.setDrawRange(0, k * 2); (trailLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (trailLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     // мгновенные выстрелы ПВО/зениток: короткая вспышка линии, гаснет за 340 мс
     {const sa = (shotLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, sc2 = (shotLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let k = 0; const now2 = performance.now();

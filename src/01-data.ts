@@ -72,18 +72,23 @@ export const scl = (c, k) => {
 };
 export const mulCost = (c, m) => { for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * m)); };
 export const addCost = (c, r, v) => { c.cost[r] = (c.cost[r] || 0) + v; };
+export const snapNum = (v, min, max, def) => { let n = +v; if (!(n > 0)) n = def; n = Math.min(max, Math.max(min, n)); return +n.toPrecision(3); };
+export const ZS = def => ({id: 'zs', name: 'Размер (0.01–50)', def: String(def || 1), num: {min: 0.01, max: 50}});
 export const snapPct = v => { let n = +v; if (!(n > 0)) n = 100; n = Math.min(500, n); return n < 5 ? 1 : Math.round(n / 5) * 5; };
-export const engOpts = def => [{id: 'pw', name: 'Мощность, %', def: '100', range: true}, O('tune', 'Настройка', 'n', [['e', 'эконом'], ['n', 'стандарт'], ['b', 'форсаж']])];
+export const engOpts = def => [{id: 'pw', name: 'Мощность, %', def: '100', range: true}, ZS(1), O('tune', 'Настройка', 'n', [['e', 'эконом'], ['n', 'стандарт'], ['b', 'форсаж']])];
 // чем больше двигатель, тем выше КПД и легче каждая единица мощности
 export const engAp = (c, s) => {
-  const k = +s.pw.v / 100, e0 = c.eff;
+  const k = +s.pw.v / 100, z = +s.zs.v; // размер: чем крупнее корпус, тем больше тяга и выше КПД, но тяжелее
+  c.mass = c.mass * Math.pow(z, 0.8); c.power = c.power * Math.pow(z, 0.9); c.eff = c.eff * Math.min(2.5, Math.max(0.5, 1 + 0.1 * Math.log2(z)));
+  for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * Math.pow(z, 0.8)));
+  const e0 = c.eff;
   c.power = c.power * k; c.mass = Math.max(0.1, Math.round(c.mass * Math.pow(k, 0.85) * 10) / 10);
   c.eff = e0 * Math.max(0.3, 1 + 0.18 * Math.log2(k));
   for (const r in c.cost) c.cost[r] = Math.max(1, Math.round(c.cost[r] * Math.pow(k, 0.9)));
   if (s.tune.v === 'e') { c.power *= 0.8; c.eff *= 1.2; } else if (s.tune.v === 'b') { c.power *= 1.3; c.eff *= 0.8; c.mass = Math.round(c.mass * 11) / 10; }
   c.power = Math.round(c.power * 10) / 10; c.eff = Math.round(c.eff * 100) / 100;
   c.size = Math.round(2 * Math.cbrt(c.mass) * 10) / 10;
-  c.desc = `${s.pw.v}% · мощность ${c.power}, КПД ${c.eff}, габарит ~${c.size} м`;
+  c.desc = `${s.pw.v}% · размер ×${s.zs.v} · мощность ${c.power}, КПД ${c.eff}, габарит ~${c.size} м`;
 };
 export const sizeAp = (txt) => (c, s) => { scl(c, SZK[s.sz.v]); c.desc = txt(c); };
 COMP.ion.opts = engOpts(20); COMP.ion.ap = engAp;
@@ -142,9 +147,9 @@ COMP.rail.ap = (c, s) => {
 };
 // --- зенитка ---
 export const FLK = {20: {blast: 0.8, rng: 45, rel: 0.7, m: 3}, 40: {blast: 1.2, rng: 60, rel: 1, m: 5}, 76: {blast: 1.8, rng: 75, rel: 1.4, m: 9}};
-COMP.ammo.opts = [O('t', 'Ёмкость, т', '100', [['20', '20'], ['50', '50'], ['100', '100'], ['200', '200'], ['500', '500'], ['1000', '1000']])];
+COMP.ammo.opts = [O('t', 'Ёмкость, т', '100', [['2', '2'], ['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100'], ['200', '200'], ['500', '500'], ['1000', '1000']])];
 COMP.ammo.ap = (c, s) => { const t = +s.t.v; c.ammoCap = t; c.mass = Math.round(t * 1.1); c.cost = {fe: Math.round(t * .6), cu: Math.round(t * .2), ti: Math.max(1, Math.round(t * .1))}; c.name = `Погреб ${t} т`; c.desc = `${t} т боеприпасов: рельсотрон тратит 2 т/ч на ствол, пулемёт Гатлинга 5 т/ч`; };
-COMP.reactor.opts = [O('p', 'Мощность, МВт', '100', [['20', '20'], ['50', '50'], ['100', '100'], ['300', '300'], ['1000', '1000'], ['5000', '5000']])];
+COMP.reactor.opts = [O('p', 'Мощность, МВт', '100', [['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100'], ['300', '300'], ['1000', '1000'], ['5000', '5000']])];
 COMP.reactor.ap = (c, s) => { const p = +s.p.v; c.en = p; c.mass = Math.round(p * 0.6); c.cost = {fe: Math.round(p * .4), cu: Math.round(p * .5), u: Math.max(1, Math.round(p / 50)), ti: Math.max(1, Math.round(p / 10))}; c.name = `Реактор ${p} МВт`; c.desc = `${p} МВт: питает конденсаторы рельсотронов (2 МВт на конденсатор) и лазер (800 МВт на подзарядку)`; };
 COMP.gat.opts = [O('tw', 'Установка', '0', [['0', 'одиночный'], ['1', 'спаренный']])];
 COMP.gat.ap = (c, s) => { const tw = +s.tw.v; c.mass = tw ? 45 : 25; c.cost = {fe: tw ? 36 : 20, cu: tw ? 26 : 14, si: tw ? 14 : 8};
@@ -199,21 +204,21 @@ export const crewLabel = (c, n) => { const x = crewNum(c); if (!x) return 'пе�
 export const _cc = {};
 export const baseOf = k => k.split('|')[0];
 export function parseKey(k) { const [b, ...r] = k.split('|'), o = {}; for (const x of r) { const i = x.indexOf('='); o[x.slice(0, i)] = x.slice(i + 1); } return [b, o]; }
-export function mkKey(b, o) { const c = COMP[b]; return c.opts ? b + '|' + c.opts.map(p => p.id + '=' + (p.range ? snapPct((o && o[p.id]) || p.def) : ((o && o[p.id]) || p.def))).join('|') : b; }
+export function mkKey(b, o) { const c = COMP[b]; return c.opts ? b + '|' + c.opts.map(p => p.id + '=' + (p.range ? snapPct((o && o[p.id]) || p.def) : p.num ? snapNum((o && o[p.id]) || p.def, p.num.min, p.num.max, +p.def) : ((o && o[p.id]) || p.def))).join('|') : b; }
 export function compOf(key) {
-  if (_cc[key]) return _cc[key];
+  if (_cc[key] && !key.startsWith('hangar_f')) return _cc[key];
   const [b, o] = parseKey(key), base = COMP[b]; if (!base) return null;
   let c = base;
   if (base.opts) {
     c = {...base, cost: {...base.cost}}; const sel = {};
-    for (const p of base.opts) sel[p.id] = p.range ? {v: String(snapPct(o[p.id] || p.def))} : (p.vals.find(v => v.v === o[p.id]) || p.vals.find(v => v.v === p.def));
+    for (const p of base.opts) sel[p.id] = p.range ? {v: String(snapPct(o[p.id] || p.def))} : p.num ? {v: String(snapNum(o[p.id] || p.def, p.num.min, p.num.max, +p.def))} : p.dyn ? {v: o[p.id] || p.def, l: ''} : (p.vals.find(v => v.v === o[p.id]) || p.vals.find(v => v.v === p.def));
     base.ap(c, sel);
   }
   if (MIL_MASS[b]) { c = {...c, cost: {...c.cost}}; c.mass = Math.round(c.mass * MIL_MASS[b]); }
-  c.base = b; return _cc[key] = c;
+  c.base = b; if (b === 'hangar_f') return c; return _cc[key] = c;
 }
 // боевые модули в реальных тоннах (множитель к базовой массе); рельсы и ангары заданы сразу в тоннах
-const MIL_MASS = {flak: 22, lgun: 20, missile: 30, irs: 20, ems: 20, radar: 30, fcs: 25, ew: 25, marines: 40, dcon: 25, sink: 30};
+const MIL_MASS = {flak: 22, lgun: 20, missile: 30, irs: 20, ems: 20, radar: 30, fcs: 2, ew: 25, marines: 40, dcon: 25, sink: 30};
 
 export const FIELDS = {phys: 'Физика', eng: 'Инженерия', bio: 'Биология'};
 export const RES = {fe:'Железо', ni:'Никель', ti:'Титан', cu:'Медь', si:'Кремний', c:'Углерод', ice:'Лёд', pt:'Платиноиды', ree:'Редкоземельные', n2:'Азот', co2:'Углекислый газ', ch4:'Метан', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
@@ -506,6 +511,23 @@ for (const b of ['rail', 'gat', 'flak', 'lgun', 'missile']) {
     for (const k of ['rcfg', 'fcfg', 'gcfg', 'lcfg', 'mcfg']) if (c[k]) { c[k] = {...c[k], ax: 1}; if (c[k].mass != null) c[k].mass = c.mass; }
     c.name += ' · осевое'; c.desc = 'ОСЕВОЕ (в носу, ±10°, вес ÷3): ' + c.desc; } };
 }
+// размер 0.01–50 для лёгких модулей: масса и цена растут как размер^0.8, дальность/каналы — медленнее
+for (const b of ['radar', 'irs', 'ems', 'fcs', 'ew', 'sink', 'dcon']) {
+  const C = COMP[b], ap0 = C.ap; C.opts = [...(C.opts || []), ZS(1)];
+  C.ap = (c, s) => { if (ap0) ap0(c, s); const z = +s.zs.v; c.mass = Math.max(0.05, Math.round(c.mass * Math.pow(z, 0.8) * 100) / 100); mulCost(c, Math.pow(z, 0.7)); if (c.scRng) c.scRng = Math.round(c.scRng * Math.pow(z, 0.25)); if (c.ew) c.ew = Math.max(0.05, c.ew * Math.pow(z, 0.5)); if (c.fcs) c.fcs = Math.max(1, Math.round(c.fcs * Math.pow(z, 0.5))); if (c.sink) c.sink = Math.max(0.05, c.sink * z); if (c.dcon) c.dcon = Math.max(0.05, c.dcon * z); if (z !== 1) c.desc += ` · размер ×${s.zs.v}`; };
+}
+// размер 0.01–50 для ёмкостей: вместимость ∝ размер, масса ∝ размер^0.9
+for (const b of ['tank', 'cabin', 'life', 'cargo', 'spares', 'laser']) {
+  const C = COMP[b], ap0 = C.ap; C.opts = [...C.opts, ZS(1)]; if (b === 'laser') COMP.laser2.opts = C.opts;
+  C.ap = (c, s) => { ap0(c, s); const z = s.zs ? +s.zs.v : 1; if (z === 1) return; scl(c, z);
+    const ex = [c.fuel && `топливо ${Math.round(c.fuel * 100) / 100} т`, c.cargo && `груз ${Math.round(c.cargo * 100) / 100} т`, c.crew && `${c.crew} мест`, c.life && `жизнеобеспечение на ${c.life}`, c.mine && `добыча ${Math.round(c.mine * 100) / 100} т/сут`, c.spares && `${Math.round(c.spares)} тех. изделий`].filter(Boolean);
+    c.desc = `Размер ×${s.zs.v}: ${ex.join(', ')}`; };
+}
+// трассер: цвет следа за кораблём; яркость и длина следа растут со скоростью
+export const TRAIL_COL = {c: [.45, .8, 1], r: [1, .3, .25], g: [.4, 1, .45], y: [1, .85, .3], v: [.75, .45, 1], w: [1, 1, 1], o: [1, .55, .2]};
+COMP.trail = {name: 'Трассер-генератор', desc: 'Цветной след за кораблём: чем быстрее корабль, тем ярче и длиннее', mass: 0.1, cost: {fe: 1, cu: 1}};
+COMP.trail.opts = [O('col', 'Цвет', 'c', [['c', 'голубой'], ['r', 'красный'], ['g', 'зелёный'], ['y', 'жёлтый'], ['v', 'фиолетовый'], ['w', 'белый'], ['o', 'оранжевый']])];
+COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «${s.col.l}»: ярче и длиннее на скорости`; };
 /* ===== ПРОЕКТЫ ===== */
 // flags: {station, tanker}
 export function designStats(parts, flags) {
@@ -533,6 +555,7 @@ export function designStats(parts, flags) {
     if (c.lcfg) for (let i = 0; i < n; i++) r.lasList.push(c.lcfg);
     r.ammoCap = (r.ammoCap || 0) + (c.ammoCap || 0) * n; r.energy = (r.energy || 0) + (c.en || 0) * n;
     if (c.mcfg) for (let i = 0; i < n; i++) r.misList.push(c.mcfg);
+    if (c.trail) r.trail = c.trail; if (c.fq && c.fq.trail) r.fqTrail = c.fq.trail;
     r.lgun += (c.lgun || 0) * n; r.msl += (c.msl || 0) * n;
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
@@ -550,7 +573,7 @@ export function designStats(parts, flags) {
     r.energyLeft = ws ? Math.max(0, (r.energy || 0) - ed) : (r.energy || 0); }
   r.eff = r.power ? effSum / r.power : 1;
   r.defl = r.armor ? r.defl / r.armor : 0;
-  if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; }
+  if (r.hangF) { r.fq = {}; for (const k of CR_KEYS) r.fq[k] = r.fqS[k] / r.hangF; if (r.fqTrail) r.fq.trail = r.fqTrail; }
   if (r.hangB) { r.bq = {}; for (const k of CR_KEYS) r.bq[k] = r.bqS[k] / r.hangB; }
   r.fire = r.railList.reduce((a, q) => a + q.dmg * q.shells * 60 / (60 * q.rel), 0);
   r.jam = r.railList.length ? r.railList.reduce((a, q) => a + q.fail, 0) / r.railList.length : 0;
@@ -580,6 +603,12 @@ export function designStats(parts, flags) {
   { const share = r.dry ? (r.engM || 0) / r.dry * 100 : 0, f = r.engFactor || 1; r.fuelRate = (r.fuelS || 0) * (1 - Math.min(.9, share / 100)) * f * f; } // т/с на полной тяге
   r.speedFull = r.power && r.dry ? r.power / (r.dry / 2) * 1000 * 86400 / AU_M : 0;
   r.range = r.speedFull && r.fuelCap ? r.fuelCap / (r.fuelRate * 86400 / r.speedFull) : 0;
+  if (flags.craft) { // истребитель: корабль до 500 т без собственных ангаров
+    if (r.dry > FGT_MAX) r.errors.push(`Истребитель тяжелее ${FGT_MAX} т (сейчас ${Math.round(r.dry)} т).`);
+    if (r.hangars) r.errors.push('Истребитель не может нести ангары.');
+    if (!r.rail && !r.gat) r.warns.push('Без пушек истребитель никого не собьёт: поставьте рельсотрон или пулемёт (лучше осевое крепление — втрое легче).');
+    if ((r.rail || r.gat) && !r.ammoCap) r.warns.push('Нет погреба: у истребителя не будет боезапаса.');
+  }
   if (r.dry === 0) r.errors.push('Проект пуст.');
   if (!r.station) {
     if (!r.power) r.errors.push('Нужен хотя бы один двигатель.');
@@ -666,3 +695,39 @@ export function createStation(job, crew) {
 }
 export const groupOf = s => state.groups.find(g => g.id === s.groupId) || null;
 export const programOf = s => groupOf(s) || s.own;
+
+/* ===== ИСТРЕБИТЕЛИ КАК НАСТОЯЩИЕ КОРАБЛИ ===== */
+export const FGT_MAX = 500;
+export const CR_PRE = {
+  'p:l': {name: 'Перехватчик (лёгкий)', parts: {[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 4, [mkKey('reactor', {p: '50'})]: 1, [mkKey('tank', {zs: '0.5'})]: 1, [mkKey('ammo', {t: '10'})]: 1, [mkKey('rail', {cal: '5', bar: '1', ld: 'a', cap: '10', saf: '0', mnt: 'a'})]: 3, [mkKey('cabin', {zs: '0.5'})]: 1, [mkKey('life', {zs: '0.5'})]: 1, armor: 2}},
+  'p:s': {name: 'Истребитель (обычный)', parts: {[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 6, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {zs: '0.5'})]: 1, [mkKey('ammo', {t: '20'})]: 1, [mkKey('rail', {cal: '5', bar: '1', ld: 'a', cap: '10', saf: '0', mnt: 'a'})]: 5, [mkKey('cabin', {zs: '0.5'})]: 1, [mkKey('life', {zs: '0.5'})]: 1, armor: 4}},
+  'p:h': {name: 'Штурмовик (тяжёлый)', parts: {[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 8, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {zs: '0.7'})]: 1, [mkKey('ammo', {t: '50'})]: 1, [mkKey('rail', {cal: '10', bar: '1', ld: 'a', cap: '10', saf: '0', mnt: 'a'})]: 3, [mkKey('cabin', {zs: '0.5'})]: 1, [mkKey('life', {zs: '0.5'})]: 1, armor: 8}},
+};
+export const craftList = () => [...Object.entries(CR_PRE).map(([id, v]) => ({id, name: v.name, parts: v.parts})), ...((() => { try { return state.designs || []; } catch (e) { return []; } })().filter(d => d.craft))];
+export const craftById = id => craftList().find(d => d.id === id) || craftList()[1];
+const _crMemo = {};
+export const craftStats = d => d.id && d.id.startsWith('p:') ? (_crMemo[d.id] = _crMemo[d.id] || designStats(d.parts, {craft: true})) : designStats(d.parts, {craft: true});
+// параметры боевого аппарата из реального проекта: скорость, прочность, пушки и запасы берутся из деталей
+export function craftFromStats(st) {
+  const mps = (st.speedFull || 0) * AU_M / 86400, vmax = Math.min(12, Math.max(0.5, mps / 1000 * 5));
+  const burn = st.fuelRate > 0 && st.fuelCap ? st.fuelCap / st.fuelRate : 1200; // секунд полной тяги
+  let dps = 0, ng = 0, rng = 0;
+  for (const q of st.railList) { dps += q.dmg * q.shells / Math.max(0.2, 60 * q.rel); ng++; rng = Math.max(rng, q.rng * 0.1); }
+  for (const q of st.gatList) { dps += 1.2; ng++; rng = Math.max(rng, 4); }
+  ng = Math.min(8, ng); const cd = 0.8, dmg = ng ? dps * cd / ng : 0;
+  return {n: 10, hp: Math.max(3, Math.min(40, Math.round(3 + (st.armor || 0) * 1.5 + st.dry / 50))), vmax, a: vmax * .125, fuel: Math.max(120, Math.min(3600, burn)), ammo: Math.min(600, Math.round((st.ammoCap || 0) * 10)), ng, dmg, cd, gun: Math.max(3, Math.min(9, rng)), mass: Math.round(st.dry), torp: 0, trail: st.trail || null, mps: Math.round(mps)};
+}
+// ангар теперь вмещает настоящие истребители из проекта
+export function syncCraftOpts() { const o = COMP.hangar_f.opts[0]; o.vals = craftList().map(d => ({v: d.id, l: d.name})); }
+COMP.hangar_f.opts = [{id: 'ds', name: 'Проект истребителя', def: 'p:s', dyn: true, vals: []}, {id: 'nn', name: 'Число в ангаре', def: '10', num: {min: 1, max: 200}}];
+syncCraftOpts();
+let _crDepth = 0;
+COMP.hangar_f.ap = (c, s) => {
+  if (_crDepth > 1) { c.hangF = 1; c.fq = {...CR_DEF.F}; c.mass = 100; c.cost = {fe: 6}; return; }
+  _crDepth++; try {
+  const d = craftById(s.ds.v), st = craftStats(d), q = craftFromStats(st), n = Math.max(1, Math.round(+s.nn.v));
+  q.n = n; c.hangF = n; c.fq = q; c.mass = Math.round(n * q.mass * 1.15); c.cost = {fe: Math.round(n * 6), si: Math.round(n * 2), ti: Math.round(n * 1)};
+  c.name = `Ангар: ${d.name}`; c.desc = `${n} × «${d.name}»: ${q.mass} т, ${q.mps} м/с, прочность ${q.hp}, пушек ${q.ng}, боезапас ${q.ammo}, ${Math.round(q.fuel / 60)} мин тяги`;
+  if (st.errors.length) c.desc += ' · ОШИБКА проекта: ' + st.errors[0];
+  } finally { _crDepth--; }
+};

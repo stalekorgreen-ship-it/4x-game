@@ -36,7 +36,7 @@ function weaponsPart(sp, g) {
   if (nf) add(p, mkKey('flak', {cal: '40', rt: 'n', saf: '0'}), nf);
   if (sp.lasers && sp.laserCfg && sp.laserCfg[0]) { const L = sp.laserCfg[0]; add(p, mkKey('lgun', {lens: String(L.lens || 20), dur: String(L.dur || 5), caps: String(L.caps || 100)}), 1); }
   if (sp.miss) { const m = MS[g.ms]; add(p, mkKey('missile', {pw: m[0], en: m[1], fu: m[2], em: m[3], ir: m[4], ac: m[5], hm: m[6], mt: '50'}), Math.max(1, Math.round(sp.miss * k))); }
-  if (sp.F) { const key = mkKey('hangar_f', {cl: g.cl, en: '100', fu: '20', gn: g.gn, am: '120'}); add(p, key, Math.max(1, Math.ceil(sp.F / (compOf(key).hangF || 10)))); }
+  if (sp.F) { const key = mkKey('hangar_f', {ds: 'p:' + (g.cl || 's'), nn: '10'}); add(p, key, Math.max(1, Math.ceil(sp.F / (compOf(key).hangF || 10)))); }
   if (sp.B) { const key = mkKey('hangar_b', {cl: g.cl === 'l' ? 's' : g.cl, en: '100', fu: '30'}); add(p, key, Math.max(1, Math.ceil(sp.B / (compOf(key).hangB || 5)))); }
   const arm = Math.max(0, Math.min(12, (sp.arm || 0) + g.armAdj));
   if (arm) add(p, 'armor', arm);

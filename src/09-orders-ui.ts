@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { techArt } from './17-art.ts';
-import { veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
+import { syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
@@ -196,8 +196,8 @@ ui.y = {design: null, count: 1, group: null};
 export function costTxt(c) { return Object.entries(c).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v)}`).join(', '); }
 export const yDesign = () => state.designs.find(x => x.id === ui.y.design);
 export const isStationDesign = () => { const d = yDesign(); return !!(d && designStats(d.parts).station); };
-export const designTag = d => { const s = designStats(d.parts), t = [s.station ? 'станция' : '', s.parts_hook ? '' : '', s.tow ? 'тягач' : '', s.tanker ? 'танкер' : '', s.lasers ? 'шахтёр' : '', s.warship ? 'боевой' : '', s.labsTotal ? 'учёный' : '', !s.station && s.cargoCap && !s.lasers ? 'грузовой' : ''].filter(Boolean); return t.length ? ' [' + t.join(', ') + ']' : ''; };
-export const dStats = d => designStats(d.parts);
+export const designTag = d => { const s = designStats(d.parts), t = [s.station ? 'станция' : '', s.parts_hook ? '' : '', s.tow ? 'тягач' : '', s.tanker ? 'танкер' : '', s.lasers ? 'шахтёр' : '', d.craft ? 'истребитель' : s.warship ? 'боевой' : '', s.labsTotal ? 'учёный' : '', !s.station && s.cargoCap && !s.lasers ? 'грузовой' : ''].filter(Boolean); return t.length ? ' [' + t.join(', ') + ']' : ''; };
+export const dStats = d => designStats(d.parts, d.craft ? {craft: true} : undefined);
 export function renderYard() {
   const y = ui.y, p = $('p-yard');
   if (!state.designs.find(d => d.id === y.design)) y.design = state.designs[0] ? state.designs[0].id : null;
@@ -273,9 +273,10 @@ function pv3d(on, refresh?) {
 export function renderDesigner(full) {
   const d = curDesign(); if (!d) return;
   if (ui.dpv) pv3d(null, true);
+  syncCraftOpts();
   $('dlist').innerHTML = state.designs.map(x => `<div class="item${x.id === d.id ? ' sel' : ''}" data-d="${x.id}">${esc(x.name)}<span class="muted">${designTag(x)}</span></div>`).join('');
   if (full) $('dname').value = d.name;
-  $('dflags').innerHTML = prioHtml(d); if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
+  $('dflags').innerHTML = prioHtml(d) + `<label class="row"><input type="checkbox" data-craft="1" ${d.craft ? 'checked' : ''}> Истребитель <span class="muted">(собирается как корабль, но до ${FGT_MAX} т; потом выбирается в «Ангаре истребителей»)</span></label>`; if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
     <label><input type="checkbox" data-flag="tanker" ${d.tanker ? 'checked' : ''}> Танкер <span class="muted">(передаёт топливо станциям и кораблям)</span></label>`;
   const ctl = (k, n) => `<span class="ct">${[-25, -5, -1].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Меньше">${v < -1 ? '−' + -v : '−'}</button>`).join('')}<b>${n}</b>${[1, 5, 25].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Больше">${v > 1 ? '+' + v : '+'}</button>`).join('')}</span>`;
   const used = b => Object.keys(d.parts).filter(k => d.parts[k] > 0 && baseOf(k) === b);
@@ -291,7 +292,7 @@ export function renderDesigner(full) {
   $('dcomps').innerHTML = tabs + CATS.filter(n => rowsC[n]).map(n => { const cnt = rowsC[n].reduce((a, [b]) => a + used(b).reduce((x, k) => x + d.parts[k], 0), 0); return `<button class="dcat" data-cat="${n}">${hid[n] ? '▸' : '▾'} ${n}${cnt ? ' · ' + cnt : ''}</button>` + (hid[n] ? '' : rowsC[n].map(([b, c]) => {
     if (!c.opts) return `<div class="comp"><span class="nm">${c.name}</span><span class="ds">${c.desc} · ${c.armW ? 'масса по длине корабля' : c.mass + ' т'} · ${costTxt(c.cost)} · ${crewLabel(c)}</span>${ctl(b, d.parts[b] || 0)}</div>`;
     const cur = ui.dopt[b] || {}, key = mkKey(b, cur), cc = compOf(key);
-    const sels = c.opts.map(p => p.range ? (v => `<label>${p.name}: <b>${v}%</b><span class="rg"><input type="range" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"><input type="number" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"></span></label>`)(snapPct(cur[p.id] || p.def)) : `<label>${p.name}<select data-op="${b}" data-oi="${p.id}">${p.vals.map(v => `<option value="${v.v}"${v.v === (cur[p.id] || p.def) ? ' selected' : ''}>${v.l}</option>`).join('')}</select></label>`).join('');
+    const sels = c.opts.map(p => p.num ? `<label>${p.name}<input type="number" min="${p.num.min}" max="${p.num.max}" step="0.01" value="${snapNum(cur[p.id] || p.def, p.num.min, p.num.max, +p.def)}" data-op="${b}" data-oi="${p.id}"></label>` : p.range ? (v => `<label>${p.name}: <b>${v}%</b><span class="rg"><input type="range" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"><input type="number" min="0" max="500" step="5" value="${v}" data-op="${b}" data-oi="${p.id}"></span></label>`)(snapPct(cur[p.id] || p.def)) : `<label>${p.name}<select data-op="${b}" data-oi="${p.id}">${p.vals.map(v => `<option value="${v.v}"${v.v === (cur[p.id] || p.def) ? ' selected' : ''}>${v.l}</option>`).join('')}</select></label>`).join('');
     const others = used(b).filter(k => k !== key).map(k => { const q = compOf(k); return `<div class="vr"><span>${q.name} <span class="muted">${q.desc} · ${q.armW ? 'масса по длине' : q.mass + ' т'}</span></span>${ctl(k, d.parts[k])}</div>`; }).join('');
     return `<div class="comp cfg"><span class="nm">${cc.name}</span><div class="opts">${sels}</div><span class="ds">${cc.desc} · ${cc.armW ? 'масса по длине корабля' : cc.mass + ' т'} · ${costTxt(cc.cost)} · ${crewLabel(cc)}</span>${ctl(key, d.parts[key] || 0)}${used(b).length ? `<span class="ds">Всего этого типа на корабле: ${used(b).reduce((a, k) => a + d.parts[k], 0)}</span>` : ''}</div>`;
   }).join('')) }).join(''); }
@@ -325,6 +326,7 @@ export function renderDesigner(full) {
     (ui.dopt[s.dataset.op] = ui.dopt[s.dataset.op] || {})[s.dataset.oi] = s.value; renderDesigner(false);
   });
   $('dflags').addEventListener('change', e => {
+    if (e.target.dataset.craft) { curDesign().craft = e.target.checked; renderDesigner(false); return; }
     const r = e.target.dataset.prio; if (!r) return;
     curDesign().prio[r] = +e.target.value; renderDesigner(false);
   });
