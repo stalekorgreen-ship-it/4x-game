@@ -6,13 +6,13 @@
 // Пар: датацентры (и любые источники addVapor) — короткоживущий парниковый газ, копится по регионам; много пара — вечные дожди.
 import { state, log } from './01-data.ts';
 import { climateBase } from './14-climate.ts';
+import { regNames } from './30-regions.ts';
 
 const GT = 1e9, YR = 360;
 export const PEOPLE_CO2 = 1.4;                    // т CO2 на человека в год (быт, транспорт)
 export const EF = {energy: 6, semi: 2.5, ind: 1.2, life: .8, cons: .6}; // выбросы по виду производства (энергетика грязнее всех)
 export const FAC_CO2 = 6.6e4;                     // т CO2 в год на «завод-эквивалент» при EF = 1 (Земля 2030 ≈ 37 Гт/год вместе с людьми)
 const SINK = .02, TAU_T = 30, TAU_SEA = 150, VAP_LIFE = 9 / YR; // поглощение избытка CO2 в год; инерция, лет; жизнь пара, лет
-export const REGIONS = {earth: ['Северная Америка', 'Южная Америка', 'Европа', 'Африка', 'Ближний Восток', 'Азия', 'Индия', 'Океания']};
 const ICE_M = {earth: 70, mars: 11};              // сколько метров даст весь растаявший лёд
 const flooded = h => .32 * (1 - Math.exp(-h / 25)); // доля населения ниже h метров над морем (Земля)
 
@@ -21,7 +21,7 @@ export function clim(id) {
   if (C[id]) return C[id];
   const b = climateBase(id); if (!(b.atmT > 1e10)) return null; // без атмосферы климата нет: выбросы уходят в космос
   const co2 = b.gasT.co2 || 0;
-  return (C[id] = {co2, co2_0: co2, pi: id === 'earth' ? co2 * 280 / 420 : co2, /* доиндустриальный уровень: к нему тянет поглощение */ dT: 0, sea: 0, fl: 0, vap: 0, rain: 0, emY: 0, reg: (REGIONS[id] || ['Вся поверхность']).map(n => ({n, vap: 0, dc: 0, rain: 0}))});
+  return (C[id] = {co2, co2_0: co2, pi: id === 'earth' ? co2 * 280 / 420 : co2, /* доиндустриальный уровень: к нему тянет поглощение */ dT: 0, sea: 0, fl: 0, vap: 0, rain: 0, emY: 0, reg: regNames(id).map(n => ({n, vap: 0, dc: 0, rain: 0}))});
 }
 export const ppm = (id) => { const c = clim(id), b = climateBase(id); return c ? c.co2 / b.atmT * (29 / 44) * 1e6 : 0; };
 // чувствительность: Земля 3 °C на удвоение; тонкая атмосфера слабо держит тепло, сверхплотная уже насыщена

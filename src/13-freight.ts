@@ -7,6 +7,7 @@ import { BODIES, BODY, RES, dist, fmtN, log, objPos, rec, state } from './01-dat
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { addSettlers, settle } from './07-population.ts';
+import { addRegInfra, regNames } from './30-regions.ts';
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 
 export const INFRA_PRICE = 800 * KR, FARE = 2 * KR, SPEED = 0.04, TICKET = 100 * KR; // кр/т инфраструктуры, кр за т·а.е., а.е. в сутки, кр за колониста
@@ -22,9 +23,9 @@ const capOf = c => 300 + 30 * facs(c);
 const cf = c => .8 + ((c.id * 37) % 50) / 100;
 const usedBy = c => FR().flights.filter(f => f.corp === c.id && f.item !== 'col').reduce((a, f) => a + f.amt, 0);
 
-export function orderCargo(item, amt, from, to) {
+export function orderCargo(item, amt, from, to, reg) {
   amt = Math.floor(+amt); if (!(amt > 0) || from === to || !BODY[from] || !BODY[to]) return false;
-  const F = FR(); F.orders.push({id: ++F.n, item, amt, left: amt, from, to, t: state.t, got: 0}); return true;
+  const F = FR(); F.orders.push({id: ++F.n, item, amt, left: amt, from, to, t: state.t, got: 0, reg: reg === '' || reg == null ? null : +reg}); return true;
 }
 export function dispatchColonists(to, q) { // игрок не управляет: корпорация везёт поселенцев с Земли
   const F = FR(), cs = state.corps || []; if (!cs.length) return false;
@@ -36,7 +37,7 @@ hooks.sendColonists = dispatchColonists;
 function deliver(f) {
   if (f.item === 'col') { if (state.cols[f.to]) addSettlers(f.to, f.amt); else settle(f.to, f.amt); return; }
   const col = state.cols && state.cols[f.to];
-  if (f.item === 'infra' && col) { const P = col.pop, per = colonyCost(f.to).per; for (const g in P.cap) P.cap[g] += f.amt * 4000 * KR; col.infra = (col.infra || 0) + f.amt; P.hab = Math.round(col.infra * per); log(`Инфраструктура (${fmtN(f.amt)} ед.) доставлена на «${BODY[f.to].name}»: вместимость колонии ${fmtN(P.hab)} чел.`); return; }
+  if (f.item === 'infra' && col) { addRegInfra(f.to, f.amt, f.reg); const P = col.pop, per = colonyCost(f.to).per; for (const g in P.cap) P.cap[g] += f.amt * 4000 * KR; col.infra = (col.infra || 0) + f.amt; P.hab = Math.round(col.infra * per); log(`Инфраструктура (${fmtN(f.amt)} ед.) доставлена на «${BODY[f.to].name}»: вместимость колонии ${fmtN(P.hab)} чел.`); return; }
   const d = depot(f.to); d[f.item] = (d[f.item] || 0) + f.amt; log(`На «${BODY[f.to].name}» доставлено: ${fmtN(f.amt)} т (${itemName(f.item).toLowerCase()}).`);
 }
 export function freightTick(h) {
@@ -53,7 +54,7 @@ export function freightTick(h) {
       chunk = chunk >= o.left ? o.left : Math.floor(chunk);
       const pay = chunk * fr + (o.item === 'infra' ? chunk * INFRA_PRICE * tm('infra') : 0); state.money -= pay; c.credits += chunk * fr; o.paid = (o.paid || 0) + pay;
       if (o.item !== 'infra') { if (o.from === 'earth') { state.stock[o.item] -= chunk; rec(o.item, 'out', chunk, 'freight'); } else state.depot[o.from][o.item] -= chunk; }
-      F.flights.push({corp: c.id, item: o.item, amt: chunk, to: o.to, arrive: state.t + Math.max(2, bdist(o.from, o.to) / (SPEED * tm('fspeed'))), oid: o.id}); o.left -= chunk;
+      F.flights.push({corp: c.id, item: o.item, amt: chunk, to: o.to, arrive: state.t + Math.max(2, bdist(o.from, o.to) / (SPEED * tm('fspeed'))), oid: o.id, reg: o.reg}); o.left -= chunk;
     }
   }
   F.orders = F.orders.filter(o => o.left > 1e-6 || F.flights.some(f => f.oid === o.id));
@@ -67,13 +68,14 @@ export function refreshCargo() {
     p._built = true;
     p.innerHTML = `<div class="box"><h2>Заказ доставки груза</h2><div class="help">Корпорации со свободными грузовыми мощностями сами берутся за заказ и зарабатывают на фрахте. Груз берётся с вашего склада на Земле (или со склада тела); инфраструктуру покупают по ${fmtN(INFRA_PRICE)} кр/т — на колонии она увеличивает вместимость и капитал заводов. Колонистов корпорации возят сами.</div>
     <div class="row"><select id="cg-item"></select><input type="number" id="cg-amt" min="1" value="1000" style="width:90px"> т</div>
-    <div class="row">Откуда <select id="cg-from"></select> Куда <select id="cg-to"></select></div><div id="cg-est" class="help"></div><button class="btn" id="cg-go">Заказать</button></div>
+    <div class="row">Откуда <select id="cg-from"></select> Куда <select id="cg-to"></select> Регион <select id="cg-reg"></select></div><div id="cg-est" class="help"></div><button class="btn" id="cg-go">Заказать</button></div>
     <div class="box"><h2>Заказы и рейсы</h2><div id="cg-list"></div></div><div class="box"><h2>Склады тел</h2><div id="cg-dp"></div></div>`;
     const bs = cargoBodies().map(b => [b.id, b.name]);
     $('cg-item').innerHTML = opt(ITEMS(), 'infra'); $('cg-from').innerHTML = opt(bs, 'earth'); $('cg-to').innerHTML = opt(bs, 'luna');
     const est = () => { const a = $('cg-from').value, b = $('cg-to').value, n = +$('cg-amt').value || 0, f = fareOf(a, b), inf = $('cg-item').value === 'infra' ? INFRA_PRICE * tm('infra') : 0; $('cg-est').textContent = `Фрахт ≈ ${fmtN(f)} кр/т, всего ≈ ${fmtN(n * (f + inf))} кр. В пути ≈ ${fmtN(Math.max(2, bdist(a, b) / SPEED), 0)} сут.`; };
-    p.addEventListener('input', est); est();
-    $('cg-go').onclick = () => { if (orderCargo($('cg-item').value, $('cg-amt').value, $('cg-from').value, $('cg-to').value)) refreshCargo(); };
+    const regs = () => { const v = $('cg-reg').value; $('cg-reg').innerHTML = opt([['', 'авто (самый тесный)'], ...regNames($('cg-to').value).map((n, i) => [String(i), n])], v); };
+    p.addEventListener('input', e => { if (e.target.id === 'cg-to') regs(); est(); }); regs(); est();
+    $('cg-go').onclick = () => { if (orderCargo($('cg-item').value, $('cg-amt').value, $('cg-from').value, $('cg-to').value, $('cg-reg').value)) refreshCargo(); };
   }
   if (ui.cargoTo && BODY[ui.cargoTo]) { $('cg-to').value = ui.cargoTo; ui.cargoTo = null; $('cg-to').dispatchEvent(new Event('input', {bubbles: true})); }
   const F = FR();

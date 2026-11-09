@@ -4,25 +4,22 @@
 // d = d0 + λ·πD/4·min(1, sqrt((N/ρ)/(πD²)))
 import { BODY } from './01-data.ts';
 import { tm } from './15-techs.ts';
+import { diamOf, regLegDist } from './30-regions.ts';
 
 export const LT = ['land', 'sea', 'air'], LT_N = {land: 'наземная', sea: 'морская', air: 'воздушная'};
 export const LCAP = {land: 1, sea: .6, air: .5};           // предельная доля т·км (от порта ещё везти)
 export const LOG_T = 600, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
-const D0 = 1, LAM = .2;
-// диаметры, км
-const DIAM = {earth: 12742, mars: 6779, venus: 12104, mercury: 4879, luna: 3474, phobos: 22, deimos: 12, ceres: 940, vesta: 525, eros: 17, apophis: .37, bennu: .49, ryugu: .9,
-  io: 3643, europa_j: 3122, ganymede: 5268, callisto: 4821, titan: 5150, enceladus: 504, triton: 2707, pluto: 2377};
 const ATM = {venus: .3, titan: .5, mars: .1};               // воздух там, где есть атмосфера
 export function bodyEnv(id) {
   const b = BODY[id] || {}, k = b.kind;
-  if (id === 'earth') return {D: DIAM.earth, rho: 50, env: {land: 1, sea: 1.6, air: .4}, how: 'открытая поверхность'};
-  const D = DIAM[id] || (k === 'planet' ? 6000 : k === 'moon' ? 1000 : k === 'ast' ? 5 : 1);
+  if (id === 'earth') return {D: diamOf('earth'), rho: 50, env: {land: 1, sea: 1.6, air: .4}, how: 'открытая поверхность'};
+  const D = diamOf(id);
   if (D > 1500) return {D, rho: 5000, env: {land: 1.3, sea: 0, air: ATM[id] || 0}, how: 'купола'};
   return {D, rho: 20000, env: {land: 1.3, sea: 0, air: 0}, how: D > 2 ? 'подземные города' : 'станция'};
 }
 // доля работающих на жизнеобеспечении (гидропоника, воздух, вода): Земля 5%, купола 15%, подземные города 20%, станции 30%
 export const lsShare = id => { const h = bodyEnv(id).how; return h === 'открытая поверхность' ? .05 : h === 'купола' ? .15 : h === 'станция' ? .3 : .2; };
-export const legDist = (id, N) => { const E = bodyEnv(id), A = Math.PI * E.D * E.D; return D0 + LAM * Math.PI * E.D / 4 * Math.min(1, Math.sqrt(N / E.rho / A)); };
+export const legDist = (id, N) => regLegDist(id, N, bodyEnv(id).rho); // с учётом регионов (30-regions)
 // техника вида транспорта: общая (технологии игрока) × специализация корпорации
 const techK = (t, c) => tm('log_' + t) * (c ? (c.civ.ltk && c.civ.ltk[t]) || (corpSpec(c) === t ? 1.15 : 1) : 1);
 export const corpSpec = c => LT[c.id % 3];

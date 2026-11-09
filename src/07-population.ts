@@ -8,6 +8,7 @@ import { logMarket, logJobs, lsShare } from './25-logistics.ts';
 import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
+import { regTick, addRegPeople, regsOf, regTemplate, regHab } from './30-regions.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
@@ -134,7 +135,7 @@ function immigrate(dt) {
   if (!dispatchColonists(ctxId(), q)) addSettlers(ctxId(), q); // везут корпорации, без контроля игрока
 }
 export function addSettlers(id, q) {
-  const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q);
+  const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q); addRegPeople(id, q);
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
 }
 export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []), E = empBy(), ls = lsShare(ctxId()); for (let s = 0; s < 4; s++) J[s] += LJ[s] + E[s] * ls; // + жизнеобеспечение (гидропоника и т. п.)
@@ -210,6 +211,9 @@ export function stepEcon(dt, init) {
     }
     const E2 = empBy()[s]; fill[s] = need > 0 ? Math.min(1, E2 / need) : 1;
   }
+  // регионы: миграция и несовпадение людей и рабочих мест по регионам (30-regions)
+  if (!init) { P.n = t.n; let Jt = 0; for (let s = 0; s < 4; s++) Jt += J[s] + oth[s]; P.regK = regTick(ctxId(), P, Jt, t.wf, dt); }
+  for (let s = 0; s < 4; s++) fill[s] *= P.regK || 1;
   // 2) доходы, зарплатный фонд, налог
   let wb = 0;
   const wel = [[], [], [], []], inc = [[], [], [], []];
@@ -297,6 +301,7 @@ function refreshPopI() {
     p._built = true;
     p.innerHTML = `<div class="box"><div id="pp-pick"></div><h2 id="pp-h">Население</h2><div id="pp-sum"></div></div>
     <div class="box"><h2>Возрастная пирамида</h2><canvas id="pp-cv" width="560" height="300" style="width:100%;max-width:560px;height:auto;background:var(--panel2,#0003);border-radius:6px"></canvas><div class="help">Слева направо: возраст 0–100 по строкам сверху вниз; цвета — страты: ${STR.map((x, i) => `<span style="color:${STR_COL[i]}">■</span> ${x}`).join(' ')}</div></div>
+    <div class="box"><h2>Регионы</h2><div id="pp-reg"></div><div class="help">Число регионов зависит от размера тела. Заводы нанимают людей своего региона: где мест больше, чем людей, заводы недобирают работников, и туда едут мигранты; где людей больше, туда со временем переезжают рабочие места. На колониях жить можно только там, куда завезли инфраструктуру (регион выбирается в заказе груза).</div></div>
     <div class="box"><h2>Страты</h2><div id="pp-str"></div></div>
     <div class="box"><h2>Товары и заводы</h2><div id="pp-goods"></div><div class="help">Завод нанимает ${fmtN(FACT_W)} человек (на колониях заводы в 100 раз меньше), молодых в первую очередь. Чем больше свободных рук, тем ниже зарплата. Сырьё: 1 т на 10 млн человек в сутки; закупается у вас по ценам рынка, остальное завозят.</div></div>
     <div class="box"><h2>Когорта</h2><div class="row">Страта <select id="pp-s">${STR.map((x, i) => `<option value="${i}">${x}</option>`).join('')}</select> Возраст <input id="pp-a" type="number" min="0" max="100" value="${popUi.a}" style="width:70px"></div><div id="pp-insp"></div></div>`;
@@ -312,6 +317,8 @@ function refreshPopI() {
     ['Занято / безработных', `${fmtN(t.emp)} / ${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`], ['Учатся (15+)', fmtN(t.st - sumSt(0, 14))],
     ['Рождаемость / смертность в год', `${fmtN(P.birth)} / ${fmtN(P.death)}`], ['Прирост в год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
     ['Фонд зарплат в месяц', fmtN(P.wbill * 30) + ' кр'], ['Налоги всего в месяц', fmtN((P.taxFull || 0) * 30) + ' кр'], ['Земные расходы в месяц', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в месяц', fmtN(P.tax * 30) + ' кр'], ...(P.log ? [['Логистика', `${P.log.how}, Ø ${fmtN(P.log.D, 1)} км, плечо ${fmtN(P.log.d, 1)} км`], ['Нужно т·км в сутки / доставлено', `${fmtN(P.log.L)} / ${fmtN(P.log.sat * 100, 1)}%`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Доли: наземная / морская / воздушная', ['land', 'sea', 'air'].map(t => fmtN(P.log.L > 0 ? P.log.used[t] / P.log.L * 100 : 0, 0) + '%').join(' / ')], ['Госпредприятий транспорта', ['land', 'sea', 'air'].map(t => fmtN((P.tr && P.tr[t]) || 0)).join(' / ')]] : []), ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
+  { const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1;
+    setHtml($('pp-reg'), tbl(['Регион', 'Площадь суши, км²', 'Население', 'Доля людей', 'Доля рабочих мест', 'Миграция в год', ...(P.hab ? ['Вместимость'] : [])], R.map((r, i) => [T[i].n, fmtN(T[i].land), fmtN(r.n), fmtN(r.n / n * 100, 1) + '%', fmtN(r.jw / jw * 100, 1) + '%', (r.mig > 0 ? '+' : '') + fmtN(r.mig || 0), ...(P.hab ? [fmtN(regHab(id, i))] : [])])) + `<div class="help">Заводы укомплектованы с учётом регионов на ${fmtN((P.regK || 1) * 100, 1)}%.</div>`); }
   setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
   setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n, fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2), fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
   const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
