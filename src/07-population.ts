@@ -19,6 +19,9 @@ export const GOODS = {
   pow: {n: 'Энергия', raw: 'u', need: 1, mix: [.3, .4, .25, .05]},
 };
 export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [100, 175, 300, 500], TUIT = [0, 50, 100, 175], FACT_COST = 2e8 * KR, TAXK = 1.25e-6;
+/* Налоги, вариант Б: казна собирает полный налог, почти всё уходит на земные расходы (оборона, соцсфера, инфраструктура),
+   на космос — доля L.space % (по умолчанию 0,5%), и она проседает при старении (меньше работников на пенсионера). */
+export const spaceK = () => ((state.laws && state.laws.space != null ? state.laws.space : .5) / 100);
 export const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
 // Рождаемость (реалистичная модель): суммарный коэффициент — детей на женщину за жизнь — по образованию матери; для замещения поколений нужно 2,1.
 // Чем больше образованных, тем ниже рождаемость; плюс медленная «модернизация» (урбанизация, контрацепция, поздние браки) снижает её у всех слоёв.
@@ -205,7 +208,10 @@ export function stepEcon(dt, init) {
     else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * incomeOf(s, a, 'un') + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
     inc[s][a] = i * (1 - (L.tax - 20) / 100); wel[s][a] = null;
   }
-  P.wbill = wb; P.tax = wb * TAXK * L.tax / 20 * tm('tax'); P.n = t.n;
+  P.wbill = wb; P.taxFull = wb * L.tax / 100 * tm('tax');
+  { let wk = 0, rt = 0; for (let s = 0; s < 4; s++) { for (let a = 15; a < 65; a++) wk += P.c[s][a].n; for (let a = 65; a <= 100; a++) rt += P.c[s][a].n; }
+    const r = rt > 0 ? wk / rt : 10; if (!P.dep0) P.dep0 = r; P.depK = clampN(r / P.dep0, .3, 1.5); }
+  P.tax = P.taxFull * spaceK() * P.depK; P.earthExp = P.taxFull - P.tax; P.n = t.n;
   // 3) спрос, выпуск, удовлетворённость: покупают у самого дешёвого продавца
   let sn = 0, sw = 0; for (const g in GOODS) { sw += GOODS[g].need; }
   P.mfill = MINE_MIX.reduce((a, m, s) => a + m * fill[s], 0); P.fill = fill;
@@ -230,7 +236,7 @@ export function stepEcon(dt, init) {
   { let w = 0, n = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const m = P.c[s][a].n; w += wel[s][a] * m; n += m; } P.avgWel = n > 0 ? w / n : 1; }
   // расходы государства по законам (в масштабе налога)
   { let stud = 0, ret = 0, ssum = 0; for (let s = 0; s < 4; s++) { for (let a = 15; a <= 100; a++) stud += P.c[s][a].st * TUIT[s]; for (let a = 65; a <= 100; a++) { ret += P.c[s][a].n * P.wage[s] * .4; } }
-    const edu = stud * TAXK * L.edu / 100, pen = ret * TAXK * L.pension / 100, bth = (P.birth || 0) / 360 * 40000 * KR * TAXK * L.birthSup / 100;
+    const k = spaceK(), edu = stud * k * L.edu / 100, pen = ret * k * L.pension / 100, bth = (P.birth || 0) / 360 * 40000 * KR * k * L.birthSup / 100;
     P.exp = edu + pen + bth; P.expP = {edu, pen, bth}; void ssum; }
   // информация для вкладки
   const pi = BASEW.slice();
@@ -281,7 +287,7 @@ function refreshPopI() {
     ['Население', fmtN(t.n)], ['Дети 0–14', fmtN(sumAge(0, 14))], ['Трудоспособные 15–64', fmtN(sumAge(15, 64))], ['Старше 65', fmtN(sumAge(65, 100))],
     ['Занято / безработных', `${fmtN(t.emp)} / ${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`], ['Учатся (15+)', fmtN(t.st - sumSt(0, 14))],
     ['Рождаемость / смертность в год', `${fmtN(P.birth)} / ${fmtN(P.death)}`], ['Прирост в год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
-    ['Фонд зарплат в сутки', fmtN(P.wbill) + ' кр'], ['Налоги вам в сутки', fmtN(P.tax) + ' кр'], ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
+    ['Фонд зарплат в сутки', fmtN(P.wbill) + ' кр'], ['Налоги всего в сутки', fmtN(P.taxFull || 0) + ' кр'], ['Земные расходы', fmtN(P.earthExp || 0) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в сутки', fmtN(P.tax) + ' кр'], ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
   setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
   setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n, fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2), fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
   const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;

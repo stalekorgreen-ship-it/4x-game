@@ -5,7 +5,7 @@ import { FACT_COST, GOODS, clampN } from './07-population.ts';
 import { CTECH, LAB_COST, MINE_COST, YARD_COST, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml } from './08-map-ui.ts';
 
-export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0};
+export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5};
 export const BANK_RATE = .12, PLAYER_RATE = .06;
 // Детерминированный генератор случайных чисел (чтобы игры и тесты воспроизводились)
 export function rnd() { let a = state.rng = ((state.rng === undefined ? 12345 : state.rng) + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -111,7 +111,7 @@ export function refreshLaws() {
   const L = laws(), P = state.pop;
   if (!p._built) {
     p._built = true;
-    const row = (k, name, min, max, hint, u = '%') => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow">${name}</b><span class="mono" id="lv-${k}">${L[k]}${u}</span></div><input type="range" data-law="${k}" min="${min}" max="${max}" step="1" value="${L[k]}" style="width:100%"><div class="help">${hint}</div></div>`;
+    const row = (k, name, min, max, hint, u = '%', st = 1) => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow">${name}</b><span class="mono" id="lv-${k}">${L[k]}${u}</span></div><input type="range" data-law="${k}" min="${min}" max="${max}" step="${st}" value="${L[k]}" style="width:100%"><div class="help">${hint}</div></div>`;
     p.innerHTML = `<div class="box"><h2>Налоги и субсидии</h2>${row('tax', 'Налог на зарплаты', 5, 40, 'Базовая ставка 20%. Выше: кредитов у вас больше, но доходы людей и довольство падают. Ниже: наоборот.')}
       ${row('subInd', 'Субсидия промышленности', 0, 50, 'Государство оплачивает долю строительства заводов и шахт корпораций (из ваших кредитов).')}
       ${row('subSci', 'Субсидия науке', 0, 50, 'Доля стоимости лабораторий, которую платите вы.')}
@@ -122,7 +122,8 @@ export function refreshLaws() {
       ${row('birthSup', 'Поддержка рождаемости', 0, 100, 'Выплаты за рождение ребёнка: рождаемость до +50%, расходы из казны.')}
       ${row('pension', 'Пенсии', 0, 100, 'Доплата к доходу пенсионеров (старше 65): выше довольство стариков, расходы из казны.')}</div>
       <div class="box"><h2>Торговля и космос</h2>${row('tariff', 'Ввозные пошлины', 0, 50, 'Пошлина на ввозное сырьё и товары (колонии ввозят с Земли): растёт доход казны и стимул строить своё, но дорожает жизнь.')}
-      ${row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт, которую забирает государство.')}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
+      ${row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт, которую забирает государство.')}
+      ${row('space', 'Доля налогов на космос', .1, 3, 'Остальное уходит на земные расходы. При старении доля проседает.', '%', .1)}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
       <div class="box"><h2>События</h2><div id="lw-ev"></div></div><div class="box"><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div></div>`;
   }
   { let tx = 0, ex = 0, tr = 0; const eb = {edu: 0, pen: 0, bth: 0}; for (const id in state.cols) { const q = state.cols[id].pop; tx += q.tax || 0; ex += q.exp || 0; tr += q.tarDay || 0; if (q.expP) for (const k in eb) eb[k] += q.expP[k] || 0; }

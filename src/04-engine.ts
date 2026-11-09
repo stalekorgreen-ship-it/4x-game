@@ -474,7 +474,7 @@ export function loadGame() {
     setState(s); if (!state.spv) { state.speedIdx = (state.speedIdx || 0) + 4; state.spv = 2; } state.inBattle = false; state.terra = state.terra || {};
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
-    if (!state.corps) { state.money = state.money || 3e6 * KR; initCorps(); }
+    if (!state.corps) { state.money = state.money || 6e10; initCorps(); }
     if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})};
     state.research = state.research || {}; state.tprog = state.tprog || {}; state.contracts = state.contracts || {}; state.rp = state.rp || 0;
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }

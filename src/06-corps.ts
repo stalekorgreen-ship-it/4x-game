@@ -69,7 +69,7 @@ function makeCorp(i) {
   return c;
 }
 export function initCorps() {
-  state.corps = []; state.money = state.money || 3e6 * KR; state.corpVer = 4; state.nameIdx = CORP_COUNT;
+  state.corps = []; state.money = state.money || 6e10; state.corpVer = 4; state.nameIdx = CORP_COUNT;
   for (let i = 0; i < CORP_COUNT; i++) state.corps.push(makeCorp(i));
 }
 // Вместо обанкротившихся через год появляются новые стартапы
