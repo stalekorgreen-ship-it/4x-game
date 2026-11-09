@@ -471,10 +471,11 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
 
  // крылья малых кораблей: aw = число осевых пушек. 2/3/4 — крылья (X-wing), пушки на кончиках; сверх 4 — в центр
  
+ const WINGS=[];g.userData.wings=WINGS;
  if(tn<=3000&&ax>=2){const nw=Math.min(4,ax);centerN=ax>4?ax-4:0;const angs={2:[0,Math.PI],3:[-Math.PI/2,Math.PI/6,5*Math.PI/6],4:[Math.PI/4,3*Math.PI/4,5*Math.PI/4,7*Math.PI/4]}[nw];
   const xr=f(.55),root=wAt(.55)/2-.4,span=W*1.1,wl=W*1.6,r=.4;
   for(const an of angs){const wg=new THREE.Group();
-   const wp=poly([[-wl*.55,0],[wl*.3,0],[wl*.1,span],[-wl*.25,span]].map(([a,z])=>[a,z+root]),.7,.2,silver2);wp.rotation.x=-Math.PI/2;wp.position.set(xr,-.35,0);wg.add(wp);
+   const wp=wingPlate(xr,root,span,wl,.7,silver2);wg.add(wp);wg.userData.wing=1;wg.userData.plate=wp;WINGS.push(wg); // крыло из ячеек: дырявится постепенно, отрывается кусками
    const tip=root+span,xt=xr+wl*.1;
    const pod=cb(wl*.9,1.5,1.5,.5,silver);pod.position.set(xt-wl*.35,0,tip);wg.add(pod);const ac=cb(.5,1.7,1.7,.2,accent);ac.position.set(xt-wl*.55,0,tip);wg.add(ac);
    const pp=port(r);pp.position.set(xt+.1,0,tip);wg.add(pp);const ro=railOut(4,r);ro.position.set(xt+.1,0,tip);wg.add(ro);
@@ -485,6 +486,16 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
  if(!nvOff){const nb=noseBlock(nV);nb.scale.setScalar(ns);nb.position.x=xe+14*ns-1;g.add(nb)}
 
  g.userData.mid=0;g.userData.L=L;return g}
+
+// плоскость крыла сеткой ячеек ~0.6 м: каждая ячейка — отдельный граненый брусок в одном меше (12 треугольников), её можно выбить или погнуть
+function wingPlate(xr,root,span,wl,th,mat){const cs=.6,NV=Math.max(4,Math.ceil(span/cs)),NU=Math.max(4,Math.ceil(wl*.85/cs)),h=th/2,P=[],cells=[];
+ const F=(u,v)=>{const xb=xr-wl*.55+wl*.3*v,xf=xr+wl*.3-wl*.2*v;return[xb+(xf-xb)*u,root+span*v]};
+ const q=(a,b,c,d)=>P.push(...a,...b,...c,...a,...c,...d);
+ for(let j=0;j<NV;j++)for(let i=0;i<NU;i++){const C=[F(i/NU,j/NV),F((i+1)/NU,j/NV),F((i+1)/NU,(j+1)/NV),F(i/NU,(j+1)/NV)],T=C.map(([x,z])=>[x,h,z]),B=C.map(([x,z])=>[x,-h,z]);
+  q(T[0],T[1],T[2],T[3]);q(B[3],B[2],B[1],B[0]);for(let k=0;k<4;k++){const k1=(k+1)%4;q(T[k1],T[k],B[k],B[k1])}
+  cells.push({i,j,x:(C[0][0]+C[1][0]+C[2][0]+C[3][0])/4,z:(C[0][1]+C[2][1])/2,alive:1})}
+ const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(P,3));ge.computeVertexNormals();
+ const m=new THREE.Mesh(ge,mat);m.userData={cells,NU,NV,cs,th,cut:NV,hits:0};return m}
 
 // ===== система повреждений: кратеры в геометрии, дыры, провода, обломки, отскоки, сдираемая краска =====
 function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.hull,inner=ship.userData.inner,sc2=ship.parent;let nh=0;const debris=[],sparks=[];const RC=new THREE.Raycaster();
@@ -519,7 +530,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   if(!cut)continue;tot+=cut;ge.setAttribute('position',new THREE.Float32BufferAttribute(kp,3));if(na)ge.setAttribute('normal',new THREE.Float32BufferAttribute(kn,3));ge.computeBoundingSphere()}return tot}
  function crater(p,n,r,depth,lobes){deform(p,n,lobes);{let mr=0;for(const lb of lobes)mr=Math.max(mr,lb.rx,lb.ry);const cutn=strip(p,mr*1.25+.6);if(cutn>0){const pn=3+((Math.random()*3)|0);for(let i=0;i<pn;i++){const pl=new THREE.Mesh(new THREE.BoxGeometry(.5+Math.random()*1.2,.08,.4+Math.random()*.9),i%2?silver2:steel);pl.position.copy(p).addScaledVector(n,.4);pl.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);ship.add(pl);pl.userData.v=n.clone().multiplyScalar(5+Math.random()*9).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));pl.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(6);debris.push({e:pl,t:0,life:7})}}}
   // сорванные детали
-  for(const ch of[...ship.children]){if(ch===hull||ch===inner||ch.userData.keep)continue;const bb=new THREE.Box3().setFromObject(ch),sz=bb.getSize(new THREE.Vector3());if(sz.length()>L*.2)continue;if(bb.distanceToPoint(p)<r*.7){ship.remove(ch);ch.userData.v=n.clone().multiplyScalar(6+Math.random()*10).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));ch.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(3);ship.add(ch);debris.push({e:ch,t:0,life:5})}}
+  for(const ch of[...ship.children]){if(ch===hull||ch===inner||ch.userData.keep||ch.userData.wing)continue;const bb=new THREE.Box3().setFromObject(ch),sz=bb.getSize(new THREE.Vector3());if(sz.length()>L*.2)continue;if(bb.distanceToPoint(p)<r*.7){ship.remove(ch);ch.userData.v=n.clone().multiplyScalar(6+Math.random()*10).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));ch.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(3);ship.add(ch);debris.push({e:ch,t:0,life:5})}}
   // откол: крупные угловатые куски металла улетают из места попадания
   {const cn=2+((Math.random()*2)|0),cr=Math.max(.7,Math.min(2.2,r*.25));for(let i=0;i<cn;i++){const ch=new THREE.Mesh(new THREE.OctahedronGeometry(cr*(.5+Math.random()*.5)),steel);ch.scale.set(1,.45+Math.random()*.3,.7+Math.random()*.5);ch.position.copy(p).addScaledVector(n,.3);ch.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);ship.add(ch);ch.userData.v=n.clone().multiplyScalar(6+Math.random()*8).add(new THREE.Vector3((Math.random()-.5)*6,(Math.random()-.5)*6,(Math.random()-.5)*6));ch.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(2.5);debris.push({e:ch,t:0,life:8})}}
   // осколки брони
@@ -553,15 +564,53 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   // правило слоёв: каждый слой брони = 0.5 м; каждое попадание срезает один слой (вмятина +0.5 м), когда слои кончились — сквозная дыра
   if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25))*(1+.1*Math.min(cnt,10)),dep=cnt===0?.5:.1;lobes=gone?[mk(h.p,rr0*2.3,rr0*1.5,.3,.85),mk(h.p.clone().addScaledVector(new THREE.Vector3(h.n.z,0,-h.n.x),rr0*.3),rr0*1.4,rr0*2.2,.3,.8)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),dep,0)]} // глубина вмятины ограничена 1.5 м, дальше слои снимаются без роста геометрии
   crater(h.p,h.n,r,r*.3,lobes)};
+ // ===== крылья: дыры по ячейкам, погнутые края, сажа; когда ряд ячеек перебит — внешняя часть отрывается вместе с пушкой =====
+ const WINGS=ship.userData.wings||[];const plates=()=>WINGS.map(w=>w.userData.plate);
+ const cellOff=c=>c.idx*108;
+ WINGS.forEach(w=>w.userData.plate.userData.cells.forEach((c,k)=>c.idx=k));
+ const kill=(ge,c)=>{const a=ge.attributes.position.array,o=cellOff(c);for(let k=3;k<108;k+=3){a[o+k]=a[o];a[o+k+1]=a[o+1];a[o+k+2]=a[o+2]}};
+ const bend=(ge,c,amt,sg,sd)=>{const a=ge.attributes.position.array,o=cellOff(c);for(let k=0;k<108;k+=3){const x=a[o+k],z=a[o+k+2],hn=hash3(x*2.3+sd,0,z*2.3);a[o+k+1]+=sg*amt*(.35+hn*.9);a[o+k]+=(hash3(x*3.1,1,z*3.1+sd)-.5)*amt*.35;a[o+k+2]+=(hash3(x*3.1,2,z*3.1+sd)-.5)*amt*.35}};
+ const toShip=(o3,v)=>ship.worldToLocal(o3.localToWorld(v.clone()));
+ const addDn=(p,r)=>{const i3=HU.nDn.value%64;HU.dn.value[i3].set(p.x,p.y,p.z,r);HU.nDn.value=Math.min(64,HU.nDn.value+1)};
+ const wire=(par,a,b)=>{const mid=a.clone().lerp(b,.5).add(new THREE.Vector3((Math.random()-.5)*.15,.1,(Math.random()-.5)*.15));const w=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([a,mid,b]),5,.035+Math.random()*.025,4),wireM[(Math.random()*4)|0]);w.userData.wire=1;par.add(w)};
+ function breakWing(wg,pl,j){const U=pl.userData,ge=pl.geometry,pge=ge.clone(),row=U.cells.filter(c=>c.j===j);
+  const xc=row.reduce((s,c)=>s+c.x,0)/row.length,zc=row[0].z;const mine=new Set();
+  for(const c of U.cells)if(c.alive&&c.j<U.cut&&(c.j>j||(c.j===j&&Math.random()<.5)))mine.add(c);
+  for(const c of U.cells){if(mine.has(c)){kill(ge,c);c.alive=0}else kill(pge,c)}U.cut=j;
+  // рваная кромка обрубка: оставшиеся ячейки ряда загибаются
+  for(const c of U.cells)if(c.alive&&c.j>=j-1)bend(ge,c,.35,Math.random()<.5?1:-1,c.idx);
+  ge.attributes.position.needsUpdate=true;ge.computeVertexNormals();ge.computeBoundingSphere();pge.attributes.position.needsUpdate=true;pge.computeVertexNormals();pge.computeBoundingSphere();
+  const inn=new THREE.Group();inn.position.set(-xc,0,-zc);inn.add(new THREE.Mesh(pge,pl.material));
+  for(const ch of[...wg.children])if(ch!==pl&&!ch.userData.wire&&ch.position.z>zc)inn.add(ch);
+  const pc=new THREE.Group();pc.userData.wing=1;pc.rotation.copy(wg.rotation);pc.position.copy(new THREE.Vector3(xc,0,zc).applyEuler(wg.rotation)).add(wg.position);pc.add(inn);ship.add(pc);
+  const out=new THREE.Vector3(0,0,1).applyEuler(wg.rotation);pc.userData.v=out.multiplyScalar(2.5+Math.random()*2.5).add(new THREE.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2,(Math.random()-.5)*2));
+  pc.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(.9);debris.push({e:pc,t:0,life:60});
+  // оборванные провода с обеих сторон разрыва
+  for(let k=0;k<6;k++){const x=xc+(Math.random()-.5)*row.length*U.cs*.8,a=new THREE.Vector3(x,(Math.random()-.5)*.3,zc-.35),b=a.clone().add(new THREE.Vector3((Math.random()-.5)*.4,(Math.random()-.5)*.25,.35+Math.random()*.45));wire(wg,a,b)}
+  for(let k=0;k<4;k++){const x=(Math.random()-.5)*row.length*U.cs*.8,a=new THREE.Vector3(x,(Math.random()-.5)*.3,.35),b=a.clone().add(new THREE.Vector3((Math.random()-.5)*.4,(Math.random()-.5)*.25,-.3-Math.random()*.4));wire(inn,a,b)}
+  const cp=toShip(wg,new THREE.Vector3(xc,0,zc));addHit(cp,U.cs*row.length*.35);
+  for(let i=0;i<18;i++)spark(cp,new THREE.Vector3((Math.random()-.5)*18,(Math.random()-.5)*18,(Math.random()-.5)*18),.6+Math.random()*.8,i%3?glowM:accent)}
+ function wingHit(pl,pw,dw,r){const wg=pl.parent,U=pl.userData,ge=pl.geometry;U.hits++;const lp=pl.worldToLocal(pw.clone()),inv=new THREE.Matrix4().copy(pl.matrixWorld).invert(),dl=dw.clone().transformDirection(inv),sg=dl.y>0?1:-1,sd=Math.random()*90;
+  const rad=Math.max(.7,Math.min(2.2,r*.25))*(.8+Math.random()*.5),rr=rad*.7,rim=rad*1.55;const ds=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());
+  for(const c of U.cells){if(!c.alive||c.j>=U.cut)continue;const d=Math.hypot(c.x-lp.x,c.z-lp.z)*(1+(hash3(c.x*.9+sd,0,c.z*.9)-.5)*.7);
+   if(d<rr){kill(ge,c);c.alive=0;if(Math.random()<.35){const ch=new THREE.Mesh(new THREE.BoxGeometry(U.cs*(.6+Math.random()*.5),U.th*.8,U.cs*(.5+Math.random()*.5)),Math.random()<.5?pl.material:steel);ch.position.copy(toShip(pl,new THREE.Vector3(c.x,0,c.z)));ch.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);ship.add(ch);ch.userData.v=ds.clone().multiplyScalar(4+Math.random()*7).add(new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*5));ch.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(5);debris.push({e:ch,t:0,life:8})}}
+   else if(d<rim)bend(ge,c,(1-(d-rr)/(rim-rr))*rad*.4,sg,sd)}
+  ge.attributes.position.needsUpdate=true;ge.computeVertexNormals();
+  const ps=toShip(pl,lp.setY(0));addHit(ps,rad*1.25);
+  for(let i=0;i<7;i++){const m=new THREE.Mesh(new THREE.TetrahedronGeometry(.3+Math.random()*.4),bm[i%3]);m.position.copy(ps);ship.add(m);m.userData.v=ds.clone().multiplyScalar(5+Math.random()*8).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));m.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(5);debris.push({e:m,t:0,life:5})}
+  for(let i=0;i<8;i++)spark(ps,ds.clone().multiplyScalar(6+Math.random()*10).add(new THREE.Vector3((Math.random()-.5)*12,(Math.random()-.5)*12,(Math.random()-.5)*12)),.4+Math.random()*.6,i%3?glowM:accent);
+  // отрыв: ряд у корня перебит на 55% — или крыло просто изрешечено (12+ попаданий) — рвётся по самому слабому ряду
+  let bj=-1,bf=0;for(let j=0;j<U.cut-1;j++){const rw=U.cells.filter(c=>c.j===j),fr=rw.filter(c=>!c.alive).length/rw.length;if(fr>=.55){bj=j;break}if(fr>bf){bf=fr;bj=j}}
+  if(bj>=0&&(U.cells.filter(c=>c.j===bj&&!c.alive).length/U.NU>=.55||(U.hits>=12&&bf>=.3)))breakWing(wg,pl,bj)}
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
-  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
+  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObjects([hull,...plates()],false).find(x=>x.face);if(!rs)return false;if(rs.object!==hull){wingHit(rs.object,rs.point,dw,r);return true}const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
 
 // склейка статичной мелочи в несколько мешей по материалам: тысячи draw call'ов на корабль -> десяток
 function bakeHeads(g:any){g.updateMatrixWorld(true);for(const tu of g.userData.turs||[]){const hd=tu.userData.head,inv=new THREE.Matrix4().copy(hd.matrixWorld).invert(),by=new Map(),rm:any[]=[];
  hd.traverse((o:any)=>{if(!o.isMesh)return;const mat=o.material;if(Array.isArray(mat)||mat.map)return;let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const k of Object.keys(ge.attributes))if(k!=='position'&&k!=='normal')ge.deleteAttribute(k);if(!ge.attributes.normal)ge.computeVertexNormals();ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
  for(const o of rm)o.parent&&o.parent.remove(o);for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(mg){const me=new THREE.Mesh(mg,mat);me.userData.keep=true;hd.add(me)}}}}
 function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(g.matrixWorld).invert(),by=new Map(),rm=[];
- g.traverse((o:any)=>{if(o===g||o===g.userData.hull||o===g.userData.inner||!o.isMesh||o.isInstancedMesh)return;let p=o,skip=false;while(p&&p!==g){if(p===g.userData.hull||p===g.userData.inner||(p.userData&&p.userData.head===undefined&&p.parent&&p.parent.userData&&p.parent.userData.head===p)){skip=true;break}p=p.parent}if(skip)return;
+ g.traverse((o:any)=>{if(o===g||o===g.userData.hull||o===g.userData.inner||!o.isMesh||o.isInstancedMesh)return;let p=o,skip=false;while(p&&p!==g){if(p.userData&&p.userData.wing){skip=true;break}if(p===g.userData.hull||p===g.userData.inner||(p.userData&&p.userData.head===undefined&&p.parent&&p.parent.userData&&p.parent.userData.head===p)){skip=true;break}p=p.parent}if(skip)return;
   const mat=Array.isArray(o.material)?null:o.material;if(!mat)return;let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const k of Object.keys(ge.attributes))if(k!=='position'&&k!=='normal'&&k!=='uv'&&k!=='color')ge.deleteAttribute(k);
   if(mat.map||mat.vertexColors){return}
   if(!ge.attributes.normal)ge.computeVertexNormals();ge.deleteAttribute('uv');ge.deleteAttribute('color');ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
