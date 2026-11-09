@@ -320,7 +320,7 @@ function tower(g,x,y0,tiers){let y=y0;for(const[len,w,h,m]of tiers){const b=cb(l
  const rd=new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.5),cyan);rd.position.set(x,y+H+.3,0);g.add(rd)}
 
 // плотный граненый корпус: 8 граней по 6 сегментов, кольцо каждые 1.2 ед. — для вмятин, дыр и сорванной обшивки
-function denseHull(R,mat,k,S0,dx0){const S=S0||10,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=(dx0||.8))xs.push(x);
+function denseHull(R,mat,k,S0,dx0){const S=S0||10,N=8*S,xs=[];const x0=R[0].x,x1=R[R.length-1].x;for(let x=x0;x<=x1+1e-6;x+=(dx0||Math.max(.8,(x1-x0)/260)))xs.push(x);
  const P=[],I=[];
  for(const x of xs){let i=0;while(i<R.length-2&&x>R[i+1].x)i++;const a=R[i],b=R[i+1],t=Math.max(0,Math.min(1,(x-a.x)/((b.x-a.x)||1)));const w=(a.w+(b.w-a.w)*t)*k,h=(a.h+(b.h-a.h)*t)*k,c=Math.min(w,h)*.3,A=w/2,B=h/2;
   const ring=[[-(A-c),B],[A-c,B],[A,B-c],[A,-(B-c)],[A-c,-B],[-(A-c),-B],[-A,-(B-c)],[-A,B-c]];
@@ -347,7 +347,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
  const put=(o,x,y,z)=>{o.position.set(x,y||0,z||0);g.add(o);return o};
  const wing=(pts,th,mat,y)=>{const p=poly(pts,th,.3,mat);p.rotation.x=-Math.PI/2;p.position.set(0,y-th/2,0);g.add(p)};
  const cls=m<2?0:m<4?1:m<6?2:3,L=[34,58,84,128][cls]+(m-[1,2,4,6][cls])*(cls===3?18:10),x0=-L/2,xe=L/2;
- const tn=+P.tn||[300,1500,8000,40000][cls],ax=P.ax||[4,3,0,0][cls];let centerN=0;
+ const tn=+P.tn||[300,1500,8000,40000][cls],ax=P.ax!=null?P.ax:[4,3,0,0][cls];let centerN=0;
  const W=[8,8,15,20][cls]+(cls===3?Math.min(16,(m-6)*1.1):cls===2?(m-4)*.8:0),Hk=[.95,.62,.8,.7][cls],f=t=>x0+L*t;
  // профиль корпуса по классам (t, ширина, высота)
  const prof=[
