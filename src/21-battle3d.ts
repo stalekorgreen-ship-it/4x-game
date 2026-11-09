@@ -942,7 +942,7 @@ if (wrap && bgo) {
     const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, pcol = (projLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let pc = 0;
     const tmp = new THREE.Color();
     for (const p of Battle.proj() as any[]) {
-      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.05, Math.max(.004, cdp * .0018)) / Math.max(1e-3, Math.hypot(p.vx, p.vy)) / .1; // короткий хвост трассера
+      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), sp0 = Math.max(1e-3, Math.hypot(p.vx, p.vy)), tailK = Math.min(sp0 * .08, Math.max(.004, cdp * .01)) / sp0 / .1; // хвост ≈ путь за 0,08 с, но заметен издалека
       let ox = 0, oy = 0, oz = 0;
       if (p._m === undefined) { p._m = null; dbg.n++; const gs = p.src && models.get(p.src); let tt: any = gs && gs.userData.turMap && p.m ? gs.userData.turMap.get(p.m) : null;
         if (!tt && gs && (gs.userData.det && gs.visible) && gs.userData.tur) { // нет привязки к модулю: берём ближайшую живую башню, смотрящую в сторону выстрела
