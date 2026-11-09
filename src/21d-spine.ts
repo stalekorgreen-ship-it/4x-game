@@ -513,6 +513,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
  function release(sc,ws,q,vel){for(const d of debris){if(d.rel)continue;d.rel=1;const e=d.e;sc.attach(e);e.userData.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}for(const d of sparks){if(d.rel)continue;d.rel=1;sc.attach(d.e);d.ws=ws;d.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}}
  const zc=new Map();const ZN=Math.max(1,Math.round(L/4)),ZL=L/ZN;
  const doHit=(h,gd,kind,r)=>{const rr=()=>Math.random(),S=rr()*100;
+  {const rad=new THREE.Vector3(0,h.p.y,h.p.z);if(rad.lengthSq()>1e-6&&h.n.dot(rad)<0)h.n.negate()} // нормаль всегда наружу, иначе вмятина выпучивается
   const zk=(Math.max(0,Math.min(ZN-1,Math.floor((h.p.x+L/2)/ZL))))*8+(Math.floor((Math.atan2(h.p.z,h.p.y)/Math.PI+1)*4)%8+8)%8,AN=Math.max(1,Math.min(12,ship.userData.arm||4));let cnt=zc.get(zk)||0;zc.set(zk,cnt+1);{const nb=[zk-8,zk+8,zk-1,zk+1];for(const q of nb)zc.set(q,(zc.get(q)||0)+.35)}const gone=cnt+1>=AN;
   const mk=(c,rx,ry,depth,hole)=>({c,rx,ry,th:rr()*Math.PI,depth,hole,s:S+rr()*9});
   if(kind==='g'){graze(h.p,h.n,gd,r);return}
