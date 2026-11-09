@@ -6,7 +6,7 @@ import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld, unitSB, pctSum, CF_SB } from './03-build.ts';
+import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld, unitSB, pctSum, effPct, CF_SB } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -366,12 +366,12 @@ export function refreshEarth() {
 }
 // Очередь стройки: доля мощности у каждого проекта, количество; общие поля «сколько» и «доля» для новых проектов
 const qN = () => { const v = Math.max(1, Math.floor(+(($('bq-n') || {}).value) || state.bqN || 1)); state.bqN = v; return v; };
-const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return Math.min(v, Math.max(0, 100 - pctSum())); }; // не больше свободной мощности
+const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return v; };
 export function qName(q) { return q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : q.type === 'efac' ? `Госзавод: ${GOODS[q.g] ? GOODS[q.g].n : q.g}` : q.type === 'emine' ? 'Госшахта' : q.type === 'elab' ? 'Лаборатория' : BLD[q.type].name; }
 function queueHtml() {
-  const cap = buildUnits(), ps = pctSum();
-  const rows = state.build.map(q => { const c = unitSB(q), r = q.rate || cap * (q.pct || 0) / Math.max(100, ps), d1 = r > 0 ? (c - q.prog) / r : Infinity, dall = r > 0 ? ((q.n - 1) * c + c - q.prog) / r : Infinity;
-    return `<tr><td>${esc(qName(q))}</td><td class="n">${fmtN(q.n)}</td><td><input type="number" min="0" max="100" value="${fmtN(q.pct || 0, 0)}" data-qp="${q.id}" style="width:48px">%</td><td class="n">${fmtN(r, 1)}</td><td>${bar(q.prog / c)}</td><td class="n">${fmtN(q.prog, 0)} / ${fmtN(c)}</td><td class="n">${isFinite(d1) ? fmtN(d1, 0) + ' сут' : 'стоит'}</td><td class="n">${isFinite(dall) ? fmtDur(dall) : '—'}</td><td><button class="btn sm" data-a="bcancel" data-id="${q.id}">✕</button></td></tr>`; }).join('');
+  const cap = buildUnits(); effPct(); const ps = pctSum();
+  const rows = state.build.map(q => { const c = unitSB(q), r = cap * (q.eff || 0) / 100, d1 = r > 0 ? (c - q.prog) / r : Infinity, dall = r > 0 ? ((q.n - 1) * c + c - q.prog) / r : Infinity;
+    return `<tr><td>${esc(qName(q))}</td><td class="n">${fmtN(q.n)}</td><td><input type="number" min="0" max="100" value="${fmtN(q.pct || 0, 0)}" data-qp="${q.id}" style="width:48px">%${q.eff < (q.pct || 0) ? ` <span class="muted">(работает ${fmtN(q.eff, 0)}%${q.eff <= 0 ? ', ждёт' : ''})</span>` : ''}</td><td class="n">${fmtN(r, 1)}</td><td>${bar(q.prog / c)}</td><td class="n">${fmtN(q.prog, 0)} / ${fmtN(c)}</td><td class="n">${isFinite(d1) ? fmtN(d1, 0) + ' сут' : 'стоит'}</td><td class="n">${isFinite(dall) ? fmtDur(dall) : '—'}</td><td><button class="btn sm" data-a="bcancel" data-id="${q.id}">✕</button></td></tr>`; }).join('');
   return `<div class="box"><div class="row"><h2 class="grow">Очередь стройки · мощность ${fmtN(cap, 0)} СБ/сут (строительных заводов ${state.bld.cfactory || 0} × ${CF_SB} + бригад ${buildSlots()}) · распределено ${fmtN(ps, 0)}%${ps < 100 ? ` <span class="warn">(${fmtN(100 - ps, 0)}% простаивает)</span>` : ''}</h2>
     Новый проект: <input type="number" id="bq-n" min="1" value="${state.bqN || 1}" style="width:60px"> шт., доля <input type="number" id="bq-p" min="0" max="100" value="${state.bqP || 10}" style="width:48px">%</div>
     ${rows ? `<table class="grid"><tr><th>Проект</th><th>Осталось</th><th>Доля мощности</th><th>СБ/сут</th><th></th><th>Текущая, СБ</th><th>След. через</th><th>Вся партия</th><th></th></tr>${rows}</table>` : '<div class="help">Очередь пуста: мощность простаивает. Выберите здание или экономическую постройку, задайте количество и долю мощности.</div>'}</div>`;
@@ -392,7 +392,7 @@ export function earthClick(a, d) {
 export function refreshScience() {
   const S = state.sci, act = state.research || {}, prog = state.tprog || {};
   let h = `<div class="box"><h2>Очки науки (поступают в текущее исследование)</h2><div class="stats">${Object.entries(FIELDS).map(([f, n]) => `<span>${n}</span><span>${fmtN(S[f], 1)}</span>`).join('')}<span>Купленные очки</span><span>${fmtN(state.rp || 0, 1)}</span></div>
-    <div class="help">Выберите тему в каждой области: очки области идут в неё сами, пока тема не изучена. Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. Купленные очки лабораторий делятся между активными темами.</div></div>`;
+    <div class="help">Пока тема в области не выбрана, очки копятся (до 60 суток выработки) и уходят в тему, когда её выберете. Выберите тему в каждой области: очки области идут в неё сами, пока тема не изучена. Научные центры на Земле дают по ${fmtN(state.bld.scicenter)} очку в сутки в каждой области. Купленные очки лабораторий делятся между активными темами.</div></div>`;
   ensureOffers(Object.keys(FIELDS));
   for (const f in FIELDS) {
     const offer = state.offers[f], rr = (state.rerolls && state.rerolls[f]) || 0, nDone = TECH.filter(t => t.f === f && state.tech[t.id]).length, nAll = TECH.filter(t => t.f === f).length;
@@ -559,7 +559,7 @@ document.addEventListener('pointerdown', () => { ui.down = true; }, true);
 document.addEventListener('pointerup', () => { setTimeout(() => { ui.down = false; }, 0); }, true);
 document.addEventListener('pointercancel', () => { ui.down = false; }, true);
 $('side').addEventListener('change', e => { const d = e.target.dataset || {};
-  if (d.qp) { const q = state.build.find(j => String(j.id) === d.qp); if (q) q.pct = Math.max(0, Math.min(100 - (pctSum() - (q.pct || 0)), +e.target.value || 0)); refreshEarth(); } // сумма долей не больше 100%
+  if (d.qp) { const q = state.build.find(j => String(j.id) === d.qp); if (q) q.pct = Math.max(0, Math.min(100, +e.target.value || 0)); refreshEarth(); }
   if (e.target.id === 'bq-n') state.bqN = Math.max(1, Math.floor(+e.target.value || 1)); if (e.target.id === 'bq-p') state.bqP = Math.max(0, Math.min(100, +e.target.value || 0)); });
 $('side').addEventListener('input', e => { if (e.target.dataset.c === 'fq') { ui.find.q = e.target.value; refreshFindList(); } });
 document.addEventListener('pointerdown', () => { ui.down = true; }, true);

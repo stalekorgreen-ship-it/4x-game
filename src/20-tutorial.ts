@@ -24,7 +24,7 @@ function render() {
   }
   el.hidden = false;
   const done = STEPS.map(([, f]) => { try { return !!f(state); } catch (e) { return false; } }), n = done.filter(Boolean).length;
-  const rd = state.raid && !state.raid.active ? Math.max(0, Math.round(state.raid.eta - state.t)) : null;
+  const rd = null; // налёта на Землю больше нет
   el.innerHTML = `<div style="display:flex;gap:6px;align-items:center"><b style="flex:1">Первые шаги ${n}/${STEPS.length}</b><button class="btn sm" data-a="min">${state.tutMin ? '▢' : '–'}</button><button class="btn sm" data-a="off">×</button></div>` +
     (state.tutMin ? '' : (rd != null ? `<div class="muted" style="margin:4px 0">До налёта на Землю ~${rd} сут</div>` : '') + STEPS.map(([t], i) => `<div style="opacity:${done[i] ? .45 : 1};margin:3px 0">${done[i] ? '✔' : '○'} ${t}</div>`).join(''));
   if (n === STEPS.length) state.tutOff = true;

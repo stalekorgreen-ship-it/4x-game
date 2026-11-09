@@ -71,10 +71,12 @@ export function bldQueued(t) { return state.build.filter(j => j.type === t).redu
 // Типы: здание из BLD; 'yardton'/'yardcrew' (yi — верфь); 'efac' (g — товар: госзавод Земли), 'emine' (госшахта), 'elab' (лаборатория).
 export const ECON_SB = {efac: 1000, emine: 500, elab: 1000};
 export function unitSB(j) { return j.type === 'yardton' || j.type === 'yardcrew' ? yardUpSB(yards()[j.yi] || {nt: 0, nc: 0}, j.type === 'yardton' ? 'ton' : 'crew') : ECON_SB[j.type] || bldSB(j.type); }
-export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor(+n || 1)); pct = Math.max(0, Math.min(100 - pctSum(), +pct || 0)); // сумма долей ≤ 100%
+export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor(+n || 1)); pct = Math.max(0, Math.min(100, +pct || 0)); // доля сохраняется как задана; лишнее ждёт своей очереди
   if (BLD[t]) { const b = BLD[t], room = (b.max || 99999) - state.bld[t] - bldQueued(t); n = Math.min(n, room); if (n <= 0) return false; }
   state.build.push({id: Date.now() + Math.random(), type: t, yi, g, n, pct, prog: 0}); return true; }
-export const pctSum = () => state.build.reduce((a, j) => a + (j.pct || 0), 0);
+export const pctSum = () => Math.min(100, state.build.reduce((a, j) => a + (j.pct || 0), 0)); // сколько мощности реально занято
+// по порядку очереди: каждый берёт свою долю, пока сумма не дойдёт до 100%; остальные ждут
+export function effPct() { let left = 100; for (const j of state.build) { j.eff = Math.max(0, Math.min(j.pct || 0, left)); left -= j.eff; } }
 export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) ? 'Нужна технология: «' + techById(b.tech).name + '»' : ''; }
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
@@ -97,10 +99,10 @@ export function buildTick(h) {
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
     const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * (.02 * B.chamber + .05 * B.exchange) * h; if (inc > 0) state.money += inc; } // палата/биржа — доля налогов на космос
   // мощность делится по долям проектов (сумма долей больше 100% — урезается пропорционально)
-  const cap = buildUnits(), ps = Math.max(100, pctSum());
+  const cap = buildUnits(); effPct();
   for (const j of state.build) {
     if (j.n == null) { j.n = 1; j.pct = j.pct == null ? 100 / Math.max(1, state.build.length) : j.pct; j.prog = (j.total || 0) - (j.left || 0); } // старые сохранения
-    j.prog += cap * (j.pct || 0) / ps * h; j.rate = cap * (j.pct || 0) / ps;
+    j.prog += cap * j.eff / 100 * h; j.rate = cap * j.eff / 100;
     let c = unitSB(j);
     while (j.n > 0 && j.prog >= c) { j.prog -= c; j.n--; finish(j); c = unitSB(j); }
   }
@@ -125,14 +127,20 @@ export function techSet(id) {
 export function researchTick(h) {
   state.research = state.research || {}; state.tprog = state.tprog || {}; state.rp = state.rp || 0; ensureOffers(['phys', 'eng', 'bio']);
   const act = Object.keys(state.research).filter(f => state.research[f]);
+  // копилка: пока тема не выбрана, очки области не сгорают — копятся до 60 суток выработки (решено с владельцем)
+  { const L = state.sciLast = state.sciLast || {}, R = state.sciRate = state.sciRate || {};
+    for (const f of ['phys', 'eng', 'bio']) { const inflow = Math.max(0, (state.sci[f] || 0) - (L[f] || 0)); if (h > 0) R[f] = (R[f] || inflow / h) * .98 + inflow / h * .02;
+      if (!state.research[f]) state.sci[f] = Math.min(state.sci[f] || 0, Math.max(60 * (R[f] || 0), 1)); }
+    const rin = Math.max(0, state.rp - (L.rp || 0)); if (h > 0) R.rp = (R.rp || rin / h) * .98 + rin / h * .02; if (!act.length) state.rp = Math.min(state.rp, Math.max(60 * (R.rp || 0), 1)); }
   for (const f of act) {
     const t = TECH.find(x => x.id === state.research[f]); if (!t) { state.research[f] = null; continue; }
     let add = state.sci[f]; state.sci[f] = 0;
     if (state.rp > 0) { add += state.rp / act.length; }
     state.tprog[t.id] = (state.tprog[t.id] || 0) + add;
-    if (state.tprog[t.id] >= t.cost) { state.tech[t.id] = true; state.research[f] = null; state.offers[f] = (state.offers[f] || []).filter(x => x !== t.id); state.rerolls = state.rerolls || {}; state.rerolls[f] = Math.min(2, (state.rerolls[f] || 0) + 1); dealField(f, state.offers[f]); log(`Изучено: «${t.name}» (${f === 'phys' ? 'физика' : f === 'eng' ? 'инженерия' : 'биология'}). Новые карточки исследований.`); }
+    if (state.tprog[t.id] >= t.cost) { state.sci[f] = (state.sci[f] || 0) + state.tprog[t.id] - t.cost; /* остаток не сгорает */ state.tech[t.id] = true; state.research[f] = null; state.offers[f] = (state.offers[f] || []).filter(x => x !== t.id); state.rerolls = state.rerolls || {}; state.rerolls[f] = Math.min(2, (state.rerolls[f] || 0) + 1); dealField(f, state.offers[f]); log(`Изучено: «${t.name}» (${f === 'phys' ? 'физика' : f === 'eng' ? 'инженерия' : 'биология'}). Новые карточки исследований.`); }
   }
   if (act.length) state.rp = 0;
+  { const L = state.sciLast; for (const f of ['phys', 'eng', 'bio']) L[f] = state.sci[f] || 0; L.rp = state.rp; }
 }
 // наука от лабораторий корабля или станции на теле с аномалией
 export function produceSci(ent, bodyId, h) {

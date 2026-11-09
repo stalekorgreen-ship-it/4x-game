@@ -212,3 +212,9 @@ table.grid td.ds{max-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;c
 #alerts .ai{padding:1px 6px;cursor:pointer;display:flex;gap:5px;align-items:center;line-height:1.35}
 #alerts .ai:hover{background:#ffffff10}
 #alerts .ai i{flex:none;width:6px;height:6px;border-radius:50%}
+
+#alicons{display:flex;gap:3px}
+.alic{position:relative;width:26px;height:24px;border:1px solid var(--bad);border-radius:4px;background:#3a1414;color:#ff8a80;font-size:14px;line-height:1;cursor:pointer;padding:0;animation:alp 1.6s ease-in-out infinite}
+.alic span{position:absolute;right:1px;bottom:0;font-size:8px;color:#fff}
+.alic:hover{background:#5a1c1c}
+@keyframes alp{50%{box-shadow:0 0 6px var(--bad)}}
