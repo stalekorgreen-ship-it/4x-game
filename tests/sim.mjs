@@ -73,7 +73,7 @@ ok(s().corps.length >= n0 - 1, 'через год основана новая к
 // 6. Колонии: те же механики на любом теле
 D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
 ok(P.foundWhy('mars') !== '', 'без корабля колонию основать нельзя');
-s().ships[0].at = 'mars'; s().money = 1e10;
+s().ships[0].at = 'mars'; s().money = 1e12;
 const e0 = g.totals().n;
 ok(P.foundColony('mars') && s().cols.mars, 'колония на Марсе основана');
 ok(g.totals().n === e0 || g.totals().n < e0, 'Земля отдала поселенцев');

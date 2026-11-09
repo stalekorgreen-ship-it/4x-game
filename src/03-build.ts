@@ -36,8 +36,8 @@ export const BLD = {
   // --- общество и деньги ---
   hospital:   {name: 'Медицинский центр', level: true, max: 5, desc: 'Смертность во всех колониях −3% за уровень.', cost: {fe: 300, c: 300, si: 200, cu: 100}, days: 30},
   maternity:  {name: 'Центр семьи', level: true, max: 5, desc: 'Рождаемость во всех колониях +4% за уровень.', cost: {fe: 300, c: 250, si: 150}, days: 30},
-  chamber:    {name: 'Торговая палата', max: 5, desc: 'Приносит 1 500 000 кр в сутки на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
-  exchange:   {name: 'Биржа', max: 5, desc: 'Приносит 3 750 000 кр в сутки на здание. Нужна «Здоровая рабочая сила».', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, tech: 'tax1'},
+  chamber:    {name: 'Торговая палата', max: 5, desc: '+2% к налогам на космос на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
+  exchange:   {name: 'Биржа', max: 5, desc: '+5% к налогам на космос на здание. Нужна «Здоровая рабочая сила».', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, tech: 'tax1'},
 };
 // Стройка (решено с владельцем): любое здание — в строительных баллах (СБ), только работа бригад, без материалов.
 // Бригада = 10 000 человек, 1 СБ в сутки. В каждом здании работают 10 000 человек. Шахта 500 СБ, завод и прочее 1 000, верфь 5 000;
@@ -86,7 +86,7 @@ export function buildTick(h) {
   for (const f in FIELDS) state.sci[f] += (B.scicenter + 4 * B['inst' + f]) * h * tm('sci');
   { const ice2 = Math.min(100 * B.fuelplant2 * h, S.ice); if (ice2 > 0) { S.ice -= ice2; S.fuel += ice2; rec('ice', 'out', ice2, 'plant'); rec('fuel', 'in', ice2, 'plant'); }
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
-    const inc = (60000 * B.chamber + 150000 * B.exchange) * KR * h; if (inc > 0) state.money += inc; }
+    const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * (.02 * B.chamber + .05 * B.exchange) * h; if (inc > 0) state.money += inc; } // палата/биржа — доля налогов на космос
   let active = state.build.filter(j => j.started).length;
   for (const j of state.build) { if (j.started || active >= buildSlots()) continue; j.started = true; active++; }
   { const act = state.build.filter(j => j.started).length || 1, rate = buildUnits() / act; for (const j of state.build) if (j.started) j.left -= h * rate; } // все бригады делятся между стройками
