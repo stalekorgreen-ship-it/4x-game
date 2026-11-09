@@ -958,7 +958,7 @@ if (wrap && bgo) {
       pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; { const tx = p.vx * tailK * .1, ty = (p.vz || 0) * tailK * .1, tz = p.vy * tailK * .1;
         if (p._O) { const dx = p.x - p._O[0], dy = p.z - p._O[1], dz = p.y - p._O[2]; if (dx * dx + dy * dy + dz * dz < 16 * (tx * tx + ty * ty + tz * tz)) { pa[o + 3] = p._O[0]; pa[o + 4] = p._O[1]; pa[o + 5] = p._O[2] } else { pa[o + 3] = p.x - tx; pa[o + 4] = p.z - ty; pa[o + 5] = p.y - tz } }
         else { pa[o + 3] = p.x + ox - tx; pa[o + 4] = p.z + oy - ty; pa[o + 5] = p.y + oz - tz } }
-      const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1, p.max)), 1.6) * .9; // гаснет плавно с каждым километром, к концу дальности сходит на нет
+      const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1e-3, p.max)), 2.2) * .9; // гаснет плавно с каждым километром, к концу дальности сходит на нет
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;

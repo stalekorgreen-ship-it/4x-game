@@ -561,11 +561,11 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
 // пулемёт Гатлинга: непрерывный огонь по истребителям, ракетам и торпедам (в упор — по кораблям); нагрев снижает точность, перегрев — заклинивание или поломка
 const GV=.6; // пуля гатлинга 0,6 км/с; единицы боя — км и с (рельсотрон 2–10 км/с по калибру)
 function gatStep(s,m,dt){
-  const C=m.cfg;let e=null,kind=0,bd=C.rng*C.rng;
+  const C=m.cfg;let e=null,kind=0,bd=Math.min(C.rng,GV*20)**2;
   if(!m.lock&&s.fine){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}
     if(!e)for(const p of mis){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=2}}
     if(!e)for(const p of torps){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=3}}}
-  if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<C.rng){e=s.tg;kind=4}
+  if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<Math.min(C.rng,GV*20)){e=s.tg;kind=4} // дальше 12 км пуля всё равно угаснет — не стреляем
   if(!e||m.lock||s.mag<=0){m.heat=Math.max(0,m.heat-C.cool/60*dt);if(m.lock&&m.heat<.55)m.lock=false;return}
   m.heat+=C.heat/60*dt;{const tn=C.ammoH/3600*dt;(stat.gatT=stat.gatT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}
   if(m.heat>=1){m.heat=1;if(Math.random()<.3){m.alive=false;mdead(s,m);fx.push({x:s.x,y:s.y,t0:t,d:4,r:1});return}m.lock=true;return}
