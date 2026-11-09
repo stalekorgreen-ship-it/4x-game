@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { colBuildTick } from './19-colbld.ts';
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, fuelFor, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
+import { planRoute, KMS } from './29-flyby.ts';
 import { KR } from './00-kr.ts';
 import { veinEff } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
@@ -208,33 +209,31 @@ export function travel(s, tid, h) {
   // Честный перелёт: корабль уносит с собой скорость тела, с которого стартовал, и гасит её под скорость цели.
   // Путь = расстояние между точкой старта и целью к моменту прибытия; положение — смесь «откуда» (движется с телом) и «куда».
   const spd = shipSpeed(s);
-  if (!s.leg || s.leg.to !== tid || state.t - (s.leg.last || 0) > 2) { // новый перелёт (или полёт прерывали)
-    const from = s.at || null, f0 = from ? objPos(from, state.t) : {x: s.x, y: s.y};
-    // ближайший момент прибытия T, когда путь (расстояние между телами в момент T) успевает пройти: spd·T ≥ D(T)
-    const DT = tt => dist(from ? objPos(from, tt) : f0, objPos(tid, tt));
-    let D = DT(state.t);
-    for (let T = 1; T < 40000; T *= 1.03) { const d = DT(state.t + T); if (spd * T >= d) { D = d; break; } D = d; }
-    s.leg = {from, fx: f0.x, fy: f0.y, to: tid, D: Math.max(D, 1e-9), done: 0};
+  if (!s.leg || s.leg.to !== tid || !s.leg.legs || state.t - (s.leg.last || 0) > 2) { // новый перелёт (или полёт прерывали): маршрут с гравманёвром, если быстрее
+    const from = s.at || null, f0 = from ? objPos(from, state.t) : {x: s.x, y: s.y}, R = planRoute(from, f0, tid, state.t, spd);
+    s.leg = {to: tid, legs: R.legs, i: 0, done: 0, via: R.via || null};
+    if (R.via && !s.corp) log(`«${s.name}»: маршрут через гравитационный манёвр у «${nameOf(R.via)}» (+${fmtN(R.dv / KMS, 1)} км/с).`);
   }
   s.at = null;
-  const L = s.leg, fpa = fuelPerAU(s); L.last = state.t;
-  let step = spd * h;
+  const L = s.leg, G = L.legs[L.i], fpa = fuelPerAU(s), v = spd + (G.boost || 0); L.last = state.t;
+  let step = v * h;
   train(s, 'pil', h);
-  const maxByFuel = s.fuel / fpa;
-  let arrive = L.done + step >= L.D;
-  if (arrive) step = L.D - L.done;
+  const maxByFuel = s.fuel / fpa * v / spd; // манёвр даёт скорость бесплатно: топливо — только на свою часть
+  let arrive = L.done + step >= G.D;
+  if (arrive) step = G.D - L.done;
   if (step > maxByFuel) { step = maxByFuel; arrive = false; }
-  s.fuel = Math.max(0, s.fuel - step * fpa);
+  s.fuel = Math.max(0, s.fuel - step * fpa * spd / v);
   useWear(s, 'engine', step * WEAR_AU, step * 0.004);
-  L.done += step; s.eta = (L.D - L.done) / spd;
+  L.done += step; s.eta = (G.D - L.done) / v + L.legs.slice(L.i + 1).reduce((a, g) => a + g.D / (spd + g.boost), 0);
   s.dest = tid;
+  if (arrive && L.i < L.legs.length - 1) { const q = objPos(G.to, state.t); s.x = q.x; s.y = q.y; L.i++; L.done = 0; s.status = `Гравманёвр у «${nameOf(G.to)}», летит к «${nameOf(tid)}»`; return false; }
   if (arrive) {
     const q = objPos(tid, state.t); s.x = q.x; s.y = q.y; s.leg = null;
     if (!isSh(tid)) s.at = tid;
     return true;
   }
-  { const k = L.done / L.D, a = L.from ? objPos(L.from, state.t) : {x: L.fx, y: L.fy}, b = objPos(tid, state.t); s.x = a.x + (b.x - a.x) * k; s.y = a.y + (b.y - a.y) * k; }
-  s.status = `Летит к «${nameOf(tid)}», ${fmtDur(s.eta)}`;
+  { const k = L.done / G.D, a = G.from ? objPos(G.from, state.t) : {x: G.fx, y: G.fy}, b = objPos(G.to, state.t); s.x = a.x + (b.x - a.x) * k; s.y = a.y + (b.y - a.y) * k; }
+  s.status = `Летит к «${nameOf(tid)}»${L.via && L.i === 0 ? ' через «' + nameOf(L.via) + '»' : ''}, ${fmtDur(s.eta)}`;
   return false;
 }
 
