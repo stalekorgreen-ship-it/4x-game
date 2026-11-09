@@ -1,5 +1,6 @@
 // @ts-nocheck
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
+import { evTick } from './24-events.ts';
 import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN } from './01-data.ts';
 import { KR } from './00-kr.ts';
@@ -143,7 +144,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
     if (finTick(c, dt, pm)) continue;
     civTick(c, mk, dt);
   }
-  if (home) { settleRP(sellers, dt); eventTick(dt); respawnTick(); }
+  if (home) { settleRP(sellers, dt); eventTick(dt); evTick(dt); respawnTick(); }
 }
 function civTick(c, mk, dt, col) {
   const v = c.civ, FACT_W = FW(), FACT_COST = FC(), MINE_COST = MC(); v.month++;

@@ -4,4 +4,5 @@
 
 - [ships.md](ships.md) — дизайн-документ кораблей ([оригинал](https://claude.ai/artifact/27oiME7PMWLKovcNP6oTWj))
 - [weapons.md](weapons.md) — параметры оружия ([оригинал](https://claude.ai/artifact/Ls9QsgRf3XzVRjMKhJFCxA))
+- [roadmap.md](roadmap.md) — план демо
 - [economy.md](economy.md) — экономика и цены ([оригинал](https://claude.ai/artifact/KjuU2eLQ7UC97DQBFEvfYM))
