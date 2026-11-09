@@ -8,11 +8,11 @@ import { logMarket, logJobs, lsShare } from './25-logistics.ts';
 import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
-import { regTick, addRegPeople, regsOf, regTemplate, regHab } from './30-regions.ts';
+import { regTick, addRegPeople, regsOf, regTemplate, regHab, regClim } from './30-regions.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
-import { $, H, W, cv, setHtml, ui } from './08-map-ui.ts';
+import { $, H, W, cv, esc, setHtml, ui } from './08-map-ui.ts';
 import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
@@ -212,7 +212,7 @@ export function stepEcon(dt, init) {
     const E2 = empBy()[s]; fill[s] = need > 0 ? Math.min(1, E2 / need) : 1;
   }
   // регионы: миграция и несовпадение людей и рабочих мест по регионам (30-regions)
-  if (!init) { P.n = t.n; let Jt = 0; for (let s = 0; s < 4; s++) Jt += J[s] + oth[s]; P.regK = regTick(ctxId(), P, Jt, t.wf, dt); }
+  if (!init) { P.n = t.n; let Jt = 0; for (let s = 0; s < 4; s++) Jt += J[s] + oth[s]; P.regK = regTick(ctxId(), P, Jt, t.wf, dt, t); }
   for (let s = 0; s < 4; s++) fill[s] *= P.regK || 1;
   // 2) доходы, зарплатный фонд, налог
   let wb = 0;
@@ -288,7 +288,7 @@ export function popTick(h) {
 }
 
 /* --- вкладка «Население» --- */
-export const popUi = {s: 1, a: 42};
+export const popUi = {s: 1, a: 42, reg: null};
 export const colSel = () => (state.cols && state.cols[ui.colSel]) ? ui.colSel : 'earth';
 export function colPicker() {
   const sel = colSel();
@@ -317,8 +317,26 @@ function refreshPopI() {
     ['Занято / безработных', `${fmtN(t.emp)} / ${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`], ['Учатся (15+)', fmtN(t.st - sumSt(0, 14))],
     ['Рождаемость / смертность в год', `${fmtN(P.birth)} / ${fmtN(P.death)}`], ['Прирост в год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
     ['Фонд зарплат в месяц', fmtN(P.wbill * 30) + ' кр'], ['Налоги всего в месяц', fmtN((P.taxFull || 0) * 30) + ' кр'], ['Земные расходы в месяц', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в месяц', fmtN(P.tax * 30) + ' кр'], ...(P.log ? [['Логистика', `${P.log.how}, Ø ${fmtN(P.log.D, 1)} км, плечо ${fmtN(P.log.d, 1)} км`], ['Нужно т·км в сутки / доставлено', `${fmtN(P.log.L)} / ${fmtN(P.log.sat * 100, 1)}%`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Доли: наземная / морская / воздушная', ['land', 'sea', 'air'].map(t => fmtN(P.log.L > 0 ? P.log.used[t] / P.log.L * 100 : 0, 0) + '%').join(' / ')], ['Госпредприятий транспорта', ['land', 'sea', 'air'].map(t => fmtN((P.tr && P.tr[t]) || 0)).join(' / ')]] : []), ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
-  { const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1;
-    setHtml($('pp-reg'), tbl(['Регион', 'Площадь суши, км²', 'Население', 'Доля людей', 'Доля рабочих мест', 'Миграция в год', ...(P.hab ? ['Вместимость'] : [])], R.map((r, i) => [T[i].n, fmtN(T[i].land), fmtN(r.n), fmtN(r.n / n * 100, 1) + '%', fmtN(r.jw / jw * 100, 1) + '%', (r.mig > 0 ? '+' : '') + fmtN(r.mig || 0), ...(P.hab ? [fmtN(regHab(id, i))] : [])])) + `<div class="help">Заводы укомплектованы с учётом регионов на ${fmtN((P.regK || 1) * 100, 1)}%.</div>`); }
+  { const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1, f0 = x => (x >= 0 ? '+' : '') + fmtN(x, 0);
+    const C = R.map((r, i) => regClim(id, i)), pc = x => fmtN(x * 100, 1) + '%', sel = popUi.reg != null && R[popUi.reg] ? popUi.reg : null;
+    const rows = R.map((r, i) => `<tr data-reg="${i}" style="cursor:pointer${sel === i ? ';background:#ffffff14' : ''}">` + [T[i].n, fmtN(r.n), r.un != null ? `${fmtN(r.un)} (${pc(r.un / Math.max(1, r.un + (r.emp || 0)))})` : '—', r.wage ? fmtN(r.wage, 0) + ' кр' : '—',
+      (r.mig > 0 ? '+' : '') + fmtN(r.mig || 0), `${fmtN(C[i].mean, 0)} (${fmtN(C[i].min, 0)}…${fmtN(C[i].max, 0)})`, C[i].air ? pc(C[i].total) : 'вся (нет воздуха)', ...(P.hab ? [fmtN(regHab(id, i))] : [])].map(x => `<td style="padding:2px 6px;border-top:1px solid #ffffff14">${x}</td>`).join('') + '</tr>').join('');
+    let h = `<div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr>${['Регион', 'Население', 'Безработных', 'Ср. зарплата/сут', 'Миграция в год', 'T °C ср. (мин…макс)', 'Непригодно для жизни', ...(P.hab ? ['Вместимость'] : [])].map(x => `<th style="text-align:left;padding:2px 6px">${x}</th>`).join('')}</tr>${rows}</table></div>
+      <div class="help">Заводы укомплектованы с учётом регионов на ${fmtN((P.regK || 1) * 100, 1)}%. Нажмите строку — подробная статистика региона.</div>`;
+    if (sel != null) { const r = R[sel], t0 = T[sel], c = C[sel], mts = Math.round((t0.mtn || 0) * 100);
+      const feat = [t0.desert ? `пустыни ${pc(t0.desert)}` : '', t0.cold ? `мерзлота и лёд ${pc(t0.cold)}` : '', t0.hot ? `жаркие низины ${pc(t0.hot)}` : '', t0.coast ? `низкие побережья ${pc(t0.coast)}` : '', mts ? `${t0.t ? 'горы' : 'горы и кратеры'} ${mts}% (перевозки внутри региона дороже на ${Math.round(mts / 2)}%)` : ''].filter(Boolean).join(', ');
+      h += `<h3>${esc(t0.n)}: вся статистика</h3>` + tbl(['Показатель', 'Значение'], [
+        ['Площадь суши', fmtN(t0.land) + ' км²'], ['Население', `${fmtN(r.n)} (${pc(r.n / n)} колонии)`], ['Плотность', fmtN(r.n / Math.max(1, t0.land * (1 - c.total)), 1) + ' чел./км² пригодной земли'],
+        ['Доля рабочих мест колонии', pc(r.jw / jw)], ['Занято', fmtN(r.emp || 0)], ['Безработных', `${fmtN(r.un || 0)} (${pc((r.un || 0) / Math.max(1, (r.un || 0) + (r.emp || 0)))})`],
+        ['Средняя зарплата', `${fmtN(r.wage || 0, 0)} кр/сут (×${fmtN(r.wg || 1, 2)} к средней)`], ['Исходный уровень зарплат', '×' + fmtN(r.wl || t0.wl || 1, 2) + ' (сходится к среднему ~1% в год)'],
+        ['Миграция в год', f0(r.mig || 0)], ['Уехало от климата всего', fmtN(r.dis || 0)],
+        ...(P.hab ? [['Инфраструктура', fmtN(r.inf, 1) + ' ед.'], ['Вместимость', fmtN(regHab(id, sel))], ['Заполнено', pc(r.n / Math.max(1, regHab(id, sel)))]] : []),
+        ['Средняя температура', `${fmtN(c.mean, 1)} °C (${f0(c.dTl)} к 2030)`], ['Минимум / максимум', `${fmtN(c.min, 0)} / ${fmtN(c.max, 0)} °C`], ['Потепление региона', `×${fmtN(t0.amp || 1, 1)} к среднему по планете`],
+        ['Непригодно для жизни', c.air ? pc(c.total) : 'вся территория (нет пригодного воздуха: только купола и подземные города)'],
+        ...(c.air ? [['— пустыни', pc(c.u.desert)], ['— мерзлота и лёд', pc(c.u.cold)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
+        ['Особенности', feat || 'нет'], ...(t0.note ? [['Заметки', esc(t0.note)]] : [])]); }
+    setHtml($('pp-reg'), h);
+    $('pp-reg').onclick = e => { const tr = e.target.closest('[data-reg]'); if (!tr) return; const i = +tr.dataset.reg; popUi.reg = popUi.reg === i ? null : i; refreshPop(); }; }
   setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
   setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n, fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2), fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
   const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
