@@ -198,7 +198,7 @@ export function reviewStrategy(c) {
   S.t0 = state.t; S.w0 = w; S.g0 = g;
 }
 export function corpTick(h) {
-  state.money = (state.money || 0) + popTaxDay() * h; popTick(h); freightTick(h);
+  { const T = popTaxDay(), k = hooks.mandK ? hooks.mandK() : 0; state.money = (state.money || 0) + T * (1 - k) * h; state.mandDay = T * k; } popTick(h); freightTick(h); // обязательные расходы срезают доход казны
   state.corpAcc = (state.corpAcc || 0) + h;
   if (state.corpAcc < 0.5) return;
   const dt = state.corpAcc; state.corpAcc = 0;
@@ -282,7 +282,7 @@ export function refreshCorp() {
   if (P && P.price) h += `<div class="box"><h2>Рынок товаров</h2><div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr><th style="text-align:left">Товар</th><th style="text-align:left">Цена ×</th><th style="text-align:left">Лучшая цена корпорации</th></tr>${Object.keys(GOODS).map(g => { const prs = state.corps.filter(c => c.civ && c.civ.pr[g] && c.civ.fac[g]).map(c => c.civ.pr[g]); return `<tr><td>${GOODS[g].n}</td><td>${fm(P.price[g])}</td><td>${prs.length ? fm(Math.min(...prs)) : '—'}</td></tr>`; }).join('')}</table></div></div>`;
   const sorted = [...state.corps].sort((a, b) => b.credits - a.credits), sel = state.corps.find(c => c.id === ui.corpSel) || sorted[0];
   h += `<div class="box"><h2>Список (${state.corps.length})</h2><div data-sc style="overflow-x:auto;max-height:260px;overflow-y:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr>${['Корпорация', 'Капитал', 'Заводов', 'Лаб.', 'Верфь', 'Корабли', 'Техи'].map(x => `<th style="text-align:left;padding:2px 6px">${x}</th>`).join('')}</tr>${sorted.map(c => `<tr data-corpsel="${c.id}" style="cursor:pointer;${c === sel ? 'background:#ffffff14' : ''}"><td style="padding:2px 6px">${corpLogo(c.name, 16)} ${esc(c.name)}</td><td style="padding:2px 6px">${fmtN(c.credits)}</td><td style="padding:2px 6px">${fmtN(Object.values(c.civ.fac).reduce((a, b) => a + b, 0))}</td><td style="padding:2px 6px">${c.civ.labs}</td><td style="padding:2px 6px">${c.civ.yard ? '✓' : ''}</td><td style="padding:2px 6px">${state.ships.filter(s => s.corp === c.id).length}</td><td style="padding:2px 6px">${Object.keys(c.civ.tech).length}</td></tr>`).join('')}</table></div></div>`;
-  for (const c of [sel]) {
+  for (const c of sel ? [sel] : []) { // корпораций может ещё не быть
     const sts = ownStations(c), ships = state.ships.filter(s => s.corp === c.id);
     h += `<div class="box"><h2>${corpLogo(c.name, 30)} ${esc(c.name)} <span class="muted">· шаблон «${c.tpl}»</span></h2><div class="stats"><span>Рудокопов / танкеров</span><span>${ships.filter(s => s.role === 'm').length} / ${ships.filter(s => s.role === 't').length}</span><span>Станции</span><span>${sts.length ? sts.map(s => `${esc(nameOf(s.at))} (топл. ${fmtN(s.fuel)} т)`).join(', ') : 'нет'}</span><span>Капитал</span><span>${fmtN(c.credits)} кр.</span><span>Продано всего</span><span>${fmtN(c.sold)} кр.</span><span>Потеряно кораблей</span><span>${c.lost}</span></div>
       <div class="help">Стратегия: ${FOCI[(c.strat || {}).focus] || '—'}${c.strat && c.strat.streak ? ' (успешных полугодий подряд: ' + c.strat.streak + ')' : ''}. Проект рудокопа: ${Object.entries(c.parts).map(([k, v]) => v + '×' + (COMP[k] ? COMP[k].name : k)).join(', ')}.</div>

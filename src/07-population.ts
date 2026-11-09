@@ -159,7 +159,7 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
-  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
+  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
   let b = 0, d = 0;
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
@@ -182,7 +182,7 @@ export function stepAge() {
     const x = nw[s][a]; if (x.st <= 0) continue;
     let up = 0;
     if (s < 3 && a <= 25) {
-      const aff = clampN((1 + .12 * colN(ctxId(), 'school')) * P.parInc[s] * 2 / (TUIT[s + 1] * (1 - laws().edu / 100) * 2 + 1e-9), 0, 1), prem = wage[s + 1] / wage[s], inc = clampN((prem - 1) / .3, 0, 1);
+      const aff = clampN((1 + .12 * colN(ctxId(), 'school')) * P.parInc[s] * 2 / (TUIT[s + 1] * (1 - Math.min(100, laws().edu + 3 * (hooks.mandOver ? hooks.mandOver('mEdu') : 0)) / 100) * 2 + 1e-9), 0, 1), prem = wage[s + 1] / wage[s], inc = clampN((prem - 1) / .3, 0, 1);
       up = aff * inc * CAPS[s];
     }
     const mv = x.st * up, leave = x.st - mv;

@@ -1,11 +1,16 @@
 // @ts-nocheck
+import { hooks } from './00-hooks.ts';
 // Государство и финансы: законы (налоги, субсидии), кредиты, банкротства и поглощения, патенты, кризисы.
 import { log, state, fmtN } from './01-data.ts';
 import { FACT_COST, GOODS, clampN } from './07-population.ts';
 import { CTECH, LAB_COST, MINE_COST, YARD_COST, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml } from './08-map-ui.ts';
 
-export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5, inv: 3};
+export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5, inv: 3, mEdu: 8, mMed: 8, mSoc: 10, mInf: 6, mSec: 5, mAdm: 3};
+// Обязательные расходы государства (решено с владельцем): доля дохода казны, ниже минимума опустить нельзя
+export const MAND = [['mEdu', 'Образование: школы и вузы', 8, 'Выше минимума: обучение дешевле для семей — больше людей с высшим образованием.'], ['mMed', 'Медицина и клиники', 8, 'Выше минимума: смертность ниже (−1% за каждый процент сверх минимума).'], ['mSoc', 'Пенсии и соцзащита', 10, ''], ['mInf', 'Дороги и ЖКХ', 6, ''], ['mSec', 'Полиция и оборона', 5, ''], ['mAdm', 'Госаппарат', 3, '']];
+export const mandK = () => { const L = laws(); let s = 0; for (const [k, , m] of MAND) s += Math.max(m, L[k] == null ? m : L[k]); return Math.min(.9, s / 100); };
+export const mandOver = k => { const L = laws(), m = MAND.find(x => x[0] === k)[2]; return Math.max(0, (L[k] == null ? m : L[k]) - m); };
 export const BANK_RATE = .12, PLAYER_RATE = .06;
 // Детерминированный генератор случайных чисел (чтобы игры и тесты воспроизводились)
 export function rnd() { let a = state.rng = ((state.rng === undefined ? 12345 : state.rng) + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -124,11 +129,13 @@ export function refreshLaws() {
       <div class="box"><h2>Торговля и космос</h2>${row('tariff', 'Ввозные пошлины', 0, 50, 'Пошлина на ввозное сырьё и товары (колонии ввозят с Земли): растёт доход казны и стимул строить своё, но дорожает жизнь.')}
       ${row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт, которую забирает государство.')}
       ${row('space', 'Доля налогов на космос', .1, 3, 'Остальное уходит на земные расходы. При старении доля проседает.', '%', .1)}
+      <div class="help" style="margin-top:4px"><b>Обязательные расходы</b> — доля дохода казны, ниже минимума нельзя (сейчас уходит ${fmtN(mandK() * 100, 0)}%):</div>
+      ${MAND.map(([k, n, m, h]) => row(k, n + ' (мин. ' + m + '%)', m, 40, h || 'Обязательная статья бюджета.')).join('')}
       ${row('inv', 'Госинвестиции в экономику', 0, 20, 'Доля налогов в фонд экономических построек Земли (госзаводы, госшахты, лаборатории). Чем больше, тем меньше остаётся на земные расходы.')}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
       <div class="box"><h2>События</h2><div id="lw-ev"></div></div><div class="box"><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div></div>`;
   }
   { let tx = 0, ex = 0, tr = 0; const eb = {edu: 0, pen: 0, bth: 0}; for (const id in state.cols) { const q = state.cols[id].pop; tx += q.tax || 0; ex += q.exp || 0; tr += q.tarDay || 0; if (q.expP) for (const k in eb) eb[k] += q.expP[k] || 0; }
-    setHtml($('lw-bg'), `<div class="stats"><span>Налоги с зарплат (все колонии)</span><span>${fmtN(tx * 30)} кр/мес</span><span>Пошлины</span><span>${fmtN(tr * 30)} кр/мес</span><span>Налог на добычу (всего)</span><span>${fmtN(state.mtaxInc || 0)} кр</span><span>Образование</span><span>−${fmtN(eb.edu * 30)} кр/мес</span><span>Рождаемость</span><span>−${fmtN(eb.bth * 30)} кр/мес</span><span>Пенсии</span><span>−${fmtN(eb.pen * 30)} кр/мес</span><span><b>Итого в месяц</b></span><span><b>${fmtN((tx + tr - ex) * 30)} кр</b></span></div>`); }
+    setHtml($('lw-bg'), `<div class="stats"><span>Налоги с зарплат (все колонии)</span><span>${fmtN(tx * 30)} кр/мес</span><span>Пошлины</span><span>${fmtN(tr * 30)} кр/мес</span><span>Налог на добычу (всего)</span><span>${fmtN(state.mtaxInc || 0)} кр</span><span>Образование</span><span>−${fmtN(eb.edu * 30)} кр/мес</span><span>Рождаемость</span><span>−${fmtN(eb.bth * 30)} кр/мес</span><span>Пенсии</span><span>−${fmtN(eb.pen * 30)} кр/мес</span><span>Обязательные расходы (${fmtN(mandK() * 100, 0)}% дохода)</span><span>−${fmtN((state.mandDay || 0) * 30)} кр/мес</span><span><b>Итого в месяц</b></span><span><b>${fmtN((tx + tr - ex - (state.mandDay || 0)) * 30)} кр</b></span></div>`); }
   setHtml($('lw-st'), `<div class="stats"><span>Налоги в месяц</span><span>${fmtN(P.tax * 30)} кр</span><span>Потрачено на субсидии</span><span>${fmtN(state.subSpent || 0)} кр</span><span>Доход с кредитов</span><span>${fmtN(state.loanInc || 0)} кр</span></div>`);
   const ev = P.ev || [];
   setHtml($('lw-ev'), (ev.length ? ev.map(e => { const d = EVENTS.find(x => x.k === e.k); return `<div class="row"><span class="grow">${d.name}</span><span class="muted">${d.text} · ещё ${fmtN((e.until - state.t) / 30, 1)} мес.</span></div>`; }).join('') : `<div class="help">Сейчас кризисов нет.</div>`) + `<div class="help">Банкротств: ${state.bankr || 0}. Лицензий куплено: ${state.licenses || 0}.</div>`);
@@ -139,3 +146,5 @@ export function refreshLaws() {
   const p = document.getElementById('p-laws');
   p.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.law; if (k) { laws()[k] = +e.target.value; const el = $('lv-' + k); if (el) el.textContent = laws()[k] + (k === 'hours' ? ' ч' : '%'); } });
 })();
+
+hooks.mandK = mandK; hooks.mandOver = mandOver;

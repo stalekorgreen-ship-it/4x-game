@@ -349,29 +349,30 @@ export function renderDesigner(full) {
 export function refreshEarth() {
   { const ae = document.activeElement, pe = $('p-earth'); if (ae && ae.tagName === 'INPUT' && pe && pe.contains && pe.contains(ae)) return; } // не мешать вводу
   const S = state.stock, B = state.bld; for (const t in BLD) if (B[t] == null) B[t] = 0;
-  const vw = queueHtml() + `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
-  if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + econHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
+  const vw = `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
+  if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + econHtml() + queueHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
   let h = vw + `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}</span>`).join('')}</div>
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
   h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
-    const have = b.level ? `ур. ${B[t] || 0}/${b.max}` : `${B[t] || 0}${b.max ? '/' + b.max : ''}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
+    const have = b.level ? `ур. ${B[t] || 0}` : `${B[t] || 0}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
     return `<tr><td><b>${b.name}</b></td><td class="n">${have}</td><td class="n">${fmtN(bldSB(t))}</td><td class="ds" title="${esc(full)}">${gate ? `<span class="warn">${esc(gate)}</span> · ` : ''}${esc(b.desc)}</td><td><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>В очередь</button></td></tr>`;
   }).join('') + '</table></div>';
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
   h += `<div class="box"><h2>Верфи</h2>${yards().map((y, i) => `<div class="row"><span class="grow">Верфь №${i + 1}: до ${fmtN(y.ton)} т · бригад ${y.crews} (${fmtN(yardRate(y), 1)} т/сут)</span><button class="btn sm" data-a="yton" data-i="${i}">+1 000 т · ${fmtN(yardUpSB(y, 'ton'))} СБ</button><button class="btn sm" data-a="ycrew" data-i="${i}">+1 бригада · ${fmtN(yardUpSB(y, 'crew'))} СБ</button></div>`).join('')}<div class="help">Корабль строится на одной верфи, если влезает в её тоннаж: каждая бригада (10 000 чел.) делает 1 т корабля в сутки. Расширение — работа строительных бригад, каждое следующее дороже в 1,5 раза.</div></div><div class="box"><div class="stats"><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
+  h += queueHtml();
   $('p-earth').innerHTML = h;
 }
 // Очередь стройки: доля мощности у каждого проекта, количество; общие поля «сколько» и «доля» для новых проектов
 const qN = () => { const v = Math.max(1, Math.floor(+(($('bq-n') || {}).value) || state.bqN || 1)); state.bqN = v; return v; };
-const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return v; };
+const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return Math.min(v, Math.max(0, 100 - pctSum())); }; // не больше свободной мощности
 export function qName(q) { return q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : q.type === 'efac' ? `Госзавод: ${GOODS[q.g] ? GOODS[q.g].n : q.g}` : q.type === 'emine' ? 'Госшахта' : q.type === 'elab' ? 'Лаборатория' : BLD[q.type].name; }
 function queueHtml() {
   const cap = buildUnits(), ps = pctSum();
   const rows = state.build.map(q => { const c = unitSB(q), r = q.rate || cap * (q.pct || 0) / Math.max(100, ps), d1 = r > 0 ? (c - q.prog) / r : Infinity, dall = r > 0 ? ((q.n - 1) * c + c - q.prog) / r : Infinity;
     return `<tr><td>${esc(qName(q))}</td><td class="n">${fmtN(q.n)}</td><td><input type="number" min="0" max="100" value="${fmtN(q.pct || 0, 0)}" data-qp="${q.id}" style="width:48px">%</td><td class="n">${fmtN(r, 1)}</td><td>${bar(q.prog / c)}</td><td class="n">${fmtN(q.prog, 0)} / ${fmtN(c)}</td><td class="n">${isFinite(d1) ? fmtN(d1, 0) + ' сут' : 'стоит'}</td><td class="n">${isFinite(dall) ? fmtDur(dall) : '—'}</td><td><button class="btn sm" data-a="bcancel" data-id="${q.id}">✕</button></td></tr>`; }).join('');
-  return `<div class="box"><div class="row"><h2 class="grow">Очередь стройки · мощность ${fmtN(cap, 0)} СБ/сут (строительных заводов ${state.bld.cfactory || 0} × ${CF_SB} + бригад ${buildSlots()}) · распределено ${fmtN(ps, 0)}%${ps < 100 ? ` <span class="warn">(${fmtN(100 - ps, 0)}% простаивает)</span>` : ps > 100 ? ' <span class="warn">(больше 100% — доли урезаны)</span>' : ''}</h2>
+  return `<div class="box"><div class="row"><h2 class="grow">Очередь стройки · мощность ${fmtN(cap, 0)} СБ/сут (строительных заводов ${state.bld.cfactory || 0} × ${CF_SB} + бригад ${buildSlots()}) · распределено ${fmtN(ps, 0)}%${ps < 100 ? ` <span class="warn">(${fmtN(100 - ps, 0)}% простаивает)</span>` : ''}</h2>
     Новый проект: <input type="number" id="bq-n" min="1" value="${state.bqN || 1}" style="width:60px"> шт., доля <input type="number" id="bq-p" min="0" max="100" value="${state.bqP || 10}" style="width:48px">%</div>
     ${rows ? `<table class="grid"><tr><th>Проект</th><th>Осталось</th><th>Доля мощности</th><th>СБ/сут</th><th></th><th>Текущая, СБ</th><th>След. через</th><th>Вся партия</th><th></th></tr>${rows}</table>` : '<div class="help">Очередь пуста: мощность простаивает. Выберите здание или экономическую постройку, задайте количество и долю мощности.</div>'}</div>`;
 }
@@ -558,7 +559,7 @@ document.addEventListener('pointerdown', () => { ui.down = true; }, true);
 document.addEventListener('pointerup', () => { setTimeout(() => { ui.down = false; }, 0); }, true);
 document.addEventListener('pointercancel', () => { ui.down = false; }, true);
 $('side').addEventListener('change', e => { const d = e.target.dataset || {};
-  if (d.qp) { const q = state.build.find(j => String(j.id) === d.qp); if (q) q.pct = Math.max(0, Math.min(100, +e.target.value || 0)); refreshEarth(); }
+  if (d.qp) { const q = state.build.find(j => String(j.id) === d.qp); if (q) q.pct = Math.max(0, Math.min(100 - (pctSum() - (q.pct || 0)), +e.target.value || 0)); refreshEarth(); } // сумма долей не больше 100%
   if (e.target.id === 'bq-n') state.bqN = Math.max(1, Math.floor(+e.target.value || 1)); if (e.target.id === 'bq-p') state.bqP = Math.max(0, Math.min(100, +e.target.value || 0)); });
 $('side').addEventListener('input', e => { if (e.target.dataset.c === 'fq') { ui.find.q = e.target.value; refreshFindList(); } });
 document.addEventListener('pointerdown', () => { ui.down = true; }, true);
@@ -618,6 +619,7 @@ export function frame(now) {
   drawMap();
   if (now - lastUi > 250) {
     lastUi = now; refreshHeader();
+    try { // ошибка в панели не должна останавливать время
     if (!ui.down) // пока кнопка мыши зажата, панель не перерисовываем: иначе кнопка заменяется под курсором и клик теряется
     if (ui.tab === 'obj') refreshObj();
     else if (ui.tab === 'fleet') refreshFleet();
@@ -634,6 +636,7 @@ export function frame(now) {
     else if (ui.tab === 'cargo') refreshCargo();
     else if (ui.tab === 'climate') refreshClimate();
     else if (ui.tab === 'sci') refreshScience();
+    } catch (e) { console.error('панель', ui.tab, e); }
   }
   requestAnimationFrame(frame);
 }
