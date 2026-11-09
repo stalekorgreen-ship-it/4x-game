@@ -17,7 +17,7 @@ export function setHtml(el, html) {
 }
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 import { COLONIZABLE, colInfo } from './07-population.ts';
-export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'obj', edit: null, dsel: null, labels: true, tilt: 0,
+export const ui = {colSel: 'earth', skip: 0, dopt: {}, sel: {kind: 'body', id: 'earth'}, tab: 'map', edit: null, dsel: null, labels: true, tilt: 0,
   cam: {x: 0, y: 0, k: 120}, camInit: false, follow: false, belts: true, find: {q: '', res: '', sort: 'amt'}};
 
 export function groupColor(s) { const g = groupOf(s); return g ? g.color : '#9aa7bb'; }
@@ -251,10 +251,11 @@ export function focusSel(keepZoom) {
   if (!keepZoom) ui.cam.k = Math.max(ui.cam.k, b && b.kind === 'moon' ? b.r * 6000 > 4000 ? 60000 : 400000 : 600);
 }
 export function select(sel) {
-  ui.sel = sel; renderObj(); hooks.showTab('obj');
+  ui.sel = sel; renderObj(); if (ui.tab !== 'map') hooks.showTab(ui.tab); // на карте только выбираем; двойной клик — «Обзор»
 }
 (function mapEvents() {
   let drag = null, moved = false;
+  cv.addEventListener('dblclick', () => hooks.showTab('obj'));
   cv.addEventListener('pointerdown', e => {
     drag = {x: e.clientX, y: e.clientY, cx: ui.cam.x, cy: ui.cam.y, rot: e.button === 2 || e.ctrlKey, yaw: ui.yaw || 0, tilt: (ui.tilt || 0) * 180 / Math.PI}; moved = false;
     cv.setPointerCapture(e.pointerId); cv.classList.add('drag');

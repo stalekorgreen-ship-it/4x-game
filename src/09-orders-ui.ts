@@ -350,11 +350,10 @@ export function refreshEarth() {
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
   let h = `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}</span>`).join('')}</div>
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
-  h += '<div class="box"><h2>Здания</h2>' + Object.entries(BLD).map(([t, b]) => {
-    const have = b.level ? `уровень ${B[t] || 0}/${b.max}` : `${B[t] || 0} шт.${b.max ? ' (до ' + b.max + ')' : ''}`, c = bldCost(t), can = bldCanAdd(t), gate = bldGate(t);
-    return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.${gate ? ` <span class="warn">${gate}</span>` : ''}</div>
-      <div class="row"><span class="grow muted">${fmtN(bldSB(t))} СБ · одной бригадой ${fmtN(bldSB(t))} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
-  }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
+  h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
+    const have = b.level ? `ур. ${B[t] || 0}/${b.max}` : `${B[t] || 0}${b.max ? '/' + b.max : ''}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
+    return `<tr><td><b>${b.name}</b></td><td class="n">${have}</td><td class="n">${fmtN(bldSB(t))}</td><td class="ds" title="${esc(full)}">${gate ? `<span class="warn">${esc(gate)}</span> · ` : ''}${esc(b.desc)}</td><td><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></td></tr>`;
+  }).join('') + '</table></div>';
   { const act = state.build.filter(q => q.started).length || 1, rate = buildUnits() / act, nm = q => q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : BLD[q.type].name;
     h += `<div class="box"><h2>Стройка: бригад ${buildSlots()} (по 10 000 чел.) · ${fmtN(buildUnits(), 1)} СБ/сут</h2><div class="row"><span class="grow muted">Аренда бюро корпораций: ${rentN()} бригад по ${fmtN(state.brigPrice || 0)} кр/сут · лимит ${state.hireMax == null ? 50 : state.hireMax} (вам приоритет: при вашей стройке свободные бригады идут вам; без стройки ваши бригады сдаются корпорациям)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(q => `<div class="row"><span style="min-width:150px">${nm(q)}</span>${q.started ? bar(1 - q.left / q.total) + `<span class="mono">${fmtN(q.total - q.left)} / ${fmtN(q.total)} СБ · ${fmtDur(q.left / rate)}</span>` : `<span class="warn grow">ждёт свободную бригаду (${fmtN(q.total)} СБ)</span>`}<button class="btn sm danger" data-a="bcancel" data-id="${q.id}">Отмена</button></div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>'; }
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
@@ -476,7 +475,9 @@ export function crewChange(el) {
 /* ===== ВКЛАДКИ, СОБЫТИЯ, ЦИКЛ ===== */
 export function showTab(name) {
   ui.tab = name;
-  const side = $('side'); if (side) { side.classList.toggle('modal', name !== 'obj'); side.classList.toggle('card', name === 'obj'); const v = $('veil'); if (v) v.hidden = name === 'obj'; }
+  // 'map' — только карта; любой раздел (в т. ч. «Обзор») открывается окном по центру
+  const side = $('side'), v = $('veil'); if (side) { side.hidden = name === 'map'; side.classList.add('modal'); side.classList.remove('card'); } if (v) v.hidden = name === 'map';
+  if (name === 'map') { document.querySelectorAll('#iconbar .ico').forEach(b => b.classList.remove('on')); return; }
   syncShell(name);
   for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'demo', 'log']) $('p-' + n).hidden = n !== name;
   if (name === 'orders') renderOrders();
@@ -551,7 +552,7 @@ $('side').addEventListener('change', e => {
 });
 document.addEventListener('keydown', e => {
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
-  if (e.code === 'Escape' && ui.tab !== 'obj') { showTab('obj'); }
+  if (e.code === 'Escape' && ui.tab !== 'map') { showTab('map'); }
   else if (e.code === 'Space') { e.preventDefault(); state.paused = !state.paused; }
   else if (e.key >= '1' && e.key <= '7') { state.speedIdx = +e.key + 3; state.paused = false; }
   else if (e.key === 'Escape') closeDesigner();
@@ -614,7 +615,7 @@ export function frame(now) {
   buildHeader(); addNewGameButton();
   $('btnLabels').classList.add('on'); $('mtilt').oninput = e => setTilt(+e.target.value); if (ui.tilt == null) { setTilt(35); ui.yaw = .5; } /* карта сразу объёмная */
   new ResizeObserver(resizeMap).observe($('mapwrap')); resizeMap();
-  buildShell(); showTab('obj'); refreshHeader();
+  buildShell(); showTab('map'); refreshHeader();
   setInterval(saveGame, 5000);
   window.addEventListener('pagehide', saveGame);
   requestAnimationFrame(frame);
@@ -683,4 +684,4 @@ $('stats').addEventListener('pointerdown', e => { if (e.target === $('stats')) $
 
 hooks.showTab = showTab;
 
-(function modalClose() { const c = document.getElementById('mclose'), v = document.getElementById('veil'); if (c) c.onclick = () => showTab('obj'); if (v) v.onclick = () => showTab('obj'); })();
+(function modalClose() { const c = document.getElementById('mclose'), v = document.getElementById('veil'); if (c) c.onclick = () => showTab('map'); if (v) v.onclick = () => showTab('map'); })();

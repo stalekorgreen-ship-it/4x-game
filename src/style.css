@@ -163,3 +163,45 @@ table.mono td,table.mono th{padding-top:1px!important;padding-bottom:1px!importa
 .dl .item{padding:4px 6px}
 .stats{gap:1px 8px;font-size:12px}
 @media (max-width:900px){.dwin{height:100%}.dbody{overflow:auto;grid-template-columns:minmax(0,1fr)}.dcol{overflow:visible}}
+
+/* ===== Плотный интерфейс (как в Aurora): мелкий шрифт, минимальные отступы, таблицы вместо карточек ===== */
+body{font:11px/1.2 var(--sans);padding:4px 8px;gap:4px}
+#top{gap:4px 10px}
+.ico{width:46px;padding:2px 1px 1px;font-size:8.5px;border-radius:4px}
+.ico svg{width:16px;height:16px}
+#clock{font-size:12px;min-width:130px}
+.speeds{gap:2px}
+.btn{padding:1px 7px;min-height:20px;border-radius:3px}
+.btn.sm{padding:0 5px;min-height:17px;font-size:11px}
+.chip{padding:1px 5px;font-size:11px;border-radius:3px}
+#stock{gap:3px}
+select,input[type=text],input[type=number]{min-height:18px;padding:0 4px;border-radius:3px}
+.tab{padding:3px 8px}
+#side.modal{top:62px;width:calc(100vw - 12px);height:calc(100vh - 68px);border-radius:6px}
+#mclose{top:2px;right:4px}
+.panel{padding:4px;gap:3px}
+.box{padding:3px 5px;gap:2px;border-radius:3px}
+h2{font-size:9px;letter-spacing:.1em}
+h3{margin:2px 0;font-size:11px}
+.help{font-size:10px;line-height:1.2}
+.row{gap:4px}
+.ship,.order,.dl .item,.comp{padding:2px 4px;gap:1px 4px;border-radius:3px}
+.res,.stats{gap:0 8px}
+.log div{padding:1px 0}
+.panel table,#p-obj{font-size:11px}
+.panel td,.panel th{padding:0 4px!important}
+table.grid{width:100%;border-collapse:collapse;table-layout:auto}
+table.grid th{text-align:left;color:var(--muted);font-weight:500;padding:0 4px;white-space:nowrap}
+table.grid td{padding:0 4px;border-top:1px solid #ffffff10;white-space:nowrap;height:19px}
+table.grid tr:hover td{background:#ffffff08}
+table.grid td.n{font-family:var(--mono);text-align:right}
+table.grid td.ds{max-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.dhead{padding:3px 8px}.dhead h3{font-size:12px}
+.sbody{padding:6px;gap:6px}
+#mapctl{left:4px;top:4px;gap:2px}
+#side[hidden]{display:none}
+.res{grid-template-columns:repeat(5,max-content 70px);gap:0 8px;justify-content:start}
+.res span:nth-child(even){font-family:var(--mono);text-align:right}
+.res span:nth-child(4n+2),.res span:nth-child(4n){font-family:var(--mono);text-align:right}
+.res span:nth-child(odd){font-family:var(--sans);text-align:left}
+.panel .bar{max-width:240px}

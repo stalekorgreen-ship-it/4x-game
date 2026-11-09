@@ -25,7 +25,7 @@ export const sectionOf = (tab) => SECTIONS.find((s) => s.subs.some((x) => x[0] =
 export function buildShell() {
   const bar = $('iconbar'); if (!bar) return;
   bar.innerHTML = SECTIONS.map((s) => `<button class="ico" data-sec="${s.id}" title="${s.name}" aria-label="${s.name}">${s.icon}<span>${s.name}</span></button>`).join('');
-  bar.addEventListener('click', (e) => { const b = e.target.closest('[data-sec]'); if (!b) return; const s = SECTIONS.find((x) => x.id === b.dataset.sec); hooks.showTab(last[s.id] || s.subs[0][0]); });
+  bar.addEventListener('click', (e) => { const b = e.target.closest('[data-sec]'); if (!b) return; const s = SECTIONS.find((x) => x.id === b.dataset.sec); if (ui.tab !== 'map' && sectionOf(ui.tab).id === s.id) return hooks.showTab('map'); hooks.showTab(last[s.id] || s.subs[0][0]); });
 }
 export function syncShell(tab) {
   const s = sectionOf(tab); last[s.id] = tab;
