@@ -4,7 +4,7 @@ import { evTick } from './24-events.ts';
 import { wantTransport } from './25-logistics.ts';
 import { UT, gval } from './26-goods.ts';
 import { tm } from './15-techs.ts';
-import { state, log, rec, fmtN, GROUND } from './01-data.ts';
+import { state, log, rec, fmtN, GROUND, veinEff } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
@@ -16,8 +16,10 @@ export const MINE_COST = 5e7 * KR, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YAR
 // товары для космоса (корабли, станции, колонии): их госзаводы на Земле достраиваются сами, остальное — игрок
 export const SPACE_IND = ['comp', 'shipm', 'infra', 'ammo', 'air'];
 export const mpOf = r => (state.mp && state.mp[r]) || 1;
-// Мощность госшахт Земли по руде, т/сут: полная, пока не выбрана половина недр, дальше падает
-export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop, g = state.ground && state.ground.earth, g0 = GROUND.earth[r]; if (!P || !P.lm || !g || !g0) return 0; return (P.lm[r] || 0) * MINE_T * fs() * (P.mfill || 1) * clampN(2 * (g[r] || 0) / g0, 0, 1); };
+// Госшахты Земли (правило владельца): каждая шахта добывает 1 т КАЖДОЙ руды в сутки × эффективность месторождения
+// (эффективность = сложность жилы × остаток недр, падает по мере выработки). P.lmN — число госшахт.
+export const lmEff = r => { const g = state.ground && state.ground.earth, g0 = GROUND.earth[r]; return g && g0 ? veinEff('earth', r, g[r] || 0, g0) : 0; };
+export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return P.lmN * lmEff(r) * (P.mfill || 1); };
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
 export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
 export const CTECH = [
@@ -138,8 +140,8 @@ function rawMarket(rawNeed, dt, init) {
     const stock = ctxId() === 'earth' ? (state.stock[r] || 0) : 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r] * mpOf(r)});
     const tf = laws().tariff / 100; for (const k in needs) total += needs[k];
     const earthOre = ctxId() === 'earth' && GROUND.earth[r] != null;
-    if (earthOre) { // госшахты Земли: мощность ограничена, недра конечны (на старте ~60% потребности)
-      P.lm = P.lm || {}; if (P.lm[r] == null) P.lm[r] = .6 * total / MINE_T;
+    if (earthOre) { // госшахты Земли: мощность ограничена, недра конечны (на старте самой дефицитной руды ~60%)
+      if (P.lmN == null) { let mx = 0; for (const q in rawNeed) if (GROUND.earth[q] != null) { let t = 0; for (const k in rawNeed[q]) t += rawNeed[q][k]; mx = Math.max(mx, t / Math.max(.01, lmEff(q))); } P.lmN = Math.round(.6 * mx); }
       pool.push({id: 'lm', cap: lmCap(r), price: PRICE[r]});
     } else pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8 * (P.dist || 1) * (1 + tf)});
     pool.sort((a, b) => a.price - b.price);
