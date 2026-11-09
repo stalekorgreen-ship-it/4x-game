@@ -33,7 +33,7 @@ ok(s().corps.length === 20 && s().ships.filter((x) => x.corp).length === 0, 'с�
 ok(s().corps.every((c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0) === 2), 'у каждой по 2 завода');
 for (let i = 0; i < 3000; i++) g.advance(2);
 const tot = (c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0);
-ok(s().corps.filter((c) => !(state0 => c.born > s().t - 360 * 5)()).every((c) => tot(c) > 30), 'заводы корпораций растут на выручку (кроме новых): ' + s().corps.map(tot).join('/'));
+ok(s().corps.filter((c) => !(state0 => c.born > s().t - 360 * 5)()).every((c) => tot(c) > 10), 'заводы корпораций растут на выручку (кроме новых, стройка ограничена бригадами): ' + s().corps.map(tot).join('/'));
 ok(s().t > 360 * 6 && s().corps.some((c) => c.civ.yard), 'кто-то построил коммерческую верфь (не раньше 6 лет)');
 ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
 ok(s().corps.some((c) => c.civ.labs > 0) && s().corps.some((c) => c.civ.tech.out1), 'корпорации строят лаборатории и изучают свои технологии');

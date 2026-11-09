@@ -4,7 +4,7 @@ import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld } from './03-build.ts';
+import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -356,7 +356,7 @@ export function refreshEarth() {
       <div class="row"><span class="grow muted">${fmtN(bldSB(t))} СБ · одной бригадой ${fmtN(bldSB(t))} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
   }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
   { const act = state.build.filter(q => q.started).length || 1, rate = buildUnits() / act, nm = q => q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : BLD[q.type].name;
-    h += `<div class="box"><h2>Стройка: бригад ${buildSlots()} (по 10 000 чел.) · ${fmtN(buildUnits(), 1)} СБ/сут</h2><div class="row"><span class="grow muted">Подряд у корпораций: ${state.hire || 0} бригад (каждая +1 СБ/сут, ${fmtN(HIRE_PRICE)} кр/сут)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(q => `<div class="row"><span style="min-width:150px">${nm(q)}</span>${q.started ? bar(1 - q.left / q.total) + `<span class="mono">${fmtN(q.total - q.left)} / ${fmtN(q.total)} СБ · ${fmtDur(q.left / rate)}</span>` : `<span class="warn grow">ждёт свободную бригаду (${fmtN(q.total)} СБ)</span>`}<button class="btn sm danger" data-a="bcancel" data-id="${q.id}">Отмена</button></div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>'; }
+    h += `<div class="box"><h2>Стройка: бригад ${buildSlots()} (по 10 000 чел.) · ${fmtN(buildUnits(), 1)} СБ/сут</h2><div class="row"><span class="grow muted">Аренда бюро корпораций: ${rentN()} бригад по ${fmtN(state.brigPrice || 0)} кр/сут · лимит ${state.hireMax == null ? 50 : state.hireMax} (вам приоритет: при вашей стройке свободные бригады идут вам; без стройки ваши бригады сдаются корпорациям)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(q => `<div class="row"><span style="min-width:150px">${nm(q)}</span>${q.started ? bar(1 - q.left / q.total) + `<span class="mono">${fmtN(q.total - q.left)} / ${fmtN(q.total)} СБ · ${fmtDur(q.left / rate)}</span>` : `<span class="warn grow">ждёт свободную бригаду (${fmtN(q.total)} СБ)</span>`}<button class="btn sm danger" data-a="bcancel" data-id="${q.id}">Отмена</button></div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>'; }
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
   h += `<div class="box"><h2>Верфи</h2>${yards().map((y, i) => `<div class="row"><span class="grow">Верфь №${i + 1}: до ${fmtN(y.ton)} т · бригад ${y.crews} (${fmtN(yardRate(y), 1)} т/сут)</span><button class="btn sm" data-a="yton" data-i="${i}">+1 000 т · ${fmtN(yardUpSB(y, 'ton'))} СБ</button><button class="btn sm" data-a="ycrew" data-i="${i}">+1 бригада · ${fmtN(yardUpSB(y, 'crew'))} СБ</button></div>`).join('')}<div class="help">Корабль строится на одной верфи, если влезает в её тоннаж: каждая бригада (10 000 чел.) делает 1 т корабля в сутки. Расширение — работа строительных бригад, каждое следующее дороже в 1,5 раза.</div></div><div class="box"><div class="stats"><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
@@ -366,7 +366,7 @@ export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
   if (a === 'bbuild' && bldCanAdd(d.t)) queueBld(d.t);
   if ((a === 'yton' || a === 'ycrew') && !state.build.some(q => q.yi === +d.i && q.type === (a === 'yton' ? 'yardton' : 'yardcrew'))) queueBld(a === 'yton' ? 'yardton' : 'yardcrew', +d.i);
-  if (a === 'hire') state.hire = Math.max(0, Math.min(8, (state.hire || 0) + (+d.d)));
+  if (a === 'hire') state.hireMax = Math.max(0, Math.min(500, (state.hireMax == null ? 50 : state.hireMax) + (+d.d) * 5));
   if (a === 'bcancel') state.build = state.build.filter(j => j.id !== +d.id);
   refreshEarth();
 }

@@ -13,7 +13,7 @@ export const BLD = {
   shipyard:   {name: 'Верфь', max: 10, sb: 5000, desc: 'Новая верфь: свой стапель, до 1 000 т корабля, 1 бригада (10 000 чел., 1 т корабля в сутки). Тоннаж и бригады верфи расширяются ниже, каждый раз дороже.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
   scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, max: 3, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
-  cbureau:    {name: 'Строительное бюро', max: 20, desc: '+10 единиц стройки в сутки: здания и улучшения возводятся быстрее, параллельных бригад на одну больше.', cost: {fe: 400, ti: 100, cu: 100, si: 60}, days: 25},
+  cbureau:    {name: 'Строительное бюро', max: 200, desc: '+1 бригада (10 000 чел., 1 СБ в сутки). Зарплата идёт всегда; когда у вас нет стройки, бригады сдаются корпорациям', cost: {fe: 400, ti: 100, cu: 100, si: 60}, days: 25},
   // --- научные институты ---
   instphys:   {name: 'Институт физики', max: 6, desc: '+4 очка физики в сутки на здание.', cost: {fe: 300, si: 300, cu: 150, c: 100}, days: 30},
   insteng:    {name: 'Инженерное бюро', max: 6, desc: '+4 очка инженерии в сутки на здание.', cost: {fe: 400, ti: 150, cu: 150, si: 150}, days: 30},
@@ -45,9 +45,10 @@ export const BLD = {
 export const BRIG = 10000, CREW = 10000, BLD_MIX = [.5, .35, .15, 0], WK = 1; // зарплаты построек — полные (налоги по варианту Б)
 export const BW = Object.fromEntries(Object.keys(BLD).map(t => [t, CREW]));
 export const bldSB = t => { const b = BLD[t]; return Math.round((b.sb || 1000) * (b.level ? Math.pow(1.5, state.bld[t] || 0) : 1)); };
-export const brigades = () => (2 + (state.bld.cbureau || 0) + (state.hire || 0));
-export const buildUnits = () => brigades() * (techOn('fastbuild') ? 1.25 : 1) * tm('build') * tm('buildu'); // СБ в сутки всеми бригадами
-export const buildSlots = brigades;
+export const brigades = () => (2 + (state.bld.cbureau || 0)); // свои: зарплата идёт всегда
+export const rentN = () => (state.build && state.build.length ? (state.rent || []).reduce((a, r) => a + r.n, 0) : 0); // арендованные у корпораций
+export const buildUnits = () => (brigades() + rentN()) * (techOn('fastbuild') ? 1.25 : 1) * tm('build') * tm('buildu'); // СБ в сутки всеми бригадами
+export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
 // верфи игрока: у каждой свой предельный тоннаж и свои бригады; 1 бригада (10 000 чел.) = 1 т корабля в сутки
 export function yards() { if (!state.yards) { state.yards = []; for (let i = 0; i < Math.max(1, state.bld.shipyard || 1); i++) state.yards.push(i === 0 ? {ton: 10000, crews: 20, nt: 0, nc: 0} : {ton: 1000, crews: 1, nt: 0, nc: 0}); } while (state.yards.length < (state.bld.shipyard || 0)) state.yards.push({ton: 1000, crews: 1, nt: 0, nc: 0}); return state.yards; }
@@ -69,7 +70,10 @@ export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) 
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
   const B = state.bld, S = state.stock; for (const t in BLD) if (B[t] == null) B[t] = 0;
-  if (state.hire) { const cs = state.corps || [], pay = state.hire * HIRE_PRICE * tm('hire') * h; if (cs.length && state.money >= pay) { state.money -= pay; cs[Math.floor(state.t) % cs.length].credits += pay; } else state.hire = 0; }
+  if (state.rent && state.rent.length) { // аренда бригад у корпораций: платим, пока есть стройка
+    if (!state.build.length) state.rent = [];
+    for (const r of state.rent) { const c = (state.corps || []).find(x => x.id === r.id), p = r.n * r.price * tm('hire') * h; if (!c || state.money < p) { r.n = 0; continue; } state.money -= p; c.credits += p; c.brigInc = (c.brigInc || 0) + p; }
+    state.rent = state.rent.filter(r => r.n > 0); }
   state.money -= bldWage() * h; state.bldWageDay = bldWage();
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');
