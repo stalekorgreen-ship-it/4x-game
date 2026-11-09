@@ -489,23 +489,32 @@ if (wrap && bgo) {
       const axc = (l: any[] | undefined) => (l || []).filter((c: any) => c && c.ax).length, axN = spc.real ? axc(spc.railCfg) + axc(spc.gatCfg) + axc(spc.laserCfg) + axc(spc.flakCfg) + axc(spc.missCfg) : Math.max(2, Math.min(4, Math.round(rn / 3) || 2));
       const kin: number[][] = [[], [], []]; for (let i = 0; i < rn; i++) { const c = +((rc[i] || {}).cal) || 10; kin[0].push(c <= 10 ? 0 : c <= 15 ? 1 : c <= 20 ? 3 : 5) } for (let i = 0; i < gn; i++) kin[1].push(2); for (let i = 0; i < fn + (spc.lasers || 0); i++) kin[2].push(4);
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
-      const sp = buildSpine(m, { tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
+      const sp = buildSpine(m, { arm: s.T.arm, tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
       const k = u.L / (sp.userData.L + 16); sp.scale.setScalar(k); u.spK = k; u.sp = sp; g.add(sp) } }
     u.spOn = on; if (u.sp) u.sp.visible = on; u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
-    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 5 || (u.spN || 0) >= 24) return; g.updateMatrixWorld(true);
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 14 || (u.spN || 0) >= 90) return; g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 }
-    const dL = _sv.set(q.nx, 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now() });
+    const dL = _sv.set(q.nx, 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)) });
   }
   const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3();
+  { const dl = new THREE.Vector3(), wq = new THREE.Quaternion(), tq = new THREE.Quaternion(), tw = new THREE.Vector3(), X1 = new THREE.Vector3(1, 0, 0), hq = new THREE.Quaternion();
+    (Battle as any).setMuzzle((s: any, m: any, dx: number, dy: number, dz: number) => { // орудие стреляет из реального ствола наведённой башни
+      dbg.mc = (dbg.mc || 0) + 1; const g = models.get(s); if (!g || !g.visible) return null; const u = g.userData; dbg.mv = (dbg.mv || 0) + 1; if (u.sp) dbg.mu = (dbg.mu || 0) + 1; if (u.spOn) dbg.mo = (dbg.mo || 0) + 1; if (!u.sp || !u.spOn) return null; dbg.mp = (dbg.mp || 0) + 1; const sp = u.sp as THREE.Group, turs = sp.userData.turs as THREE.Group[]; dbg.mtn = turs && turs.length; if (!turs || !turs.length) { dbg.mt = (dbg.mt || 0) + 1; return null }
+      sp.getWorldQuaternion(wq); dl.set(dx, dz, dy).normalize().applyQuaternion(wq.invert());
+      let tu: any = m && m._tu; if (!tu || tu.parent !== sp || tu.userData.n.dot(dl) < .05) { tu = null; const st = (Math.random() * turs.length) | 0; for (let i = 0; i < turs.length; i++) { const c: any = turs[(st + i) % turs.length]; if (c.parent === sp && c.userData.n.dot(dl) > .05) { tu = c; break } } if (m) m._tu = tu }
+      if (!tu) { dbg.mzn = (dbg.mzn || 0) + 1; return null } dbg.mz = (dbg.mz || 0) + 1; const hd = tu.userData.head; tq.copy(tu.quaternion).invert(); const d2 = dl.clone().applyQuaternion(tq); if (d2.y < .02) { d2.y = .02; d2.normalize() }
+      hq.setFromUnitVectors(X1, d2); hd.quaternion.copy(hq); tw.set(tu.userData.tipX, 0, 0).applyQuaternion(hq).add(hd.position).applyMatrix4(tu.matrix).applyMatrix4(sp.matrixWorld);
+      if (flashes.length < MAXFL - 30 && cam.position.distanceToSquared(tw) < 4e6) flashes.push({ p: tw.clone(), t0: performance.now(), life: 70, sz: Math.max(.25, u.L * .004) });
+      return { x: tw.x - g.position.x, y: tw.z - g.position.z, z: tw.y - g.position.y } }) }
   function spineUpdate(g: THREE.Group) {
     const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
     const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
-    if (u.spQ.length && now - (u.spT || 0) > 1200 && spDmgFrame !== frameNo && (u.spN || 0) < 24) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
-      const oL = _rc.set(a, v, 0).addScaledVector(h.dL, R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
+    if (u.spQ.length && now - (u.spT || 0) > 500 && spDmgFrame !== frameNo && (u.spN || 0) < 90) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+      const oL = (h.pL ? _rc.copy(h.pL) : _rc.set(a, v, 0)).addScaledVector(h.dL, h.pL ? u.L * .12 : R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84))) sp.userData.inner.visible = true }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
     D.step(dt);
@@ -949,7 +958,7 @@ if (wrap && bgo) {
       pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; { const tx = p.vx * tailK * .1, ty = (p.vz || 0) * tailK * .1, tz = p.vy * tailK * .1;
         if (p._O) { const dx = p.x - p._O[0], dy = p.z - p._O[1], dz = p.y - p._O[2]; if (dx * dx + dy * dy + dz * dz < 16 * (tx * tx + ty * ty + tz * tz)) { pa[o + 3] = p._O[0]; pa[o + 4] = p._O[1]; pa[o + 5] = p._O[2] } else { pa[o + 3] = p.x - tx; pa[o + 4] = p.z - ty; pa[o + 5] = p.y - tz } }
         else { pa[o + 3] = p.x + ox - tx; pa[o + 4] = p.z + oy - ty; pa[o + 5] = p.y + oz - tz } }
-      const e = p.ev == null ? .5 : p.ev, fade = Math.min(1, Math.max(0, (1 - p.dist / Math.max(1, p.max)) / .4)) * .85; // летит яркой, гаснет лишь в последние 40% дальности
+      const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1, p.max)), .8) * .9; // летит яркой, гаснет лишь в последние 40% дальности
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;

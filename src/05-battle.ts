@@ -389,9 +389,10 @@ function assign(){
   }
 }
 // пуля по цели с упреждением: разброс подобран так, чтобы шанс попасть ≈ p; промахнувшаяся пуля летит дальше, пока во что-то не врежется или не растворится
-const tracers=[];let trId=0;
+let MUZ=null;const tracers=[];let trId=0;
 function endTr(p,x,y){if(!p.o0)return;tracers.push({id:++trId,x1:p.o0.x,y1:p.o0.y,z1:p.o0.z,x2:x,y2:y,z2:p.z,side:p.side,src:p.src,m:p.m});if(tracers.length>700)tracers.shift()}
 function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
+  {const mo=MUZ&&src&&src.T?MUZ(src,m,e.x-sx,e.y-sy,(e.z||0)-sz):null;if(mo){sx+=mo.x;sy+=mo.y;sz+=mo.z}}
   const evx=e.vx!=null?e.vx:(e.sx||0),evy=e.vy!=null?e.vy:(e.sy||0),ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy)/V;
   for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy)/V}
   const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy)),sig=Math.min(V<1000?.02:.012,.12*.4/(2.5066*Math.max(.01,p))/d),an=Math.atan2(py-sy,px-sx)+gauss()*sig;
@@ -592,12 +593,13 @@ function flakBurst(s,m){
 function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3)kill(s)}}
 function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
-  const VPc=C.vp*500;let T=Math.hypot(o.x-s.x,o.y-s.y)/VPc;
-  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y)/VPc}
-  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y),e=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*2*(1.4-0.08*m.sk)*C.sig;
-  const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,l=Math.hypot(ax,ay)||1e-6;
+  const mo=MUZ&&o?MUZ(s,m,o.x-s.x,o.y-s.y,(o.z||0)-s.z):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0);
+  const VPc=C.vp*500;let T=Math.hypot(o.x-X0,o.y-Y0)/VPc;
+  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-X0,py-Y0)/VPc}
+  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-X0,py-Y0),e=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*2*(1.4-0.08*m.sk)*C.sig;
+  const ax=px+gauss()*e-X0,ay=py+gauss()*e-Y0,l=Math.hypot(ax,ay)||1e-6;
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:s.x+ax/l*(VPc*lag+s.T.L*.4),y:s.y+ay/l*(VPc*lag+s.T.L*.4),z:s.z,vz:(o.z-s.z)/Math.max(.5,T)+gauss()*VPc*.008,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:C.rng*100,src:s,m:m,ev:Math.random(),o0:{x:s.x,y:s.y,z:s.z}});
+  proj.push({x:X0+ax/l*(VPc*lag+(mo?0:s.T.L*.4)),y:Y0+ay/l*(VPc*lag+(mo?0:s.T.L*.4)),z:Z0,vz:(o.z-Z0)/Math.max(.5,T)+gauss()*VPc*.008,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:C.rng*100,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
   stat.shots[s.side]++;s.flash=t;SFX.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
@@ -1161,7 +1163,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+return {setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
 }
 export const mainBattle = makeBattle();
 let curB = mainBattle;

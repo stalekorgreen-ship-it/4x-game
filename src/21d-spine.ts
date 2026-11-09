@@ -17,13 +17,13 @@ let silver:any,silver2:any,steel:any,accent:any;const dark=mk(0x242a37,.7,.5);
 const glowM=new THREE.MeshBasicMaterial({color:0xcfe8ff,toneMapped:false}),cyan=new THREE.MeshBasicMaterial({color:0x6fe3ff,toneMapped:false});
 const plumeM=new THREE.MeshBasicMaterial({color:0x7fb8ff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
 
-function newHU(){return {uHits:{value:Array.from({length:64},()=>new THREE.Vector4(0,0,0,1e-3))},uNH:{value:0},sh:{value:new THREE.Matrix4()},hoA:{value:Array.from({length:16},()=>new THREE.Vector4(1,0,0,1))},hoB:{value:Array.from({length:16},()=>new THREE.Vector4(0,1,0,1))},hoC:{value:Array.from({length:16},()=>new THREE.Vector4(0,0,0,0))},nHo:{value:0}}}
+function newHU(){return {uHits:{value:Array.from({length:64},()=>new THREE.Vector4(0,0,0,1e-3))},uNH:{value:0},sh:{value:new THREE.Matrix4()},hoA:{value:Array.from({length:32},()=>new THREE.Vector4(1,0,0,1))},hoB:{value:Array.from({length:32},()=>new THREE.Vector4(0,1,0,1))},hoC:{value:Array.from({length:32},()=>new THREE.Vector4(0,0,0,0))},nHo:{value:0}}}
 let CURHU:any=newHU(),hullM:any,innerM:any;
 function weather(m,k,hit,holes){const HU=CURHU;m.onBeforeCompile=sh=>{sh.uniforms.uSh=HU.sh;sh.uniforms.uHits=HU.uHits;sh.uniforms.uNH=hit===false?{value:0}:HU.uNH;sh.uniforms.uHoA=HU.hoA;sh.uniforms.uHoB=HU.hoB;sh.uniforms.uHoC=HU.hoC;sh.uniforms.uNHo=holes?HU.nHo:{value:0};
  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform mat4 uSh;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(uSh*modelMatrix*vec4(transformed,1.)).xyz;');
- sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[64];uniform int uNH;uniform vec4 uHoA[16],uHoB[16],uHoC[16];uniform int uNHo;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\nfloat vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return vn(p)*.55+vn(p*2.3)*.3+vn(p*5.1)*.15;}\n').replace('#include <color_fragment>',`#include <color_fragment>
+ sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[64];uniform int uNH;uniform vec4 uHoA[32],uHoB[32],uHoC[32];uniform int uNHo;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\nfloat vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return vn(p)*.55+vn(p*2.3)*.3+vn(p*5.1)*.15;}\n').replace('#include <color_fragment>',`#include <color_fragment>
  float rimAcc=0.;
- for(int hj=0;hj<16;hj++){if(hj>=uNHo)break;vec3 rl=vWP-uHoC[hj].xyz;float uu=dot(rl,uHoA[hj].xyz)/uHoA[hj].w,ww=dot(rl,uHoB[hj].xyz)/uHoB[hj].w;float dd=length(vec2(uu,ww));dd/=1.+.55*(fbm(rl*.45+uHoC[hj].w*7.)-.5)+.3*(fbm(rl*1.4+3.)-.5)+.12*(fbm(rl*4.)-.5);
+ for(int hj=0;hj<32;hj++){if(hj>=uNHo)break;vec3 rl=vWP-uHoC[hj].xyz;float uu=dot(rl,uHoA[hj].xyz)/uHoA[hj].w,ww=dot(rl,uHoB[hj].xyz)/uHoB[hj].w;float dd=length(vec2(uu,ww));dd/=1.+.55*(fbm(rl*.45+uHoC[hj].w*7.)-.5)+.3*(fbm(rl*1.4+3.)-.5)+.12*(fbm(rl*4.)-.5);
   if(dd<uHoC[hj].w)discard;rimAcc=max(rimAcc,1.-smoothstep(.0,.2,dd-uHoC[hj].w));}
  vec3 q=vWP+vec3(${k}.);
  vec3 big=floor(q/vec3(26.,15.,15.));float hz=h31(big+1.7);
@@ -409,7 +409,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
  }
 
  // турельные гнёзда: до 100, размер падает с числом, раскладка сеткой по 4 поверхностям
- const SOC=[],NT=Math.min(100,P.t||12);
+ const SOC=[],TURS=[],NT=Math.min(100,P.t||12);
  {const avail=[0,0,0,0];const x1=.12,x2=.9;let area=0;for(let t=x1;t<x2;t+=.02)area+=wAt(t)*L*.02*(1+1)+hAt(t)*L*.02*(.7+.7);
   let sz=Math.max(2.2,Math.min(W*(tn>3000?.42:.28),Math.sqrt(L*W*2.2/Math.max(NT,1)))),sh,cand;const big=cls>=2;
   const occ=g.children.filter(c=>c.isMesh||c.isGroup).map(c=>new THREE.Box3().setFromObject(c)).filter(b=>{const z=b.getSize(new THREE.Vector3());return z.x<L*.8&&z.length()>.3});
@@ -434,8 +434,8 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    // ориентация: локальная ось X → нормаль
    if(N[1]){gp.rotation.z=N[1]>0?Math.PI/2:-Math.PI/2}else{gp.rotation.y=N[2]>0?-Math.PI/2:Math.PI/2}
    gp.position.set(...P);g.add(gp);
-   if(P.tr!==0){const kt=P.tl&&P.tl.length?P.tl[i%P.tl.length]:i%6,ts=sz/6.4*(tn>3000?.5:.34),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
- g.userData.sockets=SOC;
+   if(P.tr!==0){const kt=P.tl&&P.tl.length?P.tl[i%P.tl.length]:i%6,ts=sz/6.4*(tn>3000?.5:.34),tu=[()=>railTurret(ts,1),()=>railTurret(ts,2),()=>gatTurret(ts,0),()=>railTurret(ts,3),()=>gatTurret(ts,1),()=>railTurret(ts,4)][kt]();tu.position.set(...P);if(N[1])tu.rotation.x=N[1]>0?0:Math.PI;else tu.rotation.x=N[2]>0?Math.PI/2:-Math.PI/2;{const hd=new THREE.Group(),y0=3.1*ts;for(const c of[...tu.children].slice(1)){c.position.y-=y0;hd.add(c)}hd.position.y=y0;tu.add(hd);tu.userData.isTur=1;tu.userData.head=hd;tu.userData.tipX=(kt===2||kt===4?9:9.8)*ts;tu.userData.n=new THREE.Vector3(...N);TURS.push(tu)}g.add(tu)}SOC.push({x:P[0],y:P[1],z:P[2],n:N,size:sz})}}
+ g.userData.sockets=SOC;g.userData.turs=TURS;
  if(tn>3000){
   for(const sg of[-1,1])for(const t0 of[.16,.78]){const wA=wAt(t0),hA=hAt(t0);faceDeco(g,f(t0),0,sg*(wA/2+.05),L*.14,hA*.6,'z',sg)}
   for(const t0 of[.2,.74,.86]){const w1=wAt(t0),h1=hAt(t0);faceDeco(g,f(t0),h1/2+.05,0,L*.1,w1*.5,'y',1);faceDeco(g,f(t0),-h1/2-.05,0,L*.1,w1*.5,'y',-1)}
@@ -486,7 +486,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);let off=0;
    for(const lb of lobes){if(v.distanceToSquared(lb.c)>lb.R2)continue;const d=infl(v,lb);if(d<1){const k=1-d;off=Math.max(off,lb.depth*Math.pow(k,.65))}else if(d<1.3)off=Math.min(off,0)-lb.depth*.1*(1-(d-1)/.3)*(1-off*0)}
    if(off!==0){v.addScaledVector(n,-off);pos.setXYZ(i,v.x,v.y,v.z)}}
-  for(const lb of lobes)if(lb.hole>0&&holes.length<16){const cs=Math.cos(lb.th),sn=Math.sin(lb.th),i2=holes.length;holes.push(lb);
+  for(const lb of lobes)if(lb.hole>0&&holes.length<32){const cs=Math.cos(lb.th),sn=Math.sin(lb.th),i2=holes.length;holes.push(lb);
    HU.hoA.value[i2].set(t1.x*cs+t2.x*sn,t1.y*cs+t2.y*sn,t1.z*cs+t2.z*sn,lb.rx);HU.hoB.value[i2].set(-t1.x*sn+t2.x*cs,-t1.y*sn+t2.y*cs,-t1.z*sn+t2.z*cs,lb.ry);HU.hoC.value[i2].set(lb.c.x,lb.c.y,lb.c.z,lb.hole);HU.nHo.value=holes.length}
   hull.userData.base.computeVertexNormals();hull.geometry.dispose();hull.geometry=fastCrease(hull.userData.base,.7);hull.geometry.computeBoundingSphere();
   for(const lb of lobes){const k=Math.max(1,Math.min(7,Math.round(lb.rx/lb.ry)));for(let i=0;i<k;i++){const o=k>1?(i/(k-1)-.5)*2*(lb.rx-lb.ry):0;addHit(lb.c.clone().addScaledVector(t1,o*Math.cos(lb.th)).addScaledVector(t2,o*Math.sin(lb.th)),lb.ry*(lb.ry<1?1.6:.85))}}}
@@ -511,7 +511,9 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
  function step(dt){for(let i=debris.length-1;i>=0;i--){const d=debris[i];if(d.rel&&d.t>28){d.e.parent&&d.e.parent.remove(d.e);d.e.geometry&&d.e.geometry.dispose&&d.e.geometry.dispose();debris.splice(i,1);continue}d.t+=dt;d.e.position.addScaledVector(d.e.userData.v,dt);d.e.rotation.x+=d.e.userData.w.x*dt;d.e.rotation.y+=d.e.userData.w.y*dt;d.e.rotation.z+=d.e.userData.w.z*dt}
   for(let i=sparks.length-1;i>=0;i--){const s2=sparks[i];s2.t+=dt;s2.e.position.addScaledVector(s2.v,dt);s2.v.multiplyScalar(1-dt*.9);if(s2.t>s2.life){s2.e.parent&&s2.e.parent.remove(s2.e);sparks.splice(i,1)}else s2.e.scale.setScalar((s2.ws||1)*(1-s2.t/s2.life))}}
  function release(sc,ws,q,vel){for(const d of debris){if(d.rel)continue;d.rel=1;const e=d.e;sc.attach(e);e.userData.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}for(const d of sparks){if(d.rel)continue;d.rel=1;sc.attach(d.e);d.ws=ws;d.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}}
+ const zc=new Map();const ZN=Math.max(1,Math.round(L/4)),ZL=L/ZN;
  const doHit=(h,gd,kind,r)=>{const rr=()=>Math.random(),S=rr()*100;
+  const zk=(Math.max(0,Math.min(ZN-1,Math.floor((h.p.x+L/2)/ZL))))*8+(Math.floor((Math.atan2(h.p.z,h.p.y)/Math.PI+1)*4)%8+8)%8,AN=Math.max(1,Math.min(12,ship.userData.arm||4));let cnt=zc.get(zk)||0;zc.set(zk,cnt+1);{const nb=[zk-8,zk+8,zk-1,zk+1];for(const q of nb)zc.set(q,(zc.get(q)||0)+.35)}const gone=cnt>=AN;
   const mk=(c,rx,ry,depth,hole)=>({c,rx,ry,th:rr()*Math.PI,depth,hole,s:S+rr()*9});
   if(kind==='g'){graze(h.p,h.n,gd,r);return}
   let lobes=[];const t1=new THREE.Vector3().crossVectors(h.n,Math.abs(h.n.y)<.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).normalize(),t2=new THREE.Vector3().crossVectors(h.n,t1);
@@ -519,16 +521,22 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   else if(kind==='b'){for(let i=0;i<4;i++){const o=new THREE.Vector3().addScaledVector(t1,(rr()-.5)*r*.9).addScaledVector(t2,(rr()-.5)*r*.9);lobes.push(mk(h.p.clone().add(o),r*(.45+rr()*.4),r*(.3+rr()*.4),r*.65,.35+rr()*.2))}lobes.push(mk(h.p,r*.9,r*.6,r*.4,0))}
   else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*1.2,.75),mk(h.p,r*2.4,r*2.1,r*.6,0)];
   else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
+  for(const lb of lobes){lb.depth*=.55+.5*Math.min(cnt,AN)/AN*1.4;if(lb.hole>0&&!gone)lb.hole=0}
+  if(gone&&!lobes.some(l=>l.hole>0))lobes.unshift(mk(h.p,r*(.8+.15*(cnt-AN)),r*(.7+.1*(cnt-AN)),r*1.1,.4+Math.min(.4,.08*(cnt-AN))));
   crater(h.p,h.n,r,r*.3,lobes)};
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
   hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
 
 // склейка статичной мелочи в несколько мешей по материалам: тысячи draw call'ов на корабль -> десяток
+function bakeHeads(g:any){g.updateMatrixWorld(true);for(const tu of g.userData.turs||[]){const hd=tu.userData.head,inv=new THREE.Matrix4().copy(hd.matrixWorld).invert(),by=new Map(),rm:any[]=[];
+ hd.traverse((o:any)=>{if(!o.isMesh)return;const mat=o.material;if(Array.isArray(mat)||mat.map)return;let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const k of Object.keys(ge.attributes))if(k!=='position'&&k!=='normal')ge.deleteAttribute(k);if(!ge.attributes.normal)ge.computeVertexNormals();ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
+ for(const o of rm)o.parent&&o.parent.remove(o);for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(mg){const me=new THREE.Mesh(mg,mat);me.userData.keep=true;hd.add(me)}}}}
 function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(g.matrixWorld).invert(),by=new Map(),rm=[];
- g.traverse((o:any)=>{if(o===g||o===g.userData.hull||o===g.userData.inner||!o.isMesh||o.isInstancedMesh)return;let p=o,skip=false;while(p&&p!==g){if(p===g.userData.hull||p===g.userData.inner){skip=true;break}p=p.parent}if(skip)return;
+ g.traverse((o:any)=>{if(o===g||o===g.userData.hull||o===g.userData.inner||!o.isMesh||o.isInstancedMesh)return;let p=o,skip=false;while(p&&p!==g){if(p===g.userData.hull||p===g.userData.inner||(p.userData&&p.userData.head===undefined&&p.parent&&p.parent.userData&&p.parent.userData.head===p)){skip=true;break}p=p.parent}if(skip)return;
   const mat=Array.isArray(o.material)?null:o.material;if(!mat)return;let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const k of Object.keys(ge.attributes))if(k!=='position'&&k!=='normal'&&k!=='uv'&&k!=='color')ge.deleteAttribute(k);
   if(mat.map||mat.vertexColors){return}
   if(!ge.attributes.normal)ge.computeVertexNormals();ge.deleteAttribute('uv');ge.deleteAttribute('color');ge.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));if(!by.has(mat))by.set(mat,[]);by.get(mat).push(ge);rm.push(o)});
  for(const o of rm)o.parent&&o.parent.remove(o);
+ bakeHeads(g);
  for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(!mg)continue;const me=new THREE.Mesh(mg,mat);me.userData.keep=true;g.add(me)}}
-export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);if(g.userData.inner)g.userData.inner.visible=false;g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
+export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);if(g.userData.inner)g.userData.inner.visible=false;g.userData.arm=P.arm;g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
