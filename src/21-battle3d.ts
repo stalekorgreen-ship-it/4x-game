@@ -495,10 +495,10 @@ if (wrap && bgo) {
     return on;
   }
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
-    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 14 || (u.spN || 0) >= 90) return; g.updateMatrixWorld(true);
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 800) u.spQ.splice(0, 100); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
-    if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 }
-    const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)) });
+    if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 } if (q.rico) { kind = 'g'; r = 3 }
+    const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)), left: q.left, arm: q.arm });
   }
   const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3(), _X1 = new THREE.Vector3(1, 0, 0);
   { const dl = new THREE.Vector3(), wq = new THREE.Quaternion(), tq = new THREE.Quaternion(), tw = new THREE.Vector3(), X1 = new THREE.Vector3(1, 0, 0), hq = new THREE.Quaternion();
@@ -510,19 +510,20 @@ if (wrap && bgo) {
       hq.setFromUnitVectors(X1, d2); hd.quaternion.copy(hq); tw.set(tu.userData.tipX, 0, 0).applyQuaternion(hq).add(hd.position).applyMatrix4(tu.matrix).applyMatrix4(sp.matrixWorld);
       if (flashes.length < MAXFL - 30 && cam.position.distanceToSquared(tw) < 4e6) flashes.push({ p: tw.clone(), t0: performance.now(), life: 70, sz: Math.max(.25, u.L * .004) });
       return { x: tw.x - g.position.x, y: tw.z - g.position.z, z: tw.y - g.position.y } }) }
-  function spineUpdate(g: THREE.Group) {
+  function spineUpdate(g: THREE.Group, lv = 10) {
     const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
     const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
-    if (u.spQ.length && now - (u.spT || 0) > 500 && spDmgFrame !== frameNo && (u.spN || 0) < 90) { spDmgFrame = frameNo; u.spT = now; u.spN = (u.spN || 0) + 1; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+    if (spDmgFrame !== frameNo) { spDmgFrame = frameNo; spBud = 3 } // все попадания рисуются: очередь разбирается по 3 за кадр на все корабли
+    while (u.spQ.length && spBud > 0) { spBud--; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
       const oL = (h.pL ? _rc.copy(h.pL) : _rc.set(a, v, 0)).addScaledVector(h.dL, h.pL ? u.L * .12 : R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
-      if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84))) sp.userData.inner.visible = true }
+      if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84), h)) sp.userData.inner.visible = true }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
-    { const sh = u.s, tg = sh && sh.tg && sh.tg.alive ? sh.tg : null, turs = sp.userData.turs as any[]; if (tg && turs) { // свободные башни всё время ведут цель
+    { const sh = u.s, tg = sh && sh.tg && sh.tg.alive ? sh.tg : null, turs = sp.userData.turs as any[]; if (tg && turs && lv >= 9) { // свободные башни ведут цель (только вблизи — экономим кадр)
         const tw2 = new THREE.Vector3(tg.x, tg.z || 0, tg.y), iq = sp.getWorldQuaternion(new THREE.Quaternion()).invert(), sw = sp.getWorldPosition(new THREE.Vector3()), dl2 = tw2.sub(sw).applyQuaternion(iq).normalize(), hq2 = new THREE.Quaternion(), tq2 = new THREE.Quaternion();
         for (const tu of turs) { if (tu.parent !== sp || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
     D.step(dt);
   }
-  let frameNo = 0, spFrame = -1, spDmgFrame = -1;
+  let frameNo = 0, spFrame = -1, spDmgFrame = -1, spBud = 0;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)
     const u = g.userData; if (u.lod === lod) return;
     if (lod === 2) {
@@ -870,12 +871,12 @@ if (wrap && bgo) {
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
       if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
       const app = L * sc / Math.max(dd, .01); // видимый размер
-      // 11 уровней детализации (0..10) с гистерезисом ±10%: корабль теряет детали постепенно, без скачков
+      // 5 моделей по дальности: 0 силуэт (lv 0–2) · 1 гладкий корпус (3–5) · 2 полный корпус (6) · 3 корпус с башнями и плитами брони (7–8, дальние из ближайших) · 4 детальная модель с повреждениями (7+, ближайшие); внутри — 11 ступеней с гистерезисом ±10%
       let lv = ud.lv | 0; while (lv < 10 && app > LODT[lv] * 1.1) lv++; while (lv > 0 && app < LODT[lv - 1] * .9) lv--; ud.lv = lv;
       const spOn = spineVis(s, g, lv, detOK.has(s), shellOK.has(s));
       setLod(s, g, spOn ? 1 : lv >= 6 ? 2 : lv >= 3 ? 1 : 0);
       { const l2 = !spOn && g.userData.lod === 2; detail(s, g, l2 && lv >= 7 && detOK.has(s)); shell(s, g, l2 && shellOK.has(s)); ultra(s, g, l2 && app > .22 && dd < 400 && detOK.has(s)) }
-      if (spOn) spineUpdate(g);
+      if (spOn) spineUpdate(g, lv);
       if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
           // направление на цель в системе корабля, зажатое в полусферу вокруг нормали площадки
