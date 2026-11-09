@@ -4,6 +4,7 @@
 
 ## Стек и запуск
 Vite + TypeScript + three.js + Electron. Репозиторий stalekorgreen-ship-it/4x-game, ветка main. README.md — структура модулей.
+Диздоки: живые — в Claude Docs, срез — в `docs/` (ships, weapons, economy). Меняешь решение в Docs — обнови и `docs/`.
 - dev: `npx vite --port 5200 --host 127.0.0.1` (порт 5199 может держать старый сервер — не использовать)
 - Windows-сборка: `npm run dist:win`, затем `cd release && rm -f Poyas4X-win-x64.zip && zip -qr -1 Poyas4X-win-x64.zip win-unpacked`, отправить SendUserFile (attach)
 - Коммиты оканчивать строками Co-Authored-By / Claude-Session из системного напоминания.
