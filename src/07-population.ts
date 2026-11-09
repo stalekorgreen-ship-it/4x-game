@@ -20,12 +20,17 @@ export const GOODS = {
 };
 export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [100, 175, 300, 500], TUIT = [0, 50, 100, 175], FACT_COST = 2e8 * KR, TAXK = 1.25e-6;
 export const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
+// Рождаемость (реалистичная модель): суммарный коэффициент — детей на женщину за жизнь — по образованию матери; для замещения поколений нужно 2,1.
+// Чем больше образованных, тем ниже рождаемость; плюс медленная «модернизация» (урбанизация, контрацепция, поздние браки) снижает её у всех слоёв.
+export const TFR0 = [2.6, 1.9, 1.5, 1.2];
+export const ASF = (() => { const w = []; let t = 0; for (let a = 0; a <= 100; a++) { const v = a >= 15 && a < 50 ? Math.pow(a - 14, 3) * Math.exp(-(a - 14) / 4.6) : 0; w.push(v); t += v; } return w.map(v => v / t); })(); // пик 27–30 лет
+export const tfMod = () => { const y = (state.t || 0) / 360; return .72 + .28 * Math.exp(-y / 40); }; // к 2100 году рождаемость ниже на четверть (мировой коэффициент с 2,3 до ~1,7)
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
 export const needOf = (g, a) => GOODS[g].need * needF(a) * (g === 'med' && a >= 50 ? 1 + (a - 50) / 25 : 1);
 export const basket = a => { let b = 0; for (const g in GOODS) b += needOf(g, a); return b; };
 export const work = a => a >= 15 && a < 65;
-export const mortQ = a => a < 1 ? .02 : .0003 + .00002 * Math.exp(Math.min(a, 100) / 11);
+export const mortQ = a => a < 1 ? .02 : .0006 + .000035 * Math.exp(Math.min(a, 100) / 10.5); // ожидаемая жизнь ≈ 73–75 лет на старте
 export const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
 export const fs = () => (state.pop && state.pop.fs) || 1;
 export const FW = () => FACT_W * fs();
@@ -54,7 +59,7 @@ export function relinkCols() {
 
 export const earthF = a => a < 15 ? 1.72 : a < 65 ? 1.62 - .0156 * (a - 15) : .8 * Math.exp(-(a - 65) / 12);
 const settlerF = a => a < 15 ? .3 : a < 20 ? .5 : a < 50 ? 1.6 : a < 65 ? .5 : .1;
-export function initPop() { state.cols = {}; state.ctx = 'earth'; mkCol('earth', 'Земля', 7e9, {f: earthF, fs: 1, cover: 1, hab: 0, dist: 1, seed: 0}); }
+export function initPop() { state.cols = {}; state.ctx = 'earth'; mkCol('earth', 'Земля', 8.5e9, {f: earthF, fs: 1, cover: 1, hab: 0, dist: 1, seed: 0}); }
 export function mkCol(id, name, T0, o) {
   const f = o.f; let sum = 0; for (let a = 0; a <= 100; a++) sum += f(a);
   const c = [[], [], [], []];
@@ -142,7 +147,7 @@ export function stepDemog(dt) { // dt в днях (месяц)
     const w = (wel[s] && wel[s][a] != null) ? wel[s][a] : 1;
     const q = clampN(mortQ(a) * mk * (1 + 3 * (1 - w)) * f, 0, .5), dd = x.n * q; d += dd;
     const k = 1 - q; x.n *= k; x.un *= k; x.st *= k;
-    if (a >= 20 && a < 40) b += x.n * .056 * FERT[s] * (.6 + .4 * w) * f * bk * bk2 * lg;
+    if (a >= 15 && a < 50) b += x.n * .5 * TFR0[s] * ASF[a] * tfMod() * (.85 + .15 * w) * f * bk * bk2 * lg; // половина — женщины; дети на женщину по образованию × возрастной профиль
   }
   P.c[0][0].n += b; P.c[0][0].st += b; P.birth = b / f; P.death = d / f; P.bornY += b; P.diedY += d;
 }

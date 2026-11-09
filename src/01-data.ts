@@ -18,7 +18,7 @@ export const WEAR_AU = 1.0;    // % износа на а.е. пути
 export const WEAR_MINE = 0.1;  // % износа в сутки добычи
 export const REPAIR_RATE = 8;  // % ремонта в сутки
 export const ORE_PER_SPARE = 4;
-export const EPOCH = Date.UTC(2200, 0, 1);
+export const EPOCH = Date.UTC(2030, 0, 1);
 export const SPEEDS = [{m:1/60,l:'1 сек'},{m:2/60,l:'2 сек'},{m:5/60,l:'5 сек'},{m:.5,l:'30 сек'},{m:1,l:'1 мин'},{m:20,l:'20 мин'},{m:60,l:'1 час'},{m:180,l:'3 часа'},{m:480,l:'8 часов'},{m:1440,l:'1 день'},{m:7200,l:'5 дней'}];
 
 export const COMP = {
