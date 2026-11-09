@@ -4,7 +4,7 @@ import { state, fmtN } from './01-data.ts';
 import { hooks } from './00-hooks.ts';
 import { GOODS, totals, withCtx } from './07-population.ts';
 import { regsOf, regTemplate, regClim } from './30-regions.ts';
-import { techOn } from './03-build.ts';
+import { techOn, pctSum, buildUnits } from './03-build.ts';
 import { GROUND } from './01-data.ts';
 import { esc, ui } from './08-map-ui.ts';
 
@@ -31,7 +31,7 @@ export function alerts() {
   const act = Object.values(state.research || {}).some(Boolean); if (!act) A.push({lvl: 2, t: 'Наука стоит: выберите исследования', go: ['sci']});
   if (!techOn('yard')) A.push({lvl: 1, t: 'Нет верфи: изучите «Орбитальные верфи»', go: ['sci']});
   else if (!(state.bld.shipyard > 0) && !(state.build || []).some(j => j.type === 'shipyard')) A.push({lvl: 1, t: 'Верфь изучена — постройте её', go: ['earth', '']});
-  if (!(state.build || []).length) A.push({lvl: 1, t: 'Строительные бригады простаивают', go: ['earth', '']});
+  { const ps = pctSum(); if (ps < 99.5) A.push({lvl: 1, t: `Стройка: простаивает ${fmtN(100 - ps, 0)}% мощности (${fmtN(buildUnits() * (100 - ps) / 100, 0)} СБ/сут)`, go: ['earth', '']}); }
   const F = state.invFund || 0, fc = hooks.econCost ? hooks.econCost('fac') : 0; if (fc && F > fc * 10) A.push({lvl: 0, t: `Фонд госинвестиций: ${fmtN(F)} кр — хватит на ${fmtN(F / fc, 0)} заводов`, go: ['earth', 'econ']});
   if (state.money < 0) A.push({lvl: 2, t: `Казна в минусе: ${fmtN(state.money)} кр`, go: ['laws']});
   if (state.raid && state.raid.eta < 90) A.push({lvl: 2, t: `Налёт через ${fmtN(state.raid.eta, 0)} сут`, go: ['fleet']});

@@ -56,11 +56,11 @@ s().research.phys = 'fusion'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.m_fusion || s().tprog.m_fusion > 0 || s().tech.fusion || s().tprog.fusion > 0, 'купленные очки идут игроку');
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
 // закупки руды: политика игрока
-s().buyPol = {fe: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.fe || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
-for (const c of s().corps.slice(0, 3)) c.civ.mines.fe = (c.civ.mines.fe || 0) + 20; // избыток руды у корпораций
+s().buyPol = {cu: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.cu || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
+for (const c of s().corps.slice(0, 3)) c.civ.mines.cu = (c.civ.mines.cu || 0) + 300; // избыток руды у корпораций (шахта — 1 т каждой руды × эффективность)
 for (let i = 0; i < 120; i++) g.advance(2);
 s().ships = _sv;
-ok((s().stock.fe || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.fe || 0) - fe0) + ' т железа)');
+ok((s().stock.cu || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.cu || 0) - fe0) + ' т меди; железа на Земле не хватает — излишков нет)');
 ok((s().stock.si || 0) <= si0 + 1e-6, 'при слишком низкой максимальной цене ничего не покупается');
 
 ok(s().money > 5e7, 'налоги капают');
@@ -71,11 +71,11 @@ const taxA = s().pop.tax; F.laws().tax = 30; P.popTick(30); const taxB = s().pop
 ok(taxB > taxA * 1.3, 'повышение налога поднимает сбор (' + Math.round(taxA) + ' → ' + Math.round(taxB) + ')');
 const cc = s().corps[3], m0 = s().money; s().money = Math.max(s().money, 2e9); F.lendTo(cc, 1e9); P.popTick(30);
 ok(F.loansOf(cc).length === 1 || s().money > m0 - 1e9, 'кредит корпорации выдан, проценты идут');
-const n0 = s().corps.length; const victim = s().corps[5]; victim.credits = -1e13; victim.civ.neg = 5; victim.civ.debt = 1e13;
+const n0 = s().corps.length, idx0 = s().nameIdx || 0; const victim = s().corps[5]; victim.credits = -1e13; victim.civ.neg = 5; victim.civ.debt = 1e13;
 P.popTick(30); P.popTick(30);
 ok(!s().corps.includes(victim) && (s().bankr || 0) >= 1, 'банкротство: корпорация исчезла, активы поглощены');
 for (let i = 0; i < 14; i++) { s().t += 30; P.popTick(30); }
-ok(s().corps.length >= n0 - 1, 'через год основана новая корпорация');
+ok((s().nameIdx || 0) > idx0, 'через год основана новая корпорация (' + n0 + ' → ' + s().corps.length + ', банкротств ' + (s().bankr || 0) + ')');
 // 6. Колонии: те же механики на любом теле
 D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
 const FRt = await import('../src/13-freight.ts');

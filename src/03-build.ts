@@ -7,6 +7,7 @@ import { sciMult, train, useWear } from './02-crew.ts';
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 1;
 export const BLD = {
+  cfactory:   {name: 'Строительный завод', sb: 2000, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
   mine:       {name: 'Шахта на Земле', max: 30, sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
@@ -47,7 +48,8 @@ export const BW = Object.fromEntries(Object.keys(BLD).map(t => [t, CREW]));
 export const bldSB = t => { const b = BLD[t]; return Math.round((b.sb || 1000) * (b.level ? Math.pow(1.5, state.bld[t] || 0) : 1)); };
 export const brigades = () => (2 + (state.bld.cbureau || 0)); // свои: зарплата идёт всегда
 export const rentN = () => (state.build && state.build.length ? (state.rent || []).reduce((a, r) => a + r.n, 0) : 0); // арендованные у корпораций
-export const buildUnits = () => (brigades() + rentN()) * (techOn('fastbuild') ? 1.25 : 1) * tm('build') * tm('buildu'); // СБ в сутки всеми бригадами
+export const CF_SB = 50; // СБ в сутки от строительного завода
+export const buildUnits = () => ((brigades() + rentN()) + (state.bld.cfactory || 0) * CF_SB) * tm('build') * tm('buildu'); // СБ в сутки: бригады + строительные заводы
 export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
 // верфи игрока: у каждой свой предельный тоннаж и свои бригады; 1 бригада (10 000 чел.) = 1 т корабля в сутки
@@ -64,8 +66,15 @@ export const academyInterval = () => 60 / (1 + 0.3 * state.bld.academy);
 export const academyClass = () => 5 + 5 * state.bld.academy;
 export const academyBonus = () => 0.5 * state.bld.academy + (techOn('select') ? 1 : 0);
 export function bldCost(t) { return {}; } // зданиям нужна только работа бригад
-export function bldQueued(t) { return state.build.filter(j => j.type === t).length; }
-export function queueBld(t, yi) { const sb = t === 'yardton' || t === 'yardcrew' ? yardUpSB(yards()[yi], t === 'yardton' ? 'ton' : 'crew') : bldSB(t); state.build.push({id: Date.now() + Math.random(), type: t, yi, started: false, left: sb, total: sb}); }
+export function bldQueued(t) { return state.build.filter(j => j.type === t).reduce((a, j) => a + (j.n || 1), 0); }
+// Очередь стройки (как в Aurora): у проекта количество n и доля мощности pct (%). Мощность = бригады + строительные заводы.
+// Типы: здание из BLD; 'yardton'/'yardcrew' (yi — верфь); 'efac' (g — товар: госзавод Земли), 'emine' (госшахта), 'elab' (лаборатория).
+export const ECON_SB = {efac: 1000, emine: 500, elab: 1000};
+export function unitSB(j) { return j.type === 'yardton' || j.type === 'yardcrew' ? yardUpSB(yards()[j.yi] || {nt: 0, nc: 0}, j.type === 'yardton' ? 'ton' : 'crew') : ECON_SB[j.type] || bldSB(j.type); }
+export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor(+n || 1)); pct = Math.max(0, Math.min(100, +pct || 0));
+  if (BLD[t]) { const b = BLD[t], room = (b.max || 99999) - state.bld[t] - bldQueued(t); n = Math.min(n, room); if (n <= 0) return false; }
+  state.build.push({id: Date.now() + Math.random(), type: t, yi, g, n, pct, prog: 0}); return true; }
+export const pctSum = () => state.build.reduce((a, j) => a + (j.pct || 0), 0);
 export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) ? 'Нужна технология: «' + techById(b.tech).name + '»' : ''; }
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
@@ -74,7 +83,7 @@ export function buildTick(h) {
     if (!state.build.length) state.rent = [];
     for (const r of state.rent) { const c = (state.corps || []).find(x => x.id === r.id), p = r.n * r.price * tm('hire') * h; if (!c || state.money < p) { r.n = 0; continue; } state.money -= p; c.credits += p; c.brigInc = (c.brigInc || 0) + p; }
     state.rent = state.rent.filter(r => r.n > 0); }
-  state.money -= bldWage() * h; state.bldWageDay = bldWage();
+  { const w = bldWage() * h, f = Math.min(w, Math.max(0, state.invFund || 0)); state.invFund = (state.invFund || 0) - f; state.money -= w - f; state.bldWageDay = bldWage(); } // зарплаты стройки и построек: сначала фонд госинвестиций
   const ice = Math.min(20 * B.fuelplant * h, S.ice);
   S.ice -= ice; S.fuel += ice; rec('ice', 'out', ice, 'plant'); rec('fuel', 'in', ice, 'plant');
   const sp = Math.max(0, Math.min(B.sparesplant * h, S.fe, S.si, 200 - S.spares));
@@ -87,16 +96,25 @@ export function buildTick(h) {
   { const ice2 = Math.min(100 * B.fuelplant2 * h, S.ice); if (ice2 > 0) { S.ice -= ice2; S.fuel += ice2; rec('ice', 'out', ice2, 'plant'); rec('fuel', 'in', ice2, 'plant'); }
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
     const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * (.02 * B.chamber + .05 * B.exchange) * h; if (inc > 0) state.money += inc; } // палата/биржа — доля налогов на космос
-  let active = state.build.filter(j => j.started).length;
-  for (const j of state.build) { if (j.started || active >= buildSlots()) continue; j.started = true; active++; }
-  { const act = state.build.filter(j => j.started).length || 1, rate = buildUnits() / act; for (const j of state.build) if (j.started) j.left -= h * rate; } // все бригады делятся между стройками
-  const done = state.build.filter(j => j.started && j.left <= 0);
-  for (const j of done) {
-    if (j.type === 'yardton' || j.type === 'yardcrew') { const y = yards()[j.yi]; if (y) { if (j.type === 'yardton') { y.ton += 1000; y.nt++; } else { y.crews++; y.nc++; } log(`Верфь №${j.yi + 1}: ${j.type === 'yardton' ? 'предельный тоннаж ' + fmtT(y.ton) : 'бригад ' + y.crews}.`); } continue; }
-    B[j.type]++; if (j.type === 'shipyard') yards(); log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`); }
-  if (done.length) state.build = state.build.filter(j => !done.includes(j));
+  // мощность делится по долям проектов (сумма долей больше 100% — урезается пропорционально)
+  const cap = buildUnits(), ps = Math.max(100, pctSum());
+  for (const j of state.build) {
+    if (j.n == null) { j.n = 1; j.pct = j.pct == null ? 100 / Math.max(1, state.build.length) : j.pct; j.prog = (j.total || 0) - (j.left || 0); } // старые сохранения
+    j.prog += cap * (j.pct || 0) / ps * h; j.rate = cap * (j.pct || 0) / ps;
+    let c = unitSB(j);
+    while (j.n > 0 && j.prog >= c) { j.prog -= c; j.n--; finish(j); c = unitSB(j); }
+  }
+  state.build = state.build.filter(j => j.n > 0);
 }
 
+function finish(j) {
+  const B = state.bld, P = state.cols && state.cols.earth && state.cols.earth.pop;
+  if (j.type === 'yardton' || j.type === 'yardcrew') { const y = yards()[j.yi]; if (y) { if (j.type === 'yardton') { y.ton += 1000; y.nt++; } else { y.crews++; y.nc++; } log(`Верфь №${j.yi + 1}: ${j.type === 'yardton' ? 'предельный тоннаж ' + fmtT(y.ton) : 'бригад ' + y.crews}.`); } return; }
+  if (j.type === 'efac') { if (P) P.fac[j.g] = (P.fac[j.g] || 0) + 1; if (j.n === 0) log(`Достроены госзаводы: ${j.g}.`); return; }
+  if (j.type === 'emine') { if (P) P.lmN = (P.lmN || 0) + 1; if (j.n === 0) log('Достроены госшахты.'); return; }
+  if (j.type === 'elab') { state.labs = (state.labs || 0) + 1; if (j.n === 0) log('Достроены лаборатории.'); return; }
+  B[j.type]++; if (j.type === 'shipyard') yards(); if (j.n === 0 || BLD[j.type].level) log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`);
+}
 const fmtT = x => Math.round(x).toLocaleString('ru-RU') + ' т';
 export { TECH };
 // Исследование идёт постепенно: выбранной теме достаются очки области и очки по контрактам лабораторий.

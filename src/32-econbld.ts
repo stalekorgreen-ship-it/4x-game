@@ -11,7 +11,7 @@ export const ECON_DAYS = {fac: 180, mine: 120, lab: 90};
 const E = () => (state.econ = state.econ || []);
 const EP = () => state.cols && state.cols.earth && state.cols.earth.pop;
 export const econCost = k => k === 'fac' ? FC() : k === 'mine' ? MC() : LAB_COST;
-const inBuild = (k, g) => E().filter(x => x.k === k && x.g === g).reduce((a, x) => a + x.n, 0);
+const inBuild = (k, g) => (state.build || []).filter(x => x.type === 'e' + k && (x.g || '') === (g || '')).reduce((a, x) => a + x.n, 0) + E().filter(x => x.k === k && x.g === g).reduce((a, x) => a + x.n, 0);
 
 export function econOrder(k, g, n) {
   n = Math.max(1, Math.floor(+n || 1)); const c = econCost(k) * n, F = state.invFund || 0;
@@ -36,17 +36,16 @@ hooks.econTick = econTick; hooks.econCost = econCost;
 const ORE = {fe: 'Железо', si: 'Кремний', cu: 'Медь', c: 'Углерод', ni: 'Никель', ti: 'Титан', ice: 'Лёд', ree: 'Редкоземельные', pt: 'Платиноиды', u: 'Уран'};
 export function econHtml() {
   const P = EP(); if (!P) return '';
-  const pc = x => `<span class="${x < .7 ? 'err' : x < .95 ? 'warn' : ''}">${fmtN(x * 100, 0)}%</span>`, btn = (k, g) => `<button class="btn sm" data-a="econ" data-k="${k}" data-g="${g}">Построить</button>`;
+  const pc = x => `<span class="${x < .7 ? 'err' : x < .95 ? 'warn' : ''}">${fmtN(x * 100, 0)}%</span>`, btn = (k, g) => `<button class="btn sm" data-a="econ" data-k="${k}" data-g="${g}">В очередь</button>`;
   const corpFac = g => (state.corps || []).reduce((a, c) => a + ((c.home || c.civ) && (c.home || c.civ).fac[g] || 0), 0);
-  let h = `<div class="box"><div class="row"><h2 class="grow">Экономические постройки Земли</h2>Строить за раз <input type="number" id="ec-n" min="1" value="${state.ecN || 10}" style="width:60px"> шт.</div>
-    <div class="stats"><span>Фонд госинвестиций</span><span>${fmtN(state.invFund || 0)} кр</span><span>Пополнение в месяц</span><span>${fmtN((P.invDay || 0) * 30)} кр (закон «Госинвестиции», Государство)</span></div>
-    <div class="help">То же, что строят корпорации. Оплата из фонда госинвестиций, не хватит — из казны; строят подрядчики. Госзаводы и госшахты продают по себестоимости и живут на выручку; лаборатории — +${LAB_RP} очков науки в сутки, зарплаты из казны.</div>
-    <h3>Заводы (${fmtN(FW())} чел., ${fmtN(FW() * PROD * hoursK(), 0)} т/сут; ${fmtN(FC())} кр, ${ECON_DAYS.fac} сут)</h3>
-    <table class="grid"><tr><th>Товар</th><th>Спрос/сут</th><th>Удовл.</th><th>Госзаводов</th><th>Корп.</th><th>Строится</th><th></th></tr>${Object.keys(GOODS).map(g => `<tr><td>${esc(GOODS[g].n)}</td><td class="n">${fmtN(P.dem[g] || 0)}</td><td class="n">${pc(P.sat[g] == null ? 1 : P.sat[g])}</td><td class="n">${fmtN(P.fac[g] || 0)}</td><td class="n">${fmtN(corpFac(g))}</td><td class="n">${inBuild('fac', g) || ''}</td><td>${btn('fac', g)}</td></tr>`).join('')}</table>
-    <div class="row"><h3 class="grow">Госшахты: ${fmtN(P.lmN || 0)} шт.${inBuild('mine', '') ? ', строится ' + inBuild('mine', '') : ''} — каждая даёт 1 т каждой руды в сутки × эффективность (${fmtN(MC())} кр, ${ECON_DAYS.mine} сут)</h3>${btn('mine', '')}</div>
+  let h = `<div class="box"><h2>Экономические постройки Земли</h2>
+    <div class="help">То же, что строят корпорации. Строятся мощностью стройки (очередь сверху: количество и доля мощности задаются в строке «Новый проект»). Зарплаты стройки и построек платит фонд госинвестиций (закон «Госинвестиции», Государство), не хватит — казна. Фонд: ${fmtN(state.invFund || 0)} кр, +${fmtN((P.invDay || 0) * 30)} в месяц.</div>
+    <h3>Госзаводы (${fmtN(FW())} чел., ${fmtN(FW() * PROD * hoursK(), 0)} т/сут, 1 000 СБ)</h3>
+    <table class="grid"><tr><th>Товар</th><th>Спрос/сут</th><th>Удовл.</th><th>Госзаводов</th><th>Корп.</th><th>В очереди</th><th></th></tr>${Object.keys(GOODS).map(g => `<tr><td>${esc(GOODS[g].n)}</td><td class="n">${fmtN(P.dem[g] || 0)}</td><td class="n">${pc(P.sat[g] == null ? 1 : P.sat[g])}</td><td class="n">${fmtN(P.fac[g] || 0)}</td><td class="n">${fmtN(corpFac(g))}</td><td class="n">${inBuild('fac', g) || ''}</td><td>${btn('fac', g)}</td></tr>`).join('')}</table>
+    <div class="row"><h3 class="grow">Госшахты: ${fmtN(P.lmN || 0)} шт.${inBuild('mine', '') ? ', в очереди ' + inBuild('mine', '') : ''} — каждая даёт 1 т каждой руды в сутки × эффективность (500 СБ)</h3>${btn('mine', '')}</div>
     <table class="grid"><tr><th>Руда</th><th>Нужно т/сут</th><th>Эффективность</th><th>Госшахты дают т/сут</th><th>Обеспечено</th><th>Недр при полной добыче</th><th>Шахт для 100%</th></tr>${Object.keys(ORE).filter(r => P.rawMk && P.rawMk[r]).map(r => { const m = P.rawMk[r], g = state.ground.earth[r] || 0, e = lmEff(r);
       return `<tr><td>${ORE[r]}</td><td class="n">${fmtN(m.need, 1)}</td><td class="n">${fmtN(e * 100, 1)}%</td><td class="n">${fmtN(lmCap(r), 1)}</td><td class="n">${pc(P.rawSat && P.rawSat[r] != null ? P.rawSat[r] : 1)}</td><td class="n">${m.need > 0 ? fmtN(g / (m.need * 360), 0) + ' лет' : '—'} (${fmtN(g / (GROUND.earth[r] || 1) * 100, 0)}% осталось)</td><td class="n">${e > 0 ? fmtN(m.need / e, 0) : '—'}</td></tr>`; }).join('')}</table>
-    <h3>Лаборатории (${fmtN(LAB_COST)} кр, ${ECON_DAYS.lab} сут)</h3>
-    <table class="grid"><tr><th>Лаборатория</th><th>Есть</th><th>Очков/сут</th><th>Строится</th><th></th></tr><tr><td>Государственная лаборатория</td><td class="n">${state.labs || 0}</td><td class="n">${fmtN((state.labs || 0) * LAB_RP)}</td><td class="n">${inBuild('lab', '') || ''}</td><td>${btn('lab', '')}</td></tr></table></div>`;
+    <h3>Лаборатории (+${LAB_RP} очков науки/сут, 1 000 СБ)</h3>
+    <table class="grid"><tr><th>Лаборатория</th><th>Есть</th><th>Очков/сут</th><th>В очереди</th><th></th></tr><tr><td>Государственная лаборатория</td><td class="n">${state.labs || 0}</td><td class="n">${fmtN((state.labs || 0) * LAB_RP)}</td><td class="n">${inBuild('lab', '') || ''}</td><td>${btn('lab', '')}</td></tr></table></div>`;
   return h;
 }

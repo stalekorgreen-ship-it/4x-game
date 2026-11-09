@@ -1,11 +1,12 @@
 // @ts-nocheck
+import { GOODS } from './07-population.ts';
 import { econHtml, econOrder } from './32-econbld.ts';
 import { techArt } from './17-art.ts';
 import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld } from './03-build.ts';
+import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld, unitSB, pctSum, CF_SB } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -346,8 +347,9 @@ export function renderDesigner(full) {
 
 /* ===== ПАНЕЛЬ «ЗЕМЛЯ» ===== */
 export function refreshEarth() {
+  { const ae = document.activeElement, pe = $('p-earth'); if (ae && ae.tagName === 'INPUT' && pe && pe.contains && pe.contains(ae)) return; } // не мешать вводу
   const S = state.stock, B = state.bld; for (const t in BLD) if (B[t] == null) B[t] = 0;
-  const vw = `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
+  const vw = queueHtml() + `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
   if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + econHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
@@ -355,20 +357,30 @@ export function refreshEarth() {
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
   h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `ур. ${B[t] || 0}/${b.max}` : `${B[t] || 0}${b.max ? '/' + b.max : ''}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
-    return `<tr><td><b>${b.name}</b></td><td class="n">${have}</td><td class="n">${fmtN(bldSB(t))}</td><td class="ds" title="${esc(full)}">${gate ? `<span class="warn">${esc(gate)}</span> · ` : ''}${esc(b.desc)}</td><td><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></td></tr>`;
+    return `<tr><td><b>${b.name}</b></td><td class="n">${have}</td><td class="n">${fmtN(bldSB(t))}</td><td class="ds" title="${esc(full)}">${gate ? `<span class="warn">${esc(gate)}</span> · ` : ''}${esc(b.desc)}</td><td><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>В очередь</button></td></tr>`;
   }).join('') + '</table></div>';
-  { const act = state.build.filter(q => q.started).length || 1, rate = buildUnits() / act, nm = q => q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : BLD[q.type].name;
-    h += `<div class="box"><h2>Стройка: бригад ${buildSlots()} (по 10 000 чел.) · ${fmtN(buildUnits(), 1)} СБ/сут</h2><div class="row"><span class="grow muted">Аренда бюро корпораций: ${rentN()} бригад по ${fmtN(state.brigPrice || 0)} кр/сут · лимит ${state.hireMax == null ? 50 : state.hireMax} (вам приоритет: при вашей стройке свободные бригады идут вам; без стройки ваши бригады сдаются корпорациям)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(q => `<div class="row"><span style="min-width:150px">${nm(q)}</span>${q.started ? bar(1 - q.left / q.total) + `<span class="mono">${fmtN(q.total - q.left)} / ${fmtN(q.total)} СБ · ${fmtDur(q.left / rate)}</span>` : `<span class="warn grow">ждёт свободную бригаду (${fmtN(q.total)} СБ)</span>`}<button class="btn sm danger" data-a="bcancel" data-id="${q.id}">Отмена</button></div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>'; }
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
   h += `<div class="box"><h2>Верфи</h2>${yards().map((y, i) => `<div class="row"><span class="grow">Верфь №${i + 1}: до ${fmtN(y.ton)} т · бригад ${y.crews} (${fmtN(yardRate(y), 1)} т/сут)</span><button class="btn sm" data-a="yton" data-i="${i}">+1 000 т · ${fmtN(yardUpSB(y, 'ton'))} СБ</button><button class="btn sm" data-a="ycrew" data-i="${i}">+1 бригада · ${fmtN(yardUpSB(y, 'crew'))} СБ</button></div>`).join('')}<div class="help">Корабль строится на одной верфи, если влезает в её тоннаж: каждая бригада (10 000 чел.) делает 1 т корабля в сутки. Расширение — работа строительных бригад, каждое следующее дороже в 1,5 раза.</div></div><div class="box"><div class="stats"><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
+}
+// Очередь стройки: доля мощности у каждого проекта, количество; общие поля «сколько» и «доля» для новых проектов
+const qN = () => { const v = Math.max(1, Math.floor(+(($('bq-n') || {}).value) || state.bqN || 1)); state.bqN = v; return v; };
+const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return v; };
+export function qName(q) { return q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : q.type === 'efac' ? `Госзавод: ${GOODS[q.g] ? GOODS[q.g].n : q.g}` : q.type === 'emine' ? 'Госшахта' : q.type === 'elab' ? 'Лаборатория' : BLD[q.type].name; }
+function queueHtml() {
+  const cap = buildUnits(), ps = pctSum();
+  const rows = state.build.map(q => { const c = unitSB(q), r = q.rate || cap * (q.pct || 0) / Math.max(100, ps), d1 = r > 0 ? (c - q.prog) / r : Infinity, dall = r > 0 ? ((q.n - 1) * c + c - q.prog) / r : Infinity;
+    return `<tr><td>${esc(qName(q))}</td><td class="n">${fmtN(q.n)}</td><td><input type="number" min="0" max="100" value="${fmtN(q.pct || 0, 0)}" data-qp="${q.id}" style="width:48px">%</td><td class="n">${fmtN(r, 1)}</td><td>${bar(q.prog / c)}</td><td class="n">${fmtN(q.prog, 0)} / ${fmtN(c)}</td><td class="n">${isFinite(d1) ? fmtN(d1, 0) + ' сут' : 'стоит'}</td><td class="n">${isFinite(dall) ? fmtDur(dall) : '—'}</td><td><button class="btn sm" data-a="bcancel" data-id="${q.id}">✕</button></td></tr>`; }).join('');
+  return `<div class="box"><div class="row"><h2 class="grow">Очередь стройки · мощность ${fmtN(cap, 0)} СБ/сут (строительных заводов ${state.bld.cfactory || 0} × ${CF_SB} + бригад ${buildSlots()}) · распределено ${fmtN(ps, 0)}%${ps < 100 ? ` <span class="warn">(${fmtN(100 - ps, 0)}% простаивает)</span>` : ps > 100 ? ' <span class="warn">(больше 100% — доли урезаны)</span>' : ''}</h2>
+    Новый проект: <input type="number" id="bq-n" min="1" value="${state.bqN || 1}" style="width:60px"> шт., доля <input type="number" id="bq-p" min="0" max="100" value="${state.bqP || 10}" style="width:48px">%</div>
+    ${rows ? `<table class="grid"><tr><th>Проект</th><th>Осталось</th><th>Доля мощности</th><th>СБ/сут</th><th></th><th>Текущая, СБ</th><th>След. через</th><th>Вся партия</th><th></th></tr>${rows}</table>` : '<div class="help">Очередь пуста: мощность простаивает. Выберите здание или экономическую постройку, задайте количество и долю мощности.</div>'}</div>`;
 }
 export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');
 export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
   if (a === 'bview') { ui.bview = d.v; return refreshEarth(); }
-  if (a === 'econ') { if (econOrder(d.k, d.g, $('ec-n') ? $('ec-n').value : 1)) refreshHeader(); return refreshEarth(); }
-  if (a === 'bbuild' && bldCanAdd(d.t)) queueBld(d.t);
+  if (a === 'econ') { queueBld({fac: 'efac', mine: 'emine', lab: 'elab'}[d.k], undefined, qN(), qP(), d.g || undefined); return refreshEarth(); }
+  if (a === 'bbuild' && bldCanAdd(d.t)) queueBld(d.t, undefined, qN(), qP());
   if ((a === 'yton' || a === 'ycrew') && !state.build.some(q => q.yi === +d.i && q.type === (a === 'yton' ? 'yardton' : 'yardcrew'))) queueBld(a === 'yton' ? 'yardton' : 'yardcrew', +d.i);
   if (a === 'hire') state.hireMax = Math.max(0, Math.min(500, (state.hireMax == null ? 50 : state.hireMax) + (+d.d) * 5));
   if (a === 'bcancel') state.build = state.build.filter(j => j.id !== +d.id);
@@ -542,7 +554,16 @@ $('side').addEventListener('click', e => {
   const sts = e.target.closest('[data-st]'); if (sts) return select({kind: 'station', id: +sts.dataset.st});
   const b = e.target.closest('[data-a]'); if (b && b.tagName === 'BUTTON') sideAction(b.dataset.a, b.dataset);
 });
+document.addEventListener('pointerdown', () => { ui.down = true; }, true);
+document.addEventListener('pointerup', () => { setTimeout(() => { ui.down = false; }, 0); }, true);
+document.addEventListener('pointercancel', () => { ui.down = false; }, true);
+$('side').addEventListener('change', e => { const d = e.target.dataset || {};
+  if (d.qp) { const q = state.build.find(j => String(j.id) === d.qp); if (q) q.pct = Math.max(0, Math.min(100, +e.target.value || 0)); refreshEarth(); }
+  if (e.target.id === 'bq-n') state.bqN = Math.max(1, Math.floor(+e.target.value || 1)); if (e.target.id === 'bq-p') state.bqP = Math.max(0, Math.min(100, +e.target.value || 0)); });
 $('side').addEventListener('input', e => { if (e.target.dataset.c === 'fq') { ui.find.q = e.target.value; refreshFindList(); } });
+document.addEventListener('pointerdown', () => { ui.down = true; }, true);
+document.addEventListener('pointerup', () => { setTimeout(() => { ui.down = false; }, 0); }, true);
+document.addEventListener('pointercancel', () => { ui.down = false; }, true);
 $('side').addEventListener('change', e => {
   const el = e.target, c = el.dataset.c; if (!c) return;
   if (c === 'crew') return crewChange(el);
@@ -597,6 +618,7 @@ export function frame(now) {
   drawMap();
   if (now - lastUi > 250) {
     lastUi = now; refreshHeader();
+    if (!ui.down) // пока кнопка мыши зажата, панель не перерисовываем: иначе кнопка заменяется под курсором и клик теряется
     if (ui.tab === 'obj') refreshObj();
     else if (ui.tab === 'fleet') refreshFleet();
     else if (ui.tab === 'log') refreshLog();

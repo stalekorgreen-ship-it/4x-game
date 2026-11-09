@@ -4,7 +4,7 @@ import { evTick } from './24-events.ts';
 import { wantTransport } from './25-logistics.ts';
 import { UT, gval } from './26-goods.ts';
 import { tm } from './15-techs.ts';
-import { state, log, rec, fmtN, GROUND, veinEff } from './01-data.ts';
+import { state, log, rec, fmtN, GROUND, veinEff, veinBase } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
@@ -19,6 +19,11 @@ export const mpOf = r => (state.mp && state.mp[r]) || 1;
 // Госшахты Земли (правило владельца): каждая шахта добывает 1 т КАЖДОЙ руды в сутки × эффективность месторождения
 // (эффективность = сложность жилы × остаток недр, падает по мере выработки). P.lmN — число госшахт.
 export const lmEff = r => { const g = state.ground && state.ground.earth, g0 = GROUND.earth[r]; return g && g0 ? veinEff('earth', r, g[r] || 0, g0) : 0; };
+export const mineTot = v => { let m = 0; for (const k in v.mines) m += v.mines[k]; return m; };
+// эффективность руды в текущей колонии: Земля и тела с недрами — по остатку, прочие — сложность жилы
+export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEff(r); const g0 = GROUND[id] && GROUND[id][r]; if (g0) { const g = state.ground && state.ground[id]; return veinEff(id, r, g && g[r] != null ? g[r] : g0, g0); } return veinBase(id, r); };
+// корпорация строит шахту, только если выручка с неё (1 т × эффективность × цена) покрывает хотя бы половину зарплат
+export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return P.lmN * lmEff(r) * (P.mfill || 1); };
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
 export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
@@ -132,7 +137,8 @@ function rawMarket(rawNeed, dt, init) {
   for (const r in rawNeed) {
     const needs = rawNeed[r], pool = []; let total = 0, own = 0;
     for (const c of corpsAll()) {
-      const out = (c.civ.mines[r] || 0) * MINE_T * fs() * (P.mfill || 1), use = Math.min(out, needs[c.id] || 0);
+      const out = mineTot(c.civ) * oreEff(r) * fs() * (P.mfill || 1), use = Math.min(out, needs[c.id] || 0); // каждая шахта — 1 т каждой руды × эффективность
+      if (use > 0 && ctxId() === 'earth' && GROUND.earth[r] != null) state.ground.earth[r] = Math.max(0, (state.ground.earth[r] || 0) - use * dt);
       if (use > 0) needs[c.id] -= use; own += use;
       if (c.civ.mp[r] == null) c.civ.mp[r] = PRICE[r] * .97;
       if (out - use > 1e-9) pool.push({id: c.id, c, cap: out - use, price: c.civ.mp[r], r});
@@ -155,6 +161,7 @@ function rawMarket(rawNeed, dt, init) {
         const pay = q * x.price, mt = pay * laws().mineTax / 100; state.money -= pay - mt; x.c.credits += pay - mt; state.stock[r] = (state.stock[r] || 0) + q; x.sold += q / dt; noteBought(r, q); rec(r, 'in', q, 'corp'); state.mtaxInc = (state.mtaxInc || 0) + mt; }
     }
     if (!init) for (const s of pool) {
+      if (s.c && ctxId() === 'earth' && GROUND.earth[r] != null && s.sold > 0) state.ground.earth[r] = Math.max(0, (state.ground.earth[r] || 0) - s.sold * dt);
       if (s.c) { const rv = s.sold * s.price * dt, mt = rv * laws().mineTax / 100; s.c.credits += rv - mt; state.money += mt; state.mtaxInc = (state.mtaxInc || 0) + mt; s.c.civ.mp[r] = s.sold >= s.cap * .98 ? Math.min(PRICE[r] * 1.7, s.price * 1.03) : Math.max(PRICE[r] * .5, s.price * .97); }
       else if (s.id === 'imp' && s.sold > 0) { const ti = s.sold * PRICE[r] * 1.8 * (P.dist || 1) * tf / (1 + tf); P.tarAcc = (P.tarAcc || 0) + ti * dt; }
       else if (s.id === 'lm' && s.sold > 0) { const g = state.ground.earth; g[r] = Math.max(0, (g[r] || 0) - s.sold * dt); }
@@ -241,9 +248,9 @@ function civTick(c, mk, dt, col) {
   if (g === null) for (const k in v.fac) if (v.fac[k] > 0) { g = k; break; }
   if (g === null) return;
   if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k in GOODS) if (k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
-  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] + queued(v, 'mine', r) < (foc === 'mining' ? 9 : 5) && avail > MJ * 4) { startJob(c, 'mine', r); return; }
+  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] + queued(v, 'mine', r) < (foc === 'mining' ? 30 : 15) && avail > MJ * 4 && mineOK(r)) { startJob(c, 'mine', r); return; }
   const raw = GOODS[g].raw;
-  if (raw && !(v.mines[raw] > 0) && tot >= 3) { if (!queued(v, 'mine', raw) && avail > MJ * 1.2) startJob(c, 'mine', raw); return; }
+  if (raw && !(v.mines[raw] > 0) && tot >= 3 && mineOK(raw)) { if (!queued(v, 'mine', raw) && avail > MJ * 1.2) startJob(c, 'mine', raw); return; }
   const k = Math.min(Math.floor(avail / FJ), Math.max(1, Math.ceil(tot * .1 * (foc === 'industry' ? 2.2 : 1))));
   if (unmet || tot < 6) for (let i = 0; i < k; i++) startJob(c, 'fac', g);
 }
