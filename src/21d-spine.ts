@@ -513,7 +513,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
  function release(sc,ws,q,vel){for(const d of debris){if(d.rel)continue;d.rel=1;const e=d.e;sc.attach(e);e.userData.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}for(const d of sparks){if(d.rel)continue;d.rel=1;sc.attach(d.e);d.ws=ws;d.v.applyQuaternion(q).multiplyScalar(ws).add(vel)}}
  const zc=new Map();const ZN=Math.max(1,Math.round(L/4)),ZL=L/ZN;
  const doHit=(h,gd,kind,r)=>{const rr=()=>Math.random(),S=rr()*100;
-  const zk=(Math.max(0,Math.min(ZN-1,Math.floor((h.p.x+L/2)/ZL))))*8+(Math.floor((Math.atan2(h.p.z,h.p.y)/Math.PI+1)*4)%8+8)%8,AN=Math.max(1,Math.min(12,ship.userData.arm||4));let cnt=zc.get(zk)||0;zc.set(zk,cnt+1);{const nb=[zk-8,zk+8,zk-1,zk+1];for(const q of nb)zc.set(q,(zc.get(q)||0)+.35)}const gone=cnt>=AN;
+  const zk=(Math.max(0,Math.min(ZN-1,Math.floor((h.p.x+L/2)/ZL))))*8+(Math.floor((Math.atan2(h.p.z,h.p.y)/Math.PI+1)*4)%8+8)%8,AN=Math.max(1,Math.min(12,ship.userData.arm||4));let cnt=zc.get(zk)||0;zc.set(zk,cnt+1);{const nb=[zk-8,zk+8,zk-1,zk+1];for(const q of nb)zc.set(q,(zc.get(q)||0)+.35)}const gone=cnt+1>=AN;
   const mk=(c,rx,ry,depth,hole)=>({c,rx,ry,th:rr()*Math.PI,depth,hole,s:S+rr()*9});
   if(kind==='g'){graze(h.p,h.n,gd,r);return}
   let lobes=[];const t1=new THREE.Vector3().crossVectors(h.n,Math.abs(h.n.y)<.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)).normalize(),t2=new THREE.Vector3().crossVectors(h.n,t1);
@@ -521,8 +521,8 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   else if(kind==='b'){for(let i=0;i<4;i++){const o=new THREE.Vector3().addScaledVector(t1,(rr()-.5)*r*.9).addScaledVector(t2,(rr()-.5)*r*.9);lobes.push(mk(h.p.clone().add(o),r*(.45+rr()*.4),r*(.3+rr()*.4),r*.65,.35+rr()*.2))}lobes.push(mk(h.p,r*.9,r*.6,r*.4,0))}
   else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*1.2,.75),mk(h.p,r*2.4,r*2.1,r*.6,0)];
   else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
-  for(const lb of lobes){lb.depth*=.55+.5*Math.min(cnt,AN)/AN*1.4;if(lb.hole>0&&!gone)lb.hole=0}
-  if(gone&&!lobes.some(l=>l.hole>0))lobes.unshift(mk(h.p,r*(.8+.15*(cnt-AN)),r*(.7+.1*(cnt-AN)),r*1.1,.4+Math.min(.4,.08*(cnt-AN))));
+  // правило слоёв: каждый слой брони = 0.5 м; каждое попадание срезает один слой (вмятина +0.5 м), когда слои кончились — сквозная дыра
+  if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25));lobes=gone?[mk(h.p,rr0*.8,rr0*.8,.5,.5)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),.5,0)]}
   crater(h.p,h.n,r,r*.3,lobes)};
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
   hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
