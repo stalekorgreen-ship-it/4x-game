@@ -529,7 +529,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*1.2,.75),mk(h.p,r*2.4,r*2.1,r*.6,0)];
   else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
   // правило слоёв: каждый слой брони = 0.5 м; каждое попадание срезает один слой (вмятина +0.5 м), когда слои кончились — сквозная дыра
-  if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25));lobes=gone?[mk(h.p,rr0*.8,rr0*.8,.5,.5)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),.5,0)]}
+  if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25))*(1+.1*Math.min(cnt,10)),dep=Math.max(0,Math.min(.5,1.5-cnt*.5));lobes=gone?[mk(h.p,rr0*1.5,rr0*1.3,.3,.8)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),dep,0)]} // глубина вмятины ограничена 1.5 м, дальше слои снимаются без роста геометрии
   crater(h.p,h.n,r,r*.3,lobes)};
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
   hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
