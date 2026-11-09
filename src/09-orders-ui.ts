@@ -612,7 +612,7 @@ export function frame(now) {
 (function init() {
   if (!loadGame()) newGame();
   buildHeader(); addNewGameButton();
-  $('btnLabels').classList.add('on'); $('mtilt').oninput = e => setTilt(+e.target.value);
+  $('btnLabels').classList.add('on'); $('mtilt').oninput = e => setTilt(+e.target.value); if (ui.tilt == null) { setTilt(35); ui.yaw = .5; } /* карта сразу объёмная */
   new ResizeObserver(resizeMap).observe($('mapwrap')); resizeMap();
   buildShell(); showTab('obj'); refreshHeader();
   setInterval(saveGame, 5000);

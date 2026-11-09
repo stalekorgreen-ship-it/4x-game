@@ -89,8 +89,11 @@ export function fitMap() { ui.follow = false; ui.cam.x = 0; ui.cam.y = 0; ui.cam
 export const tc = () => Math.cos(ui.tilt || 0), tsn = () => Math.sin(ui.tilt || 0);
 export const zlift = z => z * ui.cam.k * tsn() * 1.6;
 export function setTilt(deg) { ui.tilt = deg * Math.PI / 180; for (const id of ['mtilt', 'btilt']) { const e = document.getElementById(id); if (e) e.value = String(deg); } }
-export function w2s(p) { return [(p.x - ui.cam.x) * ui.cam.k + W / 2, (p.y - ui.cam.y) * ui.cam.k * tc() + H / 2 - (p.z ? zlift(p.z) : 0)]; }
-export function s2w(x, y) { return {x: (x - W / 2) / ui.cam.k + ui.cam.x, y: (y - H / 2) / (ui.cam.k * tc()) + ui.cam.y}; }
+// 3D-камера: поворот вокруг вертикали (yaw) + наклон (tilt); высота z над эклиптикой поднимает точку на экране
+export function w2s(p) { const y0 = ui.yaw || 0, c = Math.cos(y0), sn = Math.sin(y0), dx = p.x - ui.cam.x, dy = p.y - ui.cam.y, rx = dx * c - dy * sn, ry = dx * sn + dy * c;
+  return [rx * ui.cam.k + W / 2, ry * ui.cam.k * tc() + H / 2 - (p.z ? zlift(p.z) : 0)]; }
+export function s2w(x, y) { const y0 = ui.yaw || 0, c = Math.cos(y0), sn = Math.sin(y0), rx = (x - W / 2) / ui.cam.k, ry = (y - H / 2) / (ui.cam.k * tc());
+  return {x: rx * c + ry * sn + ui.cam.x, y: -rx * sn + ry * c + ui.cam.y}; }
 
 export function shipScreen(s, i) {
   const [x, y] = w2s(s);
@@ -116,7 +119,7 @@ export function drawMap() {
     cx.fillStyle = bt.col;
     for (const q of bt.p) {
       const a = q.ang + 6.2832 * state.t / (365.25 * Math.pow(q.a, 1.5));
-      const x = (q.a * Math.cos(a) - ui.cam.x) * ui.cam.k + W / 2, y = (q.a * Math.sin(a) - ui.cam.y) * ui.cam.k * tc() + H / 2;
+      const [x, y] = w2s({x: q.a * Math.cos(a), y: q.a * Math.sin(a)});
       if (x > -2 && y > -2 && x < W + 2 && y < H + 2) cx.fillRect(x, y, q.s, q.s);
     }
   }
@@ -253,7 +256,7 @@ export function select(sel) {
 (function mapEvents() {
   let drag = null, moved = false;
   cv.addEventListener('pointerdown', e => {
-    drag = {x: e.clientX, y: e.clientY, cx: ui.cam.x, cy: ui.cam.y}; moved = false;
+    drag = {x: e.clientX, y: e.clientY, cx: ui.cam.x, cy: ui.cam.y, rot: e.button === 2 || e.ctrlKey, yaw: ui.yaw || 0, tilt: (ui.tilt || 0) * 180 / Math.PI}; moved = false;
     cv.setPointerCapture(e.pointerId); cv.classList.add('drag');
   });
   cv.addEventListener('pointermove', e => {
@@ -261,7 +264,8 @@ export function select(sel) {
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 4) { moved = true; ui.bfollow = false; }
-    ui.cam.x = drag.cx - dx / ui.cam.k; ui.cam.y = drag.cy - dy / ui.cam.k;
+    if (drag.rot) { ui.yaw = drag.yaw + dx * .006; setTilt(Math.max(0, Math.min(85, drag.tilt + dy * .3))); return; } // правая кнопка / Ctrl: вращение
+    { const y0 = ui.yaw || 0, c = Math.cos(y0), sn = Math.sin(y0), rx = dx / ui.cam.k, ry = dy / (ui.cam.k * tc()); ui.cam.x = drag.cx - (rx * c + ry * sn); ui.cam.y = drag.cy - (-rx * sn + ry * c); }
   });
   cv.addEventListener('pointerup', e => {
     cv.classList.remove('drag');
@@ -274,6 +278,7 @@ export function select(sel) {
     }
     drag = null;
   });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('wheel', e => {
     e.preventDefault();
     const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
