@@ -38,7 +38,7 @@ ok(s().t > 360 * 6 && s().corps.some((c) => c.civ.yard), 'кто-то постр
 ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
 ok(s().corps.some((c) => c.civ.labs > 0) && s().corps.some((c) => c.civ.tech.out1), 'корпорации строят лаборатории и изучают свои технологии');
 ok(s().corps.some((c) => c.civ.tech.xfer), 'кто-то освоил передачу топлива в космосе');
-ok(Object.values(s().pop.sat).every((x) => x > 0.9), 'товаров по-прежнему хватает');
+ok(Object.values(s().pop.sat).every((x) => x > 0.9), 'товаров по-прежнему хватает ' + Object.entries(s().pop.sat).filter(([k, v]) => v <= .9).map(([k, v]) => k + ':' + v.toFixed(2)).join(' '));
 // 3. Наука игрока: изучается постепенно, контракт с лабораторией отдаёт очки игроку
 const lab = s().corps.find((c) => c.civ.labs > 0);
 s().research.eng = 'reliable'; s().sci.eng = 100; s().tprog = {};

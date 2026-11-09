@@ -179,7 +179,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       }
     }
     if (!init) { // старая промышленность: достраивает только то, что не покрыто корпорациями
-      const D = P.dem[g], w0 = Math.ceil(Math.max(0, D - corpCap) / (PROD * hk * FACT_W) * 1.03); P.wS = P.wS || {}; const want = P.wS[g] = Math.max(w0, Math.floor((P.wS[g] || 0) * .97)) /* спрос рывками (заказы верфей): мощности держат с запасом */, canBuild = Math.max(Math.floor(P.cap[g] / FACT_COST), want > 0 && P.fac[g] < want ? Math.ceil(want * .1) : 0); /* новая отрасль: стартовый кредит */
+      const D = P.dem[g], w0 = Math.ceil(Math.max(0, D - corpCap) / (PROD * hk * FACT_W) * 1.03); P.wS = P.wS || {}; const want = P.wS[g] = Math.max(w0, Math.floor((P.wS[g] || 0) * .99)) /* спрос рывками (заказы верфей): мощности держат с запасом */, canBuild = Math.max(Math.floor(P.cap[g] / FACT_COST), want > 0 && P.fac[g] < want ? Math.ceil(want * .1) : 0); /* новая отрасль: стартовый кредит */
       if (P.fac[g] < want && canBuild > 0 && (P.staff[g] == null || P.staff[g] > .8)) { /* без людей новые заводы не помогут */ const k = Math.min(want - P.fac[g], canBuild, Math.max(Math.ceil(P.fac[g] * .02), Math.ceil(want * (P.fac[g] < want * .8 ? .1 : .02)))); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
       else if (P.fac[g] > want * 1.05 + 1) P.fac[g] -= Math.min(P.fac[g], Math.ceil(P.fac[g] * .01));
     }

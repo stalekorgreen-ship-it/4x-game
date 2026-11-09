@@ -10,7 +10,7 @@ export const KMS = 86400 / 1.496e8; // 1 км/с в а.е./сут
 // μ, км³/с² и радиус, км; запас пролёта: каменные тела ×1.1, газовые гиганты ×1.5 (радиация), звёзды ×3 (жар)
 const GM = {sun: [1.327e11, 696000, 3], mercury: [22032, 2440], venus: [324859, 6052], earth: [398600, 6371], luna: [4905, 1737], mars: [42828, 3390],
   phobos: [.71, 11], deimos: [.096, 6.2], ceres: [62.6, 470], vesta: [17.3, 263], jupiter: [1.26687e8, 69911, 1.5], saturn: [3.7931e7, 58232, 1.5],
-  uranus: [5.794e6, 25362, 1.5], neptune: [6.8365e6, 24622, 1.5], io: [5960, 1822], europa: [3203, 1561], ganymede: [9887, 2634], callisto: [7179, 2410],
+  uranus: [5.794e6, 25362, 1.5], neptune: [6.8365e6, 24622, 1.5], io: [5960, 1822], europa_j: [3203, 1561], charon: [106, 606], ganymede: [9887, 2634], callisto: [7179, 2410],
   titan: [8978, 2575], triton: [1428, 1353], pluto: [870, 1188]};
 // для тел без таблицы: масса в кг (b.mkg) или по диаметру как камень 2,5 г/см³; звёзды — b.msun (массы Солнца), чёрные дыры — b.bh
 export function gmOf(id) {
@@ -36,18 +36,28 @@ function align(id, t, to, tt) {
   const p0 = objPos(id, t), p1 = objPos(id, t + 1), q = objPos(to, tt), vx = p1.x - p0.x, vy = p1.y - p0.y, dx = q.x - p0.x, dy = q.y - p0.y;
   const c = (vx * dx + vy * dy) / (Math.hypot(vx, vy) * Math.hypot(dx, dy) || 1); return (1 + c) / 2;
 }
-// Маршрут: прямой или через одно тело. Возвращает плечи [{from, fx, fy, to, D, boost}] и время.
+// Маршрут: прямой или цепочка манёвров (до MAXHOP тел). Возвращает плечи [{from, fx, fy, to, D, boost}] и время.
+export const MAXHOP = 2;
 export function planRoute(from, f0, to, t0, v) {
-  const fromF = from ? t => objPos(from, t) : () => f0, direct = arrive(fromF, to, t0, v);
-  let best = {T: direct.T, legs: [{from, fx: f0.x, fy: f0.y, to, D: direct.D, boost: 0}]};
-  for (const b of ASSIST()) {
-    if (b === from || b === to) continue;
-    const a = arrive(fromF, b, t0, v); if (a.T >= best.T) continue;
-    const t1 = t0 + a.T, dv0 = flybyDv(b, v / KMS) * KMS; if (dv0 <= 0) continue;
-    const g = arrive(t => objPos(b, t), to, t1, v + dv0 * .5); // удачность оцениваем по середине
-    const dv = dv0 * align(b, t1, to, t1 + g.T), c = arrive(t => objPos(b, t), to, t1, v + dv);
-    if (a.T + c.T < best.T * .97) best = {T: a.T + c.T, via: b, dv, legs: [{from, fx: f0.x, fy: f0.y, to: b, D: a.D, boost: 0}, {from: b, to, D: c.D, boost: dv}]};
-  }
+  const L = ASSIST(), fromF0 = from ? t => objPos(from, t) : () => f0, d0 = arrive(fromF0, to, t0, v);
+  let best = {T: d0.T, legs: [{from, fx: f0.x, fy: f0.y, to, D: d0.D, boost: 0}], via: null, dv: 0};
+  // поиск в глубину: на каждом теле скорость растёт на Δv × удачность; ветки, уже не лучше найденного, отсекаются
+  const go = (at, t, vNow, boost, Tsum, legs, hops, used) => {
+    if (hops >= MAXHOP) return;
+    const fF = at ? (tt => objPos(at, tt)) : fromF0;
+    for (const b of L) {
+      if (b === to || used.has(b) || b === from) continue;
+      const a = arrive(fF, b, t, vNow); if (Tsum + a.T >= best.T * .97) continue;
+      const t1 = t + a.T, dv0 = flybyDv(b, vNow / KMS) * KMS; if (dv0 <= 0) continue;
+      const g = arrive(tt => objPos(b, tt), to, t1, vNow + dv0 * .5), dv = dv0 * align(b, t1, to, t1 + g.T), v2 = vNow + dv;
+      const leg = {from: at || from, fx: f0.x, fy: f0.y, to: b, D: a.D, boost}, c = arrive(tt => objPos(b, tt), to, t1, v2), T = Tsum + a.T + c.T;
+      const nl = [...legs, leg];
+      if (T < best.T * .97) best = {T, legs: [...nl, {from: b, to, D: c.D, boost: boost + dv}], via: nl.map(x => x.to).join(' → '), dv: boost + dv};
+      used.add(b); go(b, t1, v2, boost + dv, Tsum + a.T, nl, hops + 1, used); used.delete(b);
+    }
+  };
+  go(null, t0, v, 0, 0, [], 0, new Set());
+  if (best.via) best.via = best.legs.slice(0, -1).map(x => x.to)[0]; // первое тело (для статуса); вся цепочка — в legs
+  best.chain = best.legs.slice(0, -1).map(x => x.to);
   return best;
 }
-

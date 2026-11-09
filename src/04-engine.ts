@@ -212,7 +212,7 @@ export function travel(s, tid, h) {
   if (!s.leg || s.leg.to !== tid || !s.leg.legs || state.t - (s.leg.last || 0) > 2) { // новый перелёт (или полёт прерывали): маршрут с гравманёвром, если быстрее
     const from = s.at || null, f0 = from ? objPos(from, state.t) : {x: s.x, y: s.y}, R = planRoute(from, f0, tid, state.t, spd);
     s.leg = {to: tid, legs: R.legs, i: 0, done: 0, via: R.via || null};
-    if (R.via && !s.corp) log(`«${s.name}»: маршрут через гравитационный манёвр у «${nameOf(R.via)}» (+${fmtN(R.dv / KMS, 1)} км/с).`);
+    if (R.via && !s.corp) log(`«${s.name}»: маршрут с гравманёврами у ${R.chain.map(x => '«' + nameOf(x) + '»').join(', ')} (+${fmtN(R.dv / KMS, 1)} км/с).`);
   }
   s.at = null;
   const L = s.leg, G = L.legs[L.i], fpa = fuelPerAU(s), v = spd + (G.boost || 0); L.last = state.t;
@@ -233,7 +233,7 @@ export function travel(s, tid, h) {
     return true;
   }
   { const k = L.done / G.D, a = G.from ? objPos(G.from, state.t) : {x: G.fx, y: G.fy}, b = objPos(G.to, state.t); s.x = a.x + (b.x - a.x) * k; s.y = a.y + (b.y - a.y) * k; }
-  s.status = `Летит к «${nameOf(tid)}»${L.via && L.i === 0 ? ' через «' + nameOf(L.via) + '»' : ''}, ${fmtDur(s.eta)}`;
+  s.status = `Летит к «${nameOf(tid)}»${L.i < L.legs.length - 1 ? ' через «' + nameOf(L.legs[L.i].to) + '»' : ''}, ${fmtDur(s.eta)}`;
   return false;
 }
 
@@ -481,7 +481,7 @@ export function loadGame() {
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 6e10; initCorps(); }
-    if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})};
+    if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})}; for (const b of BODIES) { if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores}; if (b.pool && state.sites && !state.sites[b.id]) state.sites[b.id] = {...b.pool}; } /* новые тела в старых сохранениях */
     state.research = state.research || {}; state.tprog = state.tprog || {}; state.contracts = state.contracts || {}; state.rp = state.rp || 0;
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }
     for (const b of BODIES) if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores};

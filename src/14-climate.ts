@@ -14,6 +14,12 @@ const T = {
   mars: {mass: 6.417e23, d: 6779, day: 24.66, alb: .25, mean: -63, max: 20, min: -140, p: .006, atmT: 2.5e13, gas: {co2: .953, n2: .027, ar: .016, o2: .0017}, water: 5e15, wcov: 0, rad: 100, mag: false, under: -55},
   luna: {mass: 7.346e22, d: 3474, day: 708.7, alb: .12, mean: -23, max: 127, min: -173, p: 3e-15, atmT: 1e4, gas: {ar: .3, ne: .3, he: .4}, water: 6e9, wcov: 0, rad: 200, mag: false, under: -23},
   phobos: {day: 7.65, alb: .07}, deimos: {day: 30.3, alb: .08},
+  mercury: {mass: 3.301e23, d: 4879, day: 4223, alb: .09, mean: 167, max: 430, min: -180, p: 0, atmT: 0, rad: 6, mag: true, under: 50},
+  titan: {mass: 1.345e23, d: 5150, day: 382.7, alb: .22, mean: -179, max: -178, min: -180, p: 1.45, atmT: 9e15, gas: {n2: .95, ch4: .049, ar: .001}, water: 1e19, wcov: .02, rad: .1, mag: false, under: -170},
+  europa_j: {mass: 4.8e22, d: 3122, day: 85.2, alb: .67, mean: -170, rad: 5400, water: 3e18, under: -100},
+  io: {mass: 8.93e22, d: 3643, day: 42.5, alb: .63, mean: -143, rad: 3600, under: 100},
+  ganymede: {mass: 1.48e23, d: 5268, day: 171.7, alb: .43, mean: -163, rad: 80, mag: true, water: 1e19, under: -100},
+  callisto: {mass: 1.08e23, d: 4821, day: 400.5, alb: .22, mean: -139, rad: .1, water: 8e18},
 };
 const hash01 = id => { let h = 2166136261; for (const ch of 'clim:' + id) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 100000) / 100000; };
 const cache = {};

@@ -147,9 +147,10 @@ export function drawMap() {
     }
     if (b.kind === 'moon') col = '#c4c9d4';
     if (b.kind === 'hub') { r = 5.5; col = '#4aa3ff'; }
-    else if (b.kind === 'planet') { r = 4.5; col = b.id === 'mars' ? '#c8694f' : '#d8c08a'; }
+    else if (b.kind === 'planet') { r = 4.5; col = {mars: '#c8694f', mercury: '#9a948c', pluto: '#c9b9a4'}[b.id] || '#d8c08a'; }
+    else if (b.kind === 'giant') { r = 7; col = {jupiter: '#d6b48a', saturn: '#e3cf9a', uranus: '#9fd6dd', neptune: '#5b7fe0'}[b.id] || '#c0b090'; }
     else {
-      const o = state.ast[b.id], left = Object.values(o).reduce((a, c) => a + c, 0);
+      const o = state.ast[b.id] || {}, left = Object.values(o).reduce((a, c) => a + c, 0);
       if (left < 1) col = '#3a3f4a';
     }
     if (b.kind !== 'ast' && !b.comet && b.d) r = Math.max(r, Math.min(600, b.d / 2 / AU_KM * ui.cam.k));

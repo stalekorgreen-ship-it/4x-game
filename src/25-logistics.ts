@@ -11,8 +11,8 @@ export const LOG_T = 600, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
 const D0 = 1, LAM = .2;
 // диаметры, км
 const DIAM = {earth: 12742, mars: 6779, venus: 12104, mercury: 4879, luna: 3474, phobos: 22, deimos: 12, ceres: 940, vesta: 525, eros: 17, apophis: .37, bennu: .49, ryugu: .9,
-  io: 3643, europa: 3122, ganymede: 5268, callisto: 4821, titan: 5150, enceladus: 504, triton: 2707, pluto: 2377};
-const ATM = {venus: .3, titan: .3, mars: .1};               // воздух там, где есть атмосфера
+  io: 3643, europa_j: 3122, ganymede: 5268, callisto: 4821, titan: 5150, enceladus: 504, triton: 2707, pluto: 2377};
+const ATM = {venus: .3, titan: .5, mars: .1};               // воздух там, где есть атмосфера
 export function bodyEnv(id) {
   const b = BODY[id] || {}, k = b.kind;
   if (id === 'earth') return {D: DIAM.earth, rho: 50, env: {land: 1, sea: 1.6, air: .4}, how: 'открытая поверхность'};

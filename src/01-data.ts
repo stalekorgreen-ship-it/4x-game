@@ -236,6 +236,21 @@ export const BODIES = [
   {id:'venus', name:'Венера', a:0.723, ang:2.2, kind:'planet', sci:{phys:10, bio:4}, pool:{phys:6000, bio:2000}},
   {id:'earth', name:'Земля', a:1, ang:0.4, kind:'hub'},
   {id:'mars', name:'Марс', a:1.524, ang:4.1, kind:'planet', sci:{bio:10, eng:4}, pool:{bio:6000, eng:2000}},
+  {id:'mercury', name:'Меркурий', a:0.387, ang:5.3, kind:'planet', sci:{phys:6}, pool:{phys:3000}},
+  // внешняя система: газовые гиганты (не заселяются, но дают сильные гравманёвры) и их луны
+  {id:'jupiter', name:'Юпитер', a:5.203, ang:1.6, kind:'giant', sci:{phys:12}, pool:{phys:8000}},
+  {id:'saturn', name:'Сатурн', a:9.537, ang:4.9, kind:'giant', sci:{phys:10}, pool:{phys:7000}},
+  {id:'uranus', name:'Уран', a:19.19, ang:0.8, kind:'giant', sci:{phys:8}, pool:{phys:5000}},
+  {id:'neptune', name:'Нептун', a:30.07, ang:3.4, kind:'giant', sci:{phys:8}, pool:{phys:5000}},
+  {id:'pluto', name:'Плутон', a:39.48, ang:2.1, kind:'planet', ores:{ice:60000, n2:20000, ch4:8000, c:5000}},
+  {id:'io', name:'Ио', parent:'jupiter', r:0.002819, per:1.769, ang:0.3, kind:'moon', ores:{fe:30000, si:20000, u:300, cu:2000}},
+  {id:'europa_j', name:'Европа', parent:'jupiter', r:0.004486, per:3.551, ang:2.1, kind:'moon', ores:{ice:200000, si:10000, c:3000}, sci:{bio:12}, pool:{bio:8000}},
+  {id:'ganymede', name:'Ганимед', parent:'jupiter', r:0.007155, per:7.155, ang:4.0, kind:'moon', ores:{ice:150000, si:30000, fe:15000}},
+  {id:'callisto', name:'Каллисто', parent:'jupiter', r:0.012585, per:16.689, ang:5.5, kind:'moon', ores:{ice:120000, c:20000, si:15000}},
+  {id:'titan', name:'Титан', parent:'saturn', r:0.008168, per:15.945, ang:1.2, kind:'moon', ores:{ice:150000, ch4:80000, n2:50000, c:20000}, sci:{bio:10}, pool:{bio:6000}},
+  {id:'enceladus', name:'Энцелад', parent:'saturn', r:0.001591, per:1.370, ang:3.8, kind:'moon', ores:{ice:40000, nh3:3000, co2:2000}},
+  {id:'triton', name:'Тритон', parent:'neptune', r:0.002371, per:5.877, ang:0.9, kind:'moon', ores:{ice:50000, n2:20000, ch4:5000}},
+  {id:'charon', name:'Харон', parent:'pluto', r:0.000131, per:6.387, ang:4.4, kind:'moon', ores:{ice:30000, nh3:2000}},
   {id:'luna', name:'Луна', parent:'earth', r:0.00257, per:27.32, ang:1.0, kind:'moon', ores:{si:30000, fe:20000, ti:8000, ree:500, ice:3000}},
   {id:'phobos', name:'Фобос', parent:'mars', r:0.0000627, per:0.319, ang:0.5, kind:'moon', ores:{c:5000, fe:1500, ice:1000}},
   {id:'deimos', name:'Деймос', parent:'mars', r:0.000157, per:1.263, ang:3.0, kind:'moon', ores:{c:3000, ice:2000}},
@@ -280,7 +295,8 @@ for (const b of BODIES) if (GAS_ADD[b.id]) Object.assign(b.ores, GAS_ADD[b.id]);
 // Диаметры (км): оборудование кораблей берёт только небольшие тела
 export const DIAM = {ceres: 940, vesta: 525, pallas: 512, hygiea: 430, davida: 270, interamnia: 330, europa: 315, sylvia: 270, eunomia: 255, juno: 234, psyche: 226, themis: 200, kleopatra: 135,
   mathilde: 52, ida: 31, eros: 17, gaspra: 12, toutatis: 4.5, apophis: 0.37, bennu: 0.49, ryugu: 0.9, itokawa: 0.33, icarus: 1.4, orpheus: 1, phaethon: 5.8, xanomaly: 50, oumuamua: 0.4,
-  chiron: 220, phobos: 22, deimos: 12, luna: 3474};
+  chiron: 220, phobos: 22, deimos: 12, luna: 3474,
+  mercury: 4879, jupiter: 139820, saturn: 116460, uranus: 50724, neptune: 49244, pluto: 2377, io: 3643, europa_j: 3122, ganymede: 5268, callisto: 4821, titan: 5150, enceladus: 504, triton: 2707, charon: 1212};
 for (const b of BODIES) if (DIAM[b.id]) b.d = DIAM[b.id];
 // Недра Земли и планет: добываются шахтами при наличии населения
 export const GROUND = {
