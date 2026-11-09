@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { colBuildTick } from './19-colbld.ts';
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, fuelFor, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
+import { KR } from './00-kr.ts';
 import { veinEff } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
-import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed } from './03-build.ts';
+import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed, yards, yardRate } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
 import { PRICE, corpBuyFuel, corpById, corpChargeLoad, corpMine, corpSellToEarth, corpTank, corpTick, initCorps, wipeCorps } from './06-corps.ts';
 import { initPop, relinkCols } from './07-population.ts';
@@ -28,17 +29,18 @@ export function advance(days, maxStep) {
 }
 
 export function yardTick(h) {
-  const CAP = yardSlots();
-  let active = state.yard.filter(j => j.started).length;
+  const Y = yards(); // у каждой верфи один стапель: корабль берёт свободная верфь, чей тоннаж его вмещает
   for (const j of state.yard) {
-    if (j.started || active >= CAP) continue;
-    const c = designStats(j.parts).cost;
-    if (stockOK(c)) {
+    if (j.started) continue;
+    const st = designStats(j.parts), c = st.cost, busy = new Set(state.yard.filter(q => q.started).map(q => q.yi));
+    let yi = -1; for (let i = 0; i < Y.length; i++) if (!busy.has(i) && Y[i].ton >= st.dry && (yi < 0 || Y[i].ton < Y[yi].ton)) yi = i;
+    j.why = yi < 0 ? (Y.some(y => y.ton >= st.dry) ? 'ждёт свободную верфь' : `нет верфи на ${Math.round(st.dry)} т`) : '';
+    if (yi >= 0 && stockOK(c)) {
       for (const [k, v] of Object.entries(c)) { state.stock[k] -= v; rec(k, 'out', v, 'yard'); }
-      j.started = true; active++;
-    }
+      j.started = true; j.yi = yi; j.left = j.total = st.dry; // остаток постройки — в тоннах
+    } else if (yi >= 0) j.why = 'не хватает материалов';
   }
-  for (const j of state.yard) if (j.started) j.left -= h * yardSpeed();
+  for (const j of state.yard) if (j.started) j.left -= h * yardRate(Y[j.yi] || Y[0]);
   const done = [];
   for (const j of state.yard) {
     if (!j.started || j.left > 0) continue;
@@ -472,7 +474,7 @@ export function loadGame() {
     setState(s); if (!state.spv) { state.speedIdx = (state.speedIdx || 0) + 4; state.spv = 2; } state.inBattle = false; state.terra = state.terra || {};
     if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
-    if (!state.corps) { state.money = state.money || 3e6; initCorps(); }
+    if (!state.corps) { state.money = state.money || 3e6 * KR; initCorps(); }
     if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})};
     state.research = state.research || {}; state.tprog = state.tprog || {}; state.contracts = state.contracts || {}; state.rp = state.rp || 0;
     for (const x of state.ships) x.inB = false; if (state.raid) { if (state.raid.active) { state.raid.k++; state.raid.eta = state.t + 60; state.raid.warned = false; } state.raid.active = false; }

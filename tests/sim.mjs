@@ -46,7 +46,7 @@ B.researchTick(1);
 ok(s().tprog.reliable === 100 && !s().tech.reliable, 'исследование идёт постепенно (100/500)');
 s().sci.eng = 450; B.researchTick(1);
 ok(s().tech.reliable === true, 'тема изучена, когда набрались очки');
-s().sciBuy = {amt: 5000, max: 20000}; s().money = 1e9; const rp0 = s().rp;
+s().sciBuy = {amt: 5000, max: 20000 * 25}; s().money = 1e9 * 25; // деньги в масштабе KR=25 const rp0 = s().rp;
 s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.effdrive || s().tprog.effdrive > 0, 'купленные очки идут игроку');
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');

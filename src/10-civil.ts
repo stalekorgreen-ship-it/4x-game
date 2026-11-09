@@ -2,15 +2,16 @@
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN } from './01-data.ts';
+import { KR } from './00-kr.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
 import { bldJobs } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
-export const MINE_COST = 5e7, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
+export const MINE_COST = 5e7 * KR, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10 * KR, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
 export const mpOf = r => (state.mp && state.mp[r]) || 1;
 export const SPECIALTY = ['food', 'elec', 'wear', 'pow'];
-export const LAB_COST = 3e7, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
+export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
 export const CTECH = [
   {id: 'out1', k: 'out', cost: 2000, name: 'Выпуск товара +5%'}, {id: 'out2', k: 'out', cost: 6000, req: 'out1', name: 'Выпуск товара +5% (II)'}, {id: 'out3', k: 'out', cost: 15000, req: 'out2', name: 'Выпуск товара +5% (III)'},
   {id: 'lab1', k: 'lab', cost: 2500, name: 'Штат завода −5%'}, {id: 'lab2', k: 'lab', cost: 7000, req: 'lab1', name: 'Штат завода −5% (II)'}, {id: 'lab3', k: 'lab', cost: 18000, req: 'lab2', name: 'Штат завода −5% (III)'},
@@ -22,7 +23,7 @@ export const outMult = c => 1 + .05 * tk(c, 'out');
 export const laborMult = c => Math.pow(.95, tk(c, 'lab'));
 export const rawMult = c => Math.pow(.9, tk(c, 'raw'));
 export const hasXfer = c => !!(c.civ && c.civ.tech && c.civ.tech.xfer);
-export const rpPrice = c => (c.civ.rpPrice || (c.civ.rpPrice = 8000 + (c.id % 7) * 600)) * tm('rpcost');
+export const rpPrice = c => (c.civ.rpPrice || (c.civ.rpPrice = (8000 + (c.id % 7) * 600) * KR)) * tm('rpcost');
 export const labRP = c => (c.civ.labs || 0) * LAB_RP * ((state.pop && state.pop.fill) ? LAB_MIX.reduce((a, m, s) => a + m * state.pop.fill[s], 0) : 1);
 export const newCiv = (spec) => ({fac: {[spec]: 2}, mines: {[GOODS[spec].raw]: 1}, yard: 0, pr: {}, mp: {}, sold: {}, cap: {}, unitc: {}, comp: {}, month: 0, built: 0, labs: 0, tech: {}, cur: null, prog: 0, rpPool: 0, hired: 0});
 const corpsAll = () => (state.corps || []).filter(c => c.civ);
@@ -53,14 +54,14 @@ export function payBuild(c, cost, days) {
   return true;
 }
 export function goodsMarket(g, D, legCap, staff) {
-  const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: 1}], FACT_W = FW(), tf = laws().tariff / 100;
-  for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95; S.push({id: c.id, c, cap: n * FACT_W * PROD * hoursK() * staff * outMult(c) * ((P.evMult && P.evMult[g]) || 1) * (c.civ.strikeUntil > state.t ? .5 : 1), price: c.civ.pr[g]}); } }
-  if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: 1.7 * (P.dist || 1) * (1 + tf)});
+  const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: KR}], FACT_W = FW(), tf = laws().tariff / 100;
+  for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95 * KR; S.push({id: c.id, c, cap: n * FACT_W * PROD * hoursK() * staff * outMult(c) * ((P.evMult && P.evMult[g]) || 1) * (c.civ.strikeUntil > state.t ? .5 : 1), price: c.civ.pr[g]}); } }
+  if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: 1.7 * KR * (P.dist || 1) * (1 + tf)});
   S.sort((a, b) => a.price - b.price);
   let left = D; for (const s of S) { s.sold = Math.min(s.cap, left); left -= s.sold; }
   const sold = D - left, sat = D > 0 ? Math.min(1, sold / D) : 1, mult = clampN(1 + 1.5 * (1 - sat), 1, 3);
   let paid = 0, cap = 0; for (const s of S) { paid += s.sold * s.price; if (s.id !== 'imp') cap += s.cap; }
-  for (const s of S) s.comp = S.filter(x => x !== s).reduce((m, x) => Math.min(m, x.price), 9);
+  for (const s of S) s.comp = S.filter(x => x !== s).reduce((m, x) => Math.min(m, x.price), 9 * KR);
   const im = S.find(x => x.id === 'imp'); P.gImp = P.gImp || {}; P.gImp[g] = im ? im.sold : 0;
   return {S, sold, sat, mult, cap, avg: sold > 0 ? paid / sold : 1};
 }
@@ -116,7 +117,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       else {
         const c = s.c; c.credits += (rev - wc - rc) * dt; c.civ.pm = (c.civ.pm || 0) + (rev - wc - rc) * dt; c.civ.sold[g] = s.sold; c.civ.cap[g] = s.cap; c.civ.unitc[g] = (wc + rc) / Math.max(1, s.cap); c.civ.comp[g] = s.comp * R.mult;
         const util = s.cap > 0 ? s.sold / s.cap : 0, u = c.civ.unitc[g];
-        if (util >= .97) c.civ.pr[g] = Math.min(c.civ.pr[g] * 1.03, Math.max(s.comp * 1.4, .3)); else c.civ.pr[g] = Math.max(u * 1.05, c.civ.pr[g] * (util < .5 ? .95 : .985));
+        if (util >= .97) c.civ.pr[g] = Math.min(c.civ.pr[g] * 1.03, Math.max(s.comp * 1.4, .3 * KR)); else c.civ.pr[g] = Math.max(u * 1.05, c.civ.pr[g] * (util < .5 ? .95 : .985));
       }
     }
     if (!init) { // старая промышленность: достраивает только то, что не покрыто корпорациями
@@ -167,7 +168,7 @@ function civTick(c, mk, dt, col) {
   const raw = GOODS[g].raw;
   if (!(v.mines[raw] > 0) && tot >= 3) { if (avail > MINE_COST * 1.2) { pay(c, MINE_COST, 'subInd'); v.mines[raw] = 1; log(`«${c.name}» открыла шахту: ${raw}.`); } return; }
   const k = Math.min(Math.floor(avail / FACT_COST), Math.max(1, Math.ceil(tot * .1 * (foc === 'industry' ? 2.2 : 1))));
-  if (k > 0) { pay(c, k * FACT_COST, 'subInd'); v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95; }
+  if (k > 0) { pay(c, k * FACT_COST, 'subInd'); v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95 * KR; }
 }
 
 // --- исследования корпораций и контракты лабораторий ---
@@ -197,7 +198,7 @@ function rpMonth(c, dt, sellers, rp) {
 }
 export function settleRP(sellers, dt) {
   if (!sellers.length) return;
-  const buyers = corpsAll().filter(c => c.civ.cur && c.credits > 1e8).sort((a, b) => b.credits - a.credits);
+  const buyers = corpsAll().filter(c => c.civ.cur && c.credits > 1e8 * KR).sort((a, b) => b.credits - a.credits);
   sellers.sort((a, b) => rpPrice(a.c) - rpPrice(b.c));
   for (const b of buyers) {
     const t = CTECH.find(x => x.id === b.civ.cur); if (!t) continue; let need = t.cost - b.civ.prog;
@@ -222,7 +223,7 @@ function tryExpand(c) {
     if (sc > bs) { bs = sc; best = id; }
   }
   if (!best) return false;
-  const P = cs[best].pop, cost = 2e8 * (P.fs || 1) * 4; if (c.credits < cost * 4) return false;
+  const P = cs[best].pop, cost = 2e8 * KR * (P.fs || 1) * 4; if (c.credits < cost * 4) return false;
   c.civs = c.civs || {};
   if (!c.civs[best]) { c.credits -= cost; c.civs[best] = newBranch(c); { let bg = 'food', bm = -1; for (const g in GOODS) { const sc = (P.price && P.price[g] || 1) * (P.dem[g] || 0); if (sc > bm) { bm = sc; bg = g; } } c.civs[best].fac[bg] = 1; c.civs[best].pr[bg] = .95; } log(`«${c.name}» открыла филиал на колонии «${cs[best].name}».`); }
   else return false;
@@ -230,7 +231,7 @@ function tryExpand(c) {
 }
 
 // Игрок покупает очки исследований: сколько в месяц и не дороже какой цены — игра сама берёт у самых дешёвых лабораторий
-export const sciPol = () => state.sciBuy || (state.sciBuy = {amt: 0, max: 15000});
+export const sciPol = () => state.sciBuy || (state.sciBuy = {amt: 0, max: 15000 * KR});
 function playerBuyRP(off, dt) {
   const L = sciPol(); let avail = 0, val = 0;
   for (const c of corpsAll()) { const rp = labRP(c) * dt; if (rp > 0) { off.set(c, {rp, price: rpPrice(c)}); avail += rp; val += rp * rpPrice(c); c.civ.hired = 0; } }

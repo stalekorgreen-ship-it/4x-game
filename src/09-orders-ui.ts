@@ -4,7 +4,7 @@ import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
-import { buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed } from './03-build.ts';
+import { buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
@@ -227,8 +227,8 @@ export function refreshYq() {
   const el = $('yq'); if (!el) return;
   el.innerHTML = state.yard.length ? state.yard.map(j => {
     const g = state.groups.find(x => x.id === j.groupId);
-    const st = j.started ? (j.wait ? `<span class="warn grow">${j.wait}</span>` : `${bar(1 - j.left / j.total)}<span class="mono">${fmtDur(j.left)}</span>`)
-      : `<span class="warn grow">${stockOK(designStats(j.parts).cost) ? 'ждёт стапеля' : 'не хватает: ' + lackTxt(designStats(j.parts).cost)}</span><button class="btn sm danger" data-a="ycancel" data-id="${j.id}">Отмена</button>`;
+    const Y = yards(), y = Y[j.yi], rt = y ? yardRate(y) : 0, st = j.started ? (j.wait ? `<span class="warn grow">${j.wait}</span>` : `${bar(1 - j.left / j.total)}<span class="mono">${fmtN(j.total - j.left)} / ${fmtN(j.total)} т · верфь №${j.yi + 1} · ${rt > 0 ? fmtDur(j.left / rt) : '—'}</span>`)
+      : `<span class="warn grow">${j.why === 'не хватает материалов' || !j.why ? (stockOK(designStats(j.parts).cost) ? (j.why || 'ждёт верфь') : 'не хватает: ' + lackTxt(designStats(j.parts).cost)) : j.why}</span><button class="btn sm danger" data-a="ycancel" data-id="${j.id}">Отмена</button>`;
     return `<div class="row"><span style="min-width:110px">${esc(j.name)}${j.station ? ' (станция)' : ''}${g ? ' → ' + esc(g.name) : ''}</span>${st}</div>`;
   }).join('') : '<div class="help">Очередь пуста.</div>';
 }
@@ -353,17 +353,19 @@ export function refreshEarth() {
   h += '<div class="box"><h2>Здания</h2>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `уровень ${B[t] || 0}/${b.max}` : `${B[t] || 0} шт.${b.max ? ' (до ' + b.max + ')' : ''}`, c = bldCost(t), can = bldCanAdd(t), gate = bldGate(t);
     return `<div class="dcol" style="gap:3px"><div class="row"><b class="grow">${b.name}</b><span class="muted">${have}</span></div><div class="help">${b.desc} Нанимает ${fmtN(BW[t])} чел.${gate ? ` <span class="warn">${gate}</span>` : ''}</div>
-      <div class="row"><span class="grow muted">${costTxt(c)} · ${b.days} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
+      <div class="row"><span class="grow muted">${fmtN(bldSB(t))} СБ · одной бригадой ${fmtN(bldSB(t))} сут</span><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>${b.level ? 'Улучшить' : 'Построить'}</button></div></div>`;
   }).join('<hr style="border:0;border-top:1px solid var(--line);width:100%">') + '</div>';
-  h += `<div class="box"><h2>Строится (бригад: ${buildSlots()} · ${buildUnits()} ед./сут)</h2><div class="row"><span class="grow muted">Подрядчики корпораций: ${state.hire || 0} (+10 ед./сут каждый, ${fmtN(HIRE_PRICE)} кр/сут)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(j => `<div class="row"><span style="min-width:120px">${BLD[j.type].name}</span>${j.started ? bar(1 - j.left / j.total) + `<span class="mono">${fmtDur(j.left)}</span>` : `<span class="warn grow">${stockOK(bldCost(j.type)) ? 'ждёт бригаду' : 'не хватает: ' + lackTxt(bldCost(j.type))}</span><button class="btn sm danger" data-a="bcancel" data-id="${j.id}">Отмена</button>`}</div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>';
+  { const act = state.build.filter(q => q.started).length || 1, rate = buildUnits() / act, nm = q => q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : BLD[q.type].name;
+    h += `<div class="box"><h2>Стройка: бригад ${buildSlots()} (по 10 000 чел.) · ${fmtN(buildUnits(), 1)} СБ/сут</h2><div class="row"><span class="grow muted">Подряд у корпораций: ${state.hire || 0} бригад (каждая +1 СБ/сут, ${fmtN(HIRE_PRICE)} кр/сут)</span><button class="btn sm" data-a="hire" data-d="-1">−</button><button class="btn sm" data-a="hire" data-d="1">+</button></div>` + (state.build.map(q => `<div class="row"><span style="min-width:150px">${nm(q)}</span>${q.started ? bar(1 - q.left / q.total) + `<span class="mono">${fmtN(q.total - q.left)} / ${fmtN(q.total)} СБ · ${fmtDur(q.left / rate)}</span>` : `<span class="warn grow">ждёт свободную бригаду (${fmtN(q.total)} СБ)</span>`}<button class="btn sm danger" data-a="bcancel" data-id="${q.id}">Отмена</button></div>`).join('') || '<div class="help">Ничего не строится.</div>') + '</div>'; }
   h += `<div class="box"><div class="stats"><span>Сотрудников построек</span><span>${fmtN(bldWorkers())}</span><span>Зарплаты построек</span><span>${fmtN(bldWage())} кр/сут</span></div></div>`;
-  h += `<div class="box"><div class="stats"><span>Стапелей на верфи</span><span>${yardSlots()}</span><span>Скорость постройки</span><span>×${fmtN(yardSpeed(), 1)}</span><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
+  h += `<div class="box"><h2>Верфи</h2>${yards().map((y, i) => `<div class="row"><span class="grow">Верфь №${i + 1}: до ${fmtN(y.ton)} т · бригад ${y.crews} (${fmtN(yardRate(y), 1)} т/сут)</span><button class="btn sm" data-a="yton" data-i="${i}">+1 000 т · ${fmtN(yardUpSB(y, 'ton'))} СБ</button><button class="btn sm" data-a="ycrew" data-i="${i}">+1 бригада · ${fmtN(yardUpSB(y, 'crew'))} СБ</button></div>`).join('')}<div class="help">Корабль строится на одной верфи, если влезает в её тоннаж: каждая бригада (10 000 чел.) делает 1 т корабля в сутки. Расширение — работа строительных бригад, каждое следующее дороже в 1,5 раза.</div></div><div class="box"><div class="stats"><span>Выпуск офицеров</span><span>${academyClass()} чел. раз в ${fmtN(academyInterval(), 0)} сут</span></div></div>`;
   $('p-earth').innerHTML = h;
 }
 export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');
 export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
-  if (a === 'bbuild' && bldCanAdd(d.t)) state.build.push({id: uid(), type: d.t, started: false, left: BLD[d.t].days, total: BLD[d.t].days});
+  if (a === 'bbuild' && bldCanAdd(d.t)) queueBld(d.t);
+  if ((a === 'yton' || a === 'ycrew') && !state.build.some(q => q.yi === +d.i && q.type === (a === 'yton' ? 'yardton' : 'yardcrew'))) queueBld(a === 'yton' ? 'yardton' : 'yardcrew', +d.i);
   if (a === 'hire') state.hire = Math.max(0, Math.min(8, (state.hire || 0) + (+d.d)));
   if (a === 'bcancel') state.build = state.build.filter(j => j.id !== +d.id);
   refreshEarth();
@@ -512,7 +514,7 @@ export function sideAction(a, d) {
   if (a === 'openearth') return showTab('earth');
   if (a === 'selbody') return select({kind: 'body', id: d.id});
   if (a === 'cargoto') { ui.cargoTo = d.id; showTab('cargo'); return; }
-  if (['bbuild', 'bcancel'].includes(a)) return earthClick(a, d);
+  if (['bbuild', 'bcancel', 'yton', 'ycrew'].includes(a)) return earthClick(a, d);
   if (a === 'mark') { toggleMark(d.k); refreshObj(); return renderFindIfOpen(); }
   if (a === 'focus') { const k = d.k; select(isSt(k) ? {kind: 'station', id: +k.slice(3)} : isSh(k) ? {kind: 'ship', id: +k.slice(3)} : {kind: 'body', id: k}); focusSel(); return; }
   if (a === 'reroll') { reroll(d.f); return refreshScience(); }

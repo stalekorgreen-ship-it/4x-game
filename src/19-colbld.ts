@@ -2,6 +2,7 @@
 // Здания колоний: строятся из материалов, доставленных на тело (вкладка «Грузы»), силами местной бригады.
 // Так грузоперевозки, корпорации, строительство, население и наука связаны одной цепочкой.
 import { BODY, RES, fmtN, log, state } from './01-data.ts';
+import { KR } from './00-kr.ts';
 
 export const CBLD = {
   clinic:  {name: 'Поликлиника', desc: 'Смертность в колонии −8% за здание', cost: {fe: 60, si: 30, cu: 30}, units: 30, max: 5},
@@ -20,7 +21,7 @@ let corpAcc = 0;
 function corpColTick(h) {
   corpAcc += h; if (corpAcc < 20) return; corpAcc = 0;
   for (const k of state.corps || []) {
-    if (!k.civs || k.credits < 6e7) continue;
+    if (!k.civs || k.credits < 6e7 * KR) continue;
     for (const id in k.civs) {
       const c = state.cols[id]; if (!c || id === 'earth' || colQueue(id).length >= 2) continue;
       const pop = c.pop, t = (pop.avgWel != null && pop.avgWel < .85) ? 'clinic' : (pop.n > 1e5 ? ['school', 'nursery', 'lab'][Math.floor(Math.random() * 3)] : 'clinic');

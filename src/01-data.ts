@@ -465,6 +465,7 @@ export const STAT_OUT = {build: 'Строительство', yard: 'Судос�
 /* ===== ВОДОИЗМЕЩЕНИЕ ===== */
 // боевые модули тяжелее в 150 раз; длина корабля: 1 м на каждые 50 т (50 000 т = 1 км); слой брони весит ~925 т на км² поверхности
 export const SHIP_CAP = 300000;
+export { KR } from './00-kr.ts';
 export const TONS_K = 150, TON_L = 50000, ARM_K = 250; // TONS_K — только для срока постройки
 export const FGT_T = {l: 200, s: 350, h: 500}, BMB_T = {l: 250, s: 400, h: 500}; // истребитель/торпедоносец влезает в 500 т
 export const specTons = sp => sp.tons || Math.round(TON_L * (sp.L || .5) / 100) * 100;

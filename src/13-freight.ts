@@ -4,11 +4,12 @@
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODIES, BODY, RES, dist, fmtN, log, objPos, rec, state } from './01-data.ts';
+import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { addSettlers } from './07-population.ts';
 import { $, esc, setHtml, ui } from './08-map-ui.ts';
 
-export const INFRA_PRICE = 800, FARE = 2, SPEED = 0.04, TICKET = 100; // кр/т инфраструктуры, кр за т·а.е., а.е. в сутки, кр за колониста
+export const INFRA_PRICE = 800 * KR, FARE = 2 * KR, SPEED = 0.04, TICKET = 100 * KR; // кр/т инфраструктуры, кр за т·а.е., а.е. в сутки, кр за колониста
 export const ITEMS = () => [['infra', 'Инфраструктура'], ...Object.keys(RES).filter(k => k !== 'spares').map(k => [k, RES[k]])];
 export const itemName = k => k === 'infra' ? 'Инфраструктура' : k === 'col' ? 'Колонисты' : (RES[k] || k);
 export const cargoBodies = () => BODIES.filter(b => ['hub', 'planet', 'moon', 'ast'].includes(b.kind) && !b.comet && !b.strange);
@@ -34,7 +35,7 @@ export function dispatchColonists(to, q) { // игрок не управляет
 function deliver(f) {
   if (f.item === 'col') { addSettlers(f.to, f.amt); return; }
   const col = state.cols && state.cols[f.to];
-  if (f.item === 'infra' && col) { const P = col.pop, per = colonyCost(f.to).per; for (const g in P.cap) P.cap[g] += f.amt * 4000; col.infra = (col.infra || 0) + f.amt; P.hab = Math.round(col.infra * per); log(`Инфраструктура (${fmtN(f.amt)} ед.) доставлена на «${BODY[f.to].name}»: вместимость колонии ${fmtN(P.hab)} чел.`); return; }
+  if (f.item === 'infra' && col) { const P = col.pop, per = colonyCost(f.to).per; for (const g in P.cap) P.cap[g] += f.amt * 4000 * KR; col.infra = (col.infra || 0) + f.amt; P.hab = Math.round(col.infra * per); log(`Инфраструктура (${fmtN(f.amt)} ед.) доставлена на «${BODY[f.to].name}»: вместимость колонии ${fmtN(P.hab)} чел.`); return; }
   const d = depot(f.to); d[f.item] = (d[f.item] || 0) + f.amt; log(`На «${BODY[f.to].name}» доставлено: ${fmtN(f.amt)} т (${itemName(f.item).toLowerCase()}).`);
 }
 export function freightTick(h) {

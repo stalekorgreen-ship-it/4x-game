@@ -3,6 +3,7 @@ import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
+import { KR } from './00-kr.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy } from './10-civil.ts';
@@ -17,7 +18,7 @@ export const GOODS = {
   med: {n: 'Медицина', raw: 'c', need: .7, mix: [.1, .3, .4, .2]},
   pow: {n: 'Энергия', raw: 'u', need: 1, mix: [.3, .4, .25, .05]},
 };
-export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [4, 7, 12, 20], TUIT = [0, 2, 4, 7], FACT_COST = 2e8, TAXK = 1.25e-6;
+export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [100, 175, 300, 500], TUIT = [0, 50, 100, 175], FACT_COST = 2e8 * KR, TAXK = 1.25e-6;
 export const CAPS = [.4, .3, .1], FERT = [1.25, 1.1, .8, .55];
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
@@ -82,7 +83,7 @@ export const COLONIZABLE = id => { const b = BODY[id]; return !!b && ['planet', 
 export function colInfo(id) {
   const b = BODY[id], a = b.a != null ? b.a : (BODY[b.parent] || {a: 1}).a, d = Math.abs(a - 1), K = colonyCost(id);
   const infra = 2, hab = Math.round(infra * K.per);
-  return {hab, infra, per: K.per, cc: K.cc, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: Math.min(20000, hab)};
+  return {hab, infra, per: K.per, cc: K.cc, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * KR * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: Math.min(20000, hab)};
 }
 export function foundWhy(id) {
   if (!COLONIZABLE(id)) return 'Это тело нельзя заселить';
@@ -95,7 +96,7 @@ export function foundColony(id) {
   if (foundWhy(id)) return false;
   const I = colInfo(id), b = BODY[id]; state.money -= I.cost;
   takeEarth(I.settlers);
-  mkCol(id, b.name, I.settlers, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6, kind: b.kind});
+  mkCol(id, b.name, I.settlers, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6 * KR, kind: b.kind});
   state.cols[id].infra = I.infra;
   log(`Основана колония: ${b.name}. Прибыло ${fmtN(I.settlers)} поселенцев. Здесь действуют те же законы экономики, что и на Земле.`); return true;
 }
@@ -129,7 +130,7 @@ export function totals() {
   return t;
 }
 export function unRate(s) { const t = totals().S[s]; return t.wf > 0 ? t.un / t.wf : 0; }
-export function popTaxDay() { if (!state.cols) return 3e5; let t = 0; for (const id in state.cols) t += state.cols[id].pop.tax || 0; return t; }
+export function popTaxDay() { if (!state.cols) return 3e5 * KR; let t = 0; for (const id in state.cols) t += state.cols[id].pop.tax || 0; return t; }
 export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); return kind === 'emp' ? w * hoursK() : kind === 'un' ? w * .3 : w * .4 * (1 + laws().pension / 100); }
 
 export function stepDemog(dt) { // dt в днях (месяц)
@@ -224,10 +225,10 @@ export function stepEcon(dt, init) {
   { let w = 0, n = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const m = P.c[s][a].n; w += wel[s][a] * m; n += m; } P.avgWel = n > 0 ? w / n : 1; }
   // расходы государства по законам (в масштабе налога)
   { let stud = 0, ret = 0, ssum = 0; for (let s = 0; s < 4; s++) { for (let a = 15; a <= 100; a++) stud += P.c[s][a].st * TUIT[s]; for (let a = 65; a <= 100; a++) { ret += P.c[s][a].n * P.wage[s] * .4; } }
-    const edu = stud * TAXK * L.edu / 100, pen = ret * TAXK * L.pension / 100, bth = (P.birth || 0) / 360 * 40000 * TAXK * L.birthSup / 100;
+    const edu = stud * TAXK * L.edu / 100, pen = ret * TAXK * L.pension / 100, bth = (P.birth || 0) / 360 * 40000 * KR * TAXK * L.birthSup / 100;
     P.exp = edu + pen + bth; P.expP = {edu, pen, bth}; void ssum; }
   // информация для вкладки
-  const pi = [4, 7, 12, 20];
+  const pi = BASEW.slice();
   for (let s = 0; s < 4; s++) { let tw = 0, te = 0; for (let a = 30; a < 51; a++) { const x = P.c[s][a], e = Math.max(0, x.n - x.un - x.st); tw += e * incomeOf(s, a, 'emp'); te += e; } pi[s] = te > 0 ? tw / te : BASEW[s]; }
   P.parInc = pi;
   // 4) выручка, расходы, сырьё, инвестиции
