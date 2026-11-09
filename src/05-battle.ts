@@ -574,13 +574,13 @@ function gatStep(s,m,dt){
     if(!e)for(const p of mis){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=2}}
     if(!e)for(const p of torps){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=3}}}
   if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<Math.min(C.rng,GV*20)){e=s.tg;kind=4} // дальше 12 км пуля всё равно угаснет — не стреляем
-  if(!e||m.lock||s.mag<=0){m.heat=Math.max(0,m.heat-C.cool/60*dt);if(m.lock&&m.heat<.55)m.lock=false;return}
+  if(!e||m.lock||s.mag<=0){m.why=m.lock?'перегрев: остывает ('+Math.round(m.heat*100)+'%, стрельба с 55%)':s.mag<=0?'нет боеприпасов':'нет целей ближе '+Math.min(C.rng,GV*20).toFixed(0)+' км'+(m.last?' · последний: '+m.last:'');m.heat=Math.max(0,m.heat-C.cool/60*dt);if(m.lock&&m.heat<.55)m.lock=false;return}
   m.heat+=C.heat/60*dt;{const tn=C.ammoH/3600*dt;(stat.gatT=stat.gatT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}
   if(m.heat>=1){m.heat=1;if(Math.random()<.3){m.alive=false;mdead(s,m);fx.push({x:s.x,y:s.y,t0:t,d:4,r:1});return}m.lock=true;return}
   m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();m.acc+=dt*10;const w=C.rpm/600,dist=Math.hypot(e.x-s.x,e.y-s.y);
   const pAcc=Math.max(.02,(.55-.4*dist/C.rng)*(1-.95*m.heat))*(1.2-.05*m.sk);
-  if(pAcc<.15){m.acc=0;m.heat=Math.max(0,m.heat-C.cool/60*dt*.5);return} // слишком неточно — не поливаем во все стороны
-  SFX.shot('gat');let n=0;while(m.acc>=1&&n<6){m.acc--;n++;
+  if(pAcc<.15){m.why='цель '+(e&&e.T?e.T.n:e&&e.type==='F'?'истребитель':e&&e.type==='B'?'бомбардировщик':'цель')+' в '+dist.toFixed(1)+' км: точность '+Math.round(pAcc*100)+'% ниже порога 15% — не стреляет';m.acc=0;m.heat=Math.max(0,m.heat-C.cool/60*dt*.5);return} // слишком неточно — не поливаем во все стороны
+  m.last=m.why='огонь по '+(kind===1?'истребителю':kind===2?'ракете':kind===3?'торпеде':(e&&e.T?e.T.n:e&&e.type==='F'?'истребитель':e&&e.type==='B'?'бомбардировщик':'цель'))+' '+dist.toFixed(1)+' км · точность '+Math.round(pAcc*100)+'% · нагрев '+Math.round(m.heat*100)+'%';SFX.shot('gat');let n=0;while(m.acc>=1&&n<6){m.acc--;n++;
     if(kind===1)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,w*.05,C.rng*1.4);
     else if(kind===4)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,0,C.rng*1.4,w*C.pen*.01);
     else{fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc*.6,0,C.rng*1.4);if(Math.random()<pAcc*.12*w/10){if(kind===2)hurtMis(e,1);else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}}}
@@ -630,7 +630,7 @@ function hurtMis(q,n){q.hp-=n;if(q.hp<=0){const i=mis.indexOf(q);if(i>=0){mis.sp
 // боевой лазер: на огромной дистанции луч дрожит и уводится движением цели; урон идёт каждые 0,1 с в точку, где луч сейчас, и она ползёт по пластинам; луч оставляет чёрную копоть
 function fireLaser(s,m,o,C){
   const bm={a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:performance.now()+C.dur*1000,c0:performance.now(),side:s.side,w:C.dmg,ld:1};beams.push(bm);
-  lasBeams.push({s,m,o,C,t1:t+C.dur,nx:t,ox:0,oy:0,bm,dc:0});s.flash=t;SFX.shot('laser');say(s.side,'laser',s);stat.las[s.side]++;s.heat+=C.dmg*.12}
+  lasBeams.push({s,m,o,C,t1:t+C.dur,nx:t,ox:0,oy:0,bm,dc:0});s.flash=t;SFX.shot('laser');say(s.side,'laser',s);m.last=m.why='лазер: импульс по '+(o.T?o.T.n:'цели');stat.las[s.side]++;s.heat+=C.dmg*.12}
 function lasStep(dt){
   for(let i=lasBeams.length-1;i>=0;i--){const q=lasBeams[i],{s,o,C}=q;
     if(!s.alive||!q.m.alive||!o.alive||t>=q.t1){if(q.bm.rt>performance.now()+300)q.bm.rt=performance.now()+300;lasBeams[i]=lasBeams[lasBeams.length-1];lasBeams.pop();continue}
@@ -678,20 +678,20 @@ function step(dt){
     s.maxR=s.maxR||Math.max(60,...s.tur.filter(m=>m.cfg&&m.cfg.rng&&m.k!=='L'&&m.k!=='M').map(m=>m.cfg.rng));
     let foes=null;const muted=s.st==='surr'||t<s.blk,slow=s.st==='panic'?.5:1;
     for(const m of s.tur){
-      if(!m.alive||muted)continue;
-      if(m.cfg&&m.cfg.ax){const o=s.tg&&s.tg.alive?s.tg:null;if(!o){continue}let r=Math.atan2(o.y-s.y,o.x-s.x)-s.hd;r=Math.atan2(Math.sin(r),Math.cos(r));if(Math.abs(r)>.2)continue} // осевое орудие бьёт только в конусе ±~11° перед носом
+      if(!m.alive){m.why='уничтожен';continue}if(muted){m.why=s.st==='surr'?'корабль сдался — огонь прекращён':'оглушён попаданием — расчёт приходит в себя';continue}
+      if(m.cfg&&m.cfg.ax){const o=s.tg&&s.tg.alive?s.tg:null;if(!o){m.why='осевое: нет цели';continue}let r=Math.atan2(o.y-s.y,o.x-s.x)-s.hd;r=Math.atan2(Math.sin(r),Math.cos(r));if(Math.abs(r)>.2){m.why='осевое: цель в '+Math.round(Math.abs(r)*57)+'° от носа, ждёт разворота корабля (нужно ±11°)';continue}} // осевое орудие бьёт только в конусе ±~11° перед носом
       if(m.k==='G'){gatStep(s,m,dt*slow);continue}
       if(mis.length&&s.fine&&(m.k==='T'||m.k==='A')&&t>(m.pd||0)){const q=nearMis(s,m.k==='A'?m.cfg.rng:22);
         if(q){m.pd=t+(m.k==='A'?6:12)*R(.8,1.3);m.fa=Math.atan2(q.y-s.y,q.x-s.x);m.rt=performance.now();shots.push({x1:s.x,y1:s.y,x2:q.x,y2:q.y,rt:performance.now(),s:s.side,a:s,b:q});
           if(Math.random()<(m.k==='A'?.25:.08))hurtMis(q,1)}}
-      m.cd-=dt*slow;if(m.cd>0)continue;
+      m.cd-=dt*slow;if(m.cd>0){m.why=m.cd>1e6?(m.am===0?'боезапас орудия исчерпан':'отключено — бой окончен'):(m.cd>200?'заклинило: ремонт ещё ':m.k==='M'?'перезарядка пусковой: ещё ':'зарядка конденсаторов: ещё ')+fmtT(m.cd)+(m.last?' · последний выстрел: '+m.last:'');continue}
       const C=m.cfg;
       // рельсы отбиваются от истребителей и бомбардировщиков рядом (нужен мелкий радар в сети)
       if((m.k==='T'||(m.k==='L'&&!C.dur))&&fly[1-s.side].length){let e=null,bd=Math.min(C.rng,m.k==='L'?150:110)**2;for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c}}
-        if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();SFX.shot('rail');s.flash=t;s.heat+=.002;
+        if(e&&(!s.tg||Math.hypot(s.tg.x-s.x,s.tg.y-s.y)>C.rng*.8||Math.random()<.4)){m.last=m.why='отбивается от '+(e&&e.T?e.T.n:e&&e.type==='F'?'истребитель':e&&e.type==='B'?'бомбардировщик':'цель')+' в '+Math.sqrt(bd).toFixed(1)+' км';m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();SFX.shot('rail');s.flash=t;s.heat+=.002;
           if(m.k==='L')shots.push({x1:s.x,y1:s.y,x2:e.x,y2:e.y,rt:performance.now(),s:s.side,a:s,b:e});stat.pdRail=(stat.pdRail||0)+1;
           const dd=Math.sqrt(bd),pk=(.02+.0015*(m.sk||5))*(1-Math.min(.6,dd/110*.6));if(m.k==='T'){fireAt(s.x,s.y,s.z,s,m,s.side,e,6,pk,3,3000)}if(m.k==='L'){beams.push({a:s,b:e,tx:e.x,ty:e.y,tz:0,rt:performance.now()+600,c0:performance.now(),side:s.side,w:C.dmg});SFX.shot('laser')}if(m.k==='L'&&Math.random()<pk*1.5){e.hp-=m.k==='L'?4:3;if(e.hp<=0){killCraft(e,m.k==='L'?'laser':'rail');stat.flakKill[s.side]++}}m.cd=(m.k==='L'?2.5:R(2,4))*(1.3-.06*m.sk);continue}}
-      if(m.k==='A'){if(flakBurst(s,m)){m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C);if(--m.am<=0){m.am=0;m.cd=1e9}}continue}
+      if(m.k==='A'){m.why='ПВО: ждёт ракет или авиации в радиусе '+C.rng+' км';if(flakBurst(s,m)){m.last=m.why='ПВО: залп по воздушной цели';m.cd=2*REL*C.rel*(1.3-0.06*m.sk)*R(.75,1.25);jamChk(s,m,C);if(--m.am<=0){m.am=0;m.cd=1e9}}continue}
       if(m.k==='L'||m.k==='M'){
         if(m.k==='M'&&m.ammo<=0){m.cd=1e9;continue}
         const rg=C.rng,isL=m.k==='L',ok=q=>q&&q.alive&&q.st!=='surr'&&(isL?q.seen[s.side]>t-5:q.lock[s.side]>t-5&&s.ch>0)&&Math.hypot(q.x-s.x,q.y-s.y)<rg;
@@ -712,24 +712,24 @@ function step(dt){
           stat.las[s.side]++;stat.lasHit[s.side]++;for(let q=0;q<(C.dur||1);q++)if(!C.dur||Math.random()<C.ap)hitShip(o,'laser',o.x-s.x,o.y-s.y,o.x,o.y,C.dmg*1.7)}
           m.cd=C.dur?Math.max(180,C.E/800)*R(.95,1.05)/s.enR:cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;
         }else{
-          if(d<18){m.cd=4;continue}
+          if(d<18){m.cd=4;m.why='ракеты: цель ближе 18 км — пуск опасен';continue}
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           {const lv=C.sl||null,mx=lv?Math.max(lv.em,lv.ir,lv.ac):3,dumb=!!C.fl&&(C.hm===false||mx===0);let T0=Math.hypot(o.x-s.x,o.y-s.y)/C.spd;for(let k=0;k<3;k++){T0=Math.hypot(o.x+o.sx*T0-s.x,o.y+o.sy*T0-s.y)/C.spd}
           const lh=C.fl?Math.atan2(o.y+o.sy*T0-s.y,o.x+o.sx*T0-s.x):s.hd;
           mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:0,vy:0,src:s})}
-          s.flash=t;SFX.shot('missile');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(2400,43*Math.pow(C.dmg,1.15))*R(.8,1.25)*(1.3-.06*m.sk);
+          s.flash=t;SFX.shot('missile');m.last=m.why='пуск ракеты по '+(o.T?o.T.n:'цели');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(2400,43*Math.pow(C.dmg,1.15))*R(.8,1.25)*(1.3-.06*m.sk);
         }
         continue}
       foes=s.trk||[];
       const fl=(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<C.rng&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<C.rng);
-      if(!fl.length){m.cd=5;continue}
-      if(!bears(s,m,fl[0])){m.cd=.7+Math.random();continue} // цель вне полусферы обстрела этой башни
+      if(!fl.length){m.cd=5;m.why='нет видимой цели в дальности '+C.rng+' км';continue}
+      if(!bears(s,m,fl[0])){m.cd=.7+Math.random();m.why='цель '+(fl[0].T?fl[0].T.n:'цель')+' вне сектора обстрела этого борта';continue} // цель вне полусферы обстрела этой башни
       // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся
       {const o0=fl[0],ux=o0.x-s.x,uy=o0.y-s.y,ul=Math.hypot(ux,uy)||1;let bl=false;
         for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
-        if(bl&&Math.random()<.4){m.cd=2+Math.random()*3;continue}}
-      if(s.mag<=0){m.cd=20;if(!s.dryS){s.dryS=1;say(s.side,'dry',s)}continue}
-      s.heat+=.004;say(s.side,'fire',s);
+        if(bl&&Math.random()<.4){m.cd=2+Math.random()*3;m.why='на линии огня свой корабль — пропускает выстрел';continue}}
+      if(s.mag<=0){m.cd=20;m.why='нет боеприпасов';if(!s.dryS){s.dryS=1;say(s.side,'dry',s)}continue}
+      m.last=m.why='выстрел по '+(fl[0].T?fl[0].T.n:'цель')+' с '+Math.hypot(fl[0].x-s.x,fl[0].y-s.y).toFixed(1)+' км';s.heat+=.004;say(s.side,'fire',s);
       const B=BURST[C.cal]||8;
       for(let b=0;b<C.shells;b++)bursts.push({s,m,o:fl[(Math.random()*fl.length)|0],C,n:B,i:0,t0:t+b*.03});
       {const rs=60*C.rel,tn=(C.ammoH||2)*rs/3600*C.shells;m.cd=rs*(1.3-.06*m.sk)*R(.8,1.25)/s.enR;(stat.railT=stat.railT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}jamChk(s,m,C);if(--m.am<=0){m.am=0;m.cd=1e9;say(s.side,'dry',s)}
@@ -1104,6 +1104,26 @@ function shipArms(s){
   const en=s.enR!=null&&s.enR<1?` · энергия ${Math.round(s.enR*100)}%`:'';
   const fu=s.fuelCap?`топливо ${Math.round(s.fuel||0)}/${Math.round(s.fuelCap)} т${s.fpa?' (≈'+fmtN((s.fuel||0)/s.fpa,1)+' а.е.)':''}`:'топливо —';
   return `Оружие: ${parts.join(' · ')||'нет'}<br>${mag}${en} · ${fu}`}
+// панель справа: каждая деталь выбранного корабля — состояние и что она делает сейчас (и почему)
+const MODNAME={T:'Рельсотрон',A:'Зенитка ПВО',G:'Миниган',L:'Лазер',M:'Ракетная установка',E:'Двигатель',R:'Маневровый двигатель',D:'Радар',C:'Ядро (мостик, реактор)'};let mpT=0;
+function modPanel(s){let el=document.getElementById('bmods');
+  if(!s||!viewed){if(el)el.hidden=true;return}
+  if(!el){el=document.createElement('div');el.id='bmods';el.style.cssText='position:fixed;right:8px;top:56px;width:400px;max-height:calc(100vh - 80px);overflow:auto;z-index:60;background:rgba(10,14,22,.93);border:1px solid #2b3647;border-radius:8px;padding:8px 10px;font:12px/1.35 system-ui,sans-serif;color:#cfd8e6';document.body.appendChild(el)}
+  el.hidden=false;const now=performance.now();if(now-mpT<250)return;mpT=now;
+  const moving=Math.hypot(s.sx||0,s.sy||0)>.002,mods=[];for(const z of s.zones)for(const m of z.mods)mods.push([m,z]);
+  const ord={T:0,G:1,A:2,L:3,M:4,E:5,R:6,D:7,C:8};mods.sort((a,b)=>(ord[a[0].k]??9)-(ord[b[0].k]??9));
+  const cnt={};let h=`<b class="c${'ab'[s.side]}">${s.T.n}</b> — детали (${s.aliveN}/${s.total})<br><span class="muted">цель: ${s.tg&&s.tg.alive?s.tg.T.n+' · '+Math.hypot(s.tg.x-s.x,s.tg.y-s.y).toFixed(1)+' км':'нет'} · высота ${Math.round(s.z||0)} км</span><hr style="border-color:#2b3647">`;
+  for(const[m,z]of mods){cnt[m.k]=(cnt[m.k]||0)+1;const nm=(MODNAME[m.k]||m.k)+' №'+cnt[m.k],zi=s.zones.indexOf(z),side=ZN[zi]||'';
+    let st,col;if(!m.alive){st='уничтожен';col='#ff6b5a'}else{col='#8fe3a0';
+      if(m.k==='E')st=s.engN>0&&moving?'даёт тягу':'исправен, корабль без хода';
+      else if(m.k==='R')st=Math.abs(s.trn||0)>.08?'разворачивает корабль':'ожидает манёвра';
+      else if(m.k==='D')st=s.rdOn?'активный поиск: излучает, нас видно':'выключен — пассивный режим, ждёт противника рядом';
+      else if(m.k==='C')st='управляет кораблём'+(s.crew!=null?' · экипаж '+Math.round(s.crew*100)+'%':'');
+      else{st=m.why||'готов';if(/выстрел|огонь|залп|пуск|импульс|отбивается/.test(st)&&!/последний/.test(st))col='#ffd27a';else if(/нет|вне|ниже|запрещ|сдался|перегрев|заклин|опасен|свой/.test(st))col='#9aa7b8'}}
+    const extra=m.alive?[m.ar>0?'своя броня '+m.ar:'',m.sk?'навык '+m.sk:'',m.k==='G'?'нагрев '+Math.round((m.heat||0)*100)+'%':'',m.k==='M'&&m.ammo!=null?'ракет '+m.ammo:''].filter(Boolean).join(' · '):'';
+    h+=`<div style="margin:3px 0"><b>${nm}</b> <span class="muted">· ${side}${z.armN!=null?' (броня '+(s.T.arm?Math.round(100*z.armN/(z.nc*s.T.arm)):0)+'%)':''}</span><br><span style="color:${col}">${st}</span>${extra?'<br><span class="muted">'+extra+'</span>':''}</div>`}
+  el.innerHTML=h}
+const fmtT=x=>x>=60?Math.floor(x/60)+' мин '+Math.round(x%60)+' с':x.toFixed(1)+' с';
 function hud(){
   const m=Math.floor(t/60),sec=Math.floor(t%60);
   let h=`<span><b>Время боя</b>${m}:${String(sec).padStart(2,'0')}</span>`;
@@ -1120,6 +1140,7 @@ function hud(){
   if(sel){inf.hidden=false;const s=sel,tur=s.tur.filter(m=>m.alive).length,sk=s.tur.length?(s.tur.reduce((a,m)=>a+m.sk,0)/s.tur.length).toFixed(1):'—';
     inf.innerHTML=`<b class="c${'ab'[s.side]}">${s.T.n}</b>${s.alive?'':' <span class="muted">(уничтожен)</span>'}<br>Водоизмещение ${fmtN(s.T.tons)} т · длина ${Math.round(s.T.L*1000)} м · модули: ${s.aliveN}/${s.total} · ядро ${s.core.alive?'цело':'уничтожено'}<br>Турели: ${tur}/${s.tur.length} · ср. навык ${sk}<br>Двигатели: ${s.engN}/${s.T.eng} · маневровые ${s.rcsN}/${s.rcs0} · радар ${s.radN}/${s.rad0} · заряжено в башнях ${Math.round((s.ammoF==null?1:s.ammoF)*100)}%${s.holdK==='cover'?' · в укрытии':s.holdK==='escort'?' · охраняет':''}${s.bst>1.1?' · форсаж '+Math.round(s.bst*100)+'%':''}${s.lrp?' · дальний бой '+s.lrp.toFixed(0):''}<br>${shipArms(s)}<br>Высота: ${s.z.toFixed(0)}<br>Броня по секторам: ${s.zones.map((z,i)=>ZN[i]+' '+(s.T.arm?Math.round(100*z.armN/(z.nc*s.T.arm)):0)+'%').join(' · ')}`}
   else inf.hidden=true;
+  modPanel(sel);
   {const so=$b('bsord'),ok=!!(sel&&sel.alive&&sel.side===0);so.hidden=!ok;if(ok)for(const b of so.querySelectorAll('[data-so]'))b.classList.toggle('on',b.dataset.so===(sel.ord||''))}
 }
 const PM=['точки','короткие линии','скрыть'];
@@ -1175,7 +1196,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+return {setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
 }
 export const mainBattle = makeBattle();
 let curB = mainBattle;
