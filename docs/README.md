@@ -6,3 +6,4 @@
 - [weapons.md](weapons.md) — параметры оружия ([оригинал](https://claude.ai/artifact/Ls9QsgRf3XzVRjMKhJFCxA))
 - [roadmap.md](roadmap.md) — план демо
 - [economy.md](economy.md) — экономика и цены ([оригинал](https://claude.ai/artifact/KjuU2eLQ7UC97DQBFEvfYM))
+- [voices.md](voices.md) — голоса и радиопереговоры: роли, кто что говорит, файлы
