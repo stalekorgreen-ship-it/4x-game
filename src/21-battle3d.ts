@@ -939,7 +939,7 @@ if (wrap && bgo) {
     const pa = (projLines.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array, pcol = (projLines.geometry.attributes.color as THREE.BufferAttribute).array as Float32Array; let pc = 0;
     const tmp = new THREE.Color();
     for (const p of Battle.proj() as any[]) {
-      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.4, Math.max(.02, cdp * .006)) / Math.max(1, Math.hypot(p.vx, p.vy)) / .1;
+      if (pc >= MAXP) break; const o = pc * 6, cdp = cam.position.distanceTo(_p.set(p.x, p.z, p.y)), tailK = Math.min(.05, Math.max(.004, cdp * .0018)) / Math.max(1e-3, Math.hypot(p.vx, p.vy)) / .1; // короткий хвост трассера
       let ox = 0, oy = 0, oz = 0;
       if (p._m === undefined) { p._m = null; dbg.n++; const gs = p.src && models.get(p.src); let tt: any = gs && gs.userData.turMap && p.m ? gs.userData.turMap.get(p.m) : null;
         if (!tt && gs && (gs.userData.det && gs.visible) && gs.userData.tur) { // нет привязки к модулю: берём ближайшую живую башню, смотрящую в сторону выстрела
@@ -959,7 +959,7 @@ if (wrap && bgo) {
         if (p._O) { const dx = p.x - p._O[0], dy = p.z - p._O[1], dz = p.y - p._O[2]; if (dx * dx + dy * dy + dz * dz < 16 * (tx * tx + ty * ty + tz * tz)) { pa[o + 3] = p._O[0]; pa[o + 4] = p._O[1]; pa[o + 5] = p._O[2] } else { pa[o + 3] = p.x - tx; pa[o + 4] = p.z - ty; pa[o + 5] = p.y - tz } }
         else { pa[o + 3] = p.x + ox - tx; pa[o + 4] = p.z + oy - ty; pa[o + 5] = p.y + oz - tz } }
       const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1e-3, p.max)), 2.2) * .9; // гаснет плавно с каждым километром, к концу дальности сходит на нет
-      tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
+      tmp.setHSL(p.side ? .09 : .53, .85, .72); // один цвет на сторону, без пёстрых штрихов // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;
     }
@@ -1080,7 +1080,7 @@ if (wrap && bgo) {
       tdMesh.count = k; tdMesh.instanceMatrix.needsUpdate = true; if (tdMesh.instanceColor) tdMesh.instanceColor.needsUpdate = true; tdDec.count = kd; tdDec.instanceMatrix.needsUpdate = true; if (tdDec.instanceColor) tdDec.instanceColor.needsUpdate = true }
     {const tb = Battle.time(); let k = 0; const col2 = new THREE.Color();
       for (const f of Battle.fx() as any[]) { if (k >= MAXFX) break; const life = (tb - f.t0) / (f.d || 3); if (life < 0 || life > 1) continue;
-        dummy.position.set(f.x, f.z || 0, f.y); const rr = Math.max((f.r || .6) * (.5 + life) * .12, cam.position.distanceTo(dummy.position) * .003); dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
+        dummy.position.set(f.x, f.z || 0, f.y); if (f._v == null) f._v = Math.random(); if (f._v > .15) continue; const rr = Math.max((f.r || .6) * (.5 + life) * .012, cam.position.distanceTo(dummy.position) * .0003); // взрывы в 10 раз меньше и показываем лишь каждый ~7-й dummy.scale.setScalar(rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
         fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar((1 - life) * (1 - life))); k++ }
       fxMesh.count = k; fxMesh.instanceMatrix.needsUpdate = true; if (fxMesh.instanceColor) fxMesh.instanceColor.needsUpdate = true}
     { const cf = Battle.cfg && Battle.cfg(), sk = cf ? cf.sky : null; if (sk !== curSky) buildSky(sk || null); if (skyG) skyG.position.copy(cam.position) }
