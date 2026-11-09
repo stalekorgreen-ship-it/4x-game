@@ -7,7 +7,7 @@ import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
-import { bldJobs } from './03-build.ts';
+import { bldJobs, BRIG, BLD_MIX } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
@@ -41,18 +41,49 @@ export function civJobs() {
     for (const g in c.civ.fac) for (let s = 0; s < 4; s++) J[s] += c.civ.fac[g] * FACT_W * GOODS[g].mix[s] * lm;
     for (let s = 0; s < 4; s++) J[s] += (c.civ.labs || 0) * FACT_W * LAB_MIX[s];
     let m = 0; for (const r in c.civ.mines) m += c.civ.mines[r];
-    for (let s = 0; s < 4; s++) J[s] += m * FACT_W * MINE_MIX[s]; }
+    for (let s = 0; s < 4; s++) J[s] += m * FACT_W * MINE_MIX[s] + (c.civ.bq ? c.civ.bq.length : 0) * CBR * BRIG * BLD_MIX[s]; }
   if (ctxId() === 'earth') for (let s = 0; s < 4; s++) J[s] += bldJobs(s);
   return J;
 }
+// --- стройка корпораций в строительных баллах (СБ): бригада 10 000 человек даёт 1 СБ в сутки, на объект до CBR бригад ---
+export const CSB = {fac: 1000, mine: 500, lab: 1000, tr: 1000, yard: 5000}, CBR = 4;
+const CSUB = {fac: 'subInd', mine: 'subInd', tr: 'subInd', lab: 'subSci', yard: 'subSpace'};
+export const brigDay = () => { const W = state.pop.wage; let w = 0; for (let s = 0; s < 4; s++) w += BLD_MIX[s] * W[s] * .96; return w * BRIG; };
+export const jobCost = k => CSB[k] * brigDay();
+const cq = v => v.bq || (v.bq = []);
+export const queued = (v, k, g) => cq(v).filter(j => j.k === k && (g == null || j.g === g)).length;
+const committed = v => cq(v).reduce((a, j) => a + j.left, 0) * brigDay();
+function startJob(c, k, g) { cq(c.civ).push({k, g, left: CSB[k], total: CSB[k]}); }
+function buildTick(c, dt) {
+  const v = c.civ, q = cq(v); if (!q.length) return;
+  const bd = brigDay();
+  for (const j of q) { const d = Math.min(j.left, CBR * dt); j.left -= d; pay(c, d * bd, CSUB[j.k]); }
+  for (const j of q.filter(j => j.left <= 1e-9)) {
+    if (j.k === 'fac') { v.fac[j.g] = (v.fac[j.g] || 0) + 1; v.built++; if (!v.pr[j.g]) v.pr[j.g] = .95 * KR * gval(j.g); }
+    else if (j.k === 'mine') { if (!(v.mines[j.g] > 0)) log(`«${c.name}» открыла шахту: ${j.g}.`); v.mines[j.g] = (v.mines[j.g] || 0) + 1; }
+    else if (j.k === 'lab') v.labs = (v.labs || 0) + 1;
+    else if (j.k === 'tr') { v.tr = v.tr || {}; v.tr[j.g] = (v.tr[j.g] || 0) + 1; }
+    else if (j.k === 'yard') { v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); }
+  }
+  v.bq = q.filter(j => j.left > 1e-9);
+}
 // Оплата постройки корабля: своя верфь — по себестоимости, чужая — плюс 50% владельцу верфи.
 // Верфь строит по одному заказу за раз: пока занята, новые заказы ждут (days — срок постройки).
-export function payBuild(c, cost, days) {
+// Материалы кораблей и станций — товары с рынка Земли (т на 1 т сухой массы); заказ растягивает спрос на срок постройки
+export const SHIP_IN = {steel: .4, alloy: .2, elx: .1, shipm: .2, comp: .1}, STATION_IN = {steel: .4, infra: .3, elx: .1, shipm: .1, comp: .1};
+export function matOrder(tons, days, recipe) {
+  const P = state.cols && state.cols.earth ? state.cols.earth.pop : state.pop, o = {until: (state.t || 0) + days, r: {}}; let cost = 0;
+  for (const g in recipe) { if (!GOODS[g]) continue; const u = tons * recipe[g] / UT; o.r[g] = u / days; cost += u * ((P.price && P.price[g]) || KR * gval(g)); }
+  (state.matOrders = state.matOrders || []).push(o); return cost;
+}
+export function matDemand() { const D = {}, t = state.t || 0; state.matOrders = (state.matOrders || []).filter(o => o.until > t); for (const o of state.matOrders) for (const g in o.r) D[g] = (D[g] || 0) + o.r[g]; return D; }
+export function payBuild(c, cost, days, tons = 0, station = 0) {
   const own = c.civ.yard ? c : null, o = own || yardOwners().filter(x => state.t >= (x.civ.busy || 0))[0];
   if (!o || state.t < (o.civ.busy || 0)) return false;
   const price = own ? cost : cost * 1.5;
   if (c.credits < price) return false;
   pay(c, price, 'subSpace'); o.civ.busy = state.t + days;
+  if (tons > 0) pay(c, matOrder(tons, days, station ? STATION_IN : SHIP_IN), 'subSpace'); // материалы покупают на рынке
   if (!own) { o.credits += price; o.civ.fees = (o.civ.fees || 0) + cost * .5; }
   return true;
 }
@@ -66,7 +97,7 @@ export function goodsMarket(g, D, legCap, staff, inS = 1) {
   let paid = 0, cap = 0; for (const s of S) { paid += s.sold * s.price; if (s.id !== 'imp') cap += s.cap; }
   for (const s of S) s.comp = S.filter(x => x !== s).reduce((m, x) => Math.min(m, x.price), 9 * KR);
   const im = S.find(x => x.id === 'imp'); P.gImp = P.gImp || {}; P.gImp[g] = im ? im.sold : 0;
-  return {S, sold, sat, mult, cap, avg: sold > 0 ? paid / sold : 1};
+  return {S, sold, sat, mult, cap, avg: sold > 0 ? paid / sold : S[0].price};
 }
 function rawMarket(rawNeed, dt, init) {
   const P = state.pop, avg = {}, cost = {}; P.rawMk = P.rawMk || {};
@@ -126,8 +157,8 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       }
     }
     if (!init) { // старая промышленность: достраивает только то, что не покрыто корпорациями
-      const D = P.dem[g], want = Math.ceil(Math.max(0, D - corpCap) / (PROD * hk * FACT_W) * 1.03), canBuild = Math.floor(P.cap[g] / FACT_COST);
-      if (P.fac[g] < want && canBuild > 0) { const k = Math.min(want - P.fac[g], canBuild, Math.max(Math.ceil(P.fac[g] * .02), Math.ceil(want * .02))); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
+      const D = P.dem[g], want = Math.ceil(Math.max(0, D - corpCap) / (PROD * hk * FACT_W) * 1.03), canBuild = Math.max(Math.floor(P.cap[g] / FACT_COST), want > 0 && P.fac[g] < want ? Math.ceil(want * .1) : 0); /* новая отрасль: стартовый кредит */
+      if (P.fac[g] < want && canBuild > 0 && (P.staff[g] == null || P.staff[g] > .95)) { /* без людей новые заводы не помогут */ const k = Math.min(want - P.fac[g], canBuild, Math.max(Math.ceil(P.fac[g] * .02), Math.ceil(want * (P.fac[g] < want * .8 ? .1 : .02)))); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
       else if (P.fac[g] > want * 1.05 + 1) P.fac[g] -= Math.min(P.fac[g], Math.ceil(P.fac[g] * .01));
     }
     P.price = P.price || {}; P.price[g] = R.avg * R.mult; P.raw = P.raw || {}; P.raw[g] = {t: R.sold * (tpu(G) - UT)};
@@ -154,28 +185,30 @@ function civTick(c, mk, dt, col) {
   const v = c.civ, FACT_W = FW(), FACT_COST = FC(), MINE_COST = MC(); v.month++;
   let tot = 0; for (const g in v.fac) tot += v.fac[g];
   let monthly = 0; for (const g in v.fac) monthly += v.fac[g] * FACT_W * 7;
-  const avail = c.credits - monthly * 2, foc = c.strat && c.strat.focus;
+  buildTick(c, dt);
+  const avail = c.credits - monthly * 2 - committed(v), foc = c.strat && c.strat.focus, FJ = jobCost('fac'), MJ = jobCost('mine');
+  if (cq(v).length >= 2 + Math.ceil(tot / 20)) return; // стройплощадок не больше, чем потянет управление
   // верфь: первый, кто накопил, строит её; остальные покупают постройки у него
-  if (!col && !v.yard && avail > YARD_COST * 1.2 && (!hasYard() || avail > YARD_COST * 8)) {
-    pay(c, YARD_COST, 'subSpace'); v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); return;
+  if (!col && !v.yard && !queued(v, 'yard') && tot >= 40 && avail > jobCost('yard') * 6 && (!hasYard() || avail > jobCost('yard') * 30)) {
+    startJob(c, 'yard'); return;
   }
-  if (!col && !hasYard() && tot >= 40) return; // копят на верфь
   if (!col && v.month % (foc === 'expand' ? 1 : 4) === 0 && avail > FC() * (foc === 'expand' ? 3 : 6) && tryExpand(c)) return;
   const wantLabs = col ? 0 : tot >= 6 ? Math.min(40, Math.ceil(tot / 12 * (foc === 'science' ? 2.5 : foc === 'industry' ? .7 : 1))) : 0;
-  if ((v.labs || 0) < wantLabs && avail > LAB_COST * 1.5) { pay(c, LAB_COST, 'subSci'); v.labs = (v.labs || 0) + 1; return; }
+  if ((v.labs || 0) + queued(v, 'lab') < wantLabs && avail > jobCost('lab') * 1.5) { startJob(c, 'lab'); return; }
   // транспорт: дорогая доставка или нехватка — строят предприятие своего вида
-  if (v.month % 2 === 0 && avail > FACT_COST * 1.5) { const t = wantTransport(c, state.pop, ctxId()); if (t) { pay(c, FACT_COST, 'subInd'); v.tr = v.tr || {}; v.tr[t] = (v.tr[t] || 0) + 1; return; } }
+  if (v.month % 2 === 0 && avail > FJ * 1.5 && !queued(v, 'tr')) { const t = wantTransport(c, state.pop, ctxId()); if (t) { startJob(c, 'tr', t); return; } }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
-  for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
+  for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001 && !(state.pop.staff && state.pop.staff[k] < .9)) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
+  const unmet = g !== null; // строят заводы только под неудовлетворённый спрос
   if (g === null) for (const k in v.fac) if (v.fac[k] > 0) { g = k; break; }
   if (g === null) return;
   if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k in GOODS) if (k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
-  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] < (foc === 'mining' ? 9 : 5) && avail > MINE_COST * 4) { pay(c, MINE_COST, 'subInd'); v.mines[r]++; return; }
+  for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] + queued(v, 'mine', r) < (foc === 'mining' ? 9 : 5) && avail > MJ * 4) { startJob(c, 'mine', r); return; }
   const raw = GOODS[g].raw;
-  if (raw && !(v.mines[raw] > 0) && tot >= 3) { if (avail > MINE_COST * 1.2) { pay(c, MINE_COST, 'subInd'); v.mines[raw] = 1; log(`«${c.name}» открыла шахту: ${raw}.`); } return; }
-  const k = Math.min(Math.floor(avail / FACT_COST), Math.max(1, Math.ceil(tot * .1 * (foc === 'industry' ? 2.2 : 1))));
-  if (k > 0) { pay(c, k * FACT_COST, 'subInd'); v.fac[g] = (v.fac[g] || 0) + k; v.built += k; if (!v.pr[g]) v.pr[g] = .95 * KR * gval(g); }
+  if (raw && !(v.mines[raw] > 0) && tot >= 3) { if (!queued(v, 'mine', raw) && avail > MJ * 1.2) startJob(c, 'mine', raw); return; }
+  const k = Math.min(Math.floor(avail / FJ), Math.max(1, Math.ceil(tot * .1 * (foc === 'industry' ? 2.2 : 1))));
+  if (unmet || tot < 6) for (let i = 0; i < k; i++) startJob(c, 'fac', g);
 }
 
 // --- исследования корпораций и контракты лабораторий ---
@@ -232,7 +265,7 @@ function tryExpand(c) {
   if (!best) return false;
   const P = cs[best].pop, cost = 2e8 * KR * (P.fs || 1) * 4; if (c.credits < cost * 4) return false;
   c.civs = c.civs || {};
-  if (!c.civs[best]) { c.credits -= cost; c.civs[best] = newBranch(c); { let bg = 'wear', bm = -1; for (const g in GOODS) { const sc = (P.price && P.price[g] || 1) * (P.dem[g] || 0); if (sc > bm) { bm = sc; bg = g; } } c.civs[best].fac[bg] = 1; c.civs[best].pr[bg] = .95 * KR * gval(bg); } log(`«${c.name}» открыла филиал на колонии «${cs[best].name}».`); }
+  if (!c.civs[best]) { c.credits -= cost; c.civs[best] = newBranch(c); c.civs[best].bq = []; { let bg = 'wear', bm = -1; for (const g in GOODS) { const sc = (P.price && P.price[g] || 1) * (P.dem[g] || 0); if (sc > bm) { bm = sc; bg = g; } } c.civs[best].bq.push({k: 'fac', g: bg, left: CSB.fac, total: CSB.fac}); c.civs[best].pr[bg] = .95 * KR * gval(bg); } log(`«${c.name}» открыла филиал на колонии «${cs[best].name}».`); }
   else return false;
   return true;
 }

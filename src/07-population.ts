@@ -8,7 +8,7 @@ import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
-import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy } from './10-civil.ts';
+import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
 import { $, H, W, cv, setHtml, ui } from './08-map-ui.ts';
 import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
@@ -227,6 +227,7 @@ export function stepEcon(dt, init) {
   for (const c of state.corps || []) if (c.civ && c.civ.labs) rawNeed.si[c.id] = (rawNeed.si[c.id] || 0) + c.civ.labs * LAB_SI;
   const DI = {}; for (const g in GOODS) DI[g] = 0;
   if (P.log) for (const g in LOG_IN) if (GOODS[g]) DI[g] += P.log.L * LOG_IN[g]; // транспорт жжёт топливо, изнашивает машины
+  if (ctxId() === 'earth' && !init) { const MD = matDemand(); for (const g in MD) if (GOODS[g]) DI[g] += MD[g]; } // корабли и станции корпораций
   const sat0 = P.sat0 || {}, add = (r, id, q) => { rawNeed[r] = rawNeed[r] || {}; rawNeed[r][id] = (rawNeed[r][id] || 0) + q; };
   for (const g of goodsOrder()) { // сверху вниз по цепочке: сначала конечные товары, потом их входы
     const G = GOODS[g]; if (P.fac[g] == null) { P.fac[g] = 0; P.cap[g] = 0; P.sat[g] = 1; }

@@ -210,11 +210,11 @@ export function corpTick(h) {
     if (state.t - c.last < 6 || !canBuildShips(c) || c.credits < 3e7 * KR) continue;
     const mine = state.ships.filter(s => s.corp === c.id), nM = mine.filter(s => s.role === 'm').length, nT = mine.filter(s => s.role === 't').length, sts = ownStations(c), nS = sts.length;
     const mc = costCr(c.parts) * 1.1 * SHIP_K, tc = costCr(CORP_TANKER) * SHIP_K, sc = stationCr() * SHIP_K;
-    if (nM < 3 + 3 * nS && c.credits >= mc * ag) { if (payBuild(c, mc, 60)) { c.last = state.t; createCorpShip(c, 'm'); } }
+    if (nM < 3 + 3 * nS && c.credits >= mc * ag) { if (payBuild(c, mc, 60, designStats(c.parts).dry)) { c.last = state.t; createCorpShip(c, 'm'); } }
     else if (nM >= 3 && nS < 5 && c.credits >= (sc + tc) * 1.5 * ag) {
       const spot = pickStationSpot(c);
-      if (spot && payBuild(c, sc, 200)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc, 90)) createCorpShip(c, 't'); }
-    } else if (hasXfer(c) && nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc, 90)) { c.last = state.t; createCorpShip(c, 't'); } }
+      if (spot && payBuild(c, sc, 200, designStats(CORP_STATION).dry * 8, 1)) { c.last = state.t; createCorpStation(c, spot); if (nT < nS + 1 && payBuild(c, tc, 90, designStats(CORP_TANKER).dry)) createCorpShip(c, 't'); }
+    } else if (hasXfer(c) && nS && nT < nS && c.credits >= tc * 1.2) { if (payBuild(c, tc, 90, designStats(CORP_TANKER).dry)) { c.last = state.t; createCorpShip(c, 't'); } }
   }
 }
 let _psc = {k: '', v: null};

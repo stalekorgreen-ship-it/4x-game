@@ -67,7 +67,7 @@ export function logMarket(P, id, corps, tons, fill, dt, init) {
   }
   for (const t of order) {
     const want = Math.min(g, Math.max(0, LCAP[t] * L - corpCap[t])); g -= want;
-    const per = LOG_T * E.env[t] * techK(t) * Math.max(.3, staff), need = Math.ceil(want / per), cur = P.tr[t] || 0;
+    const per = LOG_T * E.env[t] * techK(t), need = Math.ceil(want / per), cur = P.tr[t] || 0;
     if (init) P.tr[t] = need;
     else if (cur < need) P.tr[t] = cur + Math.min(need - cur, Math.max(1, Math.ceil(cur * .05)));
     else if (cur > need * 1.05 + 1) P.tr[t] = cur - Math.min(cur, Math.max(1, Math.ceil(cur * .02)));

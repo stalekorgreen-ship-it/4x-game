@@ -41,6 +41,9 @@ const TYPES = {
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
+// лазеры и истребители временно убраны из игры (механика будет переделана): их типы заменены пушечными
+const OFF_T = {carrier: 'cruiser', swarmcarrier: 'destroyer', bomber: 'frigate', laserCruiser: 'cruiser', laserBattleship: 'battleship'};
+for (const k in OFF_T) TYPES[k] = TYPES[OFF_T[k]];
 const MIXES = {
   light: {corvette: 5, destroyer: 3, frigate: 1, gunboat: 2},
   line: {supply: 1, destroyer: 4, cruiser: 3, frigate: 2, battleship: 1, gunboat: 1},

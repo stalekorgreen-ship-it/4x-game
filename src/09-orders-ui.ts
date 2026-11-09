@@ -288,7 +288,7 @@ export function renderDesigner(full) {
   } else {
   const CAT = {ion: 'Двигатели', chem: 'Двигатели', fusion: 'Двигатели', reactor: 'Энергия', tank: 'Топливо и грузы', cargo: 'Топливо и грузы', xfer: 'Топливо и грузы', rail: 'Оружие', gat: 'Оружие', flak: 'Оружие', lgun: 'Оружие', missile: 'Оружие', ammo: 'Оружие', armor: 'Защита', dcon: 'Защита', sink: 'Защита', irs: 'Сенсоры и РЭБ', ems: 'Сенсоры и РЭБ', radar: 'Сенсоры и РЭБ', fcs: 'Сенсоры и РЭБ', ew: 'Сенсоры и РЭБ', cabin: 'Экипаж', life: 'Экипаж', marines: 'Экипаж', hangar_f: 'Авиация', hangar_b: 'Авиация'}, CATS = ['Двигатели', 'Энергия', 'Топливо и грузы', 'Оружие', 'Защита', 'Сенсоры и РЭБ', 'Экипаж', 'Авиация', 'Прочее'], hid = ui.dcatc || (ui.dcatc = {});
   const rowsC = {};
-  Object.entries(COMP).filter(([b, c]) => !c.tech || techOn(c.tech) || used(b).length).forEach(([b, c]) => { (rowsC[CAT[b] || 'Прочее'] = rowsC[CAT[b] || 'Прочее'] || []).push([b, c]) });
+  Object.entries(COMP).filter(([b, c]) => !c.off && (!c.tech || techOn(c.tech) || used(b).length)).forEach(([b, c]) => { (rowsC[CAT[b] || 'Прочее'] = rowsC[CAT[b] || 'Прочее'] || []).push([b, c]) });
   $('dcomps').innerHTML = tabs + CATS.filter(n => rowsC[n]).map(n => { const cnt = rowsC[n].reduce((a, [b]) => a + used(b).reduce((x, k) => x + d.parts[k], 0), 0); return `<button class="dcat" data-cat="${n}">${hid[n] ? '▸' : '▾'} ${n}${cnt ? ' · ' + cnt : ''}</button>` + (hid[n] ? '' : rowsC[n].map(([b, c]) => {
     if (!c.opts) return `<div class="comp"><span class="nm">${c.name}</span><span class="ds">${c.desc} · ${c.armW ? 'масса по длине корабля' : c.mass + ' т'} · ${costTxt(c.cost)} · ${crewLabel(c)}</span>${ctl(b, d.parts[b] || 0)}</div>`;
     const cur = ui.dopt[b] || {}, key = mkKey(b, cur), cc = compOf(key);
