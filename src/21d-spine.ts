@@ -23,7 +23,7 @@ function weather(m,k,hit,holes){const HU=CURHU;m.onBeforeCompile=sh=>{sh.uniform
  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform mat4 uSh;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(uSh*modelMatrix*vec4(transformed,1.)).xyz;');
  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform vec4 uHits[64];uniform int uNH;uniform vec4 uHoA[32],uHoB[32],uHoC[32];uniform int uNHo;uniform vec4 uDn[48];uniform int uNDn;\nfloat h31(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}\nfloat vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return vn(p)*.55+vn(p*2.3)*.3+vn(p*5.1)*.15;}\n').replace('#include <color_fragment>',`#include <color_fragment>
  float rimAcc=0.;
- for(int hj=0;hj<32;hj++){if(hj>=uNHo)break;vec3 rl=vWP-uHoC[hj].xyz;float uu=dot(rl,uHoA[hj].xyz)/uHoA[hj].w,ww=dot(rl,uHoB[hj].xyz)/uHoB[hj].w;float dd=length(vec2(uu,ww));dd/=1.+.55*(fbm(rl*.45+uHoC[hj].w*7.)-.5)+.3*(fbm(rl*1.4+3.)-.5)+.12*(fbm(rl*4.)-.5);
+ for(int hj=0;hj<32;hj++){if(hj>=uNHo)break;vec3 rl=vWP-uHoC[hj].xyz;float uu=dot(rl,uHoA[hj].xyz)/uHoA[hj].w,ww=dot(rl,uHoB[hj].xyz)/uHoB[hj].w;float dd=length(vec2(uu,ww));dd/=1.+.9*(fbm(rl*.45+uHoC[hj].w*7.)-.5)+.6*(fbm(rl*1.4+3.)-.5)+.3*(fbm(rl*4.)-.5);
   if(dd<uHoC[hj].w)discard;rimAcc=max(rimAcc,1.-smoothstep(.0,.2,dd-uHoC[hj].w));}
  vec3 q=vWP+vec3(${k}.);
  vec3 big=floor(q/vec3(26.,15.,15.));float hz=h31(big+1.7);
@@ -331,6 +331,22 @@ function denseHull(R,mat,k,S0,dx0){const S=S0||10,N=8*S,xs=[];const x0=R[0].x,x1
  for(let r=0;r<xs.length-1;r++)for(let v=0;v<N;v++){const v2=(v+1)%N,a=r*N+v,b=r*N+v2,c2=(r+1)*N+v,d=(r+1)*N+v2;I.push(a,c2,b,b,c2,d)}
  const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(P,3));ge.setIndex(I);ge.computeVertexNormals();
  const m=new THREE.Mesh(fastCrease(ge,.7),mat);m.userData.base=ge;m.userData.full=I.slice();m.userData.dm=new Float32Array(P.length/3);return m}
+
+// внутренности: рёбра шпангоутов, палубы, коридор с дверями, переборки, трубы и жгуты проводов (видны только через пробоины)
+function interior(R:any[],seed:number){const by:any={d:[],f:[],o:[],r:[],c:[]};let sd=seed*9301+7;const rnd=()=>{sd=(sd*16807)%2147483647;return sd/2147483647};
+ const box=(k:string,sx:number,sy:number,sz:number,x:number,y:number,z:number)=>{const ge=new THREE.BoxGeometry(sx,sy,sz).toNonIndexed();ge.deleteAttribute('uv');ge.translate(x,y,z);by[k].push(ge)};
+ const whAt=(x:number)=>{let i=0;while(i<R.length-2&&x>R[i+1].x)i++;const a=R[i],b=R[i+1],t=Math.max(0,Math.min(1,(x-a.x)/((b.x-a.x)||1)));return[(a.w+(b.w-a.w)*t)*.84,(a.h+(b.h-a.h)*t)*.84]};
+ const x0=R[1].x+3,x1=R[R.length-1].x-3;
+ for(let x=x0;x<x1;x+=3){const[w,h]=whAt(x);box('f',.3,.3,w,x,h/2,0);box('f',.3,.3,w,x,-h/2,0);box('f',.3,h,.3,x,0,w/2);box('f',.3,h,.3,x,0,-w/2)}
+ for(let x=x0;x<x1-6;x+=6){const[w,h]=whAt(x+3);box('d',5.8,.25,w*.96,x+3,-h*.2,0);box('d',5.8,.25,w*.96,x+3,h*.22,0);
+  for(const sg of[-1,1]){box('d',1.9,h*.42,.2,x+.95,.01*h,sg*w*.2);box('d',1.9,h*.42,.2,x+5.05,.01*h,sg*w*.2);if(rnd()<.5)box('d',2.2,h*.14,.2,x+3,h*.17,sg*w*.2)}
+  box('c',4.4,.07,.28,x+3,h*.22-.2,0);box('c',4.4,.07,.28,x+3,-h*.2+.2,w*.2);}
+ for(let x=x0;x<x1-6;x+=6){const[w,h]=whAt(x+3);for(const sg of[-1,1]){if(rnd()<.4)box('d',5.9,h*.9,.25,x+3,0,sg*w*.47);const nb=3+((rnd()*3)|0);for(let q=0;q<nb;q++){const bw=1+rnd()*2.2,bh=1+rnd()*h*.45,bd=1+rnd()*2.5,bx=x+.8+rnd()*4.4,by0=(rnd()-.5)*(h-bh)*.9,bz=sg*(w*.27+rnd()*w*.14);box(q%3?'f':'d',bw,bh,bd,bx,by0,bz);if(rnd()<.45)box('c',bw*.6,.12,.12,bx,by0+bh*.3,bz-sg*bd*.51)}}}
+ for(let x=x0+9;x<x1-3;x+=12){const[w,h]=whAt(x);box('f',.35,h*.9,w*.34,x,0,w*.33);box('f',.35,h*.9,w*.34,x,0,-w*.33);box('f',.35,h*.4,w*.32,x,h*.25,0);box('f',.35,h*.3,w*.32,x,-h*.35,0);box('c',.4,.3,w*.3,x+.1,h*.05,0)}
+ for(let i=0;i<10;i++){const xa=x0+rnd()*(x1-x0-20),len=10+rnd()*30,[w,h]=whAt(xa+len/2),yy=(rnd()-.5)*h*.8,zz=(i%2?(rnd()<.5?-1:1)*w*(.36+rnd()*.08):(rnd()-.5)*w*.8),kk=['o','r','f'][i%3],nseg=Math.max(3,Math.round(len/3));for(let j=0;j<nseg;j++){const sg=len/nseg;box(kk,sg*1.05,.16+(kk==='f'?.25:0),.16+(kk==='f'?.25:0),xa+(j+.5)*sg,yy+Math.sin(j*1.3+i)*.35,zz)}}
+ const gr=new THREE.Group();const cols:any={d:0x3a4352,f:0x5a6577,o:0xd9822b,r:0xb8321f,c:0x80ecff};
+ for(const k of Object.keys(by)){if(!by[k].length)continue;const mg=mergeGeometries(by[k],false);if(!mg)continue;mg.computeVertexNormals();gr.add(new THREE.Mesh(mg,k==='c'?new THREE.MeshBasicMaterial({color:cols[k]}):new THREE.MeshStandardMaterial({color:cols[k],metalness:.15,roughness:.7,side:THREE.DoubleSide})))}
+ return gr}
 // ---- хребет: нос + N секций-ячеек + корма; на каждой секции гнёзда с четырёх сторон ----
 function pad(s,mat){const g=new THREE.Group();const b=cb(.5,s,s,s*.3,mat||dark);g.add(b);const r=cb(.3,s*1.25,s*1.25,s*.36,accent);r.position.x=-.12;g.add(r);
  for(const[a,b2]of[[.3,.3],[-.3,.3],[.3,-.3],[-.3,-.3]]){const d=new THREE.Mesh(new THREE.BoxGeometry(.2,.35,.35),cyan);d.position.set(.3,a*s,b2*s);g.add(d)}return g}
@@ -360,7 +376,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
   [[0,.9,.9],[.05,1.2,1],[.3,1.1,.95],[.6,1.15,1],[.8,.9,.8],[.93,.55,.5],[1,.88,.9]]][cls];
  const R=prof.map(([t,w,h])=>({x:f(t),w:W*w,h:W*h*Hk*(cls===0?1.2:1.3)}));
  R.unshift({x:x0-6,w:R[0].w*.9,h:R[0].h*.9});
- {const hm=denseHull(R,hullM,1);g.add(hm);g.userData.hull=hm;const inn=denseHull(R,innerM,.9,6,1.2);g.add(inn);g.userData.inner=inn}
+ {const hm=denseHull(R,hullM,1);g.add(hm);g.userData.hull=hm;const inn=interior(R,m);g.add(inn);g.userData.inner=inn}
  const wAt=t=>{for(let i=0;i<prof.length-1;i++)if(t<=prof[i+1][0]){const k=(t-prof[i][0])/(prof[i+1][0]-prof[i][0]);return W*(prof[i][1]+(prof[i+1][1]-prof[i][1])*k)}return W*.2};
  const hAt=t=>wAt(t)*Hk*1.3;
  // двигательное гнездо и пояса
@@ -529,7 +545,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   else if(kind==='p')lobes=[mk(h.p,r,r*(.8+rr()*.2),r*1.2,.75),mk(h.p,r*2.4,r*2.1,r*.6,0)];
   else if(kind==='s')lobes=[mk(h.p,r*2.8,r*.35,r*.7,.5),mk(h.p,r*3.4,r*.6,r*.3,0)];
   // правило слоёв: каждый слой брони = 0.5 м; каждое попадание срезает один слой (вмятина +0.5 м), когда слои кончились — сквозная дыра
-  if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25))*(1+.1*Math.min(cnt,10)),dep=Math.max(0,Math.min(.5,1.5-cnt*.5));lobes=gone?[mk(h.p,rr0*1.5,rr0*1.3,.3,.8)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),dep,0)]} // глубина вмятины ограничена 1.5 м, дальше слои снимаются без роста геометрии
+  if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25))*(1+.1*Math.min(cnt,10)),dep=Math.max(0,Math.min(.5,1.5-cnt*.5));lobes=gone?[mk(h.p,rr0*2.3,rr0*1.5,.3,.85),mk(h.p.clone().addScaledVector(new THREE.Vector3(h.n.z,0,-h.n.x),rr0*.3),rr0*1.4,rr0*2.2,.3,.8)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),dep,0)]} // глубина вмятины ограничена 1.5 м, дальше слои снимаются без роста геометрии
   crater(h.p,h.n,r,r*.3,lobes)};
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
   hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObject(hull)[0];if(!rs||!rs.face)return false;const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
