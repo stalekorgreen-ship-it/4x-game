@@ -498,14 +498,14 @@ if (wrap && bgo) {
     const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ || u.spQ.length > 14 || (u.spN || 0) >= 90) return; g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 }
-    const dL = _sv.set(q.nx, 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)) });
+    const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)) });
   }
-  const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3();
+  const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3(), _X1 = new THREE.Vector3(1, 0, 0);
   { const dl = new THREE.Vector3(), wq = new THREE.Quaternion(), tq = new THREE.Quaternion(), tw = new THREE.Vector3(), X1 = new THREE.Vector3(1, 0, 0), hq = new THREE.Quaternion();
     (Battle as any).setMuzzle((s: any, m: any, dx: number, dy: number, dz: number) => { // орудие стреляет из реального ствола наведённой башни
       dbg.mc = (dbg.mc || 0) + 1; const g = models.get(s); if (!g || !g.visible) return null; const u = g.userData; dbg.mv = (dbg.mv || 0) + 1; if (u.sp) dbg.mu = (dbg.mu || 0) + 1; if (u.spOn) dbg.mo = (dbg.mo || 0) + 1; if (!u.sp || !u.spOn) return null; dbg.mp = (dbg.mp || 0) + 1; const sp = u.sp as THREE.Group, turs = sp.userData.turs as THREE.Group[]; dbg.mtn = turs && turs.length; if (!turs || !turs.length) { dbg.mt = (dbg.mt || 0) + 1; return null }
       sp.getWorldQuaternion(wq); dl.set(dx, dz, dy).normalize().applyQuaternion(wq.invert());
-      let tu: any = m && m._tu; if (!tu || tu.parent !== sp || tu.userData.n.dot(dl) < .05) { tu = null; const st = (Math.random() * turs.length) | 0; for (let i = 0; i < turs.length; i++) { const c: any = turs[(st + i) % turs.length]; if (c.parent === sp && c.userData.n.dot(dl) > .05) { tu = c; break } } if (m) m._tu = tu }
+      let tu: any = null; { const nw0 = performance.now(); let best = 1e18; for (const c of turs as any[]) { if (c.parent !== sp || c.userData.n.dot(dl) < .05) continue; const lf = c.userData.lf || 0; if (lf < best) { best = lf; tu = c } } if (tu) tu.userData.lf = nw0 } // стреляет та из повернутых к цели башен, что дольше всех молчала — огонь идёт со всех башен по очереди
       if (!tu) { dbg.mzn = (dbg.mzn || 0) + 1; return null } dbg.mz = (dbg.mz || 0) + 1; const hd = tu.userData.head; tq.copy(tu.quaternion).invert(); const d2 = dl.clone().applyQuaternion(tq); if (d2.y < .02) { d2.y = .02; d2.normalize() }
       hq.setFromUnitVectors(X1, d2); hd.quaternion.copy(hq); tw.set(tu.userData.tipX, 0, 0).applyQuaternion(hq).add(hd.position).applyMatrix4(tu.matrix).applyMatrix4(sp.matrixWorld);
       if (flashes.length < MAXFL - 30 && cam.position.distanceToSquared(tw) < 4e6) flashes.push({ p: tw.clone(), t0: performance.now(), life: 70, sz: Math.max(.25, u.L * .004) });
@@ -517,6 +517,9 @@ if (wrap && bgo) {
       const oL = (h.pL ? _rc.copy(h.pL) : _rc.set(a, v, 0)).addScaledVector(h.dL, h.pL ? u.L * .12 : R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84))) sp.userData.inner.visible = true }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
+    { const sh = u.s, tg = sh && sh.tg && sh.tg.alive ? sh.tg : null, turs = sp.userData.turs as any[]; if (tg && turs) { // свободные башни всё время ведут цель
+        const tw2 = new THREE.Vector3(tg.x, tg.z || 0, tg.y), iq = sp.getWorldQuaternion(new THREE.Quaternion()).invert(), sw = sp.getWorldPosition(new THREE.Vector3()), dl2 = tw2.sub(sw).applyQuaternion(iq).normalize(), hq2 = new THREE.Quaternion(), tq2 = new THREE.Quaternion();
+        for (const tu of turs) { if (tu.parent !== sp || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
     D.step(dt);
   }
   let frameNo = 0, spFrame = -1, spDmgFrame = -1;
@@ -704,7 +707,7 @@ if (wrap && bgo) {
   const _hp = new THREE.Vector3(), _hd = new THREE.Vector3(), _iq = new THREE.Quaternion();
   function peelAt(g: THREE.Group, s: any, imp: any) {
     const u = g.userData, tiles = u.tilesL as any[]; if (!tiles || !u.arm) return; g.updateMatrixWorld(true);
-    g.worldToLocal(_hp.set(imp.x, imp.z, imp.y)); _hd.set(imp.nx, 0, imp.ny).applyQuaternion(_iq.copy(g.quaternion).invert()).normalize(); let f = 0, bd = -2;
+    g.worldToLocal(_hp.set(imp.x, imp.z, imp.y)); _hd.set(imp.nx, imp.nz || 0, imp.ny).applyQuaternion(_iq.copy(g.quaternion).invert()).normalize(); let f = 0, bd = -2;
     for (let i = 0; i < 4; i++) { const d = _hd.x * NRL[i][0] + _hd.y * NRL[i][1] + _hd.z * NRL[i][2]; if (d > bd) { bd = d; f = i } }
     const cs = tiles[0].len, lat = (q: any) => f % 2 === 0 ? q.pz : q.py, hl = f % 2 === 0 ? _hp.z : _hp.y, k = 1 + Math.floor((imp.pw || 1) / 4), cand: { q: any; d: number }[] = [];
     const jx = (Math.random() - .5) * cs * 2, jl = (Math.random() - .5) * cs * 2;

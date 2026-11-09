@@ -522,9 +522,9 @@ function ricochet(o,x,y,vx,vy){
   frags.push({x,y,z:o.z,vx:rx*sp,vy:ry*sp,rot:Math.atan2(ry,rx),vr:0,sz:1.1,t0:t,d:R(.25,.45),side:0,ln:1,hot:1,ric:1});
   for(let i=0;i<2;i++){const a=Math.atan2(ry,rx)+R(-.9,.9),v=R(2,5);frags.push({x,y,z:o.z,vx:Math.cos(a)*v,vy:Math.sin(a)*v,rot:a,vr:0,sz:.5,t0:t,d:R(.15,.3),side:0,ln:1,hot:1,ric:1})}
 }
-function hitShip(o,kind,vx,vy,x,y,dmg,pw){lastDmgT=t;
+function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz){lastDmgT=t;
   if(!o.alive)return;o.hitT=t;
-  {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy)||1;impacts.push({id:++impN,x,y,z:o.z,nx:-vx/dd,ny:-vy/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:kind,s:o});if(impacts.length>300)impacts.splice(0,100)}
+  {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy,vz||0)||1;impacts.push({id:++impN,x,y,z:iz!=null?iz:o.z,nx:-vx/dd,ny:-vy/dd,nz:-(vz||0)/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:kind,s:o});if(impacts.length>300)impacts.splice(0,100)}
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   if(kind==='fgt'){fighterHit(o,dmg,x,y,vx,vy);return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.35,0.35),ab=Math.abs(a);
@@ -753,7 +753,7 @@ function step(dt){
       for(const c of fly[1-p.side]){if(c.state!=='fly'||c.x<mnx||c.x>mxx||c.y<mny||c.y>mxy)continue;let u=((c.x-p.x)*dx+(c.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));if(Math.hypot(p.x+dx*u-c.x,p.y+dy*u-c.y)<.04&&u<bu){bu=u;hc=c}}
       if(hc){endTr(p,hc.x,hc.y);hc.hp-=p.cd;fx.push({x:hc.x,y:hc.y,t0:t,d:3,r:0.5});if(hc.hp<=0){killCraft(hc,'rail');stat.flakKill[p.side]++}proj[i]=proj[proj.length-1];proj.pop();continue}}
     hit=scan(GR[1-p.side],null);if(!hit&&p.src&&p.src.T&&p.dist>p.src.T.L*.6){hit=scan(GR[p.side],p.src);fr=!!hit}
-    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.m&&p.m.k==='G';hitShip(hit,'rail',p.vx,p.vy,ix,iy,gt?(Math.random()<.001?4.55:0):p.dmg,gt?0:p.ap)}proj[i]=proj[proj.length-1];proj.pop();continue}
+    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.m&&p.m.k==='G';hitShip(hit,'rail',p.vx,p.vy,ix,iy,gt?(Math.random()<.001?4.55:0):p.dmg,gt?0:p.ap,p.z+(p.vz||0)*dt*iu,p.vz||0)}proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){endTr(p,p.x,p.y);proj[i]=proj[proj.length-1];proj.pop()}
   }

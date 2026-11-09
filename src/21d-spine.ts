@@ -406,6 +406,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false}))};
  {const tD=cls<2?.5:.27,w0=wAt(tD),dw=L*(cls<2?.34:.085),dh=dw*.26,nm=['ПОЯС-4X','ПБ-217','ЛК «ЗАРЯ»','ЛК-04 «ПОЯС»'][cls];
   for(const sg of[-1,1]){const d=mkDecal(nm,'№ '+(cls*131+407)+' · ПРИПИСКА: ПОЯС',dw,dh);d.position.set(f(tD),0,sg*(cls<2?w0/2+.15:wAt(.45)/2+(cls===3?2.3:1.8)+.15));if(sg<0)d.rotation.y=Math.PI;g.add(d)}}
+ const PODS=[];g.userData.pods=PODS;
  if(cls>=2&&P.tank!==0){
   // баки: стойка из горизонтальных цилиндров по бортам, с рёбрами и датчиками
   const tank=(l,r)=>{const t=new THREE.Group();const b=cyl(r,r,l,silver2);t.add(b);
@@ -413,7 +414,7 @@ function spine(m){freshMats();const g=new THREE.Group();g.userData.hu=CURHU;
    for(const px of[-.35,0,.35]){const band=cyl(r*1.06,r*1.06,.5,accent);band.position.x=px*l;t.add(band)}
    const gg=cb(l*.5,.12,.5,.05,cyan);gg.position.set(0,0,r*1.0);t.add(gg);return t};
   const nTx=P.tankN||(cls===2?2:3),rT=cls===2?1.7:2.3;
-  for(const sg of[-1,1])for(let a=0;a<nTx;a++)for(const yy of[-1,1]){const xx=f(.74+a*.0)-0;const tt=.62+a*.12,t=tank(L*.1,rT);t.position.set(f(tt),yy*(rT+.15),sg*(wAt(tt)/2+rT+.3));g.add(t)}
+  for(const sg of[-1,1])for(let a=0;a<nTx;a++)for(const yy of[-1,1]){const xx=f(.74+a*.0)-0;const tt=.62+a*.12,t=tank(L*.1,rT);t.position.set(f(tt),yy*(rT+.15),sg*(wAt(tt)/2+rT+.3));t.userData.pod=1;t.userData.wing=1;t.userData.out=new THREE.Vector3(0,yy*.3,sg);PODS.push(t);g.add(t)} // бак-гондола ломается отдельно, как крыло
   for(const sg of[-1,1]){const x1=f(.62)+(nTx-1)*L*.06,len=nTx*L*.12;put(cb(len,.5,rT*4.4,.2,steel),x1,0,sg*(wAt(.7)/2+.2));for(let a=0;a<=nTx;a++)put(cb(.6,rT*1.2,rT*4.6,.2,accent),f(.62)-L*.06+a*L*.12,0,sg*(wAt(.7)/2+rT*2.1+.4)).scale.set(1,1,.001)}
  }
  if(cls===3&&P.hang!==0){
@@ -565,7 +566,7 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   if(kind!=='g'){const rr0=Math.max(.7,Math.min(2.2,r*.25))*(1+.1*Math.min(cnt,10)),dep=cnt===0?.5:.1;lobes=gone?[mk(h.p,rr0*2.3,rr0*1.5,.3,.85),mk(h.p.clone().addScaledVector(new THREE.Vector3(h.n.z,0,-h.n.x),rr0*.3),rr0*1.4,rr0*2.2,.3,.8)]:[mk(h.p,rr0,rr0*(.85+rr()*.3),dep,0)]} // глубина вмятины ограничена 1.5 м, дальше слои снимаются без роста геометрии
   crater(h.p,h.n,r,r*.3,lobes)};
  // ===== крылья: дыры по ячейкам, погнутые края, сажа; когда ряд ячеек перебит — внешняя часть отрывается вместе с пушкой =====
- const WINGS=ship.userData.wings||[];const plates=()=>WINGS.map(w=>w.userData.plate);
+ const WINGS=ship.userData.wings||[];const plates=()=>WINGS.map(w=>w.userData.plate).filter(Boolean);
  const cellOff=c=>c.idx*108;
  WINGS.forEach(w=>w.userData.plate.userData.cells.forEach((c,k)=>c.idx=k));
  const kill=(ge,c)=>{const a=ge.attributes.position.array,o=cellOff(c);for(let k=3;k<108;k+=3){a[o+k]=a[o];a[o+k+1]=a[o+1];a[o+k+2]=a[o+2]}};
@@ -602,8 +603,18 @@ function makeDamage(ship,L){const HU=ship.userData.hu;const hull=ship.userData.h
   // отрыв: ряд у корня перебит на 55% — или крыло просто изрешечено (12+ попаданий) — рвётся по самому слабому ряду
   let bj=-1,bf=0;for(let j=0;j<U.cut-1;j++){const rw=U.cells.filter(c=>c.j===j),fr=rw.filter(c=>!c.alive).length/rw.length;if(fr>=.55){bj=j;break}if(fr>bf){bf=fr;bj=j}}
   if(bj>=0&&(U.cells.filter(c=>c.j===bj&&!c.alive).length/U.NU>=.55||(U.hits>=12&&bf>=.3)))breakWing(wg,pl,bj)}
+ // ===== баки-гондолы: попадания мнут и коптят, после нескольких — бак срывается с креплений и улетает =====
+ const PODS=ship.userData.pods||[];const podMeshes=()=>{const r=[];for(const p of PODS)if(!p.userData.gone)p.traverse(o=>{if(o.isMesh){o.userData.podRef=p;r.push(o)}});return r};
+ function podHit(pod,pw,dw){const U=pod.userData;if(U.hp==null)U.hp=3+((Math.random()*4)|0);U.hp--;const ps=ship.worldToLocal(pw.clone()),ds=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());addHit(ps,1.6);
+  pod.rotation.x+=(Math.random()-.5)*.06;pod.rotation.y+=(Math.random()-.5)*.06;pod.position.addScaledVector(ds,.08); // от удара бак слегка сбивает на креплениях
+  for(let i=0;i<7;i++){const m=new THREE.Mesh(new THREE.TetrahedronGeometry(.3+Math.random()*.4),bm[i%3]);m.position.copy(ps);ship.add(m);m.userData.v=ds.clone().multiplyScalar(-(4+Math.random()*6)).add(new THREE.Vector3((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8));m.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(5);debris.push({e:m,t:0,life:5})}
+  for(let i=0;i<8;i++)spark(ps,ds.clone().multiplyScalar(-(6+Math.random()*10)).add(new THREE.Vector3((Math.random()-.5)*12,(Math.random()-.5)*12,(Math.random()-.5)*12)),.4+Math.random()*.6,i%3?glowM:accent);
+  if(U.hp>0)return;U.gone=1;const base=pod.position.clone();
+  pod.userData.v=U.out.clone().normalize().multiplyScalar(2+Math.random()*3).add(ds.clone().multiplyScalar(2)).add(new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,(Math.random()-.5)*1.5));pod.userData.w=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(1.2);debris.push({e:pod,t:0,life:60});
+  const inw=U.out.clone().normalize().multiplyScalar(-1);for(let k=0;k<5;k++){const a=base.clone().addScaledVector(inw,1.5+Math.random()).add(new THREE.Vector3((Math.random()-.5)*3,(Math.random()-.5)*1.5,(Math.random()-.5)*.6)),b=a.clone().addScaledVector(U.out.clone().normalize(),.4+Math.random()*.5).add(new THREE.Vector3((Math.random()-.5)*.4,-.1,(Math.random()-.5)*.3));wire(ship,a,b)}
+  addHit(base.clone().addScaledVector(inw,2),2.5);for(let i=0;i<16;i++)spark(base,new THREE.Vector3((Math.random()-.5)*16,(Math.random()-.5)*16,(Math.random()-.5)*16),.6+Math.random()*.8,i%3?glowM:accent)}
  return{shoot(x,ang,kind,r){const h=rayHit(x,ang);if(!h)return;doHit(h,new THREE.Vector3(1,0,0).add(new THREE.Vector3(0,Math.sin(ang),Math.cos(ang)).multiplyScalar(-.6)).normalize(),kind,r)},
-  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObjects([hull,...plates()],false).find(x=>x.face);if(!rs)return false;if(rs.object!==hull){wingHit(rs.object,rs.point,dw,r);return true}const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
+  hit(ow,dw,kind,r){ship.updateMatrixWorld(true);RC.set(ow,dw);const rs=RC.intersectObjects([hull,...plates(),...podMeshes()],false).find(x=>x.face);if(!rs)return false;if(rs.object.userData.podRef){podHit(rs.object.userData.podRef,rs.point,dw);return true}if(rs.object!==hull){wingHit(rs.object,rs.point,dw,r);return true}const h={p:ship.worldToLocal(rs.point.clone()),n:rs.face.normal.clone()};const gd=dw.clone().transformDirection(new THREE.Matrix4().copy(ship.matrixWorld).invert());doHit(h,gd,kind,r);return true},step,release}}
 
 // склейка статичной мелочи в несколько мешей по материалам: тысячи draw call'ов на корабль -> десяток
 function bakeHeads(g:any){g.updateMatrixWorld(true);for(const tu of g.userData.turs||[]){const hd=tu.userData.head,inv=new THREE.Matrix4().copy(hd.matrixWorld).invert(),by=new Map(),rm:any[]=[];
