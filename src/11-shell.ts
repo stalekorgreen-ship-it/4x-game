@@ -110,7 +110,7 @@ export function refreshCol() {
   h += `<div class="box"><h2>Основать колонию: ${esc(b ? b.name : '—')}</h2>`;
   if (COLONIZABLE(id) && !state.cols[id]) { const I = colInfo(id); h += `<div class="stats"><span>Поселенцы</span><span>${fmtN(I.settlers)}</span><span>Вместимость</span><span>${fmtN(I.hab)}</span><span>Надбавка к ввозу</span><span>×${fmtN(I.dist, 2)}</span></div>`; }
   h += why ? `<div class="help">${why}</div>` : '';
-  h += `<button class="btn" data-found="${esc(id)}"${why ? ' disabled' : ''}>Основать колонию</button><div class="help">Выберите тело на карте, приведите туда любой свой корабль, затем нажмите кнопку. Годятся планеты, спутники и астероиды.</div></div>`;
+  h += `<button class="btn" data-found="${esc(id)}"${why ? ' disabled' : ''}>Отправить поселенцев</button><div class="help">Выберите тело на карте и нажмите кнопку: корпорация бесплатно для вас довезёт поселенцев с Земли. Колония появляется, как только там живёт хоть один человек. Годятся планеты, спутники и астероиды.</div></div>`;
   h += colBldHtml(ui.colSel && state.cols[ui.colSel] ? ui.colSel : id);
   setHtml(p, h);
 }

@@ -7,6 +7,7 @@ import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { logMarket, logJobs, lsShare } from './25-logistics.ts';
 import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
 import { KR } from './00-kr.ts';
+import { hooks } from './00-hooks.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
@@ -103,16 +104,20 @@ export function colInfo(id) {
 export function foundWhy(id) {
   if (!COLONIZABLE(id)) return 'Это тело нельзя заселить';
   if (state.cols[id]) return 'Колония уже есть';
-  if (!state.ships.some(s => !s.corp && s.at === id)) return 'Нужен ваш корабль на орбите тела';
+  if (state.freight && state.freight.flights.some(f => f.item === 'col' && f.to === id)) return 'Колонисты уже летят';
   return '';
 }
 export function foundColony(id) {
   if (foundWhy(id)) return false;
-  const I = colInfo(id), b = BODY[id]; // колония денег не стоит: только завезённые люди и инфраструктура
-  takeEarth(I.settlers);
-  mkCol(id, b.name, I.settlers, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6 * KR, kind: b.kind});
+  // колония ничего не стоит: корпорация везёт поселенцев с Земли, колония появляется, когда там живёт хоть один человек
+  const I = colInfo(id); takeEarth(I.settlers); hooks.sendColonists(id, I.settlers);
+  log(`К «${BODY[id].name}» вылетели ${fmtN(I.settlers)} поселенцев. Колония появится по прибытии.`); return true;
+}
+export function settle(id, q) { // первые жители прибыли — колония существует
+  const I = colInfo(id), b = BODY[id];
+  mkCol(id, b.name, q, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6 * KR, kind: b.kind});
   state.cols[id].infra = I.infra;
-  log(`Основана колония: ${b.name}. Прибыло ${fmtN(I.settlers)} поселенцев. Здесь действуют те же законы экономики, что и на Земле.`); return true;
+  log(`Основана колония: ${b.name}. Прибыло ${fmtN(q)} поселенцев. Здесь действуют те же законы экономики, что и на Земле.`);
 }
 function takeEarth(q) { // переселенцы уходят из когорт 22–38 лет
   const P = state.cols.earth.pop; let tot = 0; for (let s = 0; s < 4; s++) for (let a = 22; a <= 38; a++) tot += P.c[s][a].n;

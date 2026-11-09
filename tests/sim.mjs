@@ -72,16 +72,17 @@ for (let i = 0; i < 14; i++) { s().t += 30; P.popTick(30); }
 ok(s().corps.length >= n0 - 1, 'через год основана новая корпорация');
 // 6. Колонии: те же механики на любом теле
 D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
-ok(P.foundWhy('mars') !== '', 'без корабля колонию основать нельзя');
-s().ships[0].at = 'mars'; s().money = 1e12;
-const e0 = g.totals().n;
-ok(P.foundColony('mars') && s().cols.mars, 'колония на Марсе основана');
-ok(g.totals().n === e0 || g.totals().n < e0, 'Земля отдала поселенцев');
-ok(P.foundColony('ceres') === false, 'без корабля у Цереры не основать');
-s().ships[0].at = 'ceres'; ok(P.foundColony('ceres') && s().cols.ceres, 'колония на астероиде основана');
+const FRt = await import('../src/13-freight.ts');
+const fly = (id) => { for (let i = 0; i < 2000 && !s().cols[id]; i++) { s().t += 1; FRt.freightTick(1); } return s().cols[id]; };
+ok(P.foundWhy('mars') === '', 'колонию можно основать без корабля и без денег');
+const e0 = g.totals().n, m0c = s().money;
+ok(P.foundColony('mars') && !s().cols.mars, 'поселенцы вылетели, колонии пока нет');
+ok(P.foundColony('mars') === false, 'второй раз не отправить, пока летят');
+ok(g.totals().n < e0 && s().money === m0c, 'Земля отдала поселенцев, деньги не списаны');
+ok(fly('mars') && s().cols.mars.pop.n > 0, 'колония на Марсе появилась по прибытии');
+ok(P.foundColony('ceres') && fly('ceres'), 'колония на астероиде основана');
 { const CL = await import('../src/14-climate.ts'); const mc = s().cols.mars; mc.infra = 200; mc.pop.hab = Math.round(200 * CL.colonyCost('mars').per); }
 const mn0 = s().cols.mars.pop.n || 20000;
-const FRt = await import('../src/13-freight.ts');
 for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); FRt.freightTick(30); }
 const mp = s().cols.mars.pop;
 ok(mp.n > mn0 * 1.5, `Марс растёт (${Math.round(mn0)} → ${Math.round(mp.n)})`);
@@ -115,7 +116,7 @@ Object.assign(L, F.LAW_DEFAULT);
   E.execOrder(sh, {type: 'mine', target: 'eros', res: 'all', pct: 100}, 1);
   ok(ss.ast.eros.fe < f0 && ss.ast.eros.si < i0, 'лазер добывает несколько жил сразу'); }
 // 9. Грузовые заказы корпорациям
-{ D.newGame(); const ss = D.state; ss.paused = true; ss.ships[0].at = 'luna'; ss.money = 1e10; ss.stock.fe = 5000; P.foundColony('luna');
+{ D.newGame(); const ss = D.state; ss.paused = true; ss.ships[0].at = 'luna'; ss.money = 1e10; ss.stock.fe = 5000; P.foundColony('luna'); { const Fq = await import('../src/13-freight.ts'); for (let i = 0; i < 2000 && !ss.cols.luna; i++) { ss.t += 1; Fq.freightTick(1); } }
   const Fr = await import('../src/13-freight.ts'); const hab0 = ss.cols.luna.pop.hab, m0 = ss.money;
   ok(Fr.orderCargo('infra', 1000, 'earth', 'luna') && Fr.orderCargo('fe', 800, 'earth', 'eros'), 'заказы размещены');
   for (let i = 0; i < 40; i++) { ss.t += 1; Fr.freightTick(1); }
