@@ -392,15 +392,17 @@ function assign(){
 let MUZ=null;const tracers=[];let trId=0;
 function endTr(p,x,y){if(!p.o0)return;tracers.push({id:++trId,x1:p.o0.x,y1:p.o0.y,z1:p.o0.z,x2:x,y2:y,z2:p.z,side:p.side,src:p.src,m:p.m});if(tracers.length>700)tracers.shift()}
 function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
-  // упреждение в 3D от корабля, разброс по обеим осям; потом башня наводится ровно по вектору полёта, пуля выходит из её ствола
-  const evx=e.vx!=null?e.vx:(e.sx||0),evy=e.vy!=null?e.vy:(e.sy||0),ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy,ez-sz)/V;
+  // V — скорость пули относительно ствола; к ней прибавляется скорость стрелка (Галилей): упреждение считаем в системе стрелка
+  const svx=src?(src.vx!=null?src.vx:(src.sx||0)):0,svy=src?(src.vy!=null?src.vy:(src.sy||0)):0;
+  const evx=(e.vx!=null?e.vx:(e.sx||0))-svx,evy=(e.vy!=null?e.vy:(e.sy||0))-svy,ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy,ez-sz)/V;
   for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy,ez-sz)/V}
   const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy,ez-sz)),sig=Math.min(V<2?.02:.012,.12*.4/(2.5066*Math.max(.01,p))/d);
   const sg2=sig*Math.sqrt(Math.min(1,(e.T?e.T.L*.22:.048)/(2.5066*sig*d))),dh=Math.hypot(px-sx,py-sy),an=Math.atan2(py-sy,px-sx)+gauss()*sg2,el=Math.atan2(ez-sz,dh)+gauss()*sg2,vx=Math.cos(an)*Math.cos(el)*V,vy=Math.sin(an)*Math.cos(el)*V,vz=Math.sin(el)*V;
   let VX=vx,VY=vy,VZ=vz;{const mo=MUZ&&src&&src.T?MUZ(src,m,vx,vy,vz):null;if(mo){const T2=d/V,ax=sx+vx*T2-(sx+mo.x),ay=sy+vy*T2-(sy+mo.y),az=sz+vz*T2-(sz+mo.z),l=Math.hypot(ax,ay,az)||1;VX=ax/l*V;VY=ay/l*V;VZ=az/l*V;sx+=mo.x;sy+=mo.y;sz+=mo.z}} // из ствола в ту же точку упреждения
-  proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max:V*20,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
+  VX+=svx;VY+=svy;const VA=Math.hypot(VX,VY,VZ);
+  proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max:Math.hypot(VX,VY)*20,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}}); // живёт 20 с
   if(src){src.rt=performance.now()}}
-function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,4.8,p,dm||1,600)}
+function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,GV,p,dm||1,600);proj[proj.length-1].g=1} // у истребителя тот же миниган, что у кораблей
 function craftStep(c,d){
   const P=c.P,home=c.home;
   if(c.type==='F'&&mis.length&&t>(c.pd||0)){let q=null,bd=200;for(const m of mis){if(m.side===c.side)continue;const dd=(m.x-c.x)*(m.x-c.x)+(m.y-c.y)*(m.y-c.y);if(dd<bd){bd=dd;q=m}}
@@ -442,7 +444,7 @@ function craftStep(c,d){
   }
   if(c.type==='F'&&!c.ret&&!c.tg&&c.fl.tsh&&c.fl.ph==='in'&&c.ammo>0&&t>(c.nf||0)){const sh=c.fl.tsh;
     if(Math.hypot(sh.x-c.x,sh.y-c.y)<sh.T.L*.8+1.2){const n=Math.min(c.ammo,6);c.ammo-=n;c.nf=t+40;
-      for(let i=0;i<n*2;i++){fireAt(c.x,c.y,c.z!=null?c.z:sh.z,c,null,c.side,sh,4.8,.5,0,600,.0175);proj[proj.length-1].k='fgt'} /* штурмовка — настоящими пулями, урон по прилёту */stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
+      for(let i=0;i<n*2;i++){fireAt(c.x,c.y,c.z!=null?c.z:sh.z,c,null,c.side,sh,GV,.5,0,600,0);proj[proj.length-1].g=1} /* штурмовка — настоящими пулями, урон по прилёту */stat.strafe=(stat.strafe||0)+1;if(!c.fl.outAt)c.fl.outAt=t+1.5}}
   // ракеты истребителей: «против крупных» бьют по кораблю, «против мелких» — по вражеским истребителям
   if(c.type==='F'&&c.ms>0&&!c.ret&&c.state==='fly'&&t>(c.nm||0)){
     if(c.mk==='big'){const sh=c.fl.tsh;if(sh&&sh.alive&&c.fl.ph==='in'&&Math.hypot(sh.x-c.x,sh.y-c.y)<30){c.ms--;c.nm=t+3;mis.push({x:c.x,y:c.y,z:sh.z,h:c.h,side:c.side,tgt:sh,hp:1,spd:8,dmg:4,blast:3,life:45,tr:[],trT:0,vx:0,vy:0,src:c.own});stat.mis[c.side]++}}
@@ -594,14 +596,15 @@ function flakBurst(s,m){
 function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3)kill(s)}}
 function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
-  const VPc=C.vp,oz=o.z||0;let T=Math.hypot(o.x-s.x,o.y-s.y,oz-s.z)/VPc;
-  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y,oz-s.z)/VPc}
-  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*ek,kq=Math.sqrt(Math.min(1,o.T.L*.22/(2.5066*e0))),e=e0*kq,ev=SIGMA*d*ek*kq; // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
+  const VPc=C.vp,oz=o.z||0,rsx=o.sx-(s.sx||0),rsy=o.sy-(s.sy||0);let T=Math.hypot(o.x-s.x,o.y-s.y,oz-s.z)/VPc; // упреждение в системе стрелка
+  for(let i=0;i<3;i++){const px=o.x+rsx*T,py=o.y+rsy*T;T=Math.hypot(px-s.x,py-s.y,oz-s.z)/VPc}
+  const px=o.x+rsx*T,py=o.y+rsy*T,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*ek,kq=Math.sqrt(Math.min(1,o.T.L*.22/(2.5066*e0))),e=e0*kq,ev=SIGMA*d*ek*kq; // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,az=oz+gauss()*ev-s.z,l=Math.hypot(ax,ay,az)||1e-6;let vx=ax/l*VPc,vy=ay/l*VPc,vz=az/l*VPc;
   // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
   const mo=MUZ?MUZ(s,m,vx,vy,vz):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0),k0=VPc*lag+(mo?0:s.T.L*.4);if(mo){const bx=s.x+ax-X0,by=s.y+ay-Y0,bz=s.z+az-Z0,l2=Math.hypot(bx,by,bz)||1;vx=bx/l2*VPc;vy=by/l2*VPc;vz=bz/l2*VPc}
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:X0+vx/VPc*k0,y:Y0+vy/VPc*k0,z:Z0+vz/VPc*k0,vz,vx,vy,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:VPc*20,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
+  vx+=s.sx||0;vy+=s.sy||0;
+  proj.push({x:X0+vx/VPc*k0,y:Y0+vy/VPc*k0,z:Z0+vz/VPc*k0,vz,vx,vy,side:s.side,dist:Math.hypot(vx,vy)*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:Math.hypot(vx,vy)*20,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
   stat.shots[s.side]++;s.flash=t;SFX.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
@@ -752,7 +755,7 @@ function step(dt){
       for(const c of fly[1-p.side]){if(c.state!=='fly'||c.x<mnx||c.x>mxx||c.y<mny||c.y>mxy)continue;let u=((c.x-p.x)*dx+(c.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));if(Math.hypot(p.x+dx*u-c.x,p.y+dy*u-c.y)<.04&&u<bu){bu=u;hc=c}}
       if(hc){endTr(p,hc.x,hc.y);hc.hp-=p.cd;fx.push({x:hc.x,y:hc.y,t0:t,d:3,r:0.5});if(hc.hp<=0){killCraft(hc,'rail');stat.flakKill[p.side]++}proj[i]=proj[proj.length-1];proj.pop();continue}}
     hit=scan(GR[1-p.side],null);if(!hit&&p.src&&p.src.T&&p.dist>p.src.T.L*.6){hit=scan(GR[p.side],p.src);fr=!!hit}
-    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.m&&p.m.k==='G';hitShip(hit,p.k||'rail',p.vx,p.vy,ix,iy,gt?(Math.random()<.001?4.55:0):p.dmg,gt?0:p.ap,p.z+(p.vz||0)*dt*iu,p.vz||0)}proj[i]=proj[proj.length-1];proj.pop();continue}
+    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.g||(p.m&&p.m.k==='G');hitShip(hit,p.k||'rail',p.vx,p.vy,ix,iy,gt?(Math.random()<.001?4.55:0):p.dmg,gt?0:p.ap,p.z+(p.vz||0)*dt*iu,p.vz||0)}proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){endTr(p,p.x,p.y);proj[i]=proj[proj.length-1];proj.pop()}
   }
