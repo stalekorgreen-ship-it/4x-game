@@ -398,7 +398,7 @@ function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
   const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy,ez-sz)),sig=Math.min(V<2?.02:.012,.12*.4/(2.5066*Math.max(.01,p))/d);
   const sg2=sig*Math.sqrt(Math.min(1,(e.T?e.T.L*.22:.048)/(2.5066*sig*d))),dh=Math.hypot(px-sx,py-sy),an=Math.atan2(py-sy,px-sx)+gauss()*sg2,el=Math.atan2(ez-sz,dh)+gauss()*sg2,vx=Math.cos(an)*Math.cos(el)*V,vy=Math.sin(an)*Math.cos(el)*V,vz=Math.sin(el)*V;
   let VX=vx,VY=vy,VZ=vz;{const mo=MUZ&&src&&src.T?MUZ(src,m,vx,vy,vz):null;if(mo){const T2=d/V,ax=sx+vx*T2-(sx+mo.x),ay=sy+vy*T2-(sy+mo.y),az=sz+vz*T2-(sz+mo.z),l=Math.hypot(ax,ay,az)||1;VX=ax/l*V;VY=ay/l*V;VZ=az/l*V;sx+=mo.x;sy+=mo.y;sz+=mo.z}} // из ствола в ту же точку упреждения
-  proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
+  proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max:V*20,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
   if(src){src.rt=performance.now()}}
 function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,4.8,p,dm||1,600)}
 function craftStep(c,d){
@@ -602,7 +602,7 @@ function fireShell(s,m,o0,C,lag){
   // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
   const mo=MUZ?MUZ(s,m,vx,vy,vz):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0),k0=VPc*lag+(mo?0:s.T.L*.4);if(mo){const bx=s.x+ax-X0,by=s.y+ay-Y0,bz=s.z+az-Z0,l2=Math.hypot(bx,by,bz)||1;vx=bx/l2*VPc;vy=by/l2*VPc;vz=bz/l2*VPc}
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:X0+vx/VPc*k0,y:Y0+vy/VPc*k0,z:Z0+vz/VPc*k0,vz,vx,vy,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:C.rng*3,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
+  proj.push({x:X0+vx/VPc*k0,y:Y0+vy/VPc*k0,z:Z0+vz/VPc*k0,vz,vx,vy,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:VPc*20,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
   stat.shots[s.side]++;s.flash=t;SFX.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
