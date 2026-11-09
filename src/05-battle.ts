@@ -727,13 +727,14 @@ function step(dt){
     while(q.i<q.n&&t>=q.t0+.3*q.i){fireShell(q.s,q.m,q.o,q.C,t-(q.t0+.3*q.i));q.i++}
     if(q.i>=q.n){bursts[i]=bursts[bursts.length-1];bursts.pop()}}
   for(let i=proj.length-1;i>=0;i--){
-    const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null,fr=false;
+    const p=proj[i],nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;let hit=null,fr=false,eu=0;
     const dx=nx-p.x,dy=ny-p.y,l2=dx*dx+dy*dy||1,x0=Math.floor(Math.min(p.x,nx)/CS)-1,x1=Math.floor(Math.max(p.x,nx)/CS)+1,y0=Math.floor(Math.min(p.y,ny)/CS)-1,y1=Math.floor(Math.max(p.y,ny)/CS)+1;
-    const scan=(g,self)=>{let best=null,bu=2;
+    const scan=(g,self)=>{let best=null,bu=2;eu=0;
       const chk=(gx,gy)=>{const a=g.get(ckey(gx,gy));if(!a)return;
-        for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;if(o.T.tons<15000&&p.dmg>=1.5&&p.ev>.55)continue; // малые корабли уворачиваются от тяжёлых снарядов
-          let u=((o.x-p.x)*dx+(o.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));
-          if(u<bu&&Math.hypot(p.x+dx*u-o.x,p.y+dy*u-o.y)<o.T.L*0.38){bu=u;best=o}}};
+        for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;// настоящее попадание: отрезок пути снаряда против коробки корабля (длина × ширина) в его системе координат; малые корабли — малые цели
+          { const L=o.T.L,hl=L*.5,hw=L*.11,cs=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),ax=p.x-o.x,ay=p.y-o.y,x1=ax*cs+ay*sn,y1=-ax*sn+ay*cs,ddx=dx*cs+dy*sn,ddy=-dx*sn+dy*cs;
+            let t0=0,t1=1;const slab=(a,d,h)=>{if(Math.abs(d)<1e-12)return a>=-h&&a<=h;let ta=(-h-a)/d,tb=(h-a)/d;if(ta>tb){const q=ta;ta=tb;tb=q}if(ta>t0)t0=ta;if(tb<t1)t1=tb;return t0<=t1};
+            if(slab(x1,ddx,hl)&&slab(y1,ddy,hw)&&t0<bu){bu=t0;best=o;eu=t0} } }};
       const nxc=x1-x0+1,nyc=y1-y0+1;
       if(nxc*nyc<=40){for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)chk(gx,gy)}
       else if(nxc>=nyc){const lo=Math.min(p.x,nx),hi=Math.max(p.x,nx); // быстрый снаряд: идём по клеткам вдоль отрезка, а не по всему прямоугольнику
@@ -747,7 +748,7 @@ function step(dt){
       for(const c of fly[1-p.side]){if(c.state!=='fly'||c.x<mnx||c.x>mxx||c.y<mny||c.y>mxy)continue;let u=((c.x-p.x)*dx+(c.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));if(Math.hypot(p.x+dx*u-c.x,p.y+dy*u-c.y)<.04&&u<bu){bu=u;hc=c}}
       if(hc){endTr(p,hc.x,hc.y);hc.hp-=p.cd;fx.push({x:hc.x,y:hc.y,t0:t,d:3,r:0.5});if(hc.hp<=0){killCraft(hc,'rail');stat.flakKill[p.side]++}proj[i]=proj[proj.length-1];proj.pop();continue}}
     hit=scan(GR[1-p.side],null);if(!hit&&p.src&&p.src.T&&p.dist>p.src.T.L*.6){hit=scan(GR[p.side],p.src);fr=!!hit}
-    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=Math.max(0,Math.min(1,((hit.x-p.x)*dx+(hit.y-p.y)*dy)/l2)),ix=p.x+dx*iu,iy=p.y+dy*iu;hitShip(hit,'rail',p.vx,p.vy,ix,iy,p.dmg,p.ap)}proj[i]=proj[proj.length-1];proj.pop();continue}
+    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu;hitShip(hit,'rail',p.vx,p.vy,ix,iy,p.dmg,p.ap)}proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){endTr(p,p.x,p.y);proj[i]=proj[proj.length-1];proj.pop()}
   }
