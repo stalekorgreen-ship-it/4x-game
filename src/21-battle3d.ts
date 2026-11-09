@@ -862,7 +862,7 @@ if (wrap && bgo) {
       alive.add(s);
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
       g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
-      { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; ud.pt += (Math.max(-.2, Math.min(.2, (s.pz || 0) * 2.5)) - ud.pt) * .015 } // сглаживание курса и тангажа
+      { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; const tg = s.tg && s.tg.alive ? s.tg : null, ap = tg ? Math.atan2((tg.z || 0) - (s.z || 0), Math.max(1e-3, Math.hypot(tg.x - s.x, tg.y - s.y))) : 0; ud.pt += (Math.max(-.45, Math.min(.45, (s.pz || 0) * 2.5 + ap * .8)) - ud.pt) * .015 } // нос наклоняется к цели по высоте // сглаживание курса и тангажа
       if (ud.rl == null) ud.rl = s.roll || 0; ud.rl += ((s.roll || 0) - ud.rl) * .2; g.rotation.y = -ud.hd; g.rotation.z = ud.pt; g.rotation.x = ud.rl;
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
       if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
@@ -958,7 +958,7 @@ if (wrap && bgo) {
       pa[o] = p.x + ox; pa[o + 1] = p.z + oy; pa[o + 2] = p.y + oz; { const tx = p.vx * tailK * .1, ty = (p.vz || 0) * tailK * .1, tz = p.vy * tailK * .1;
         if (p._O) { const dx = p.x - p._O[0], dy = p.z - p._O[1], dz = p.y - p._O[2]; if (dx * dx + dy * dy + dz * dz < 16 * (tx * tx + ty * ty + tz * tz)) { pa[o + 3] = p._O[0]; pa[o + 4] = p._O[1]; pa[o + 5] = p._O[2] } else { pa[o + 3] = p.x - tx; pa[o + 4] = p.z - ty; pa[o + 5] = p.y - tz } }
         else { pa[o + 3] = p.x + ox - tx; pa[o + 4] = p.z + oy - ty; pa[o + 5] = p.y + oz - tz } }
-      const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1, p.max)), .8) * .9; // летит яркой, гаснет лишь в последние 40% дальности
+      const e = p.ev == null ? .5 : p.ev, fade = Math.pow(Math.max(0, 1 - p.dist / Math.max(1, p.max)), 1.6) * .9; // гаснет плавно с каждым километром, к концу дальности сходит на нет
       tmp.setHSL(p.side ? .02 + e * .12 : .5 + e * .2, .9, .6); // красные: красный→жёлтый; синие: бирюзовый→фиолетовый
       pcol[o] = tmp.r * fade; pcol[o + 1] = tmp.g * fade; pcol[o + 2] = tmp.b * fade; pcol[o + 3] = tmp.r * fade * .12; pcol[o + 4] = tmp.g * fade * .12; pcol[o + 5] = tmp.b * fade * .12;
       pc++;

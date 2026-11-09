@@ -319,7 +319,7 @@ function steer(s,dt){
   { const rr=.14/(1+T.L)*dt,dr=adiff(s.roll||0,s.rollT||0);s.roll=(s.roll||0)+Math.max(-rr,Math.min(rr,dr)) } // крен вокруг продольной оси
   // высота (псевдо-3D)
   if(t>=(s.zn||0)){s.zn=t+R(150,320);const r=Math.random();s.zo=r<.4?R(4,12):r<.75?R(-12,-4):R(-2,2)}
-  const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4));s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
+  const zb=F.zl+s.zo+(s.zpush||0)*4,tgz=s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<(s.maxR||60)*1.5?s.tg.z:null,zt=Math.max(-36,Math.min(36,tgz==null?zb:zb*.25+tgz*.75+s.zo*.3)); // в бою выходим на высоту цели (с небольшим смещением строя), нос клонится к нейs.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
 }
 function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.car||o.side!==c.side)continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d<bd){bd=d;b=o}}return b}
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
@@ -392,11 +392,13 @@ function assign(){
 let MUZ=null;const tracers=[];let trId=0;
 function endTr(p,x,y){if(!p.o0)return;tracers.push({id:++trId,x1:p.o0.x,y1:p.o0.y,z1:p.o0.z,x2:x,y2:y,z2:p.z,side:p.side,src:p.src,m:p.m});if(tracers.length>700)tracers.shift()}
 function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
-  {const mo=MUZ&&src&&src.T?MUZ(src,m,e.x-sx,e.y-sy,(e.z||0)-sz):null;if(mo){sx+=mo.x;sy+=mo.y;sz+=mo.z}}
-  const evx=e.vx!=null?e.vx:(e.sx||0),evy=e.vy!=null?e.vy:(e.sy||0),ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy)/V;
-  for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy)/V}
-  const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy)),sig=Math.min(V<1000?.02:.012,.12*.4/(2.5066*Math.max(.01,p))/d),an=Math.atan2(py-sy,px-sx)+gauss()*sig;
-  proj.push({x:sx,y:sy,z:sz,vz:(ez-sz)/Math.max(.001,T)*.0+gauss()*V*.0015,vx:Math.cos(an)*V,vy:Math.sin(an)*V,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
+  // упреждение в 3D от корабля, разброс по обеим осям; потом башня наводится ровно по вектору полёта, пуля выходит из её ствола
+  const evx=e.vx!=null?e.vx:(e.sx||0),evy=e.vy!=null?e.vy:(e.sy||0),ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy,ez-sz)/V;
+  for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy,ez-sz)/V}
+  const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy,ez-sz)),sig=Math.min(V<1000?.02:.012,.12*.4/(2.5066*Math.max(.01,p))/d);
+  const sg2=sig*Math.sqrt(Math.min(1,(e.T?e.T.L*.22:.048)/(2.5066*sig*d))),dh=Math.hypot(px-sx,py-sy),an=Math.atan2(py-sy,px-sx)+gauss()*sg2,el=Math.atan2(ez-sz,dh)+gauss()*sg2,vx=Math.cos(an)*Math.cos(el)*V,vy=Math.sin(an)*Math.cos(el)*V,vz=Math.sin(el)*V;
+  let VX=vx,VY=vy,VZ=vz;{const mo=MUZ&&src&&src.T?MUZ(src,m,vx,vy,vz):null;if(mo){const T2=d/V,ax=sx+vx*T2-(sx+mo.x),ay=sy+vy*T2-(sy+mo.y),az=sz+vz*T2-(sz+mo.z),l=Math.hypot(ax,ay,az)||1;VX=ax/l*V;VY=ay/l*V;VZ=az/l*V;sx+=mo.x;sy+=mo.y;sz+=mo.z}} // из ствола в ту же точку упреждения
+  proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}});
   if(src){src.rt=performance.now()}}
 function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,2400,p,dm||1,600)}
 function craftStep(c,d){
@@ -593,13 +595,14 @@ function flakBurst(s,m){
 function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3)kill(s)}}
 function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
-  const mo=MUZ&&o?MUZ(s,m,o.x-s.x,o.y-s.y,(o.z||0)-s.z):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0);
-  const VPc=C.vp*500;let T=Math.hypot(o.x-X0,o.y-Y0)/VPc;
-  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-X0,py-Y0)/VPc}
-  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-X0,py-Y0),e=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*2*(1.4-0.08*m.sk)*C.sig;
-  const ax=px+gauss()*e-X0,ay=py+gauss()*e-Y0,l=Math.hypot(ax,ay)||1e-6;
+  const VPc=C.vp*500,oz=o.z||0;let T=Math.hypot(o.x-s.x,o.y-s.y,oz-s.z)/VPc;
+  for(let i=0;i<3;i++){const px=o.x+o.sx*T,py=o.y+o.sy*T;T=Math.hypot(px-s.x,py-s.y,oz-s.z)/VPc}
+  const px=o.x+o.sx*T,py=o.y+o.sy*T,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=(SIGMA*d+JINK*(d/C.vp)*(d/C.vp))*ek,kq=Math.sqrt(Math.min(1,o.T.L*.22/(2.5066*e0))),e=e0*kq,ev=SIGMA*d*ek*kq; // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
+  const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,az=oz+gauss()*ev-s.z,l=Math.hypot(ax,ay,az)||1e-6;let vx=ax/l*VPc,vy=ay/l*VPc,vz=az/l*VPc;
+  // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
+  const mo=MUZ?MUZ(s,m,vx,vy,vz):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0),k0=VPc*lag+(mo?0:s.T.L*.4);if(mo){const bx=s.x+ax-X0,by=s.y+ay-Y0,bz=s.z+az-Z0,l2=Math.hypot(bx,by,bz)||1;vx=bx/l2*VPc;vy=by/l2*VPc;vz=bz/l2*VPc}
   m.fa=Math.atan2(ay,ax);m.rt=performance.now();
-  proj.push({x:X0+ax/l*(VPc*lag+(mo?0:s.T.L*.4)),y:Y0+ay/l*(VPc*lag+(mo?0:s.T.L*.4)),z:Z0,vz:(o.z-Z0)/Math.max(.5,T)+gauss()*VPc*.008,vx:ax/l*VPc,vy:ay/l*VPc,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:C.rng*100,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
+  proj.push({x:X0+vx/VPc*k0,y:Y0+vy/VPc*k0,z:Z0+vz/VPc*k0,vz,vx,vy,side:s.side,dist:VPc*lag,dmg:C.dmg*.4,ap:C.ap||0,cd:3,max:C.rng*100,src:s,m:m,ev:Math.random(),o0:{x:X0,y:Y0,z:Z0}});
   stat.shots[s.side]++;s.flash=t;SFX.shot('rail');
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
@@ -733,10 +736,10 @@ function step(dt){
     const dx=nx-p.x,dy=ny-p.y,l2=dx*dx+dy*dy||1,x0=Math.floor(Math.min(p.x,nx)/CS)-1,x1=Math.floor(Math.max(p.x,nx)/CS)+1,y0=Math.floor(Math.min(p.y,ny)/CS)-1,y1=Math.floor(Math.max(p.y,ny)/CS)+1;
     const scan=(g,self)=>{let best=null,bu=2;eu=0;
       const chk=(gx,gy)=>{const a=g.get(ckey(gx,gy));if(!a)return;
-        for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+22)continue;// настоящее попадание: отрезок пути снаряда против коробки корабля (длина × ширина) в его системе координат; малые корабли — малые цели
+        for(const o of a){if(!o.alive||o===self||Math.abs(p.z-o.z)>o.T.L*.25+Math.abs((p.vz||0)*dt)+1)continue;// настоящее попадание: отрезок пути снаряда против коробки корабля (длина × ширина) в его системе координат; малые корабли — малые цели
           { const L=o.T.L,hl=L*.5,hw=L*.11,cs=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),ax=p.x-o.x,ay=p.y-o.y,x1=ax*cs+ay*sn,y1=-ax*sn+ay*cs,ddx=dx*cs+dy*sn,ddy=-dx*sn+dy*cs;
             let t0=0,t1=1;const slab=(a,d,h)=>{if(Math.abs(d)<1e-12)return a>=-h&&a<=h;let ta=(-h-a)/d,tb=(h-a)/d;if(ta>tb){const q=ta;ta=tb;tb=q}if(ta>t0)t0=ta;if(tb<t1)t1=tb;return t0<=t1};
-            if(slab(x1,ddx,hl)&&slab(y1,ddy,hw)&&t0<bu){bu=t0;best=o;eu=t0} } }};
+            if(slab(x1,ddx,hl)&&slab(y1,ddy,hw)&&slab(p.z-(o.z||0),(p.vz||0)*dt,hw)&&t0<bu){bu=t0;best=o;eu=t0} } }};
       const nxc=x1-x0+1,nyc=y1-y0+1;
       if(nxc*nyc<=40){for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)chk(gx,gy)}
       else if(nxc>=nyc){const lo=Math.min(p.x,nx),hi=Math.max(p.x,nx); // быстрый снаряд: идём по клеткам вдоль отрезка, а не по всему прямоугольнику
