@@ -57,7 +57,7 @@ export function createCorpStation(c, bodyId) {
   return s;
 }
 const CORP_NAMES = ['Вега Майнинг', 'Синергия Ресурсов', 'Ферро-Групп', 'Ориент Спейс', 'Атлас Индастриз', 'Нова Дайнемикс', 'Гелиос', 'Кронос Холдинг', 'Титан-Альянс', 'Аргус', 'Орион Трейд', 'Сигма Ферм', 'Полярис', 'Зенит Груп', 'Меркурий-Капитал', 'Борей', 'Эридан', 'Астра Логистик', 'Вектор', 'Кассиопея', 'Лира', 'Кварк Холдинг', 'Альтаир', 'Мира-Групп', 'Дельта Ресурс', 'Нептун Трейд', 'Радиус', 'Омега Майнинг', 'Феникс', 'Ярило', 'Соль', 'Тритон', 'Кепплер', 'Гранит', 'Вихрь', 'Север-Капитал', 'Мегалит', 'Спутник', 'Ковчег', 'Горизонт'];
-const CORP_SPEC = ['food', 'elec', 'wear', 'pow', 'med'];
+const CORP_SPEC = ['elx', 'wear', 'pow', 'meds', 'steel', 'house', 'plast'];
 export const CORP_COUNT = 20;
 function makeCorp(i) {
   const d = CORP_DEF[i % CORP_DEF.length];
@@ -76,7 +76,7 @@ export function initCorps() {
 export function respawnTick() {
   const q = state.respawn; if (!q || !q.length || q[0] > state.t || state.corps.length >= CORP_COUNT) return;
   q.shift(); state.nameIdx = (state.nameIdx || CORP_COUNT) + 1;
-  const c = makeCorp(state.nameIdx - 1); state.corps.push(c); log(`Основана новая корпорация «${c.name}».`);
+  const c = makeCorp(state.nameIdx - 1); c.born = state.t; state.corps.push(c); log(`Основана новая корпорация «${c.name}».`);
 }
 export function wipeCorps() {
   state.ships = state.ships.filter(s => !s.corp); state.stations = state.stations.filter(s => !s.corp); state.groups = state.groups.filter(g => !g.corp); state.corps = null;

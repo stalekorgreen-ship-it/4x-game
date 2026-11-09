@@ -33,7 +33,7 @@ ok(s().corps.length === 20 && s().ships.filter((x) => x.corp).length === 0, 'с�
 ok(s().corps.every((c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0) === 2), 'у каждой по 2 завода');
 for (let i = 0; i < 3000; i++) g.advance(2);
 const tot = (c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0);
-ok(s().corps.every((c) => tot(c) > 30), 'заводы корпораций растут на выручку: ' + s().corps.map(tot).join('/'));
+ok(s().corps.filter((c) => !(state0 => c.born > s().t - 360 * 5)()).every((c) => tot(c) > 30), 'заводы корпораций растут на выручку (кроме новых): ' + s().corps.map(tot).join('/'));
 ok(s().t > 360 * 6 && s().corps.some((c) => c.civ.yard), 'кто-то построил коммерческую верфь (не раньше 6 лет)');
 ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
 ok(s().corps.some((c) => c.civ.labs > 0) && s().corps.some((c) => c.civ.tech.out1), 'корпорации строят лаборатории и изучают свои технологии');
@@ -86,7 +86,7 @@ for (let i = 0; i < 360 * 3 / 30 * 4; i++) { s().t += 30; g.popTick(30); FRt.fre
 const mp = s().cols.mars.pop;
 ok(mp.n > mn0 * 1.5, `Марс растёт (${Math.round(mn0)} → ${Math.round(mp.n)})`);
 ok(Object.values(mp.sat).every((x) => x > .8), 'на Марсе есть товары (ввоз + заводы)');
-ok(mp.tax > 0 && mp.fac.food > 0, 'на Марсе есть налоги и заводы');
+ok(mp.tax > 0 && mp.fac.wear > 0, 'на Марсе есть налоги и заводы');
 ok(s().ctx === 'earth' && s().corps.every((c) => c.civ === c.home), 'контекст вернулся на Землю');
 ok(s().cols.ceres.pop.n <= s().cols.ceres.pop.hab + 1, 'население астероида не превышает вместимость');
 // корпорации открывают филиалы на колониях

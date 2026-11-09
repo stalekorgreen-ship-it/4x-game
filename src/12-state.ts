@@ -77,7 +77,7 @@ export function licenseTick(c) {
 }
 // Кризисы
 const EVENTS = [
-  {k: 'harvest', name: 'Неурожай', months: 6, text: 'Выпуск еды −25%'},
+  {k: 'harvest', name: 'Авария водоочистки', months: 6, text: 'Выпуск воды −15%'},
   {k: 'energy', name: 'Энергетический кризис', months: 5, text: 'Выпуск энергии −20%'},
   {k: 'epidemic', name: 'Эпидемия', months: 4, text: 'Спрос на медицину ×1,5'},
   {k: 'strike', name: 'Забастовка', months: 3, text: 'Одна корпорация работает вполсилы'},
@@ -98,7 +98,7 @@ export function eventTick(dt) {
   }
   P.evMult = {}; P.evDem = {};
   for (const e of P.ev) {
-    if (e.k === 'harvest') P.evMult.food = (P.evMult.food || 1) * .75;
+    if (e.k === 'harvest') P.evMult.water = (P.evMult.water || 1) * .85;
     if (e.k === 'energy') P.evMult.pow = (P.evMult.pow || 1) * .8;
     if (e.k === 'epidemic') P.evDem.med = (P.evDem.med || 1) * 1.5;
     if (e.k === 'strike') { const c = state.corps.find(x => x.id === e.corp); if (c) c.civ.strikeUntil = e.until; }

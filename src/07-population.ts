@@ -3,7 +3,8 @@ import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
-import { logMarket, logJobs, BASKET_T } from './25-logistics.ts';
+import { logMarket, logJobs, lsShare } from './25-logistics.ts';
+import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
@@ -12,13 +13,7 @@ import { $, H, W, cv, setHtml, ui } from './08-map-ui.ts';
 import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
-export const GOODS = {
-  food: {n: 'Еда', raw: 'n2', need: 2.2, mix: [.7, .25, .05, 0]},
-  wear: {n: 'Товары', raw: 'fe', need: 1.4, mix: [.6, .35, .05, 0]},
-  elec: {n: 'Электроника', raw: 'si', need: .8, mix: [.2, .4, .3, .1]},
-  med: {n: 'Медицина', raw: 'c', need: .7, mix: [.1, .3, .4, .2]},
-  pow: {n: 'Энергия', raw: 'u', need: 1, mix: [.3, .4, .25, .05]},
-};
+export { GOODS };
 export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-7, BASEW = [100, 175, 300, 500], TUIT = [0, 50, 100, 175], FACT_COST = 2e8 * KR, TAXK = 1.25e-6;
 /* Налоги, вариант Б: казна собирает полный налог, почти всё уходит на земные расходы (оборона, соцсфера, инфраструктура),
    на космос — доля L.space % (по умолчанию 0,5%), и она проседает при старении (меньше работников на пенсионера). */
@@ -31,8 +26,13 @@ export const ASF = (() => { const w = []; let t = 0; for (let a = 0; a <= 100; a
 export const tfMod = () => { const y = (state.t || 0) / 360; return .72 + .28 * Math.exp(-y / 40); }; // к 2100 году рождаемость ниже на четверть (мировой коэффициент с 2,3 до ~1,7)
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
-export const needOf = (g, a) => GOODS[g].need * needF(a) * (g === 'med' && a >= 50 ? 1 + (a - 50) / 25 : 1);
-export const basket = a => { let b = 0; for (const g in GOODS) b += needOf(g, a); return b; };
+export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
+export const basket = (a, s = 1) => { let b = 0; for (const g in GOODS) b += needOf(g, a, s); return b; };
+// полный спрос с учётом рецептов: конечный спрос населения тянет полуфабрикаты и энергию
+export function fullDemand(c, L = 0) { const D = {}; for (const g of goodsOrder()) D[g] = 0; for (const g in LOG_IN) if (D[g] != null) D[g] += L * LOG_IN[g];
+  for (const g of goodsOrder()) { if (GOODS[g].need) for (let a = 0; a <= 100; a++) for (let s = 0; s < 4; s++) D[g] += c[s][a].n * needOf(g, a, s);
+    for (const k in GOODS[g].in) if (GOODS[k]) D[k] += D[g] * GOODS[g].in[k]; }
+  return D; }
 export const work = a => a >= 15 && a < 65;
 export const mortQ = a => a < 1 ? .02 : .0006 + .000035 * Math.exp(Math.min(a, 100) / 10.5); // ожидаемая жизнь ≈ 73–75 лет на старте
 export const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -55,7 +55,11 @@ export function withCtx(id, fn) {
   setCtx(id);
   try { return fn(); } finally { setCtx(prev); }
 }
+// старые сохранения: товаров вроде «еды» больше нет
+function dropOldGoods(o) { if (o) for (const k of ['fac', 'cap', 'pr', 'sold', 'unitc', 'comp']) if (o[k]) for (const g in o[k]) if (!GOODS[g]) delete o[k][g]; }
 export function relinkCols() {
+  for (const id in state.cols || {}) dropOldGoods(state.cols[id].pop);
+  for (const c of state.corps || []) { dropOldGoods(c.civ); for (const id in c.civs || {}) dropOldGoods(c.civs[id]); }
   if (!state.cols) { state.cols = {earth: {id: 'earth', name: 'Земля', pop: state.pop}}; }
   state.ctx = 'earth'; setPop(state.cols.earth.pop);
   for (const c of state.corps || []) { Object.defineProperty(c, 'home', {value: c.civ, writable: true, configurable: true, enumerable: false}); for (const id in (c.civs || {})) c.civs[id].tech = c.civ.tech; }
@@ -81,10 +85,11 @@ export function mkCol(id, name, T0, o) {
   state.cols[id] = {id, name, pop: P, since: state.t || 0, kind: o.kind || 'hub'};
   withCtx(id, () => {
     let D0 = 0;
-    for (const g in GOODS) { let D = 0; for (let a = 0; a <= 100; a++) for (let s = 0; s < 4; s++) D += c[s][a].n * needOf(g, a); P.fac[g] = Math.ceil(D / (PROD * hoursK() * FW()) * o.cover); P.cap[g] = o.seed; P.sat[g] = 1; D0 += D; }
+    const FD = fullDemand(c); for (const g in GOODS) { const D = FD[g]; P.fac[g] = Math.ceil(D / (PROD * hoursK() * FW()) * o.cover); P.cap[g] = o.seed; P.sat[g] = 1; D0 += D; }
     const J = jobsFac(), E = empBy();
     for (let s = 0; s < 4; s++) P.oth[s] = Math.max(0, E[s] - J[s]);
     P.pop0 = totals().n; stepEcon(30, true);
+    { const FD = fullDemand(c, P.log ? P.log.L : 0); for (const g in GOODS) P.fac[g] = Math.ceil(FD[g] / (PROD * hoursK() * FW()) * o.cover); stepEcon(30, true); } // второй проход: спрос транспорта на топливо и машины
   });
 }
 // --- колонии: любое тело можно заселить ---
@@ -127,7 +132,8 @@ export function addSettlers(id, q) {
   const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q);
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
 }
-export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []); for (let s = 0; s < 4; s++) J[s] += LJ[s]; for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
+export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []), E = empBy(), ls = lsShare(ctxId()); for (let s = 0; s < 4; s++) J[s] += LJ[s] + E[s] * ls; // + жизнеобеспечение (гидропоника и т. п.)
+  for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
 export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
 export function totals() {
   const P = state.pop, t = {n: 0, un: 0, st: 0, emp: 0, wf: 0, S: [0, 1, 2, 3].map(() => ({n: 0, un: 0, wf: 0, emp: 0}))};
@@ -219,23 +225,29 @@ export function stepEcon(dt, init) {
   const rawNeed = {}, mk = {}; P.staff = P.staff || {};
   rawNeed.si = rawNeed.si || {};
   for (const c of state.corps || []) if (c.civ && c.civ.labs) rawNeed.si[c.id] = (rawNeed.si[c.id] || 0) + c.civ.labs * LAB_SI;
-  for (const g in GOODS) {
-    let D = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) D += P.c[s][a].n * needOf(g, a);
-    D *= (P.evDem && P.evDem[g]) || 1;
-    let staff = 0; for (let s = 0; s < 4; s++) staff += GOODS[g].mix[s] * fill[s];
-    const R = goodsMarket(g, D, P.fac[g] * FW() * PROD * tm('prod') * hoursK() * staff, staff); mk[g] = R;
+  const DI = {}; for (const g in GOODS) DI[g] = 0;
+  if (P.log) for (const g in LOG_IN) if (GOODS[g]) DI[g] += P.log.L * LOG_IN[g]; // транспорт жжёт топливо, изнашивает машины
+  const sat0 = P.sat0 || {}, add = (r, id, q) => { rawNeed[r] = rawNeed[r] || {}; rawNeed[r][id] = (rawNeed[r][id] || 0) + q; };
+  for (const g of goodsOrder()) { // сверху вниз по цепочке: сначала конечные товары, потом их входы
+    const G = GOODS[g]; if (P.fac[g] == null) { P.fac[g] = 0; P.cap[g] = 0; P.sat[g] = 1; }
+    let D = 0; if (G.need) for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) D += P.c[s][a].n * needOf(g, a, s);
+    D = D * ((P.evDem && P.evDem[g]) || 1) + DI[g];
+    let staff = 0; for (let s = 0; s < 4; s++) staff += G.mix[s] * fill[s];
+    let inS = 1; for (const k in G.in) if (GOODS[k]) inS = Math.min(inS, sat0[k] == null ? 1 : sat0[k]); // нет входа — нет выпуска
+    const R = goodsMarket(g, D, P.fac[g] * FW() * PROD * tm('prod') * hoursK() * staff * inS, staff, inS); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;
-    const r = GOODS[g].raw; rawNeed[r] = rawNeed[r] || {};
-    for (const s of R.S) { const id = s.id === 'leg' ? 'leg:' + g : s.id; rawNeed[r][id] = (rawNeed[r][id] || 0) + s.sold / GOODS[g].need * RAW_PER * (s.c ? rawMult(s.c) : 1); }
+    for (const k in G.in) if (GOODS[k]) DI[k] += R.sold * G.in[k];
+      else for (const s of R.S) if (s.id !== 'imp') add(k, s.id === 'leg' ? 'leg:' + g : s.id, s.sold * G.in[k] * RAW_PER * (s.c ? rawMult(s.c) : 1));
   }
+  P.sat0 = {...P.sat};
   // логистика: все сделки на теле требуют т·км; не хватило — часть товара не доезжает
-  { let T = 0; for (const g in GOODS) T += mk[g].sold * (BASKET_T / sw + RAW_PER / GOODS[g].need);
+  { let T = 0; for (const g in GOODS) T += mk[g].sold * UT; for (const r in rawNeed) for (const id in rawNeed[r]) T += rawNeed[r][id];
     const lg = logMarket(P, ctxId(), (state.corps || []).filter(c => c.civ), T, fill, dt, init);
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
-    let ws = 0; for (const g in GOODS) ws += P.sat[g] * GOODS[g].need;
-    const aff = clampN(inc[s][a] / (basket(a) * (a < 15 ? 1.5 : 1)), 0, 1);
-    wel[s][a] = clampN(aff * ws / sw, 0, 1);
+    let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); ws += P.sat[g] * q; sw += q; }
+    const aff = clampN(inc[s][a] / (basket(a, s) * (a < 15 ? 1.5 : 1)), 0, 1);
+    wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1), 0, 1);
   }
   P.wel = wel; P.inc = inc;
   { let w = 0, n = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const m = P.c[s][a].n; w += wel[s][a] * m; n += m; } P.avgWel = n > 0 ? w / n : 1; }

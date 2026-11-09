@@ -7,8 +7,7 @@ import { tm } from './15-techs.ts';
 
 export const LT = ['land', 'sea', 'air'], LT_N = {land: 'наземная', sea: 'морская', air: 'воздушная'};
 export const LCAP = {land: 1, sea: .6, air: .5};           // предельная доля т·км (от порта ещё везти)
-export const LOG_T = 1000, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
-export const BASKET_T = 10 / 1e6 / 30;                     // т товаров на человека в сутки (10 т на 1 млн в месяц)
+export const LOG_T = 600, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
 const D0 = 1, LAM = .2;
 // диаметры, км
 const DIAM = {earth: 12742, mars: 6779, venus: 12104, mercury: 4879, luna: 3474, phobos: 22, deimos: 12, ceres: 940, vesta: 525, eros: 17, apophis: .37, bennu: .49, ryugu: .9,
@@ -21,6 +20,8 @@ export function bodyEnv(id) {
   if (D > 1500) return {D, rho: 5000, env: {land: 1.3, sea: 0, air: ATM[id] || 0}, how: 'купола'};
   return {D, rho: 20000, env: {land: 1.3, sea: 0, air: 0}, how: D > 2 ? 'подземные города' : 'станция'};
 }
+// доля работающих на жизнеобеспечении (гидропоника, воздух, вода): Земля 5%, купола 15%, подземные города 20%, станции 30%
+export const lsShare = id => { const h = bodyEnv(id).how; return h === 'открытая поверхность' ? .05 : h === 'купола' ? .15 : h === 'станция' ? .3 : .2; };
 export const legDist = (id, N) => { const E = bodyEnv(id), A = Math.PI * E.D * E.D; return D0 + LAM * Math.PI * E.D / 4 * Math.min(1, Math.sqrt(N / E.rho / A)); };
 // техника вида транспорта: общая (технологии игрока) × специализация корпорации
 const techK = (t, c) => tm('log_' + t) * (c ? (c.civ.ltk && c.civ.ltk[t]) || (corpSpec(c) === t ? 1.15 : 1) : 1);
@@ -55,6 +56,7 @@ export function logMarket(P, id, corps, tons, fill, dt, init) {
     if (s.leg) continue; // госпредприятия работают по себестоимости
     const c = s.c; c.credits += (rev - wc) * dt; c.civ.pm = (c.civ.pm || 0) + (rev - wc) * dt;
     const util = s.cap > 0 ? s.sold / s.cap : 0;
+    if (util < .2 && s.n > 0) { c.civ.tr[s.t]--; continue; } // простаивает — закрывают
     c.civ.lp[s.t] = util >= .97 ? Math.min(c.civ.lp[s.t] * 1.03, s.u * 3) : Math.max(s.u * 1.05, c.civ.lp[s.t] * (util < .5 ? .95 : .985));
   }
   // госпредприятия закрывают то, что не покрыли корпорации (сначала дешёвые виды, с предельными долями)
@@ -79,7 +81,7 @@ export function wantTransport(c, P, id) {
   const E = bodyEnv(id); let best = null, bs = 1.08;
   for (const t of LT) if (E.env[t] > 0) {
     const u = unitCost(t, E.env, P.wage, c), room = LCAP[t] * lg.L - (lg.used[t] || 0) + (lg.sat < 1 ? (1 - lg.sat) * lg.L : 0);
-    const sc = lg.price / u * (room > 0 || lg.sat < 1 ? 1 : .8);
+    const sc = (lg.sat < .98 ? lg.price : unitCost(t, E.env, P.wage)) / u * (room > 0 ? 1 : .8); // конкурент — госпредприятие этого вида
     if (sc > bs) { bs = sc; best = t; }
   }
   return best;
