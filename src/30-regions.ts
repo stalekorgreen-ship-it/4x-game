@@ -93,7 +93,7 @@ export function regTick(id, P, J, W, dt, t) {
   { const si = R.reduce((a, r) => a + r.inf, 0), ci = col.infra || 0; // инфраструктура, добавленная в обход addRegInfra (основание, сохранения)
     if (ci > si + 1e-9) addRegInfra(id, ci - si); else if (si > ci + 1e-9 && si > 0) for (const r of R) r.inf *= ci / si; }
   for (const r of R) r.n *= N / n; // рождения и смерти — пропорционально
-  if (R.length < 2) { R[0].inf = col.infra || 0; R[0].ul = regClim(id, 0).total; if (t) { R[0].emp = t.emp; R[0].un = t.un; R[0].wg = 1; R[0].wage = P.wbill && t.emp ? P.wbill / t.emp : 0; } return 1; }
+  if (R.length < 2) { R[0].inf = col.infra || 0; R[0].ul = regClim(id, 0).total; if (t) { R[0].emp = t.emp; R[0].un = t.un; R[0].wg = 1; R[0].wage = P.wbill && t.emp ? P.wbill / t.emp : 0; } regSat(R, P); return 1; }
   // 0) климат: где жить стало нельзя (жара, море, пустыня), люди и заводы уходят в пригодные регионы
   const C = R.map((r, i) => regClim(id, i)), TT = regTemplate(id);
   if (!P.hab) R.forEach((r, i) => { const ul = C[i].total; if (r.ul == null) r.ul = ul; const du = ul - r.ul;
@@ -131,6 +131,16 @@ function regStats(R, TT, jobs, wrk, Jt, Wt, P, t, y) {
     const ws = wrk[i] / Wt; r.wg = r.wl * clamp(1 + .5 * (ws > 0 ? (jobs[i] / Jt - ws) / ws : 0), .7, 1.4); });
   const ew = R.reduce((a, r) => a + r.wg * r.emp, 0) || 1, avg = P.wbill && E ? P.wbill / E : 0;
   R.forEach(r => { r.wg *= E / ew; r.wage = avg * r.wg; });
+  regSat(R, P);
+}
+// Доступ к товарам: при дефиците товар уходит туда, где больше платят (бедные регионы недополучают)
+function regSat(R, P) {
+  const n = R.reduce((a, r) => a + r.n, 0) || 1, x = R.map(r => Math.pow(Math.max(.05, r.wg || 1), .8)), mx = R.reduce((a, r, i) => a + r.n / n * x[i], 0) || 1;
+  for (const r of R) r.sat = {};
+  for (const g in P.sat || {}) { const S = P.sat[g]; if (S >= .999) { for (const r of R) r.sat[g] = 1; continue; }
+    let over = 0, wl = 0; const v = R.map((r, i) => { const s = S * x[i] / mx; if (s > 1) over += (s - 1) * r.n; else wl += r.n; return Math.min(1, s); });
+    R.forEach((r, i) => { r.sat[g] = Math.min(1, v[i] + (v[i] < 1 && wl > 0 ? over / wl : 0)); }); }
+  for (const r of R) { let w = 0, k = 0; for (const g in r.sat) { w += r.sat[g]; k++; } r.wel = k ? w / k : 1; }
 }
 
 // Новая инфраструктура: в регион, выбранный игроком, иначе в самый тесный из заселённых

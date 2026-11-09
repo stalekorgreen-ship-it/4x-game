@@ -5,7 +5,7 @@ Object.assign(globalThis, { document: stub(), window: stub(), localStorage: { ge
 const D = await import('../src/01-data.ts');
 const E = await import('../src/04-engine.ts'); const B = await import('../src/03-build.ts');
 const P = await import('../src/07-population.ts');
-await import('../src/06-corps.ts');
+const C6 = await import('../src/06-corps.ts'); const EV = await import('../src/24-events.ts');
 const U = await import('../src/09-orders-ui.ts');
 const F = await import('../src/12-state.ts');
 const g = { newGame: D.newGame, advance: E.advance, totals: P.totals, popTick: P.popTick, get state() { return D.state; } };
@@ -24,12 +24,17 @@ for (let i = 0; i < 480; i++) { s().t += 30; g.popTick(30); }
 const t1 = g.totals(), ur = t1.un / t1.wf;
 ok(t1.n > 8.5e9 && t1.n < 13e9, `население через 40 лет в разумных пределах (${(t1.n / 1e9).toFixed(2)} млрд)`);
 ok(ur > 0.005 && ur < 0.15, `безработица в разумных пределах (${(ur * 100).toFixed(1)}%)`);
-ok(Object.values(s().pop.sat).every((x) => x > 0.8), 'товаров хватает (≥80% спроса)');
+ok(Object.values(s().pop.sat).some((x) => x < 0.9) && Object.values(s().pop.sat).every((x) => x > 0.3), 'Земля в дефиците, но без обвала (решено: мир требует внимания)');
 
 // 2. Корпорации: растут сами, первый строит верфь, потом выходят в космос
 D.newGame();
 s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
-ok(s().corps.length === 20 && s().ships.filter((x) => x.corp).length === 0, 'старт: 20 корпораций, кораблей нет');
+ok(s().corps.length === 0, 'старт: корпораций нет');
+s().t = 360 * 5; EV.evTick(30); ok(s().corps.length === 1 && s().corpNext > s().t, 'на 5-й год ивент о миллиардере создаёт первую корпорацию');
+s().t += 361; C6.respawnTick(); ok(s().corps.length === 2, 'через год — ещё одна');
+D.newGame(); s().paused = true; s().raid.eta = 1e9; s().raid.warned = true;
+for (let i = 0; i < 20; i++) C6.spawnCorp(); // для проверки экономики корпораций — сразу 20
+ok(s().corps.length === 20 && s().ships.filter((x) => x.corp).length === 0, '20 корпораций, кораблей нет');
 ok(s().corps.every((c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0) === 2), 'у каждой по 2 завода');
 for (let i = 0; i < 3000; i++) g.advance(2);
 const tot = (c) => Object.values(c.civ.fac).reduce((a, b) => a + b, 0);
@@ -38,20 +43,21 @@ ok(s().t > 360 * 6 && s().corps.some((c) => c.civ.yard), 'кто-то постр
 ok(s().ships.filter((x) => x.corp).length > 0, 'корпорации вышли в космос');
 ok(s().corps.some((c) => c.civ.labs > 0) && s().corps.some((c) => c.civ.tech.out1), 'корпорации строят лаборатории и изучают свои технологии');
 ok(s().corps.some((c) => c.civ.tech.xfer), 'кто-то освоил передачу топлива в космосе');
-ok(Object.values(s().pop.sat).every((x) => x > 0.9), 'товаров по-прежнему хватает ' + Object.entries(s().pop.sat).filter(([k, v]) => v <= .9).map(([k, v]) => k + ':' + v.toFixed(2)).join(' '));
+ok(Object.values(s().pop.sat).every((x) => x > 0.4), 'товары не обвалились без игрока ' + Object.entries(s().pop.sat).filter(([k, v]) => v <= .4).map(([k, v]) => k + ':' + v.toFixed(2)).join(' '));
 // 3. Наука игрока: изучается постепенно, контракт с лабораторией отдаёт очки игроку
 const lab = s().corps.find((c) => c.civ.labs > 0);
-s().research.eng = 'reliable'; s().sci.eng = 100; s().tprog = {};
+s().research.eng = 'yard'; s().sci.eng = 100; s().tprog = {}; s().offers = s().offers || {}; s().offers.eng = ['yard'];
 B.researchTick(1);
-ok(s().tprog.reliable === 100 && !s().tech.reliable, 'исследование идёт постепенно (100/500)');
+ok(s().tprog.yard === 100 && !s().tech.yard, 'исследование идёт постепенно (100/500)');
 s().sci.eng = 450; B.researchTick(1);
-ok(s().tech.reliable === true, 'тема изучена, когда набрались очки');
+ok(s().tech.yard === true, 'тема изучена, когда набрались очки');
 s().sciBuy = {amt: 5000, max: 20000 * 25}; s().money = 1e9 * 25; // деньги в масштабе KR=25 const rp0 = s().rp;
-s().research.phys = 'effdrive'; for (let i = 0; i < 60; i++) g.advance(2);
-ok(s().tech.effdrive || s().tprog.effdrive > 0, 'купленные очки идут игроку');
+s().research.phys = 'fusion'; for (let i = 0; i < 60; i++) g.advance(2);
+ok(s().tech.m_fusion || s().tprog.m_fusion > 0 || s().tech.fusion || s().tprog.fusion > 0, 'купленные очки идут игроку');
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
 // закупки руды: политика игрока
 s().buyPol = {fe: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.fe || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
+for (const c of s().corps.slice(0, 3)) c.civ.mines.fe = (c.civ.mines.fe || 0) + 20; // избыток руды у корпораций
 for (let i = 0; i < 120; i++) g.advance(2);
 s().ships = _sv;
 ok((s().stock.fe || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.fe || 0) - fe0) + ' т железа)');
@@ -116,7 +122,7 @@ Object.assign(L, F.LAW_DEFAULT);
   E.execOrder(sh, {type: 'mine', target: 'eros', res: 'all', pct: 100}, 1);
   ok(ss.ast.eros.fe < f0 && ss.ast.eros.si < i0, 'лазер добывает несколько жил сразу'); }
 // 9. Грузовые заказы корпорациям
-{ D.newGame(); const ss = D.state; ss.paused = true; ss.ships[0].at = 'luna'; ss.money = 1e10; ss.stock.fe = 5000; P.foundColony('luna'); { const Fq = await import('../src/13-freight.ts'); for (let i = 0; i < 2000 && !ss.cols.luna; i++) { ss.t += 1; Fq.freightTick(1); } }
+{ D.newGame(); const ss = D.state; for (let i = 0; i < 20; i++) C6.spawnCorp(); ss.paused = true; ss.ships[0].at = 'luna'; ss.money = 1e10; ss.stock.fe = 5000; P.foundColony('luna'); { const Fq = await import('../src/13-freight.ts'); for (let i = 0; i < 2000 && !ss.cols.luna; i++) { ss.t += 1; Fq.freightTick(1); } }
   const Fr = await import('../src/13-freight.ts'); const hab0 = ss.cols.luna.pop.hab, m0 = ss.money;
   ok(Fr.orderCargo('infra', 1000, 'earth', 'luna') && Fr.orderCargo('fe', 800, 'earth', 'eros'), 'заказы размещены');
   for (let i = 0; i < 40; i++) { ss.t += 1; Fr.freightTick(1); }

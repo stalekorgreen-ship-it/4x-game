@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { addModuleTechs } from './15-techs.ts';
 import { hooks } from './00-hooks.ts';
 import { tm } from './15-techs.ts';
 import { bindCrew, eqFor, genOfficer, pilFuel, pilSpeed, staffFor } from './02-crew.ts';
@@ -99,6 +100,9 @@ COMP.tank.ap = (c, s) => { if (s.dn.v === 'c') { c.fuel *= 1.3; c.mass = Math.ro
 COMP.cargo.opts = [SZ, O('cn', 'Конструкция', 'n', [['l', 'лёгкая'], ['n', 'стандартная'], ['h', 'усиленная']])];
 COMP.cargo.ap = (c, s) => { if (s.cn.v === 'l') { c.cargo = 160; c.mass *= 0.6; } else if (s.cn.v === 'h') { c.cargo = 260; c.mass *= 1.4; addCost(c, 'ti', 6); } scl(c, SZK[s.sz.v]); c.desc = `${c.cargo} т груза`; };
 for (const k of ['lgun', 'hangar_f', 'hangar_b']) COMP[k].off = true; // временно отключены
+// каждый модуль открывается своей технологией (решено с владельцем): на старте ни одной нет
+for (const k in COMP) if (!COMP[k].tech) COMP[k].tech = 'm_' + k;
+addModuleTechs(COMP);
 COMP.laser.opts = [SZ, O('cool', 'Охлаждение', 'n', [['n', 'пассивное'], ['a', 'активное +30%']])];
 COMP.laser.ap = (c, s) => { if (s.cool.v === 'a') { c.mine *= 1.3; c.mass = Math.round(c.mass * 1.25 * 10) / 10; addCost(c, 'cu', 4); addCost(c, 'si', 4); } scl(c, SZK[s.sz.v]); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки, 2 человека экипажа на лазер`; };
 COMP.laser2.opts = COMP.laser.opts; COMP.laser2.ap = (c, s) => { COMP.laser.ap(c, s); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки (нужна технология)`; };
@@ -301,7 +305,8 @@ for (const b of BODIES) if (DIAM[b.id]) b.d = DIAM[b.id];
 // Недра Земли и планет: добываются шахтами при наличии населения
 export const GROUND = {
   // реальные порядки запасов (т): разведанные запасы земной коры; Марс ~0.1 и Венера ~0.8 от Земли по массе
-  earth: {fe: 1.8e11, si: 1e13, cu: 8.7e8, c: 1e12, ni: 1e8, ti: 7e8, ice: 1e14, ree: 1.2e8, pt: 7e4, u: 6e6},
+  // Земля (решено с владельцем): доступных недр — на ~50 лет при полной добыче под потребности 2030 года
+  earth: {fe: 7.9e6, si: 6.2e6, cu: 2.4e6, c: 3.9e6, ni: 3.2e5, ti: 1.5e5, ice: 1.4e7, ree: 4e5, pt: 5.4e4, u: 6.6e6},
   mars: {fe: 1.8e10, si: 1e12, cu: 9e7, ice: 5e15, ni: 1e7, ti: 7e7, c: 1e11, ree: 1.2e7, pt: 7e3}, venus: {fe: 1.4e11, si: 8e12, cu: 7e8, ti: 5e8, ni: 8e7, u: 5e6, c: 8e11},
 };
 export const POP = {earth: 1500}; // рабочие, доступные на Земле (колоний пока нет)
@@ -660,9 +665,9 @@ export function newGame() {
     t: 0, speedIdx: 5, spv: 2, paused: true,
     counters: {id: 0, ship: {}, station: {}},
     stock: {fe: 3000, ni: 800, ti: 600, cu: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100},
-    bld: {mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 1, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
+    bld: {mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 0, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
     designs: [], groups: [], ships: [], stations: [], yard: [], log: [], ast: {}, officers: [], nextOfficer: 30,
-    raid: {eta: 150, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),
+    raid: {eta: 3600, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),
   };
   for (const b of BODIES) { if (b.ores) state.ast[b.id] = {...b.ores}; if (b.pool) state.sites[b.id] = {...b.pool}; }
   const miner = {ion: 2, tank: 2, cargo: 1, laser: 2, cabin: 2, life: 1};

@@ -10,7 +10,7 @@ export const BLD = {
   mine:       {name: 'Шахта на Земле', max: 30, sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
-  shipyard:   {name: 'Верфь', max: 10, sb: 5000, desc: 'Новая верфь: свой стапель, до 1 000 т корабля, 1 бригада (10 000 чел., 1 т корабля в сутки). Тоннаж и бригады верфи расширяются ниже, каждый раз дороже.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
+  shipyard:   {name: 'Верфь', max: 10, sb: 5000, tech: 'yard', desc: 'Новая верфь: свой стапель, до 1 000 т корабля, 1 бригада (10 000 чел., 1 т корабля в сутки). Тоннаж и бригады верфи расширяются ниже, каждый раз дороже.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
   scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, max: 3, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
   cbureau:    {name: 'Строительное бюро', max: 200, desc: '+1 бригада (10 000 чел., 1 СБ в сутки). Зарплата идёт всегда; когда у вас нет стройки, бригады сдаются корпорациям', cost: {fe: 400, ti: 100, cu: 100, si: 60}, days: 25},
@@ -20,8 +20,8 @@ export const BLD = {
   instbio:    {name: 'Биологический институт', max: 6, desc: '+4 очка биологии в сутки на здание.', cost: {fe: 250, c: 300, si: 200, cu: 100}, days: 30},
   market:     {name: 'Научный рынок', level: true, max: 3, desc: 'Очки исследований у лабораторий корпораций дешевле на 5% за уровень.', cost: {fe: 200, si: 250, cu: 150}, days: 30},
   // --- промышленность ---
-  fuelplant2: {name: 'Термоядерный топливный завод', max: 10, desc: 'Перерабатывает лёд в топливо: 100 т/сутки на завод. Нужна технология «Термоядерные станции».', cost: {fe: 900, ti: 300, cu: 300, ni: 100}, days: 50, tech: 'power2'},
-  sparesfab:  {name: 'Автоматическая фабрика изделий', max: 10, desc: '6 тех. изделий в сутки из железа и кремния, склад до 600. Нужна «Автоматизация цехов».', cost: {fe: 800, ni: 200, si: 300, cu: 200}, days: 45, tech: 'auto1'},
+  fuelplant2: {name: 'Термоядерный топливный завод', max: 10, desc: 'Перерабатывает лёд в топливо: 100 т/сутки на завод. Нужна технология «Модуль: Термоядерный двигатель».', cost: {fe: 900, ti: 300, cu: 300, ni: 100}, days: 50, tech: 'fusion'},
+  sparesfab:  {name: 'Автоматическая фабрика изделий', max: 10, desc: '6 тех. изделий в сутки из железа и кремния, склад до 600. Нужна «Автоматизация цехов».', cost: {fe: 800, ni: 200, si: 300, cu: 200}, days: 45, tech: 'autofab'},
   crusher:    {name: 'Дробильный комплекс', level: true, max: 5, desc: 'Шахты на Земле добывают на 8% больше за уровень.', cost: {fe: 500, ti: 150, cu: 150}, days: 30},
   techpark:   {name: 'Технопарк', level: true, max: 3, desc: 'Заводы мира выпускают на 3% больше за уровень.', cost: {fe: 600, si: 400, cu: 300, c: 150}, days: 40},
   composite:  {name: 'Композитный цех', level: true, max: 3, desc: 'Грузоподъёмность всех кораблей +5% за уровень.', cost: {ti: 300, c: 300, cu: 150}, days: 35},
@@ -37,7 +37,7 @@ export const BLD = {
   hospital:   {name: 'Медицинский центр', level: true, max: 5, desc: 'Смертность во всех колониях −3% за уровень.', cost: {fe: 300, c: 300, si: 200, cu: 100}, days: 30},
   maternity:  {name: 'Центр семьи', level: true, max: 5, desc: 'Рождаемость во всех колониях +4% за уровень.', cost: {fe: 300, c: 250, si: 150}, days: 30},
   chamber:    {name: 'Торговая палата', max: 5, desc: '+2% к налогам на космос на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
-  exchange:   {name: 'Биржа', max: 5, desc: '+5% к налогам на космос на здание. Нужна «Здоровая рабочая сила».', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, tech: 'tax1'},
+  exchange:   {name: 'Биржа', max: 5, desc: '+5% к налогам на космос на здание. ', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, },
 };
 // Стройка (решено с владельцем): любое здание — в строительных баллах (СБ), только работа бригад, без материалов.
 // Бригада = 10 000 человек, 1 СБ в сутки. В каждом здании работают 10 000 человек. Шахта 500 СБ, завод и прочее 1 000, верфь 5 000;
@@ -51,7 +51,7 @@ export const buildUnits = () => (brigades() + rentN()) * (techOn('fastbuild') ? 
 export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
 // верфи игрока: у каждой свой предельный тоннаж и свои бригады; 1 бригада (10 000 чел.) = 1 т корабля в сутки
-export function yards() { if (!state.yards) { state.yards = []; for (let i = 0; i < Math.max(1, state.bld.shipyard || 1); i++) state.yards.push(i === 0 ? {ton: 10000, crews: 20, nt: 0, nc: 0} : {ton: 1000, crews: 1, nt: 0, nc: 0}); } while (state.yards.length < (state.bld.shipyard || 0)) state.yards.push({ton: 1000, crews: 1, nt: 0, nc: 0}); return state.yards; }
+export function yards() { if (!state.yards) { state.yards = []; for (let i = 0; i < (state.bld.shipyard || 0); i++) state.yards.push({ton: 1000, crews: 1, nt: 0, nc: 0}); } while (state.yards.length < (state.bld.shipyard || 0)) state.yards.push({ton: 1000, crews: 1, nt: 0, nc: 0}); return state.yards; }
 export const yardUpSB = (y, kind) => Math.round(500 * Math.pow(1.5, kind === 'ton' ? y.nt : y.nc));
 export const yardRate = y => y.crews * (techOn('fastbuild') ? 1.2 : 1) * tm('build'); // т корабля в сутки
 export const bldWorkers = () => Object.keys(BW).reduce((a, t) => a + (state.bld[t] || 0) * BW[t], 0) - (state.bld.shipyard || 0) * CREW + brigades() * BRIG + yards().reduce((a, y) => a + y.crews * CREW, 0);

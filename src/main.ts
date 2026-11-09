@@ -16,6 +16,7 @@ import './22-war.ts';
 import './23-stress.ts';
 import './99-debug.ts';
 import './20-tutorial.ts';
+import './33-alerts.ts';
 
 import { hooks } from './00-hooks.ts';
 import { showEventToast, applyPanelBgs } from './17-art.ts';

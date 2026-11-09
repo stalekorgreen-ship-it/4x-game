@@ -28,9 +28,8 @@ export function orderCargo(item, amt, from, to, reg) {
   const F = FR(); F.orders.push({id: ++F.n, item, amt, left: amt, from, to, t: state.t, got: 0, reg: reg === '' || reg == null ? null : +reg}); return true;
 }
 export function dispatchColonists(to, q) { // игрок не управляет: корпорация везёт поселенцев с Земли
-  const F = FR(), cs = state.corps || []; if (!cs.length) return false;
-  const c = cs[F.n++ % cs.length], d = Math.max(2, bdist('earth', to) / (SPEED * tm('fspeed')));
-  F.flights.push({corp: c.id, item: 'col', amt: q, to, arrive: state.t + d, oid: 0}); c.credits += q * TICKET;
+  const F = FR(), cs = state.corps || [], c = cs.length ? cs[F.n++ % cs.length] : null, d = Math.max(2, bdist('earth', to) / (SPEED * tm('fspeed'))); // без корпораций везёт государство
+  F.flights.push({corp: c ? c.id : null, item: 'col', amt: q, to, arrive: state.t + d, oid: 0}); if (c) c.credits += q * TICKET;
   if (state.cols[to]) { const P = state.cols[to].pop; P.inflight = (P.inflight || 0) + q; } return true;
 }
 hooks.sendColonists = dispatchColonists;
@@ -80,7 +79,7 @@ export function refreshCargo() {
   if (ui.cargoTo && BODY[ui.cargoTo]) { $('cg-to').value = ui.cargoTo; ui.cargoTo = null; $('cg-to').dispatchEvent(new Event('input', {bubbles: true})); }
   const F = FR();
   setHtml($('cg-list'), (F.orders.length ? F.orders.map(o => `<div class="row"><span class="grow">#${o.id} ${esc(itemName(o.item))}: ${fmtN(o.amt)} т · ${esc(BODY[o.from].name)} → ${esc(BODY[o.to].name)}</span><span class="mono muted">ждёт ${fmtN(o.left)} т</span></div>`).join('') : '<div class="help">Заказов нет.</div>') +
-    (F.flights.length ? '<h2 style="margin-top:6px">В пути</h2>' + F.flights.map(f => { const c = (state.corps || []).find(x => x.id === f.corp); return `<div class="row"><span class="grow">${esc(c ? c.name : '—')}: ${esc(itemName(f.item))} ${fmtN(f.amt)}${f.item === 'col' ? ' чел.' : ' т'} → ${esc(BODY[f.to].name)}</span><span class="mono muted">прибудет через ${fmtN(Math.max(0, f.arrive - state.t), 0)} сут</span></div>`; }).join('') : ''));
+    (F.flights.length ? '<h2 style="margin-top:6px">В пути</h2>' + F.flights.map(f => { const c = (state.corps || []).find(x => x.id === f.corp); return `<div class="row"><span class="grow">${esc(c ? c.name : 'Государство')}: ${esc(itemName(f.item))} ${fmtN(f.amt)}${f.item === 'col' ? ' чел.' : ' т'} → ${esc(BODY[f.to].name)}</span><span class="mono muted">прибудет через ${fmtN(Math.max(0, f.arrive - state.t), 0)} сут</span></div>`; }).join('') : ''));
   const dp = state.depot || {}, ids = Object.keys(dp).filter(id => Object.values(dp[id]).some(v => v > 0));
   setHtml($('cg-dp'), ids.length ? ids.map(id => `<div class="row"><b style="width:120px">${esc(BODY[id].name)}</b><span class="mono">${Object.entries(dp[id]).filter(([, v]) => v > 0).map(([k, v]) => itemName(k) + ' ' + fmtN(v)).join(', ')}</span></div>`).join('') : '<div class="help">Пусто.</div>');
 }

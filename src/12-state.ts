@@ -5,7 +5,7 @@ import { FACT_COST, GOODS, clampN } from './07-population.ts';
 import { CTECH, LAB_COST, MINE_COST, YARD_COST, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml } from './08-map-ui.ts';
 
-export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5};
+export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5, inv: 3};
 export const BANK_RATE = .12, PLAYER_RATE = .06;
 // Детерминированный генератор случайных чисел (чтобы игры и тесты воспроизводились)
 export function rnd() { let a = state.rng = ((state.rng === undefined ? 12345 : state.rng) + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -123,7 +123,8 @@ export function refreshLaws() {
       ${row('pension', 'Пенсии', 0, 100, 'Доплата к доходу пенсионеров (старше 65): выше довольство стариков, расходы из казны.')}</div>
       <div class="box"><h2>Торговля и космос</h2>${row('tariff', 'Ввозные пошлины', 0, 50, 'Пошлина на ввозное сырьё и товары (колонии ввозят с Земли): растёт доход казны и стимул строить своё, но дорожает жизнь.')}
       ${row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт, которую забирает государство.')}
-      ${row('space', 'Доля налогов на космос', .1, 3, 'Остальное уходит на земные расходы. При старении доля проседает.', '%', .1)}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
+      ${row('space', 'Доля налогов на космос', .1, 3, 'Остальное уходит на земные расходы. При старении доля проседает.', '%', .1)}
+      ${row('inv', 'Госинвестиции в экономику', 0, 20, 'Доля налогов в фонд экономических построек Земли (госзаводы, госшахты, лаборатории). Чем больше, тем меньше остаётся на земные расходы.')}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
       <div class="box"><h2>События</h2><div id="lw-ev"></div></div><div class="box"><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div></div>`;
   }
   { let tx = 0, ex = 0, tr = 0; const eb = {edu: 0, pen: 0, bth: 0}; for (const id in state.cols) { const q = state.cols[id].pop; tx += q.tax || 0; ex += q.exp || 0; tr += q.tarDay || 0; if (q.expP) for (const k in eb) eb[k] += q.expP[k] || 0; }

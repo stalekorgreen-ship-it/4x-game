@@ -5,6 +5,7 @@
 // Как добавить ивент: допиши объект в EVENTS (формат ниже). Флаги (setFlag/hasFlag) связывают ивенты в цепочки.
 import { state, log } from './01-data.ts';
 import { eventArt } from './17-art.ts';
+import { hooks } from './00-hooks.ts';
 
 export const year = () => 2030 + (state.t || 0) / 360;
 export const hasFlag = k => !!(state.evFlags && state.evFlags[k]);
@@ -21,6 +22,13 @@ const earth = () => state.cols && state.cols.earth && state.cols.earth.pop;
    mtth: 360,                        // в среднем через сколько дней сработает, когда условие выполнено (0 — сразу)
    options: [{ text: 'Вариант', hint: 'что будет', effect: () => { ... } }] } */
 export const EVENTS = [
+  { id: 'billionaire', title: 'Миллиардер идёт в космос', art: 'money', once: true, mtth: 0,
+    trigger: () => (state.t || 0) >= 360 * 5 && !(state.corps || []).length,
+    text: 'Виктор Ветров, самый богатый человек планеты, объявил о создании частной корпорации «Вега Майнинг»: заводы, шахты, а потом — добыча в поясе астероидов. «Государство слишком медленное», — сказал он на пресс-конференции. Инвесторы выстраиваются в очередь, другие состояния присматриваются.',
+    options: [
+      { text: 'Поддержать: налоговые каникулы', hint: 'Корпорация стартует с полуторным капиталом. Новые корпорации — каждый год.', effect: () => { hooks.spawnCorp(1.5); state.corpNext = state.t + 360; } },
+      { text: 'Пусть работает на общих условиях', hint: 'Обычный стартовый капитал. Новые корпорации — каждый год.', effect: () => { hooks.spawnCorp(1); state.corpNext = state.t + 360; } },
+    ] },
   { id: 'low_birth', title: 'Рождаемость ниже замещения', art: 'crisis', once: true, mtth: 180,
     trigger: () => { const P = earth(); return P && P.birth > 0 && P.birth < P.death; },
     text: () => 'Впервые за историю на Земле умирает больше людей, чем рождается. Демографы говорят, что это надолго: рабочих рук станет меньше, пенсионеров — больше.',
@@ -55,7 +63,8 @@ export function evTick(dt) {
 export function fire(e) {
   state.evDone = state.evDone || {}; state.evDone[e.id] = state.t;
   const text = typeof e.text === 'function' ? e.text() : e.text; log(`Событие: ${e.title}.`);
-  if (typeof document === 'undefined' || !document.body || !document.createElement) { e.options[0].effect(); return; } // без интерфейса (тесты) — первый вариант
+  const headless = typeof document === 'undefined' || !document.body || !document.createElement || (typeof process !== 'undefined' && !!(process.versions && process.versions.node) && !(process.versions && process.versions.electron)); // Node (тесты), не Electron
+  if (headless) { e.options[0].effect(); return; } // без интерфейса (тесты) — первый вариант
   try {
     const was = state.paused; state.paused = true; open = e;
     const d = document.createElement('div'); d.id = 'ev-modal';

@@ -4,15 +4,20 @@ import { evTick } from './24-events.ts';
 import { wantTransport } from './25-logistics.ts';
 import { UT, gval } from './26-goods.ts';
 import { tm } from './15-techs.ts';
-import { state, log, rec, fmtN } from './01-data.ts';
+import { state, log, rec, fmtN, GROUND } from './01-data.ts';
 import { KR } from './00-kr.ts';
+import { hooks } from './00-hooks.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId } from './07-population.ts';
 import { bldJobs, BRIG, BLD_MIX } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
 export const MINE_COST = 5e7 * KR, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10 * KR, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
+// товары для космоса (корабли, станции, колонии): их госзаводы на Земле достраиваются сами, остальное — игрок
+export const SPACE_IND = ['comp', 'shipm', 'infra', 'ammo', 'air'];
 export const mpOf = r => (state.mp && state.mp[r]) || 1;
+// Мощность госшахт Земли по руде, т/сут: полная, пока не выбрана половина недр, дальше падает
+export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop, g = state.ground && state.ground.earth, g0 = GROUND.earth[r]; if (!P || !P.lm || !g || !g0) return 0; return (P.lm[r] || 0) * MINE_T * fs() * (P.mfill || 1) * clampN(2 * (g[r] || 0) / g0, 0, 1); };
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
 export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
 export const CTECH = [
@@ -131,8 +136,12 @@ function rawMarket(rawNeed, dt, init) {
       if (out - use > 1e-9) pool.push({id: c.id, c, cap: out - use, price: c.civ.mp[r], r});
     }
     const stock = ctxId() === 'earth' ? (state.stock[r] || 0) : 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r] * mpOf(r)});
-    const tf = laws().tariff / 100; pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8 * (P.dist || 1) * (1 + tf)});
-    for (const k in needs) total += needs[k];
+    const tf = laws().tariff / 100; for (const k in needs) total += needs[k];
+    const earthOre = ctxId() === 'earth' && GROUND.earth[r] != null;
+    if (earthOre) { // госшахты Земли: мощность ограничена, недра конечны (на старте ~60% потребности)
+      P.lm = P.lm || {}; if (P.lm[r] == null) P.lm[r] = .6 * total / MINE_T;
+      pool.push({id: 'lm', cap: lmCap(r), price: PRICE[r]});
+    } else pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8 * (P.dist || 1) * (1 + tf)});
     pool.sort((a, b) => a.price - b.price);
     let left = total, paid = 0, imp = 0;
     for (const s of pool) { s.sold = Math.min(s.cap, left); left -= s.sold; paid += s.sold * s.price; if (s.id === 'imp') imp = s.sold; }
@@ -146,13 +155,15 @@ function rawMarket(rawNeed, dt, init) {
     if (!init) for (const s of pool) {
       if (s.c) { const rv = s.sold * s.price * dt, mt = rv * laws().mineTax / 100; s.c.credits += rv - mt; state.money += mt; state.mtaxInc = (state.mtaxInc || 0) + mt; s.c.civ.mp[r] = s.sold >= s.cap * .98 ? Math.min(PRICE[r] * 1.7, s.price * 1.03) : Math.max(PRICE[r] * .5, s.price * .97); }
       else if (s.id === 'imp' && s.sold > 0) { const ti = s.sold * PRICE[r] * 1.8 * (P.dist || 1) * tf / (1 + tf); P.tarAcc = (P.tarAcc || 0) + ti * dt; }
+      else if (s.id === 'lm' && s.sold > 0) { const g = state.ground.earth; g[r] = Math.max(0, (g[r] || 0) - s.sold * dt); }
       else if (s.id === 'pl' && s.sold > 0) { const t = s.sold * dt; state.stock[r] -= t; state.money += t * s.price; rec(r, 'out', t, 'pop'); }
     }
     if (!init) { // живая цена: дефицит (ввоз) поднимает, избыток нераспроданного сырья снижает
       state.mp = state.mp || {}; let cc = 0, un = 0; for (const s of pool) if (s.c) { cc += s.cap; un += s.cap - s.sold; }
-      let m = mpOf(r) * (1 + .35 * (total > 0 ? imp / total : 0) - .05 * (cc > 0 ? un / cc : 0)); m += (1 - m) * .08; state.mp[r] = clampN(m, .6, 3);
+      let m = mpOf(r) * (1 + .35 * (total > 0 ? (imp + Math.max(0, left)) / total : 0) - .05 * (cc > 0 ? un / cc : 0)); m += (1 - m) * .08; state.mp[r] = clampN(m, .6, 3);
     }
-    P.rawMk[r] = {need: total + own, own, imp, avg: a, mp: mpOf(r)};
+    P.rawMk[r] = {need: total + own, own, imp, avg: a, mp: mpOf(r), lm: earthOre ? lmCap(r) : 0};
+    P.rawSat = P.rawSat || {}; P.rawSat[r] = total > 0 ? clampN(1 - left / total, 0, 1) : 1; // нехватка сырья режет выпуск заводов
   }
   return {avg, cost};
 }
@@ -178,9 +189,9 @@ export function settleEconomy(mk, rawNeed, dt, init) {
         c.civ.pr[g] = Math.min(c.civ.pr[g], KR * gval(g) * 20);
       }
     }
-    if (!init) { // старая промышленность: достраивает только то, что не покрыто корпорациями
+    if (!init) { // госпромышленность: на колониях достраивает сама; на Земле — только игрок (экономические постройки), здесь лишь закрываются лишние
       const D = P.dem[g], w0 = Math.ceil(Math.max(0, D - corpCap) / (PROD * hk * FACT_W) * 1.03); P.wS = P.wS || {}; const want = P.wS[g] = Math.max(w0, Math.floor((P.wS[g] || 0) * .99)) /* спрос рывками (заказы верфей): мощности держат с запасом */, canBuild = Math.max(Math.floor(P.cap[g] / FACT_COST), want > 0 && P.fac[g] < want ? Math.ceil(want * .1) : 0); /* новая отрасль: стартовый кредит */
-      if (P.fac[g] < want && canBuild > 0 && (P.staff[g] == null || P.staff[g] > .8)) { /* без людей новые заводы не помогут */ const k = Math.min(want - P.fac[g], canBuild, Math.max(Math.ceil(P.fac[g] * .02), Math.ceil(want * (P.fac[g] < want * .8 ? .1 : .02)))); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
+      if ((!home || SPACE_IND.includes(g)) && P.fac[g] < want && canBuild > 0 && (P.staff[g] == null || P.staff[g] > .8)) { /* без людей новые заводы не помогут */ const k = Math.min(want - P.fac[g], canBuild, Math.max(Math.ceil(P.fac[g] * .02), Math.ceil(want * (P.fac[g] < want * .8 ? .1 : .02)))); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
       else if (P.fac[g] > want * 1.05 + 1) P.fac[g] -= Math.min(P.fac[g], Math.ceil(P.fac[g] * .01));
     }
     P.price = P.price || {}; P.price[g] = R.avg * R.mult; P.raw = P.raw || {}; P.raw[g] = {t: R.sold * (tpu(G) - UT)};
@@ -202,7 +213,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
     if (finTick(c, dt, pm)) continue;
     civTick(c, mk, dt);
   }
-  if (home) { settleRP(sellers, dt); eventTick(dt); evTick(dt); respawnTick(); }
+  if (home) { settleRP(sellers, dt); eventTick(dt); evTick(dt); respawnTick(); if (hooks.econTick) hooks.econTick(dt); }
 }
 function civTick(c, mk, dt, col) {
   const v = c.civ, FACT_W = FW(), FACT_COST = FC(), MINE_COST = MC(); v.month++;

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { econHtml, econOrder } from './32-econbld.ts';
 import { techArt } from './17-art.ts';
 import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
@@ -346,9 +347,11 @@ export function renderDesigner(full) {
 /* ===== ПАНЕЛЬ «ЗЕМЛЯ» ===== */
 export function refreshEarth() {
   const S = state.stock, B = state.bld; for (const t in BLD) if (B[t] == null) B[t] = 0;
+  const vw = `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
+  if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + econHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
-  let h = `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}</span>`).join('')}</div>
+  let h = vw + `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}</span>`).join('')}</div>
     <div class="help">Безлимитный склад. Лёд превращается в топливо на топливных заводах.</div></div>`;
   h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `ур. ${B[t] || 0}/${b.max}` : `${B[t] || 0}${b.max ? '/' + b.max : ''}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
@@ -363,6 +366,8 @@ export function refreshEarth() {
 export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');
 export function earthClick(a, d) {
   if (a === 'openstats') return openStats();
+  if (a === 'bview') { ui.bview = d.v; return refreshEarth(); }
+  if (a === 'econ') { if (econOrder(d.k, d.g, $('ec-n') ? $('ec-n').value : 1)) refreshHeader(); return refreshEarth(); }
   if (a === 'bbuild' && bldCanAdd(d.t)) queueBld(d.t);
   if ((a === 'yton' || a === 'ycrew') && !state.build.some(q => q.yi === +d.i && q.type === (a === 'yton' ? 'yardton' : 'yardcrew'))) queueBld(a === 'yton' ? 'yardton' : 'yardcrew', +d.i);
   if (a === 'hire') state.hireMax = Math.max(0, Math.min(500, (state.hireMax == null ? 50 : state.hireMax) + (+d.d) * 5));
@@ -515,7 +520,7 @@ export function sideAction(a, d) {
   if (a === 'openearth') return showTab('earth');
   if (a === 'selbody') return select({kind: 'body', id: d.id});
   if (a === 'cargoto') { ui.cargoTo = d.id; showTab('cargo'); return; }
-  if (['bbuild', 'bcancel', 'yton', 'ycrew'].includes(a)) return earthClick(a, d);
+  if (['bbuild', 'bcancel', 'yton', 'ycrew', 'bview', 'econ'].includes(a)) return earthClick(a, d);
   if (a === 'mark') { toggleMark(d.k); refreshObj(); return renderFindIfOpen(); }
   if (a === 'focus') { const k = d.k; select(isSt(k) ? {kind: 'station', id: +k.slice(3)} : isSh(k) ? {kind: 'ship', id: +k.slice(3)} : {kind: 'body', id: k}); focusSel(); return; }
   if (a === 'reroll') { reroll(d.f); return refreshScience(); }

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { hooks } from './00-hooks.ts';
 import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { eqFor, repairParts } from './02-crew.ts';
@@ -68,15 +69,18 @@ function makeCorp(i) {
   }
   return c;
 }
-export function initCorps() {
-  state.corps = []; state.money = state.money || 6e10; state.corpVer = 4; state.nameIdx = CORP_COUNT;
-  for (let i = 0; i < CORP_COUNT; i++) state.corps.push(makeCorp(i));
+// Корпораций на старте нет (решено с владельцем): первая — после ивента о миллиардере (5-й год), дальше по одной в год, до CORP_COUNT
+export function initCorps() { state.corps = []; state.money = state.money || 6e10; state.corpVer = 5; state.nameIdx = 0; state.corpNext = null; }
+export function spawnCorp(credK = 1) {
+  const i = state.nameIdx || 0, c = makeCorp(i); state.nameIdx = i + 1; c.born = state.t; c.credits *= credK; state.corps.push(c);
+  log(`Основана новая корпорация «${c.name}».`); return c;
 }
+hooks.spawnCorp = spawnCorp;
 // Вместо обанкротившихся через год появляются новые стартапы
 export function respawnTick() {
+  if (state.corpNext != null && state.t >= state.corpNext && state.corps.length < CORP_COUNT) { state.corpNext += 360; spawnCorp(); return; } // новая каждый год
   const q = state.respawn; if (!q || !q.length || q[0] > state.t || state.corps.length >= CORP_COUNT) return;
-  q.shift(); state.nameIdx = (state.nameIdx || CORP_COUNT) + 1;
-  const c = makeCorp(state.nameIdx - 1); c.born = state.t; state.corps.push(c); log(`Основана новая корпорация «${c.name}».`);
+  q.shift(); spawnCorp(); // вместо обанкротившихся
 }
 export function wipeCorps() {
   state.ships = state.ships.filter(s => !s.corp); state.stations = state.stations.filter(s => !s.corp); state.groups = state.groups.filter(g => !g.corp); state.corps = null;
