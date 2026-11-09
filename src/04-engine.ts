@@ -205,28 +205,35 @@ export function travel(s, tid, h) {
     s.status = 'Нет топлива!'; return false;
   }
   s.stranded = false;
-  s.at = null;
+  // Честный перелёт: корабль уносит с собой скорость тела, с которого стартовал, и гасит её под скорость цели.
+  // Путь = расстояние между точкой старта и целью к моменту прибытия; положение — смесь «откуда» (движется с телом) и «куда».
   const spd = shipSpeed(s);
-  let p = objPos(tid, state.t);
-  for (let i = 0; i < 3; i++) p = objPos(tid, state.t + dist(s, p) / spd);
-  const d = dist(s, p);
-  const fpa = fuelPerAU(s);
+  if (!s.leg || s.leg.to !== tid || state.t - (s.leg.last || 0) > 2) { // новый перелёт (или полёт прерывали)
+    const from = s.at || null, f0 = from ? objPos(from, state.t) : {x: s.x, y: s.y};
+    // ближайший момент прибытия T, когда путь (расстояние между телами в момент T) успевает пройти: spd·T ≥ D(T)
+    const DT = tt => dist(from ? objPos(from, tt) : f0, objPos(tid, tt));
+    let D = DT(state.t);
+    for (let T = 1; T < 40000; T *= 1.03) { const d = DT(state.t + T); if (spd * T >= d) { D = d; break; } D = d; }
+    s.leg = {from, fx: f0.x, fy: f0.y, to: tid, D: Math.max(D, 1e-9), done: 0};
+  }
+  s.at = null;
+  const L = s.leg, fpa = fuelPerAU(s); L.last = state.t;
   let step = spd * h;
   train(s, 'pil', h);
   const maxByFuel = s.fuel / fpa;
-  let arrive = d <= step;
-  if (arrive) step = d;
+  let arrive = L.done + step >= L.D;
+  if (arrive) step = L.D - L.done;
   if (step > maxByFuel) { step = maxByFuel; arrive = false; }
   s.fuel = Math.max(0, s.fuel - step * fpa);
   useWear(s, 'engine', step * WEAR_AU, step * 0.004);
-  s.eta = (d - step) / spd;
+  L.done += step; s.eta = (L.D - L.done) / spd;
   s.dest = tid;
   if (arrive) {
-    const q = objPos(tid, state.t); s.x = q.x; s.y = q.y;
+    const q = objPos(tid, state.t); s.x = q.x; s.y = q.y; s.leg = null;
     if (!isSh(tid)) s.at = tid;
     return true;
   }
-  if (d > 1e-12) { s.x += (p.x - s.x) / d * step; s.y += (p.y - s.y) / d * step; }
+  { const k = L.done / L.D, a = L.from ? objPos(L.from, state.t) : {x: L.fx, y: L.fy}, b = objPos(tid, state.t); s.x = a.x + (b.x - a.x) * k; s.y = a.y + (b.y - a.y) * k; }
   s.status = `Летит к «${nameOf(tid)}», ${fmtDur(s.eta)}`;
   return false;
 }
