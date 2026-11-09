@@ -318,8 +318,8 @@ function steer(s,dt){
   s.vx=s.sx;s.vy=s.sy;
   { const rr=.14/(1+T.L)*dt,dr=adiff(s.roll||0,s.rollT||0);s.roll=(s.roll||0)+Math.max(-rr,Math.min(rr,dr)) } // крен вокруг продольной оси
   // высота (псевдо-3D)
-  if(t>=(s.zn||0)){s.zn=t+R(150,320);const r=Math.random();s.zo=r<.4?R(4,12):r<.75?R(-12,-4):R(-2,2)}
-  const zb=F.zl+s.zo+(s.zpush||0)*4,tgz=s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<(s.maxR||60)*1.5?s.tg.z:null,zt=Math.max(-36,Math.min(36,tgz==null?zb:zb*.25+tgz*.75+s.zo*.3)); // в бою выходим на высоту цели (с небольшим смещением строя), нос клонится к нейs.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
+  if(t>=(s.zn||0)){s.zn=t+R(60,200);s.zo=R(-20,20)} // каждый корабль сам выбирает высоту и меняет её: бой идёт в объёме, а не в плоскости
+  const zt=Math.max(-36,Math.min(36,F.zl+s.zo+(s.zpush||0)*4)); /* высота своя у каждого корабля */s.zpush=0;if(s.zset==null){s.z=zt;s.zset=1;s.pz=0}else{const spd=Math.hypot(s.sx,s.sy),zr=Math.min(.12,spd*.08)*(.4+.6*Math.min(1,eng)),dz=Math.max(-zr*dt,Math.min(zr*dt,zt-s.z));s.z+=dz;const pw=Math.atan2(dz/Math.max(dt,1e-6),Math.max(spd,.02));s.pz=(s.pz||0)+(pw-(s.pz||0))*Math.min(1,dt*.5)}
 }
 function nearestCar(c){let b=null,bd=1e9;for(const o of ships){if(!o.alive||!o.car||o.side!==c.side)continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d<bd){bd=d;b=o}}return b}
 function foeCraft(c,maxd,bonusB,onlyF){let b=null,bs=1e9;for(const o of fly[1-c.side]){if(onlyF&&o.type!=='F')continue;const d=Math.hypot(o.x-c.x,o.y-c.y);if(d>maxd)continue;const sc=d-(o.type==='B'?bonusB:0)+15*o.att;if(sc<bs){bs=sc;b=o}}return b}
