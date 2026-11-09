@@ -39,6 +39,7 @@ export function syncShell(tab) {
 const endTxt = (id, k, max) => { const n = id === 'earth' ? state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1) : 0; if (!(n > 0)) return 'нет шахт'; const y = depleteYears(id, k, max, n); return '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет'; };
 /* --- Климат и стоимость колонии --- */
 import { climateOf, colonyCost, GAS_NAME } from './14-climate.ts';
+import { ppm } from './28-climate.ts';
 export function refreshClimate() {
   const p = $('p-climate'); if (!p) return;
   const id = ui.sel.kind === 'body' ? ui.sel.id : 'earth', b = BODY[id], c = climateOf(id), K = colonyCost(id), f = (v, d = 1) => fmtN(v, d);
@@ -52,6 +53,7 @@ export function refreshClimate() {
     <span>Радиация</span><span>${f(c.rad, 1)} × Земли</span><span>Магнитное поле</span><span>${c.mag ? 'есть' : 'нет'}</span>
     <span>Диаметр</span><span>${c.d ? fmtN(c.d, c.d < 10 ? 2 : 0) + ' км' : '—'}</span><span>Гравитация</span><span>${f(c.g, 3)} g</span>
     <span>Удалённость от звезды</span><span>${f(c.a, 2)} а.е.</span></div>`;
+  { const d = state.clim && state.clim[id]; if (d) h += `<h3>Изменение климата</h3><div class="stats"><span>Потепление с 2030</span><span>${d.dT >= 0 ? '+' : ''}${f(d.dT, 2)} °C</span><span>CO₂ в атмосфере</span><span>${f(ppm(id), 0)} ppm</span><span>Выбросы</span><span>${f(d.emY / 1e9, 1)} Гт/год</span><span>Уровень моря</span><span>+${f(d.sea, 2)} м</span><span>Затоплено городов</span><span>${f(d.fl * 100, 1)} %</span>${d.reg.map(r => `<span>${esc(r.n)}: пар</span><span>${r.dc > 0 ? f(r.rain * 100, 0) + ' % до вечных дождей' : 'нет источников'}${r.wet ? ' · вечные дожди' : ''}</span>`).join('')}</div>`; }
   const gk = Object.keys(c.gas).sort((x, y) => c.gas[y] - c.gas[x]);
   h += gk.length ? `<h3>Газы атмосферы</h3><div class="stats">${gk.map(k => `<span>${GAS_NAME[k] || k}</span><span>${f(c.gas[k] * 100, c.gas[k] < .01 ? 3 : 1)} % · ${c.gasT[k].toExponential(2)} т</span>`).join('')}</div>` : '<div class="muted">Атмосферы нет.</div>';
   h += `</div><div class="box"><h2>Стоимость колонии: ${f(K.cc, 1)} — ${K.mode === 'under' ? 'под землёй' : 'на поверхности'}</h2><div class="help">Это не цена в кредитах, а показатель эффективности жизнеобеспечения. Одна единица инфраструктуры обеспечивает 10000 / (1 + стоимость) человек.</div><div class="stats"><span>На поверхности</span><span>${f(K.surf, 1)}</span><span>Под землёй</span><span>${f(K.und, 1)}</span></div><div class="help">Берётся дешевле. Если поверхность убийственна, люди живут в подземельях; терраформинг со временем делает выгодной поверхность.</div><div class="stats">${K.rows.filter(r => r[1] >= .05).map(r => `<span>${r[0]}</span><span>+${f(r[1], 1)}</span>`).join('') || '<span>Всё в норме</span><span>0</span>'}<span><b>Человек на 1 ед. инфраструктуры</b></span><span><b>${fmtN(K.per)}</b></span>`;

@@ -109,7 +109,7 @@ export function payBuild(c, cost, days, tons = 0, station = 0) {
   return true;
 }
 export function goodsMarket(g, D, legCap, staff, inS = 1) {
-  const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: Math.min(KR * gval(g) * 3, Math.max(KR * gval(g), (P.uc && P.uc[g]) || 0))}], FACT_W = FW(), tf = laws().tariff / 100;
+  const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: Math.min(KR * gval(g) * 20, Math.max(KR * gval(g), (P.uc && P.uc[g]) || 0))}], FACT_W = FW(), tf = laws().tariff / 100;
   for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95 * Math.max(KR * gval(g), (P.uc && P.uc[g]) || 0); S.push({id: c.id, c, cap: n * FACT_W * PROD * hoursK() * staff * outMult(c) * ((P.evMult && P.evMult[g]) || 1) * (c.civ.strikeUntil > state.t ? .5 : 1) * inS, price: c.civ.pr[g]}); } }
   if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: 1.7 * KR * (P.dist || 1) * (1 + tf)});
   S.sort((a, b) => a.price - b.price);
@@ -174,8 +174,8 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       else {
         const c = s.c; c.credits += (rev - wc - rc) * dt; c.civ.pm = (c.civ.pm || 0) + (rev - wc - rc) * dt; c.civ.sold[g] = s.sold; c.civ.cap[g] = s.cap; c.civ.unitc[g] = (wc + rc) / Math.max(1, s.cap, n * FACT_W * PROD * .5) + tpu(G) * LC + ic; /* простой из-за нехватки входов не раздувает себестоимость */ c.civ.comp[g] = s.comp * R.mult;
         const util = s.cap > 0 ? s.sold / s.cap : 0, u = c.civ.unitc[g];
-        if (util >= .97) c.civ.pr[g] = Math.min(KR * gval(g) * 4, Math.max(u * 1.05, Math.min(c.civ.pr[g] * 1.03, Math.max(s.comp * 1.4, .3 * KR)))); /* потолок цены: в 4 раза выше базовой ценности */ else c.civ.pr[g] = Math.max(u * 1.05, c.civ.pr[g] * (util < .5 ? .95 : .985));
-        c.civ.pr[g] = Math.min(c.civ.pr[g], KR * gval(g) * 4);
+        if (util >= .97) c.civ.pr[g] = Math.min(KR * gval(g) * 20, Math.max(u * 1.05, Math.min(c.civ.pr[g] * 1.03, Math.max(s.comp * 1.4, .3 * KR)))); /* потолок цены: 20 базовых */ else c.civ.pr[g] = Math.max(u * 1.05, c.civ.pr[g] * (util < .5 ? .95 : .985));
+        c.civ.pr[g] = Math.min(c.civ.pr[g], KR * gval(g) * 20);
       }
     }
     if (!init) { // старая промышленность: достраивает только то, что не покрыто корпорациями

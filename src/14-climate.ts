@@ -2,7 +2,7 @@
 // Климат и условия жизни любого тела. От них считается «стоимость колонии» — показатель того, сколько
 // инфраструктуры жизнеобеспечения нужно на человека: одна единица инфраструктуры кормит 10000 / (1 + стоимость) человек.
 import { ta } from './15-techs.ts';
-import { BODY } from './01-data.ts';
+import { BODY, state } from './01-data.ts';
 
 export const G0 = 9.80665, GGRAV = 6.674e-11;
 // Данные планет и крупных спутников (давление в атм, доли газов по объёму, массы в тоннах, температуры в °C)
@@ -17,7 +17,14 @@ const T = {
 };
 const hash01 = id => { let h = 2166136261; for (const ch of 'clim:' + id) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 100000) / 100000; };
 const cache = {};
+// Живой климат: исходные данные тела + текущие изменения (температура, CO2, море) из state.clim
 export function climateOf(id) {
+  const b = climateBase(id), d = state.clim && state.clim[id]; if (!d) return b;
+  const c = {...b, mean: b.mean + d.dT, max: b.max + d.dT, min: b.min + d.dT, dT: d.dT, sea: d.sea, fl: d.fl, rain: d.rain, emY: d.emY};
+  c.gasT = {...b.gasT, co2: d.co2}; const dv = (d.co2 - (b.gasT.co2 || 0)) / Math.max(1, b.atmT) * (29 / 44);
+  c.gas = {...b.gas, co2: (b.gas.co2 || 0) + dv}; return c;
+}
+export function climateBase(id) {
   if (cache[id]) return cache[id];
   const b = BODY[id], t = T[id] || {}, par = b.parent ? BODY[b.parent] : b, a = par.a != null ? par.a : 1;
   const type = b.comet ? 'comet' : b.type || null, alb = t.alb != null ? t.alb : b.comet ? .04 : type === 'C' ? .07 : type === 'S' ? .25 : type === 'M' ? .15 : .12;

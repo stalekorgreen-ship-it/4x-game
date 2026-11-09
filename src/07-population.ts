@@ -2,6 +2,7 @@
 import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
+import { climTick, heatDeath, heatWork } from './28-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { logMarket, logJobs, lsShare } from './25-logistics.ts';
 import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
@@ -39,7 +40,7 @@ export const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
 export const fs = () => (state.pop && state.pop.fs) || 1;
 export const FW = () => FACT_W * fs();
 export const FC = () => FACT_COST * fs();
-export const hoursK = () => laws().hours / 40;
+export const hoursK = () => laws().hours / 40 * heatWork(ctxId()); // жара снижает выработку
 export const ctxId = () => state.ctx || 'earth';
 function setPop(P) { Object.defineProperty(state, 'pop', {value: P, writable: true, configurable: true, enumerable: false}); }
 function setCtx(id) {
@@ -150,7 +151,7 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
-  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = tm('death') * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
+  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
   let b = 0, d = 0;
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
@@ -273,6 +274,7 @@ export function popTick(h) {
       stepDemog(dt); P.yacc += dt;
       if (P.yacc >= 360) { P.yacc -= 360; stepAge(); }
       immigrate(dt); stepEcon(dt);
+      climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * PROD * hoursK()), dt);
     });
   }
 }
