@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { evTick } from './24-events.ts';
+import { BASKET_T, wantTransport } from './25-logistics.ts';
 import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN } from './01-data.ts';
 import { KR } from './00-kr.ts';
@@ -105,6 +106,7 @@ function rawMarket(rawNeed, dt, init) {
 export function settleEconomy(mk, rawNeed, dt, init) {
   const P = state.pop, W = P.wage, RM = rawMarket(rawNeed, dt, init), FACT_W = FW(), FACT_COST = FC(), home = ctxId() === 'earth', hk = hoursK();
   P.legRaw = P.legRaw || {};
+  let SW = 0; for (const g in GOODS) SW += GOODS[g].need; const LC = P.log ? P.log.perT : 0;
   for (const g in GOODS) {
     const R = mk[g], G = GOODS[g]; let wp = 0; for (let s = 0; s < 4; s++) wp += G.mix[s] * W[s] * .96 * hk;
     let corpCap = 0;
@@ -112,7 +114,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       if (s.id === 'imp') { if (!init) { const ti = s.sold * s.price * R.mult * (laws().tariff / 100) / (1 + laws().tariff / 100); P.tarAcc = (P.tarAcc || 0) + ti * dt; } continue; }
       const leg = s.id === 'leg', n = leg ? P.fac[g] : s.c.civ.fac[g], wc = n * FACT_W * wp * (leg ? 1 : laborMult(s.c)), rc = RM.cost[leg ? 'leg:' + g : s.id] || 0;
       if (!leg) corpCap += s.cap;
-      const rev = s.sold * s.price * R.mult;
+      const rev = s.sold * s.price * R.mult - s.sold * (BASKET_T / SW + RAW_PER / G.need) * LC; // минус оплата доставки
       if (init) continue;
       if (leg) { P.cap[g] += (rev - wc - rc) * dt * .5; P.rev = P.rev || {}; P.rev[g] = rev; }
       else {
@@ -126,7 +128,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       if (P.fac[g] < want && canBuild > 0) { const k = Math.min(want - P.fac[g], canBuild, Math.ceil(P.fac[g] * .02)); P.fac[g] += k; P.cap[g] -= k * FACT_COST; }
       else if (P.fac[g] > want * 1.05 + 1) P.fac[g] -= Math.min(P.fac[g], Math.ceil(P.fac[g] * .01));
     }
-    P.price = P.price || {}; P.price[g] = R.avg * R.mult; P.raw = P.raw || {}; P.raw[g] = {t: R.sold / G.need * RAW_PER};
+    P.price = P.price || {}; P.price[g] = R.avg * R.mult + (BASKET_T / SW + RAW_PER / G.need) * LC; P.raw = P.raw || {}; P.raw[g] = {t: R.sold / G.need * RAW_PER};
   }
   if (init) return;
   const sellers = [], off = new Map();
@@ -159,6 +161,8 @@ function civTick(c, mk, dt, col) {
   if (!col && v.month % (foc === 'expand' ? 1 : 4) === 0 && avail > FC() * (foc === 'expand' ? 3 : 6) && tryExpand(c)) return;
   const wantLabs = col ? 0 : tot >= 6 ? Math.min(40, Math.ceil(tot / 12 * (foc === 'science' ? 2.5 : foc === 'industry' ? .7 : 1))) : 0;
   if ((v.labs || 0) < wantLabs && avail > LAB_COST * 1.5) { pay(c, LAB_COST, 'subSci'); v.labs = (v.labs || 0) + 1; return; }
+  // транспорт: дорогая доставка или нехватка — строят предприятие своего вида
+  if (v.month % 2 === 0 && avail > FACT_COST * 1.5) { const t = wantTransport(c, state.pop, ctxId()); if (t) { pay(c, FACT_COST, 'subInd'); v.tr = v.tr || {}; v.tr[t] = (v.tr[t] || 0) + 1; return; } }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
   for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }

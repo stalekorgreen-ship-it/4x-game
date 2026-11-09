@@ -3,6 +3,7 @@ import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
+import { logMarket, logJobs, BASKET_T } from './25-logistics.ts';
 import { KR } from './00-kr.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
@@ -126,7 +127,7 @@ export function addSettlers(id, q) {
   const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q);
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
 }
-export function jobsFac() { const P = state.pop, J = civJobs(); for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
+export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []); for (let s = 0; s < 4; s++) J[s] += LJ[s]; for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
 export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
 export function totals() {
   const P = state.pop, t = {n: 0, un: 0, st: 0, emp: 0, wf: 0, S: [0, 1, 2, 3].map(() => ({n: 0, un: 0, wf: 0, emp: 0}))};
@@ -227,6 +228,10 @@ export function stepEcon(dt, init) {
     const r = GOODS[g].raw; rawNeed[r] = rawNeed[r] || {};
     for (const s of R.S) { const id = s.id === 'leg' ? 'leg:' + g : s.id; rawNeed[r][id] = (rawNeed[r][id] || 0) + s.sold / GOODS[g].need * RAW_PER * (s.c ? rawMult(s.c) : 1); }
   }
+  // логистика: все сделки на теле требуют т·км; не хватило — часть товара не доезжает
+  { let T = 0; for (const g in GOODS) T += mk[g].sold * (BASKET_T / sw + RAW_PER / GOODS[g].need);
+    const lg = logMarket(P, ctxId(), (state.corps || []).filter(c => c.civ), T, fill, dt, init);
+    if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     let ws = 0; for (const g in GOODS) ws += P.sat[g] * GOODS[g].need;
     const aff = clampN(inc[s][a] / (basket(a) * (a < 15 ? 1.5 : 1)), 0, 1);
@@ -287,7 +292,7 @@ function refreshPopI() {
     ['Население', fmtN(t.n)], ['Дети 0–14', fmtN(sumAge(0, 14))], ['Трудоспособные 15–64', fmtN(sumAge(15, 64))], ['Старше 65', fmtN(sumAge(65, 100))],
     ['Занято / безработных', `${fmtN(t.emp)} / ${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`], ['Учатся (15+)', fmtN(t.st - sumSt(0, 14))],
     ['Рождаемость / смертность в год', `${fmtN(P.birth)} / ${fmtN(P.death)}`], ['Прирост в год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
-    ['Фонд зарплат в сутки', fmtN(P.wbill) + ' кр'], ['Налоги всего в сутки', fmtN(P.taxFull || 0) + ' кр'], ['Земные расходы', fmtN(P.earthExp || 0) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в сутки', fmtN(P.tax) + ' кр'], ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
+    ['Фонд зарплат в месяц', fmtN(P.wbill * 30) + ' кр'], ['Налоги всего в месяц', fmtN((P.taxFull || 0) * 30) + ' кр'], ['Земные расходы в месяц', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в месяц', fmtN(P.tax * 30) + ' кр'], ...(P.log ? [['Логистика', `${P.log.how}, Ø ${fmtN(P.log.D, 1)} км, плечо ${fmtN(P.log.d, 1)} км`], ['Нужно т·км в сутки / доставлено', `${fmtN(P.log.L)} / ${fmtN(P.log.sat * 100, 1)}%`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Доли: наземная / морская / воздушная', ['land', 'sea', 'air'].map(t => fmtN(P.log.L > 0 ? P.log.used[t] / P.log.L * 100 : 0, 0) + '%').join(' / ')], ['Госпредприятий транспорта', ['land', 'sea', 'air'].map(t => fmtN((P.tr && P.tr[t]) || 0)).join(' / ')]] : []), ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
   setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
   setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n, fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2), fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
   const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
