@@ -6,7 +6,7 @@ import { climTick, heatDeath, heatWork } from './28-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { logMarket, logJobs, lsShare } from './25-logistics.ts';
 import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
-import { KR, MS } from './00-kr.ts';
+import { KR } from './00-kr.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
@@ -98,18 +98,17 @@ export const COLONIZABLE = id => { const b = BODY[id]; return !!b && ['planet', 
 export function colInfo(id) {
   const b = BODY[id], a = b.a != null ? b.a : (BODY[b.parent] || {a: 1}).a, d = Math.abs(a - 1), K = colonyCost(id);
   const infra = 2, hab = Math.round(infra * K.per);
-  return {hab, infra, per: K.per, cc: K.cc, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), cost: 2e6 * KR * MS * (1 + d) * (b.kind === 'planet' ? 1.6 : b.kind === 'moon' ? 1.2 : 1), settlers: Math.min(20000, hab)};
+  return {hab, infra, per: K.per, cc: K.cc, dist: 1 + .25 * d + (b.kind === 'moon' ? .05 : 0), settlers: Math.min(20000, hab)};
 }
 export function foundWhy(id) {
   if (!COLONIZABLE(id)) return 'Это тело нельзя заселить';
   if (state.cols[id]) return 'Колония уже есть';
   if (!state.ships.some(s => !s.corp && s.at === id)) return 'Нужен ваш корабль на орбите тела';
-  const I = colInfo(id); if (state.money < I.cost) return 'Не хватает кредитов: нужно ' + fmtN(I.cost);
   return '';
 }
 export function foundColony(id) {
   if (foundWhy(id)) return false;
-  const I = colInfo(id), b = BODY[id]; state.money -= I.cost;
+  const I = colInfo(id), b = BODY[id]; // колония денег не стоит: только завезённые люди и инфраструктура
   takeEarth(I.settlers);
   mkCol(id, b.name, I.settlers, {f: settlerF, fs: .01, cover: .4, hab: I.hab, dist: I.dist, seed: 2e6 * KR, kind: b.kind});
   state.cols[id].infra = I.infra;
