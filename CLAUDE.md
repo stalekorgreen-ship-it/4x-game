@@ -9,6 +9,9 @@ Vite + TypeScript + three.js + Electron. Репозиторий stalekorgreen-sh
 - Windows-сборка: `npm run dist:win`, затем `cd release && rm -f Poyas4X-win-x64.zip && zip -qr -1 Poyas4X-win-x64.zip win-unpacked`, отправить SendUserFile (attach)
 - Коммиты оканчивать строками Co-Authored-By / Claude-Session из системного напоминания.
 
+## Данные игры в текстовых файлах
+`public/data/*.json` (в Windows-сборке — папка `data` рядом с Poyas4X.exe, владелец правит блокнотом). Код держит умолчания и вызывает `gd('файл', 'раздел', умолчания)` (`src/00-gd.ts`); файл накладывается поверх. Добавил новый раздел `gd(...)` — запусти `node tools/dump-data.mjs`, чтобы файлы пополнились (уже правленные значения сохраняются). Electron читает папку в `electron/main.cjs` и отдаёт через `preload.cjs`.
+
 ## Бой и 3D
 - `src/05-battle.ts` — симуляция: снаряды `proj` летят по-настоящему (разброс гауссов, реальное попадание по OBB корабля), `fireAt/fireShell` стреляют из точки ствола через хук `Battle.setMuzzle`, трассеры `tracers()`, попадания `impacts()`.
 - `src/21-battle3d.ts` — 3D-слой: модели по LOD, `spineVis/spineHit/spineUpdate` (новая модель — только для ближайших кораблей), хук ствола (башня наводится, вспышка).

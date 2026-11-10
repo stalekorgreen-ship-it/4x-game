@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { TECH, techById, tm, ensureOffers, dealField } from './15-techs.ts';
@@ -6,7 +7,7 @@ import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 1;
-export const BLD = {
+export const BLD = gd('buildings', 'buildings', {
   cfactory:   {name: 'Строительный завод', sb: 2000, cost: {fe: 400, cu: 80, c: 80}, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
   mine:       {name: 'Шахта на Земле', sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
@@ -39,7 +40,7 @@ export const BLD = {
   maternity:  {name: 'Центр семьи', level: true, desc: 'Рождаемость во всех колониях +4% за уровень.', cost: {fe: 300, c: 250, si: 150}, days: 30},
   chamber:    {name: 'Торговая палата', desc: '+2% к налогам на космос на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
   exchange:   {name: 'Биржа', desc: '+5% к налогам на космос на здание. ', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, },
-};
+}); // правится в data/buildings.json
 // Стройка (решено с владельцем): любое здание — в строительных баллах (СБ), только работа бригад, без материалов.
 // Бригада = 10 000 человек, 1 СБ в сутки. В каждом здании работают 10 000 человек. Шахта 500 СБ, завод и прочее 1 000, верфь 5 000;
 // улучшение уровня — 1 000 × 1,5^уровень. Расширение верфи (+1 000 т или +1 бригада) — 500 × 1,5^(номер расширения этого вида).
@@ -48,7 +49,8 @@ export const BW = Object.fromEntries(Object.keys(BLD).map(t => [t, CREW]));
 export const bldSB = t => { const b = BLD[t]; return Math.round((b.sb || 1000) * (b.level ? Math.pow(1.5, state.bld[t] || 0) : 1)); };
 export const brigades = () => (2 + (state.bld.cbureau || 0)); // свои: зарплата идёт всегда
 export const rentN = () => (state.build && state.build.length ? (state.rent || []).reduce((a, r) => a + r.n, 0) : 0); // арендованные у корпораций
-export const CF_SB = 50; // СБ в сутки от строительного завода
+export const ECON = gd('buildings', 'econ', {CF_SB: 50, ECON_SB: {efac: 1000, emine: 500, elab: 1000}, ECON_MAT: {efac: {fe: 20, cu: 4, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 10, si: 12, cu: 4}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 20, cu: 5}}, matDiv: 10});
+export const CF_SB = ECON.CF_SB; // СБ в сутки от строительного завода
 export const buildUnits = () => ((brigades() + rentN()) + (state.bld.cfactory || 0) * CF_SB) * tm('build') * tm('buildu'); // СБ в сутки: бригады + строительные заводы
 export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
@@ -66,8 +68,8 @@ export const academyInterval = () => 60 / (1 + 0.3 * state.bld.academy);
 export const academyClass = () => 5 + 5 * state.bld.academy;
 export const academyBonus = () => 0.5 * state.bld.academy + (techOn('select') ? 1 : 0);
 // Материалы постройки (решено с владельцем): у каждой свой набор, списываются со склада в начале каждой единицы
-export const ECON_MAT = {efac: {fe: 20, cu: 4, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 10, si: 12, cu: 4}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 20, cu: 5}};
-export function matOf(j) { const t = j.type || j, m = ECON_MAT[t]; if (m) return m; const c = BLD[t] && BLD[t].cost; if (!c) return {}; const o = {}; for (const r in c) o[r] = Math.max(1, Math.round(c[r] / 10)); return o; }
+export const ECON_MAT = ECON.ECON_MAT;
+export function matOf(j) { const t = j.type || j, m = ECON_MAT[t]; if (m) return m; const c = BLD[t] && BLD[t].cost; if (!c) return {}; const o = {}; for (const r in c) o[r] = Math.max(1, Math.round(c[r] / (ECON.matDiv || 1))); return o; }
 export function bldCost(t) { return matOf(t); }
 // сколько материалов нужно всей очереди (держим на складе, не продаём Земле)
 // резерв: материалы на ближайшие 30 суток стройки по каждому проекту (не вся очередь — иначе Земле ничего не достаётся)
@@ -81,7 +83,7 @@ const RESN = {fe: 'Железо', ni: 'Никель', ti: 'Титан', cu: 'М�
 export function bldQueued(t) { return state.build.filter(j => j.type === t).reduce((a, j) => a + (j.n || 1), 0); }
 // Очередь стройки (как в Aurora): у проекта количество n и доля мощности pct (%). Мощность = бригады + строительные заводы.
 // Типы: здание из BLD; 'yardton'/'yardcrew' (yi — верфь); 'efac' (g — товар: госзавод Земли), 'emine' (госшахта), 'elab' (лаборатория).
-export const ECON_SB = {efac: 1000, emine: 500, elab: 1000};
+export const ECON_SB = ECON.ECON_SB;
 export function unitSB(j) { return j.type === 'yardton' || j.type === 'yardcrew' ? yardUpSB(yards()[j.yi] || {nt: 0, nc: 0}, j.type === 'yardton' ? 'ton' : 'crew') : ECON_SB[j.type] || bldSB(j.type); }
 export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor(+n || 1)); pct = Math.max(0, Math.min(100, +pct || 0)); // доля сохраняется как задана; лишнее ждёт своей очереди
   if (BLD[t]) { const b = BLD[t], room = (b.max || 99999) - state.bld[t] - bldQueued(t); n = Math.min(n, room); if (n <= 0) return false; }

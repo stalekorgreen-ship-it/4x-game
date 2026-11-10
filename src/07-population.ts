@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { colN } from './19-colbld.ts';
 import { tm } from './15-techs.ts';
 import {colonyCost} from './14-climate.ts';
@@ -17,7 +18,9 @@ import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
 export { GOODS };
-export const OTHER_MIX = [.45, .4, .13, .02], FACT_W = 10000, PROD = 40, RAW_PER = 1e-8, /* потребление руды заводами — в 10 раз меньше (решено с владельцем) */ BASEW = [100, 175, 300, 500], TUIT = [0, 50, 100, 175], FACT_COST = 2e8 * KR, TAXK = 1.25e-6;
+const EC = gd('economy', 'population', {OTHER_MIX: [.45, .4, .13, .02], FACT_W: 10000, PROD: 40, RAW_PER: 1e-8, BASEW: [100, 175, 300, 500], TUIT: [0, 50, 100, 175], FACT_COST_KR: 2e8, TAXK: 1.25e-6});
+// RAW_PER — руда на тонну товара (в 10 раз меньше прежнего, решено с владельцем); FACT_COST_KR — цена завода корпорации в «кр без KR»
+export const OTHER_MIX = EC.OTHER_MIX, FACT_W = EC.FACT_W, PROD = EC.PROD, RAW_PER = EC.RAW_PER, BASEW = EC.BASEW, TUIT = EC.TUIT, FACT_COST = EC.FACT_COST_KR * KR, TAXK = EC.TAXK;
 /* Налоги, вариант Б: казна собирает полный налог, почти всё уходит на земные расходы (оборона, соцсфера, инфраструктура),
    на космос — доля L.space % (по умолчанию 0,5%), и она проседает при старении (меньше работников на пенсионера). */
 export const spaceK = () => ((state.laws && state.laws.space != null ? state.laws.space : .5) / 100);
@@ -73,7 +76,7 @@ const settlerF = a => a < 15 ? .3 : a < 20 ? .5 : a < 50 ? 1.6 : a < 65 ? .5 : .
 export function initPop() { state.cols = {}; state.ctx = 'earth'; mkCol('earth', 'Земля', 8.5e9, {f: earthF, fs: 1, cover: EARTH_COVER, hab: 0, dist: 1, seed: 0}); }
 const cov = (o, g) => typeof o.cover === 'object' ? (o.cover[g] != null ? o.cover[g] : o.cover.def) : o.cover;
 // Земля 2030 (решено с владельцем): мир в плохом состоянии — дефицит медицины, электроники и др.; Африка и Индия страдают сильнее (регионы)
-export const EARTH_COVER = {def: .95, meds: .78, elx: .8, tech: .85, house: .88, water: .9, pow: .9};
+export const EARTH_COVER = gd('economy', 'earthStart', {def: .95, meds: .78, elx: .8, tech: .85, house: .88, water: .9, pow: .9}); // доля спроса, которую закрывают госзаводы Земли на старте
 export function mkCol(id, name, T0, o) {
   const f = o.f; let sum = 0; for (let a = 0; a <= 100; a++) sum += f(a);
   const c = [[], [], [], []];

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { hooks } from './00-hooks.ts';
 // Государство и финансы: законы (налоги, субсидии), кредиты, банкротства и поглощения, патенты, кризисы.
 import { log, state, fmtN } from './01-data.ts';
@@ -6,9 +7,9 @@ import { FACT_COST, GOODS, clampN } from './07-population.ts';
 import { CTECH, LAB_COST, MINE_COST, YARD_COST, rpPrice } from './10-civil.ts';
 import { $, esc, setHtml } from './08-map-ui.ts';
 
-export const LAW_DEFAULT = {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5, inv: 3, mEdu: 8, mMed: 8, mSoc: 10, mInf: 6, mSec: 5, mAdm: 3};
+export const LAW_DEFAULT = gd('economy', 'laws', {tax: 20, subInd: 0, subSci: 0, subSpace: 0, minWage: 0, hours: 40, edu: 0, tariff: 0, birthSup: 0, pension: 0, mineTax: 0, space: .5, inv: 3, mEdu: 8, mMed: 8, mSoc: 10, mInf: 6, mSec: 5, mAdm: 3});
 // Обязательные расходы государства (решено с владельцем): доля дохода казны, ниже минимума опустить нельзя
-export const MAND = [['mEdu', 'Образование: школы и вузы', 8, 'Выше минимума: обучение дешевле для семей — больше людей с высшим образованием.'], ['mMed', 'Медицина и клиники', 8, 'Выше минимума: смертность ниже (−1% за каждый процент сверх минимума).'], ['mSoc', 'Пенсии и соцзащита', 10, ''], ['mInf', 'Дороги и ЖКХ', 6, ''], ['mSec', 'Полиция и оборона', 5, ''], ['mAdm', 'Госаппарат', 3, '']];
+export const MAND = gd('economy', 'mandatory', [['mEdu', 'Образование: школы и вузы', 8, 'Выше минимума: обучение дешевле для семей — больше людей с высшим образованием.'], ['mMed', 'Медицина и клиники', 8, 'Выше минимума: смертность ниже (−1% за каждый процент сверх минимума).'], ['mSoc', 'Пенсии и соцзащита', 10, ''], ['mInf', 'Дороги и ЖКХ', 6, ''], ['mSec', 'Полиция и оборона', 5, ''], ['mAdm', 'Госаппарат', 3, '']]);
 export const mandK = () => { const L = laws(); let s = 0; for (const [k, , m] of MAND) s += Math.max(m, L[k] == null ? m : L[k]); return Math.min(.9, s / 100); };
 export const mandOver = k => { const L = laws(), m = MAND.find(x => x[0] === k)[2]; return Math.max(0, (L[k] == null ? m : L[k]) - m); };
 export const BANK_RATE = .12, PLAYER_RATE = .06;

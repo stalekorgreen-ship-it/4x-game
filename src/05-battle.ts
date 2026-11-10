@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { RES, compOf, dist, fmtN, log, mkKey, rec, specTons, fitSpec, CR_DEF, randCraft, state, fuelPerAU, BAT_FUEL_T, shipSpeedTrue, AU_M } from './01-data.ts';
 import { tm, ta } from './15-techs.ts';
 import { effSkill, officerById, pilFuel } from './02-crew.ts';
@@ -10,18 +11,18 @@ export function makeBattle() {
 let viewed=true;const SFX={shot:(...a)=>viewed&&Sfx.shot(...a),boom:(...a)=>viewed&&Sfx.boom(...a),radio:(...a)=>viewed&&Sfx.radio(...a),engine:(...a)=>Sfx.engine(...a),setOn:(...a)=>Sfx.setOn(...a)};
 const $b = id => document.getElementById(id);
 
-const DOPT={hc:20,dd:20,fr:35,cv:100},JINK=0.0015,VP=6,LIFE=10,RANGE=VP*LIFE,SIGMA=0.026,LAUNCH=450,SUB=0.25,REL=60;
-const FI={vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO={vmax:0.8,a:0.05,fuel:2200,hp:4};
-const TORP={sp:2.5,pd:0.02,pdr:35,launch:120,mod:2};
-const FLAK={range:60,blast:1.2};
-const RC0={dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0={blast:1.2,rng:60,rel:1,fail:0},GC0={tw:0,rpm:6000,heat:.4,cool:.2,pen:.02,rng:15,ammoH:5,mass:25},LC0={dmg:4,rng:250,chg:.08},MC0={hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83};
-const BURST={5:1,10:1,15:1,20:1,25:1,30:1},RCT={5:6,10:16,15:28,20:45,25:60,30:80};
+// Параметры боя — правятся в data/battle.json (SIGMA — разброс выстрела, т.е. точность; VP — скорость снаряда; LIFE — время жизни снаряда; REL — перезарядка, с;
+// RC0 — рельсотрон по умолчанию: dmg урон, rng дальность, sig множитель разброса, cal калибр; FC0 — зенитка; GC0 — гатлинг; LC0 — боевой лазер; MC0 — ракета;
+// FI/BO — истребитель/бомбардировщик; TORP — торпеда; FLAK — зенитный разрыв; RCT — время перезарядки по калибру; EW — помехи РЭБ; RADAR — дальность радара; MARN — морпехи)
+const BT=gd('battle','battle',{DOPT:{hc:20,dd:20,fr:35,cv:100},JINK:0.0015,VP:6,LIFE:10,SIGMA:0.026,LAUNCH:450,SUB:0.25,REL:60,FI:{vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO:{vmax:0.8,a:0.05,fuel:2200,hp:4},TORP:{sp:2.5,pd:0.02,pdr:35,launch:120,mod:2},FLAK:{range:60,blast:1.2},RC0:{dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0:{blast:1.2,rng:60,rel:1,fail:0},GC0:{tw:0,rpm:6000,heat:.4,cool:.2,pen:.02,rng:15,ammoH:5,mass:25},LC0:{dmg:4,rng:250,chg:.08},MC0:{hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83},BURST:{5:1,10:1,15:1,20:1,25:1,30:1},RCT:{5:6,10:16,15:28,20:45,25:60,30:80},EW:{fr:.12,cv:.05,dd:.02,hc:.02},RADAR:{cv:420,hc:320,dd:260,fr:360},MARN:{cv:20,hc:10,dd:8,fr:4}});
+const DOPT=BT.DOPT,JINK=BT.JINK,VP=BT.VP,LIFE=BT.LIFE,RANGE=VP*LIFE,SIGMA=BT.SIGMA,LAUNCH=BT.LAUNCH,SUB=BT.SUB,REL=BT.REL;
+const FI=BT.FI,BO=BT.BO,TORP=BT.TORP,FLAK=BT.FLAK,RC0=BT.RC0,FC0=BT.FC0,GC0=BT.GC0,LC0=BT.LC0,MC0=BT.MC0,BURST=BT.BURST,RCT=BT.RCT;
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
 let lasBeams=[],shuttles=[],hitLog=[],impacts=[],impN=0,frags=[],pyro=[],pods=[],lands=[],mis=[],beams=[],bursts=[],curCT=1,curST=0,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
 let uidN=0,lastDmgT=0,lastNa=0,lastNaT=0,env=[],ORD={st:null,focus:null},nextVis=0,nextCrew=0,lastCrewT=0,endSaid=false;
 const say=(side,key,s)=>{if(active&&!done)SFX.radio(side,key,s)};
-const EW={fr:.12,cv:.05,dd:.02,hc:.02},RADAR={cv:420,hc:320,dd:260,fr:360},MARN={cv:20,hc:10,dd:8,fr:4};
+const EW=BT.EW,RADAR=BT.RADAR,MARN=BT.MARN;
 let pend=[],lastFriend=0,vw={ox:0,oy:0,kk:1},active=false;
 const R=(a,b)=>a+Math.random()*(b-a);
 const gauss=()=>{let u=0;for(let i=0;i<4;i++)u+=Math.random();return (u-2)*1.73};

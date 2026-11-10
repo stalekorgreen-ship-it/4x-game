@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { hooks } from './00-hooks.ts';
 import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { KR } from './00-kr.ts';
@@ -23,7 +24,7 @@ export function allowBuy(k, price) {
   if (p.mode === 'keep') return Math.max(0, p.amt - (state.stock[k] || 0));
   return Math.max(0, p.amt - boughtMonth(k));
 }
-export const PRICE = Object.fromEntries(Object.entries({fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500}).map(([k, v]) => [k, v * KR]));
+export const PRICE = Object.fromEntries(Object.entries(gd('economy', 'prices', {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500})).map(([k, v]) => [k, v * KR])); // базовые цены сырья (×KR), data/economy.json → prices
 export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000 * KR;
 export const CORP_DEF = [
   {name: 'Вега Майнинг', tpl: 'Лёгкий', aggr: 1.0, parts: {ion: 2, tank: 2, cargo: 1, laser: 2, cabin: 2, life: 1}},
@@ -59,7 +60,7 @@ export function createCorpStation(c, bodyId) {
 }
 const CORP_NAMES = ['Вега Майнинг', 'Синергия Ресурсов', 'Ферро-Групп', 'Ориент Спейс', 'Атлас Индастриз', 'Нова Дайнемикс', 'Гелиос', 'Кронос Холдинг', 'Титан-Альянс', 'Аргус', 'Орион Трейд', 'Сигма Ферм', 'Полярис', 'Зенит Груп', 'Меркурий-Капитал', 'Борей', 'Эридан', 'Астра Логистик', 'Вектор', 'Кассиопея', 'Лира', 'Кварк Холдинг', 'Альтаир', 'Мира-Групп', 'Дельта Ресурс', 'Нептун Трейд', 'Радиус', 'Омега Майнинг', 'Феникс', 'Ярило', 'Соль', 'Тритон', 'Кепплер', 'Гранит', 'Вихрь', 'Север-Капитал', 'Мегалит', 'Спутник', 'Ковчег', 'Горизонт'];
 const CORP_SPEC = ['elx', 'wear', 'pow', 'meds', 'steel', 'house', 'plast'];
-export const CORP_COUNT = 20;
+export const CORP_COUNT = gd('economy', 'corpsCount', 20);
 function makeCorp(i) {
   const d = CORP_DEF[i % CORP_DEF.length];
   const c = {id: uid(), name: CORP_NAMES[i] || 'Корпорация-' + (i + 1), tpl: d.tpl, aggr: d.aggr * (.9 + (i % 5) * .05), parts: d.parts, credits: 1.2e9 * KR, civ: newCiv(CORP_SPEC[i % CORP_SPEC.length]), buy: {all: true}, sold: 0, last: 0, g: {}, lost: 0};

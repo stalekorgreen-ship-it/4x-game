@@ -22,3 +22,8 @@ import { hooks } from './00-hooks.ts';
 import { showEventToast, applyPanelBgs } from './17-art.ts';
 hooks.onLog = msg => showEventToast(msg);
 applyPanelBgs(); setTimeout(applyPanelBgs, 500);
+
+// ошибки в data/*.json — в журнал (игра при этом берёт встроенные значения)
+import { dataErrors } from './00-gd.ts';
+import { log } from './01-data.ts';
+setTimeout(() => { for (const e of dataErrors()) log('Ошибка в файле данных data/' + e + ' — взяты встроенные значения.'); }, 1500);

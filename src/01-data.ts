@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 import { addModuleTechs } from './15-techs.ts';
 import { hooks } from './00-hooks.ts';
 import { tm } from './15-techs.ts';
@@ -22,7 +23,7 @@ export const ORE_PER_SPARE = 4;
 export const EPOCH = Date.UTC(2030, 0, 1);
 export const SPEEDS = [{m:1/60,l:'1 сек'},{m:2/60,l:'2 сек'},{m:5/60,l:'5 сек'},{m:.5,l:'30 сек'},{m:1,l:'1 мин'},{m:20,l:'20 мин'},{m:60,l:'1 час'},{m:180,l:'3 часа'},{m:480,l:'8 часов'},{m:1440,l:'1 день'},{m:7200,l:'5 дней'}];
 
-export const COMP = {
+export const COMP = gd('modules', 'modules', {
   ion:   {name:'Ионный двигатель', desc:'Мощность 20, экономичный', power:20, mass:5, eff:1, cost:{ti:15, ree:4, cu:10}},
   chem:  {name:'Химический двигатель', desc:'Мощность 50, жрёт топливо (КПД 0.35)', power:50, mass:6, eff:0.35, cost:{fe:15, ni:10}},
   tank:  {name:'Топливный бак', desc:'50 т топлива', fuel:50, mass:4, cost:{fe:6, ti:4}},
@@ -57,7 +58,7 @@ export const COMP = {
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
   hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, ni:5}},
-};
+}); // данные модулей можно править в data/modules.json
 /* ===== НАСТРАИВАЕМЫЕ МОДУЛИ ===== */
 // Ключ варианта: «база|опция=знач|опция=знач». Голый ключ = значения по умолчанию.
 export const O = (id, name, def, vals) => ({id, name, def, vals: vals.map(([v, l]) => ({v, l}))});

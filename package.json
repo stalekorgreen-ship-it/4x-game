@@ -40,6 +40,12 @@
       "target": "dir",
       "signAndEditExecutable": false
     },
-    "asar": true
+    "asar": true,
+    "extraFiles": [
+      {
+        "from": "public/data",
+        "to": "data"
+      }
+    ]
   }
 }

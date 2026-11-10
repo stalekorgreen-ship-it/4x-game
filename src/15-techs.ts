@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 // Технологии: карточки с рандомным предложением (как в Stellaris). Эффекты — модификаторы по ключам, их читает остальная игра через tm()/ta().
 import { state } from './01-data.ts';
 export const RARITY = {c: {n: 'Обычная', w: 100, k: 1, col: '#9aa7b8'}, u: {n: 'Необычная', w: 40, k: 1.7, col: '#4aa3ff'}, r: {n: 'Редкая', w: 10, k: 3.2, col: '#e3a94f'}};
@@ -23,6 +24,9 @@ export function addModuleTechs(COMP) {
   for (const k in COMP) { const m = MOD[k] || ['eng', 'c', 400], c = COMP[k], req = m[3] && COMP[m[3]] ? COMP[m[3]].tech : null;
     if (BYID[c.tech]) continue; const t = {id: c.tech, f: m[0], r: m[1], cost: Math.round(m[2] * RARITY[m[1]].k), name: 'Модуль: ' + c.name, desc: (c.desc || '') + (c.off ? ' (модуль временно отключён)' : ''), eff: null, req, excl: null};
     TECH.push(t); BYID[t.id] = t; }
+  // правки из data/techs.json: по id — name, desc, cost, f (область), r (редкость), req (что нужно до)
+  const def = {}; for (const t of TECH) def[t.id] = {name: t.name, desc: t.desc, f: t.f, r: t.r, cost: t.cost, req: t.req};
+  const ov = gd('techs', 'techs', def); for (const t of TECH) if (ov[t.id]) Object.assign(t, ov[t.id]);
 }
 export const TECH = L.map(([id, f, r, base, name, desc, eff, req, excl]) => ({id, f, r, cost: Math.round(base * RARITY[r].k), name, desc, eff: eff || null, req: req || null, excl: excl || null}));
 export const excluded = t => !!(t.excl && state.tech && state.tech[t.excl]);

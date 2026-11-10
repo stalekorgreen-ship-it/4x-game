@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gd } from './00-gd.ts';
 // Гражданская экономика корпораций: заводы, шахты, рынок сырья, коммерческая верфь.
 import { evTick } from './24-events.ts';
 import { wantTransport } from './25-logistics.ts';
@@ -12,9 +13,10 @@ import { bldJobs, BRIG, BLD_MIX } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
-export const MINE_COST = 5e7 * KR, MINE_T = 100, MINE_MIX = [.6, .3, .1, 0], YARD_COST = 2e10 * KR, SHIP_K = 250, YARD_MASS = {fe: 800, ni: 60, ti: 50, cu: 50, si: 40};
+const CV = gd('economy', 'corps', {MINE_COST_KR: 5e7, MINE_MIX: [.6, .3, .1, 0], YARD_COST_KR: 2e10, SHIP_K: 250, YARD_MASS: {fe: 800, ni: 60, ti: 50, cu: 50, si: 40}, LAB_COST_KR: 3e7, LAB_RP: 10, LAB_MIX: [0, .3, .5, .2], CORP_KEEP: 200, CMAT: {fac: {fe: 20, cu: 4, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 10, si: 12, cu: 4}}, SPACE_IND: ['comp', 'shipm', 'infra', 'ammo', 'air']});
+export const MINE_COST = CV.MINE_COST_KR * KR, MINE_T = 100, MINE_MIX = CV.MINE_MIX, YARD_COST = CV.YARD_COST_KR * KR, SHIP_K = CV.SHIP_K, YARD_MASS = CV.YARD_MASS;
 // товары для космоса (корабли, станции, колонии): их госзаводы на Земле достраиваются сами, остальное — игрок
-export const SPACE_IND = ['comp', 'shipm', 'infra', 'ammo', 'air'];
+export const SPACE_IND = CV.SPACE_IND;
 export const mpOf = r => (state.mp && state.mp[r]) || 1;
 // Госшахты Земли (правило владельца): каждая шахта добывает 1 т КАЖДОЙ руды в сутки × эффективность месторождения
 // (эффективность = сложность жилы × остаток недр, падает по мере выработки). P.lmN — число госшахт.
@@ -25,12 +27,12 @@ export const mineTot = v => { let m = 0; for (const k in v.mines) m += v.mines[k
 export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEff(r); const g0 = GROUND[id] && GROUND[id][r]; if (g0) { const g = state.ground && state.ground[id]; return veinEff(id, r, g && g[r] != null ? g[r] : g0, g0); } return veinBase(id, r); };
 // корпорация строит шахту, только если выручка с неё (1 т × эффективность × цена) покрывает хотя бы половину зарплат
 export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
-export const CORP_KEEP = 200; // т каждой руды, которые корпорация держит под свою стройку
+export const CORP_KEEP = CV.CORP_KEEP; // т каждой руды, которые корпорация держит под свою стройку
 export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0);
-export const CMAT = {fac: {fe: 20, cu: 4, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 10, si: 12, cu: 4}};
+export const CMAT = CV.CMAT;
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return P.lmN * lmEff(r) * (P.mfill || 1); };
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
-export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
+export const LAB_COST = CV.LAB_COST_KR * KR, LAB_RP = CV.LAB_RP, LAB_MIX = CV.LAB_MIX, LAB_SI = 0.1 / 30;
 export const CTECH = [
   {id: 'out1', k: 'out', cost: 2000, name: 'Выпуск товара +5%'}, {id: 'out2', k: 'out', cost: 6000, req: 'out1', name: 'Выпуск товара +5% (II)'}, {id: 'out3', k: 'out', cost: 15000, req: 'out2', name: 'Выпуск товара +5% (III)'},
   {id: 'lab1', k: 'lab', cost: 2500, name: 'Штат завода −5%'}, {id: 'lab2', k: 'lab', cost: 7000, req: 'lab1', name: 'Штат завода −5% (II)'}, {id: 'lab3', k: 'lab', cost: 18000, req: 'lab2', name: 'Штат завода −5% (III)'},
