@@ -7,7 +7,7 @@ import { sciMult, train, useWear } from './02-crew.ts';
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 1;
 export const BLD = {
-  cfactory:   {name: 'Строительный завод', sb: 2000, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
+  cfactory:   {name: 'Строительный завод', sb: 2000, cost: {fe: 400, cu: 80, c: 80}, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
   mine:       {name: 'Шахта на Земле', sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
@@ -65,7 +65,19 @@ export const yardSpeed = () => yards().reduce((a, y) => a + yardRate(y), 0); // 
 export const academyInterval = () => 60 / (1 + 0.3 * state.bld.academy);
 export const academyClass = () => 5 + 5 * state.bld.academy;
 export const academyBonus = () => 0.5 * state.bld.academy + (techOn('select') ? 1 : 0);
-export function bldCost(t) { return {}; } // зданиям нужна только работа бригад
+// Материалы постройки (решено с владельцем): у каждой свой набор, списываются со склада в начале каждой единицы
+export const ECON_MAT = {efac: {fe: 20, cu: 4, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 10, si: 12, cu: 4}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 20, cu: 5}};
+export function matOf(j) { const t = j.type || j, m = ECON_MAT[t]; if (m) return m; const c = BLD[t] && BLD[t].cost; if (!c) return {}; const o = {}; for (const r in c) o[r] = Math.max(1, Math.round(c[r] / 10)); return o; }
+export function bldCost(t) { return matOf(t); }
+// сколько материалов нужно всей очереди (держим на складе, не продаём Земле)
+// резерв: материалы на ближайшие 30 суток стройки по каждому проекту (не вся очередь — иначе Земле ничего не достаётся)
+export function queueMat() { const o = {}, cap = buildUnits(); let left = 100;
+  for (const j of state.build || []) { const m = matOf(j), e = Math.min(j.pct || 0, left); left -= e; const u = unitSB(j), n = Math.min((j.n || 1) - (j.paid ? 1 : 0), Math.ceil(cap * e / 100 * 30 / Math.max(1, u)));
+    for (const r in m) o[r] = (o[r] || 0) + m[r] * Math.max(0, n); } return o; }
+import { hooks as _hk } from './00-hooks.ts';
+_hk.queueMat = () => queueMat();
+export const matTxt = m => Object.entries(m).map(([r, v]) => `${(RESN[r] || r).toLowerCase()} ${v}`).join(', ');
+const RESN = {fe: 'Железо', ni: 'Никель', ti: 'Титан', cu: 'Медь', si: 'Кремний', c: 'Углерод', ice: 'Лёд', pt: 'Платиноиды', ree: 'Редкоземельные', u: 'Уран'};
 export function bldQueued(t) { return state.build.filter(j => j.type === t).reduce((a, j) => a + (j.n || 1), 0); }
 // Очередь стройки (как в Aurora): у проекта количество n и доля мощности pct (%). Мощность = бригады + строительные заводы.
 // Типы: здание из BLD; 'yardton'/'yardcrew' (yi — верфь); 'efac' (g — товар: госзавод Земли), 'emine' (госшахта), 'elab' (лаборатория).
@@ -76,7 +88,7 @@ export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor
   state.build.push({id: Date.now() + Math.random(), type: t, yi, g, n, pct, prog: 0}); return true; }
 export const pctSum = () => Math.min(100, state.build.reduce((a, j) => a + (j.pct || 0), 0)); // сколько мощности реально занято
 // по порядку очереди: каждый берёт свою долю, пока сумма не дойдёт до 100%; остальные ждут
-export function effPct() { let left = 100; for (const j of state.build) { j.eff = Math.max(0, Math.min(j.pct || 0, left)); left -= j.eff; } }
+export function effPct() { let left = 100; for (const j of state.build) { j.eff = j.paid === false && j.wait ? 0 : Math.max(0, Math.min(j.pct || 0, left)); left -= j.eff; } } // ждущие материалы мощность не занимают
 export function bldGate(t) { const b = BLD[t]; return b.tech && !techOn(b.tech) ? 'Нужна технология: «' + techById(b.tech).name + '»' : ''; }
 export function bldCanAdd(t) { const b = BLD[t]; if (bldGate(t)) return false; return state.bld[t] + bldQueued(t) < (b.max || 99999); }
 export function buildTick(h) {
@@ -99,12 +111,17 @@ export function buildTick(h) {
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
     const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * (.02 * B.chamber + .05 * B.exchange) * h; if (inc > 0) state.money += inc; } // палата/биржа — доля налогов на космос
   // мощность делится по долям проектов (сумма долей больше 100% — урезается пропорционально)
-  const cap = buildUnits(); effPct();
+  const cap = buildUnits();
+  for (const j of state.build) { if (j.paid) continue; const m = matOf(j), lack = Object.keys(m).filter(r => (S[r] || 0) < m[r]); // оплатить материалы текущей единицы
+    if (lack.length) { j.paid = false; j.wait = 'нет материалов: ' + lack.map(r => `${(RESN[r] || r).toLowerCase()} ${Math.ceil(m[r] - (S[r] || 0))}`).join(', '); continue; }
+    for (const r in m) { S[r] -= m[r]; rec(r, 'out', m[r], 'build'); } j.paid = true; j.wait = null; }
+  effPct();
   for (const j of state.build) {
     if (j.n == null) { j.n = 1; j.pct = j.pct == null ? 100 / Math.max(1, state.build.length) : j.pct; j.prog = (j.total || 0) - (j.left || 0); } // старые сохранения
     j.prog += cap * j.eff / 100 * h; j.rate = cap * j.eff / 100;
     let c = unitSB(j);
-    while (j.n > 0 && j.prog >= c) { j.prog -= c; j.n--; finish(j); c = unitSB(j); }
+    if (!j.paid) { j.rate = 0; continue; }
+    if (j.n > 0 && j.prog >= c) { j.prog -= c; j.n--; finish(j); j.paid = false; c = unitSB(j); if (j.prog >= c) j.prog = c - 1e-9; } // каждая следующая единица снова платит материалы
   }
   state.build = state.build.filter(j => j.n > 0);
 }

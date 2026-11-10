@@ -18,12 +18,16 @@ export const SPACE_IND = ['comp', 'shipm', 'infra', 'ammo', 'air'];
 export const mpOf = r => (state.mp && state.mp[r]) || 1;
 // Госшахты Земли (правило владельца): каждая шахта добывает 1 т КАЖДОЙ руды в сутки × эффективность месторождения
 // (эффективность = сложность жилы × остаток недр, падает по мере выработки). P.lmN — число госшахт.
-export const lmEff = r => { const g = state.ground && state.ground.earth, g0 = GROUND.earth[r]; return g && g0 ? veinEff('earth', r, g[r] || 0, g0) : 0; };
+export const gMax = r => (state.gMax && state.gMax[r]) || GROUND.earth[r]; // начальные недра Земли этой игры
+export const lmEff = r => { const g = state.ground && state.ground.earth, g0 = gMax(r); return g && g0 ? veinEff('earth', r, g[r] || 0, g0) : 0; };
 export const mineTot = v => { let m = 0; for (const k in v.mines) m += v.mines[k]; return m; };
 // эффективность руды в текущей колонии: Земля и тела с недрами — по остатку, прочие — сложность жилы
 export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEff(r); const g0 = GROUND[id] && GROUND[id][r]; if (g0) { const g = state.ground && state.ground[id]; return veinEff(id, r, g && g[r] != null ? g[r] : g0, g0); } return veinBase(id, r); };
 // корпорация строит шахту, только если выручка с неё (1 т × эффективность × цена) покрывает хотя бы половину зарплат
 export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
+export const CORP_KEEP = 200; // т каждой руды, которые корпорация держит под свою стройку
+export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0);
+export const CMAT = {fac: {fe: 20, cu: 4, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 10, si: 12, cu: 4}};
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return P.lmN * lmEff(r) * (P.mfill || 1); };
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
 export const LAB_COST = 3e7 * KR, LAB_RP = 10, LAB_MIX = [0, .3, .5, .2], LAB_SI = 0.1 / 30;
@@ -65,7 +69,9 @@ export const jobCost = k => CSB[k] * brigDay();
 const cq = v => v.bq || (v.bq = []);
 export const queued = (v, k, g) => cq(v).filter(j => j.k === k && (g == null || j.g === g)).length;
 const committed = v => cq(v).reduce((a, j) => a + j.left, 0) * brigDay();
-function startJob(c, k, g) { cq(c.civ).push({k, g, left: CSB[k], total: CSB[k]}); }
+function startJob(c, k, g) { const m = CMAT[k] || {}, st = c.civ.stock = c.civ.stock || {}; // материалы — со своего склада, недостающее докупает на рынке в полтора раза дороже
+  for (const r in m) { const own = Math.min(st[r] || 0, m[r]); st[r] = (st[r] || 0) - own; const buy = m[r] - own; if (buy > 0) c.credits -= buy * PRICE[r] * mpOf(r) * 1.5; }
+  cq(c.civ).push({k, g, left: CSB[k], total: CSB[k]}); }
 // Строительные бюро: каждое — бригада 10 000 чел. Владелец платит зарплату каждый месяц, даже без работы.
 // Рынок бригад раз в месяц: сначала свои стройки владельца, свободные мощности — игроку (приоритет), остаток — другим корпорациям.
 export const cbOf = v => (v.cb == null ? (v.cb = 2) : v.cb);
@@ -141,15 +147,20 @@ function rawMarket(rawNeed, dt, init) {
       if (use > 0 && ctxId() === 'earth' && GROUND.earth[r] != null) state.ground.earth[r] = Math.max(0, (state.ground.earth[r] || 0) - use * dt);
       if (use > 0) needs[c.id] -= use; own += use;
       if (c.civ.mp[r] == null) c.civ.mp[r] = PRICE[r] * .97;
-      if (out - use > 1e-9) pool.push({id: c.id, c, cap: out - use, price: c.civ.mp[r], r});
+      let sur = out - use; // корпорация держит запас руды под свою стройку и продаёт только излишки
+      if (!init && sur > 0) { const st = c.civ.stock = c.civ.stock || {}, top = Math.max(0, Math.min(sur * dt, CORP_KEEP - (st[r] || 0))); st[r] = (st[r] || 0) + top; sur -= top / dt; }
+      if (sur > 1e-9) pool.push({id: c.id, c, cap: sur, price: c.civ.mp[r], r});
     }
-    const stock = ctxId() === 'earth' ? (state.stock[r] || 0) : 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r] * mpOf(r)});
     const tf = laws().tariff / 100; for (const k in needs) total += needs[k];
     const earthOre = ctxId() === 'earth' && GROUND.earth[r] != null;
-    if (earthOre) { // госшахты Земли: мощность ограничена, недра конечны (на старте самой дефицитной руды ~60%)
-      if (P.lmN == null) { let mx = 0; for (const q in rawNeed) if (GROUND.earth[q] != null) { let t = 0; for (const k in rawNeed[q]) t += rawNeed[q][k]; mx = Math.max(mx, t / Math.max(.01, lmEff(q))); } P.lmN = Math.round(.6 * mx); }
-      pool.push({id: 'lm', cap: lmCap(r), price: PRICE[r]});
-    } else pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8 * (P.dist || 1) * (1 + tf)});
+    if (earthOre) { // госшахты Земли добывают на склад игрока (1 т каждой руды × эффективность), недра — на ~50 лет
+      if (P.lmN == null) { let mx = 0; for (const q in rawNeed) if (GROUND.earth[q] != null) { let t = 0; for (const k in rawNeed[q]) t += rawNeed[q][k]; mx = Math.max(mx, t / Math.max(.01, veinBase('earth', q))); } P.lmN = Math.round(.6 * mx);
+        state.gMax = {}; for (const q in GROUND.earth) { const v = 50 * 360 * P.lmN * veinBase('earth', q); state.gMax[q] = v; if (state.ground && state.ground.earth) state.ground.earth[q] = v; } } // в состояние игры, не в общую константу
+      if (!init) { const got = Math.min(lmCap(r) * dt, state.ground.earth[r] || 0); if (got > 0) { state.ground.earth[r] -= got; state.stock[r] = (state.stock[r] || 0) + got; rec(r, 'in', got, 'mine'); } }
+    }
+    // склад игрока продаёт Земле только сверх резерва: материалы всей очереди стройки + сколько игрок велел держать
+    const stock = ctxId() === 'earth' ? Math.max(0, (state.stock[r] || 0) - keepOf(r)) : 0; if (stock > 0) pool.push({id: 'pl', cap: stock / dt, price: PRICE[r] * mpOf(r)});
+    if (!earthOre) pool.push({id: 'imp', cap: 1e12, price: PRICE[r] * 1.8 * (P.dist || 1) * (1 + tf)});
     pool.sort((a, b) => a.price - b.price);
     let left = total, paid = 0, imp = 0;
     for (const s of pool) { s.sold = Math.min(s.cap, left); left -= s.sold; paid += s.sold * s.price; if (s.id === 'imp') imp = s.sold; }
@@ -164,7 +175,6 @@ function rawMarket(rawNeed, dt, init) {
       if (s.c && ctxId() === 'earth' && GROUND.earth[r] != null && s.sold > 0) state.ground.earth[r] = Math.max(0, (state.ground.earth[r] || 0) - s.sold * dt);
       if (s.c) { const rv = s.sold * s.price * dt, mt = rv * laws().mineTax / 100; s.c.credits += rv - mt; state.money += mt; state.mtaxInc = (state.mtaxInc || 0) + mt; s.c.civ.mp[r] = s.sold >= s.cap * .98 ? Math.min(PRICE[r] * 1.7, s.price * 1.03) : Math.max(PRICE[r] * .5, s.price * .97); }
       else if (s.id === 'imp' && s.sold > 0) { const ti = s.sold * PRICE[r] * 1.8 * (P.dist || 1) * tf / (1 + tf); P.tarAcc = (P.tarAcc || 0) + ti * dt; }
-      else if (s.id === 'lm' && s.sold > 0) { const g = state.ground.earth; g[r] = Math.max(0, (g[r] || 0) - s.sold * dt); }
       else if (s.id === 'pl' && s.sold > 0) { const t = s.sold * dt; state.stock[r] -= t; state.money += t * s.price; rec(r, 'out', t, 'pop'); }
     }
     if (!init) { // живая цена: дефицит (ввоз) поднимает, избыток нераспроданного сырья снижает
@@ -172,7 +182,7 @@ function rawMarket(rawNeed, dt, init) {
       let m = mpOf(r) * (1 + .35 * (total > 0 ? (imp + Math.max(0, left)) / total : 0) - .05 * (cc > 0 ? un / cc : 0)); m += (1 - m) * .08; state.mp[r] = clampN(m, .6, 3);
     }
     P.rawMk[r] = {need: total + own, own, imp, avg: a, mp: mpOf(r), lm: earthOre ? lmCap(r) : 0};
-    P.rawSat = P.rawSat || {}; P.rawSat[r] = total > 0 ? clampN(1 - left / total, 0, 1) : 1; // нехватка сырья режет выпуск заводов
+    P.rawSat = P.rawSat || {}; P.rawSat[r] = init || total <= 0 ? 1 : clampN(1 - left / total, 0, 1); // при запуске склад ещё пуст — руду считаем доступной // нехватка сырья режет выпуск заводов
   }
   return {avg, cost};
 }

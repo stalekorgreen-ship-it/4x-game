@@ -57,9 +57,10 @@ ok(s().tech.m_fusion || s().tprog.m_fusion > 0 || s().tech.fusion || s().tprog.f
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
 // закупки руды: политика игрока
 s().buyPol = {cu: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.cu || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
+const lm0 = s().cols.earth.pop.lmN; s().cols.earth.pop.lmN = 0; // госшахты везут руду на склад — на время проверки закупок выключены
 for (const c of s().corps.slice(0, 3)) c.civ.mines.cu = (c.civ.mines.cu || 0) + 300; // избыток руды у корпораций (шахта — 1 т каждой руды × эффективность)
 for (let i = 0; i < 120; i++) g.advance(2);
-s().ships = _sv;
+s().ships = _sv; s().cols.earth.pop.lmN = lm0;
 ok((s().stock.cu || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.cu || 0) - fe0) + ' т меди; железа на Земле не хватает — излишков нет)');
 ok((s().stock.si || 0) <= si0 + 1e-6, 'при слишком низкой максимальной цене ничего не покупается');
 
