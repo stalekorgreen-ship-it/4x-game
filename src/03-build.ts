@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { gd } from './00-gd.ts';
+import { gd, DEFAULTS } from './00-gd.ts';
 import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff } from './01-data.ts';
 import { KR } from './00-kr.ts';
-import { TECH, techById, tm, ensureOffers, dealField } from './15-techs.ts';
+import { TECH, techById, tm, ensureOffers, dealField, BEFF } from './15-techs.ts';
 import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
@@ -13,13 +13,13 @@ export const BLD = gd('buildings', 'buildings', {
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
   shipyard:   {name: 'Верфь', sb: 5000, tech: 'yard', desc: 'Новая верфь: свой стапель, до 1 000 т корабля, 1 бригада (10 000 чел., 1 т корабля в сутки). Тоннаж и бригады верфи расширяются ниже, каждый раз дороже.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
-  scicenter:  {name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
+  scicenter:  {sci: {phys: 1, eng: 1, bio: 1}, name: 'Научный центр', desc: 'Теоретическая наука на Земле: +1 очко в сутки в каждой области на центр.', cost: {fe: 300, si: 200, cu: 100, c: 100}, days: 25},
   academy:    {name: 'Академия', level: true, desc: 'Выпуск офицеров раз в 60 суток: 5 человек, каждый уровень добавляет 5 (до 20) и ускоряет выпуск. Навыки выше.', cost: {fe: 600, si: 300, c: 300, cu: 150}, days: 45},
   cbureau:    {name: 'Строительное бюро', desc: '+1 бригада (10 000 чел., 1 СБ в сутки). Зарплата идёт всегда; когда у вас нет стройки, бригады сдаются корпорациям', cost: {fe: 400, ti: 100, cu: 100, si: 60}, days: 25},
   // --- научные институты ---
-  instphys:   {name: 'Институт физики', desc: '+4 очка физики в сутки на здание.', cost: {fe: 300, si: 300, cu: 150, c: 100}, days: 30},
-  insteng:    {name: 'Инженерное бюро', desc: '+4 очка инженерии в сутки на здание.', cost: {fe: 400, ti: 150, cu: 150, si: 150}, days: 30},
-  instbio:    {name: 'Биологический институт', desc: '+4 очка биологии в сутки на здание.', cost: {fe: 250, c: 300, si: 200, cu: 100}, days: 30},
+  instphys:   {sci: {phys: 4}, name: 'Институт физики', desc: '+4 очка физики в сутки на здание.', cost: {fe: 300, si: 300, cu: 150, c: 100}, days: 30},
+  insteng:    {sci: {eng: 4}, name: 'Инженерное бюро', desc: '+4 очка инженерии в сутки на здание.', cost: {fe: 400, ti: 150, cu: 150, si: 150}, days: 30},
+  instbio:    {sci: {bio: 4}, name: 'Биологический институт', desc: '+4 очка биологии в сутки на здание.', cost: {fe: 250, c: 300, si: 200, cu: 100}, days: 30},
   market:     {name: 'Научный рынок', level: true, desc: 'Очки исследований у лабораторий корпораций дешевле на 5% за уровень.', cost: {fe: 200, si: 250, cu: 150}, days: 30},
   // --- промышленность ---
   fuelplant2: {name: 'Термоядерный топливный завод', desc: 'Перерабатывает лёд в топливо: 100 т/сутки на завод. Нужна технология «Модуль: Термоядерный двигатель».', cost: {fe: 900, ti: 300, cu: 300, ni: 100}, days: 50, tech: 'fusion'},
@@ -38,9 +38,11 @@ export const BLD = gd('buildings', 'buildings', {
   // --- общество и деньги ---
   hospital:   {name: 'Медицинский центр', level: true, desc: 'Смертность во всех колониях −3% за уровень.', cost: {fe: 300, c: 300, si: 200, cu: 100}, days: 30},
   maternity:  {name: 'Центр семьи', level: true, desc: 'Рождаемость во всех колониях +4% за уровень.', cost: {fe: 300, c: 250, si: 150}, days: 30},
-  chamber:    {name: 'Торговая палата', desc: '+2% к налогам на космос на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
-  exchange:   {name: 'Биржа', desc: '+5% к налогам на космос на здание. ', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, },
+  chamber:    {taxPct: 2, name: 'Торговая палата', desc: '+2% к налогам на космос на здание.', cost: {fe: 300, si: 200, cu: 150}, days: 30},
+  exchange:   {taxPct: 5, name: 'Биржа', desc: '+5% к налогам на космос на здание. ', cost: {fe: 600, si: 500, cu: 300, c: 200}, days: 45, },
 }); // правится в data/buildings.json
+// модификаторы зданий за уровень (beff) — тоже в файле; встроенные берём из BEFF
+for (const t in BEFF) if (BLD[t] && !BLD[t].beff) { BLD[t].beff = {...BEFF[t]}; const D = DEFAULTS.buildings && DEFAULTS.buildings.buildings; if (D && D[t]) D[t].beff = {...BEFF[t]}; }
 // Стройка (решено с владельцем): любое здание — в строительных баллах (СБ), только работа бригад, без материалов.
 // Бригада = 10 000 человек, 1 СБ в сутки. В каждом здании работают 10 000 человек. Шахта 500 СБ, завод и прочее 1 000, верфь 5 000;
 // улучшение уровня — 1 000 × 1,5^уровень. Расширение верфи (+1 000 т или +1 бригада) — 500 × 1,5^(номер расширения этого вида).
@@ -77,7 +79,7 @@ export function queueMat() { const o = {}, cap = buildUnits(); let left = 100;
   for (const j of state.build || []) { const m = matOf(j), e = Math.min(j.pct || 0, left); left -= e; const u = unitSB(j), n = Math.min((j.n || 1) - (j.paid ? 1 : 0), Math.ceil(cap * e / 100 * 30 / Math.max(1, u)));
     for (const r in m) o[r] = (o[r] || 0) + m[r] * Math.max(0, n); } return o; }
 import { hooks as _hk } from './00-hooks.ts';
-_hk.queueMat = () => queueMat();
+_hk.queueMat = () => queueMat(); _hk.BLD = BLD;
 export const matTxt = m => Object.entries(m).map(([r, v]) => `${(RESN[r] || r).toLowerCase()} ${v}`).join(', ');
 const RESN = {fe: 'Железо', ni: 'Никель', ti: 'Титан', cu: 'Медь', si: 'Кремний', c: 'Углерод', ice: 'Лёд', pt: 'Платиноиды', ree: 'Редкоземельные', u: 'Уран'};
 export function bldQueued(t) { return state.build.filter(j => j.type === t).reduce((a, j) => a + (j.n || 1), 0); }
@@ -108,10 +110,10 @@ export function buildTick(h) {
     const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу, 1 единица в сутки на жилу × эффективность
     for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
   }
-  for (const f in FIELDS) state.sci[f] += (B.scicenter + 4 * B['inst' + f]) * h * tm('sci');
+  for (const t in BLD) { const b = BLD[t]; if (b.sci && B[t]) for (const f in b.sci) if (f in state.sci) state.sci[f] += b.sci[f] * B[t] * h * tm('sci'); } // поле sci: очки науки в сутки на здание
   { const ice2 = Math.min(100 * B.fuelplant2 * h, S.ice); if (ice2 > 0) { S.ice -= ice2; S.fuel += ice2; rec('ice', 'out', ice2, 'plant'); rec('fuel', 'in', ice2, 'plant'); }
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
-    const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * (.02 * B.chamber + .05 * B.exchange) * h; if (inc > 0) state.money += inc; } // палата/биржа — доля налогов на космос
+    const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * Object.keys(BLD).reduce((a, t) => a + (BLD[t].taxPct || 0) / 100 * (B[t] || 0), 0) * h; if (inc > 0) state.money += inc; } // поле taxPct: % к налогам на космос на здание
   // мощность делится по долям проектов (сумма долей больше 100% — урезается пропорционально)
   const cap = buildUnits();
   for (const j of state.build) { if (j.paid) continue; const m = matOf(j), lack = Object.keys(m).filter(r => (S[r] || 0) < m[r]); // оплатить материалы текущей единицы

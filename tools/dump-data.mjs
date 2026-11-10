@@ -4,7 +4,7 @@ const stub = () => new Proxy(function () {}, { get: (_, k) => (k === Symbol.toPr
 Object.assign(globalThis, { document: stub(), window: stub(), localStorage: { getItem: () => null, setItem() {} }, requestAnimationFrame() {}, ResizeObserver: function () { return stub(); } });
 const G = await import('../src/00-gd.ts');
 await import('../src/01-data.ts'); await import('../src/03-build.ts'); await import('../src/04-engine.ts'); await import('../src/05-battle.ts');
-await import('../src/06-corps.ts'); await import('../src/07-population.ts'); await import('../src/10-civil.ts'); await import('../src/12-state.ts'); await import('../src/30-regions.ts');
+await import('../src/06-corps.ts'); await import('../src/07-population.ts'); await import('../src/10-civil.ts'); await import('../src/12-state.ts'); await import('../src/30-regions.ts'); await import('../src/34-ai.ts');
 const fs = await import('node:fs');
 const HELP = {
   modules: 'Модули кораблей. name/desc — текст; mass — масса, т; cost — материалы на постройку, т; power/eff — двигатели; fuel/cargo/mine/crew/life/... — характеристики. Поля tech не трогать (связь с технологией).',
@@ -13,6 +13,7 @@ const HELP = {
   techs: 'Технологии по id: name, desc, cost — очки науки, f — область (phys/eng/bio), r — редкость (c/u/r), req — id технологии, нужной до.',
   economy: 'Экономика. population: FACT_W — людей на завод, PROD — т товара на человека в сутки, RAW_PER — руда на т товара, BASEW — зарплаты страт, TUIT — плата за учёбу, FACT_COST_KR — цена завода корпорации (×25). earthStart — доля спроса, закрытая госзаводами Земли на старте. corps — параметры корпораций. prices — базовые цены сырья за т (×25). laws — законы по умолчанию. mandatory — обязательные расходы [ключ, название, минимум %, подсказка]. corpsCount — сколько корпораций максимум.',
   battle: 'Бой. SIGMA — разброс выстрела (меньше — точнее); VP — скорость снаряда; LIFE — время жизни снаряда, с; REL — перезарядка, с; RC0 — рельсотрон (dmg урон, rng дальность, sig множитель разброса, rel надёжность, cal калибр); FC0 — зенитка; GC0 — гатлинг (rpm, heat нагрев, cool остывание, pen бронепробитие, rng дальность); LC0 — лазер; MC0 — ракета; FI/BO — истребитель/бомбардировщик; TORP — торпеда; RCT — перезарядка по калибру; EW — помехи; RADAR — дальность радара по классу; MARN — морпехи.',
+  ai: 'Правила ИИ (правятся в игре: Редактор → Правила ИИ). when — условия {p параметр, a товар/руда, op, v}, do — действие {a, arg, num}; off — выключено; stop:false — не заменять встроенный ИИ; only — имя корпорации.',
   regions: 'Регионы. earth — регионы Земли: p доля населения, j доля рабочих мест, a суша млн км², coast низкие побережья, t [средняя, мин, макс] °C, desert/cold/hot доли пустынь/мерзлоты/жарких низин, mtn горы, wl уровень зарплат, amp скорость потепления. names — названия регионов других тел.',
 };
 for (const f in G.DEFAULTS) {

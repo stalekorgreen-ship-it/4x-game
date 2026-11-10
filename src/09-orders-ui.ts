@@ -497,7 +497,9 @@ export function showTab(name) {
   const side = $('side'), v = $('veil'); if (side) { side.hidden = name === 'map'; side.classList.add('modal'); side.classList.remove('card'); } if (v) v.hidden = name === 'map';
   if (name === 'map') { document.querySelectorAll('#iconbar .ico').forEach(b => b.classList.remove('on')); return; }
   syncShell(name);
-  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'demo', 'log']) $('p-' + n).hidden = n !== name;
+  for (const n of ['obj', 'orders', 'yard', 'earth', 'corp', 'trade', 'cargo', 'pop', 'comp', 'climate', 'work', 'col', 'laws', 'find', 'sci', 'off', 'fleet', 'demo', 'log', 'edit', 'airules']) { const el = $('p-' + n); if (el) el.hidden = n !== name; }
+  if (name === 'edit' && hooks.renderEditor) hooks.renderEditor();
+  if (name === 'airules' && hooks.renderRules) hooks.renderRules();
   if (name === 'orders') renderOrders();
   if (name === 'yard') renderYard();
   if (name === 'obj') renderObj();

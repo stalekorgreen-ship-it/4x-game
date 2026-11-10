@@ -242,6 +242,13 @@ function civTick(c, mk, dt, col) {
   let monthly = 0; for (const g in v.fac) monthly += v.fac[g] * FACT_W * 7;
   buildTick(c, dt);
   const avail = c.credits - monthly * 2 - committed(v), foc = c.strat && c.strat.focus, FJ = jobCost('fac'), MJ = jobCost('mine');
+  // правила ИИ из редактора (data/ai.json): сработало правило — встроенная логика в этом месяце молчит
+  if (hooks.aiCorp && hooks.aiCorp(c, {avail, mk, q: cq(v).length}, {
+    fac: (g, n) => { if (!GOODS[g] || avail < FJ) return false; n = Math.min(n, Math.floor(avail / FJ)); for (let i = 0; i < n; i++) startJob(c, 'fac', g); return n > 0; },
+    mine: r => { if (PRICE[r] == null || avail < MJ) return false; startJob(c, 'mine', r); return true; },
+    lab: () => { if (col || avail < jobCost('lab')) return false; startJob(c, 'lab'); return true; },
+    yard: () => { if (col || v.yard || queued(v, 'yard') || avail < jobCost('yard')) return false; startJob(c, 'yard'); return true; },
+    cb: () => { if (avail < jobCost('cb')) return false; startJob(c, 'cb'); return true; } })) return;
   if ((v.bNeed || 0) > 0 && queued(v, 'cb') < 1 + Math.floor(cbOf(v) / 4) && (v.bShort || 0) >= 2 && avail > jobCost('cb') * 5) { startJob(c, 'cb'); return; } // не хватает бригад — открывают бюро
   if (cq(v).length - queued(v, 'cb') >= 3 + Math.ceil(tot / 8)) return; // стройплощадок не больше, чем потянет управление
   // верфь: первый, кто накопил, строит её; остальные покупают постройки у него

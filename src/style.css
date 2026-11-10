@@ -218,3 +218,4 @@ table.grid td.ds{max-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;c
 .alic span{position:absolute;right:1px;bottom:0;font-size:8px;color:#fff}
 .alic:hover{background:#5a1c1c}
 @keyframes alp{50%{box-shadow:0 0 6px var(--bad)}}
+.box>.btn{align-self:flex-start}

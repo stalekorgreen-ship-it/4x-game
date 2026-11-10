@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gd } from './00-gd.ts';
+import { hooks } from './00-hooks.ts';
 // Технологии: карточки с рандомным предложением (как в Stellaris). Эффекты — модификаторы по ключам, их читает остальная игра через tm()/ta().
 import { state } from './01-data.ts';
 export const RARITY = {c: {n: 'Обычная', w: 100, k: 1, col: '#9aa7b8'}, u: {n: 'Необычная', w: 40, k: 1.7, col: '#4aa3ff'}, r: {n: 'Редкая', w: 10, k: 3.2, col: '#e3a94f'}};
@@ -27,6 +28,7 @@ export function addModuleTechs(COMP) {
   // правки из data/techs.json: по id — name, desc, cost, f (область), r (редкость), req (что нужно до)
   const def = {}; for (const t of TECH) def[t.id] = {name: t.name, desc: t.desc, f: t.f, r: t.r, cost: t.cost, req: t.req};
   const ov = gd('techs', 'techs', def); for (const t of TECH) if (ov[t.id]) Object.assign(t, ov[t.id]);
+  for (const id in ov) if (!BYID[id] && ov[id]) { const t = {id, f: 'eng', r: 'c', cost: 500, name: id, desc: '', eff: null, req: null, excl: null, ...ov[id]}; TECH.push(t); BYID[id] = t; } // новые технологии из редактора
 }
 export const TECH = L.map(([id, f, r, base, name, desc, eff, req, excl]) => ({id, f, r, cost: Math.round(base * RARITY[r].k), name, desc, eff: eff || null, req: req || null, excl: excl || null}));
 export const excluded = t => !!(t.excl && state.tech && state.tech[t.excl]);
@@ -43,7 +45,7 @@ function agg() {
 // бонусы построек за каждый уровень
 export const BEFF = {market: {rpcost: -.05}, crusher: {mine: .08}, techpark: {prod: .03}, composite: {cargo: .05}, enginefab: {thrust: .05}, spaceport: {fare: -.04, fspeed: .08}, colbureau: {infra: -.05}, testrange: {fail: -.06}, repairdock: {repair: .2}, trainctr: {train: .2}, miningsch: {mining: .06}, hospital: {death: -.03}, maternity: {birth: .04}};
 let bcT = -1, bcS = null, bcV = {};
-const bmod = k => { const B = state && state.bld; if (!B) return 1; if (bcT !== state.t || bcS !== state) { bcT = state.t; bcS = state; bcV = {}; } if (bcV[k] != null) return bcV[k]; let v = 0; for (const t in BEFF) if (BEFF[t][k] && B[t]) v += BEFF[t][k] * B[t]; return bcV[k] = Math.max(.1, 1 + v); };
+const bmod = k => { const B = state && state.bld; if (!B) return 1; if (bcT !== state.t || bcS !== state) { bcT = state.t; bcS = state; bcV = {}; } if (bcV[k] != null) return bcV[k]; let v = 0; const BL = hooks.BLD || {}; for (const t of new Set([...Object.keys(BEFF), ...Object.keys(BL)])) { const e = (BL[t] && BL[t].beff) || BEFF[t]; if (e && e[k] && B[t]) v += e[k] * B[t]; } return bcV[k] = Math.max(.1, 1 + v); }; // beff здания из data перекрывает встроенный
 export const tm = k => (agg().m[k] || 1) * bmod(k);
 export const ta = k => agg().a[k] || 0;
 // --- карточки ---

@@ -10,6 +10,12 @@ function readData() {
   return out;
 }
 ipcMain.on('game-data', e => { e.returnValue = readData(); });
+// редактор данных: запись файла в папку data рядом с exe (в разработке — public/data)
+ipcMain.on('save-data', (e, name, text) => {
+  try { if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error('плохое имя'); JSON.parse(text);
+    const d = app.isPackaged ? path.join(path.dirname(process.execPath), 'data') : path.join(__dirname, '..', 'public', 'data');
+    fs.mkdirSync(d, {recursive: true}); fs.writeFileSync(path.join(d, name + '.json'), text, 'utf8'); e.returnValue = true; } catch (x) { e.returnValue = String(x && x.message || x); }
+});
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 function create() {

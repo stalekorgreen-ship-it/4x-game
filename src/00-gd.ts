@@ -26,6 +26,7 @@ const plain = v => v && typeof v === 'object' && !Array.isArray(v);
 // наложить src на dst (на месте): объекты — вглубь, массивы и числа — заменой; ключи с «_» — комментарии
 export function deepAssign(dst, src) {
   for (const k in src) { if (k[0] === '_') continue; const v = src[k];
+    if (v === null) { delete dst[k]; continue; } // null — удалить запись
     if (plain(v) && plain(dst[k])) deepAssign(dst[k], v); else if (typeof dst[k] !== 'function') dst[k] = plain(v) ? deepAssign({}, v) : v; }
   return dst;
 }
@@ -38,3 +39,23 @@ export function gd(file, section, def) {
   return s;
 }
 export const dataErrors = () => bad.slice();
+
+// --- для редактора: текущее содержимое файла (умолчания + правки), формат и сохранение ---
+export const rawFile = name => readFile(name);
+export function fileModel(name) {
+  const f = readFile(name) || {}, out = {}, D = DEFAULTS[name] || {};
+  for (const k in D) { const d = D[k], o = f[k]; out[k] = o == null ? JSON.parse(JSON.stringify(d)) : plain(d) && plain(o) ? deepAssign(JSON.parse(JSON.stringify(d)), o) : JSON.parse(JSON.stringify(o)); }
+  for (const k in f) if (!(k in out) && k[0] !== '_') out[k] = f[k];
+  if (f._readme) out._readme = f._readme;
+  return out;
+}
+const J = v => JSON.stringify(v).replace(/,"/g, ', "').replace(/":/g, '": ');
+const sec = v => plain(v) ? '{\n' + Object.entries(v).map(([k, x]) => '  ' + JSON.stringify(k) + ': ' + J(x)).join(',\n') + '\n }' : Array.isArray(v) ? '[\n' + v.map(x => '  ' + J(x)).join(',\n') + '\n ]' : J(v);
+export function fmtData(obj) { const o = {_readme: obj._readme || '', ...obj}; return '{\n' + Object.entries(o).map(([k, v]) => ' ' + JSON.stringify(k) + ': ' + (k === '_readme' ? JSON.stringify(v) : sec(v))).join(',\n') + '\n}\n'; }
+// записать файл: Electron — в папку data рядом с exe; разработка — в public/data; иначе — скачать
+export async function saveFile(name, obj) {
+  const txt = fmtData(obj); JSON.parse(txt);
+  if (typeof window !== 'undefined' && typeof window.GAME_SAVE === 'function') { const r = window.GAME_SAVE(name, txt); return r === true ? 'Сохранено в папку data рядом с игрой.' : 'Не удалось сохранить: ' + r; }
+  try { const r = await fetch('./__save-data?name=' + encodeURIComponent(name), {method: 'POST', body: txt}); if (r.ok) { files[name] = JSON.parse(txt); return 'Сохранено в public/data.'; } } catch (e) {}
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], {type: 'application/json'})); a.download = name + '.json'; a.click(); return 'Файл скачан: положите его в папку data рядом с игрой.';
+}

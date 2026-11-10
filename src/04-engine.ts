@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { hooks } from './00-hooks.ts';
 import { colBuildTick } from './19-colbld.ts';
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, fuelFor, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
 import { planRoute, KMS } from './29-flyby.ts';
@@ -174,8 +175,8 @@ export function shipTickInner(s, h) {
   }
   const prog = programOf(s);
   if (!s.interrupt && !isBase(s.at)) {
-    const r = checkRules(s, prog);
-    if (r) { s.interrupt = {base: r.base || 'earth'}; s.tmp = null; log(`«${s.name}»: ${RULE_NAME[r.cond]}, возвращается на базу.`); }
+    const r = checkRules(s, prog) || (hooks.aiShip ? hooks.aiShip(s) : null); // + правила ИИ из редактора
+    if (r) { s.interrupt = {base: r.base || 'earth'}; s.tmp = null; if (!s.corp) log(`«${s.name}»: ${r.cond === 'ai' ? 'правило «' + (r.name || 'ИИ') + '»' : RULE_NAME[r.cond]}, возвращается на базу.`); }
   }
   let order;
   if (s.interrupt) order = {type: 'home', base: s.interrupt.base};
@@ -488,3 +489,5 @@ export function loadGame() {
     return true;
   } catch (e) { console.error('loadGame', e); return false; }
 }
+
+hooks.shipCond = s => shipCond(s); hooks.distEarth = s => dist(s, objPos('earth', state.t));

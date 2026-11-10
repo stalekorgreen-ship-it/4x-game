@@ -198,6 +198,9 @@ export function reviewStrategy(c) {
   }
   S.t0 = state.t; S.w0 = w; S.g0 = g;
 }
+// для правил ИИ: построить корабль корпорации (шахтёр 'm' или танкер 't'), если хватает денег и есть верфь
+hooks.corpShip = (c, role) => { if (!canBuildShips(c)) return false; const p = role === 'm' ? c.parts : CORP_TANKER, cost = costCr(p) * (role === 'm' ? 1.1 : 1) * SHIP_K;
+  if (c.credits < cost || !payBuild(c, cost, role === 'm' ? 60 : 90, designStats(p).dry)) return false; c.last = state.t; createCorpShip(c, role); return true; };
 export function corpTick(h) {
   { const T = popTaxDay(), k = hooks.mandK ? hooks.mandK() : 0; state.money = (state.money || 0) + T * (1 - k) * h; state.mandDay = T * k; } popTick(h); freightTick(h); // обязательные расходы срезают доход казны
   state.corpAcc = (state.corpAcc || 0) + h;
