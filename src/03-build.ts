@@ -8,7 +8,7 @@ import { sciMult, train, useWear } from './02-crew.ts';
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 1;
 export const BLD = gd('buildings', 'buildings', {
-  cfactory:   {name: 'Строительный завод', sb: 2000, cost: {fe: 400, cu: 80, c: 80}, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
+  cfactory:   {name: 'Строительный завод', sb: 2000, cbSB: 50, cost: {fe: 400, cu: 80, c: 80}, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
   mine:       {name: 'Шахта на Земле', sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
@@ -53,7 +53,7 @@ export const brigades = () => (2 + (state.bld.cbureau || 0)); // свои: за�
 export const rentN = () => (state.build && state.build.length ? (state.rent || []).reduce((a, r) => a + r.n, 0) : 0); // арендованные у корпораций
 export const ECON = gd('buildings', 'econ', {CF_SB: 50, ECON_SB: {efac: 1000, emine: 500, elab: 1000}, ECON_MAT: {efac: {fe: 20, cu: 4, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 10, si: 12, cu: 4}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 20, cu: 5}}, matDiv: 10});
 export const CF_SB = ECON.CF_SB; // СБ в сутки от строительного завода
-export const buildUnits = () => ((brigades() + rentN()) + (state.bld.cfactory || 0) * CF_SB) * tm('build') * tm('buildu'); // СБ в сутки: бригады + строительные заводы
+export const buildUnits = () => ((brigades() + rentN()) + Object.keys(BLD).reduce((a, t) => a + (BLD[t].cbSB || 0) * (state.bld[t] || 0), 0)) * tm('build') * tm('buildu'); // СБ в сутки: бригады + здания с полем cbSB (строительные заводы)
 export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
 // верфи игрока: у каждой свой предельный тоннаж и свои бригады; 1 бригада (10 000 чел.) = 1 т корабля в сутки
@@ -110,6 +110,9 @@ export function buildTick(h) {
     const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу, 1 единица в сутки на жилу × эффективность
     for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
   }
+  for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
+    let q = m.perDay * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
+    if (q > 0) { for (const r in m.in || {}) { S[r] -= q * m.in[r]; rec(r, 'out', q * m.in[r], 'plant'); } for (const r in m.out || {}) { S[r] = (S[r] || 0) + q * m.out[r]; rec(r, 'in', q * m.out[r], 'plant'); } } }
   for (const t in BLD) { const b = BLD[t]; if (b.sci && B[t]) for (const f in b.sci) if (f in state.sci) state.sci[f] += b.sci[f] * B[t] * h * tm('sci'); } // поле sci: очки науки в сутки на здание
   { const ice2 = Math.min(100 * B.fuelplant2 * h, S.ice); if (ice2 > 0) { S.ice -= ice2; S.fuel += ice2; rec('ice', 'out', ice2, 'plant'); rec('fuel', 'in', ice2, 'plant'); }
     const sp2 = Math.max(0, Math.min(6 * B.sparesfab * h, S.fe, S.si, 600 - S.spares)); if (sp2 > 0) { S.fe -= sp2; S.si -= sp2; S.spares += sp2; rec('fe', 'out', sp2, 'plant'); rec('si', 'out', sp2, 'plant'); rec('spares', 'in', sp2, 'plant'); }
