@@ -24,7 +24,7 @@ export function allowBuy(k, price) {
   if (p.mode === 'keep') return Math.max(0, p.amt - (state.stock[k] || 0));
   return Math.max(0, p.amt - boughtMonth(k));
 }
-export const PRICE = Object.fromEntries(Object.entries(gd('economy', 'prices', {fe: 60, ni: 360, ti: 450, cu: 300, si: 120, c: 90, ice: 45, pt: 12000, ree: 4500, u: 9000, n2: 45, co2: 30, ch4: 180, nh3: 120, fuel: 25, spares: 1500})).map(([k, v]) => [k, v * KR])); // базовые цены сырья (×KR), data/economy.json → prices
+export const PRICE = Object.fromEntries(Object.entries(gd('economy', 'prices', {fe: 58, ni: 6200, ti: 3650, cu: 3300, si: 730, c: 36.5, ice: 18, pt: 1.1e7, ree: 18250, u: 47500, n2: 18, co2: 11, ch4: 110, nh3: 146, fuel: 25, spares: 1500} /* единая шкала: от себестоимости шахты, реальные соотношения */)).map(([k, v]) => [k, v * KR])); // базовые цены сырья (×KR), data/economy.json → prices
 export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000 * KR;
 export const CORP_DEF = [
   {name: 'Вега Майнинг', tpl: 'Лёгкий', aggr: 1.0, parts: {ion: 2, tank: 2, cargo: 1, laser: 2, cabin: 2, life: 1}},

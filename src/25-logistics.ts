@@ -8,7 +8,7 @@ import { diamOf, regLegDist } from './30-regions.ts';
 
 export const LT = ['land', 'sea', 'air'], LT_N = {land: 'наземная', sea: 'морская', air: 'воздушная'};
 export const LCAP = {land: 1, sea: .6, air: .5};           // предельная доля т·км (от порта ещё везти)
-export const LOG_T = 600, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
+export const LOG_T = 2.7e6 /* т·км в сутки на предприятие (10 000 чел.): 1 млрд т·км в год, таблица «Пояс» */, LOG_W = 10000, LMIX = [.5, .35, .15, 0];
 const ATM = {venus: .3, titan: .5, mars: .1};               // воздух там, где есть атмосфера
 export function bodyEnv(id) {
   const b = BODY[id] || {}, k = b.kind;

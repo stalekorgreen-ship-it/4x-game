@@ -6,7 +6,7 @@ import {colonyCost} from './14-climate.ts';
 import { climTick, heatDeath, heatWork } from './28-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { logMarket, logJobs, lsShare } from './25-logistics.ts';
-import { GOODS, UT, LOG_IN, goodsOrder } from './26-goods.ts';
+import { GOODS, UT, LOG_IN, goodsOrder, prodOf, tOf, unitOf } from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { regTick, addRegPeople, regsOf, regTemplate, regHab, regClim } from './30-regions.ts';
@@ -18,7 +18,7 @@ import { dispatchColonists } from './13-freight.ts';
 /* ===== НАСЕЛЕНИЕ ЗЕМЛИ: 4 страты × возраст 0..100 ===== */
 export const STR = ['Школьное', 'Среднее', 'Высшее', 'Максимальное'], STR_COL = ['#8a97ab', '#4f9d8a', '#d3a44a', '#b8567a'];
 export { GOODS };
-const EC = gd('economy', 'population', {OTHER_MIX: [.45, .4, .13, .02], FACT_W: 10000, PROD: 40, RAW_PER: 1e-8, BASEW: [100, 175, 300, 500], TUIT: [0, 50, 100, 175], FACT_COST_KR: 2e8, TAXK: 1.25e-6});
+const EC = gd('economy', 'population', {OTHER_MIX: [.45, .4, .13, .02], FACT_W: 10000, PROD: 40, RAW_PER: 1, BASEW: [100, 175, 300, 500], TUIT: [0, 50, 100, 175], FACT_COST_KR: 2e8, TAXK: 1.25e-6});
 // RAW_PER — руда на тонну товара (в 10 раз меньше прежнего, решено с владельцем); FACT_COST_KR — цена завода корпорации в «кр без KR»
 export const OTHER_MIX = EC.OTHER_MIX, FACT_W = EC.FACT_W, PROD = EC.PROD, RAW_PER = EC.RAW_PER, BASEW = EC.BASEW, TUIT = EC.TUIT, FACT_COST = EC.FACT_COST_KR * KR, TAXK = EC.TAXK;
 /* Налоги, вариант Б: казна собирает полный налог, почти всё уходит на земные расходы (оборона, соцсфера, инфраструктура),
@@ -94,11 +94,12 @@ export function mkCol(id, name, T0, o) {
   state.cols[id] = {id, name, pop: P, since: state.t || 0, kind: o.kind || 'hub'};
   withCtx(id, () => {
     let D0 = 0;
-    const FD = fullDemand(c); for (const g in GOODS) { const D = FD[g]; P.fac[g] = Math.ceil(D / (PROD * hoursK() * FW()) * cov(o, g)); P.cap[g] = o.seed; P.sat[g] = 1; D0 += D; }
+    const FD = fullDemand(c); for (const g in GOODS) { const D = FD[g]; P.fac[g] = Math.ceil(D / (prodOf(g) * hoursK() * FW()) * cov(o, g)); P.cap[g] = o.seed; P.sat[g] = 1; D0 += D; }
     const J = jobsFac(), E = empBy();
     for (let s = 0; s < 4; s++) P.oth[s] = Math.max(0, E[s] - J[s]);
     P.pop0 = totals().n; stepEcon(30, true);
-    { const FD = fullDemand(c, P.log ? P.log.L : 0); for (const g in GOODS) P.fac[g] = Math.ceil(FD[g] / (PROD * hoursK() * FW()) * cov(o, g)); stepEcon(30, true); } // второй проход: спрос транспорта на топливо и машины
+    { const J2 = jobsFac(), E2 = empBy(); for (let s = 0; s < 4; s++) P.oth[s] = Math.max(0, E2[s] - J2[s]); } // госшахты считаются после первого прохода: прочая занятость (сфера услуг) — остаток
+    { const FD = fullDemand(c, P.log ? P.log.L : 0); for (const g in GOODS) P.fac[g] = Math.ceil(FD[g] / (prodOf(g) * hoursK() * FW()) * cov(o, g)); { const J2 = jobsFac(), E2 = empBy(); for (let s = 0; s < 4; s++) P.oth[s] = Math.max(0, E2[s] - J2[s]); } stepEcon(30, true); } // второй проход: спрос транспорта на топливо и машины
   });
 }
 // --- колонии: любое тело можно заселить ---
@@ -144,7 +145,7 @@ export function addSettlers(id, q) {
   const P = state.cols[id].pop; P.inflight = Math.max(0, (P.inflight || 0) - q); addRegPeople(id, q);
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
 }
-export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []), E = empBy(), ls = lsShare(ctxId()); for (let s = 0; s < 4; s++) J[s] += LJ[s] + E[s] * ls; // + жизнеобеспечение (гидропоника и т. п.)
+export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []), E = empBy(), ls = lsShare(ctxId()); for (let s = 0; s < 4; s++) J[s] += LJ[s] + E[s] * ls + ((P.lmN || 0) + (P.lcN || 0)) * FW() * MINE_MIX[s]; // + госшахты (10 000 чел. каждая) + жизнеобеспечение (гидропоника и т. п.)
   for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
 export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
 export function totals() {
@@ -251,14 +252,14 @@ export function stepEcon(dt, init) {
     D = D * ((P.evDem && P.evDem[g]) || 1) + DI[g];
     let staff = 0; for (let s = 0; s < 4; s++) staff += G.mix[s] * fill[s];
     let inS = 1; for (const k in G.in) if (GOODS[k]) inS = Math.min(inS, sat0[k] == null ? 1 : sat0[k]); else if (P.rawSat && P.rawSat[k] != null) inS = Math.min(inS, .3 + .7 * P.rawSat[k]); // нет входа — нет выпуска
-    const R = goodsMarket(g, D, P.fac[g] * FW() * PROD * tm('prod') * hoursK() * staff * inS, staff, inS); mk[g] = R;
+    const R = goodsMarket(g, D, P.fac[g] * FW() * prodOf(g) * tm('prod') * hoursK() * staff * inS, staff, inS); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;
     for (const k in G.in) if (GOODS[k]) DI[k] += R.sold * G.in[k];
       else for (const s of R.S) if (s.id !== 'imp') add(k, s.id === 'leg' ? 'leg:' + g : s.id, s.sold * G.in[k] * RAW_PER * (s.c ? rawMult(s.c) : 1));
   }
   P.sat0 = {...P.sat};
   // логистика: все сделки на теле требуют т·км; не хватило — часть товара не доезжает
-  { let T = 0; for (const g in GOODS) T += mk[g].sold * UT; for (const r in rawNeed) for (const id in rawNeed[r]) T += rawNeed[r][id];
+  { let T = 0; for (const g in GOODS) T += mk[g].sold * tOf(g); for (const r in rawNeed) for (const id in rawNeed[r]) T += rawNeed[r][id];
     const lg = logMarket(P, ctxId(), (state.corps || []).filter(c => c.civ), T, fill, dt, init);
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
@@ -289,7 +290,7 @@ export function popTick(h) {
       stepDemog(dt); P.yacc += dt;
       if (P.yacc >= 360) { P.yacc -= 360; stepAge(); }
       immigrate(dt); stepEcon(dt);
-      climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * PROD * hoursK()), dt);
+      climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * prodOf(g) * hoursK()), dt);
     });
   }
 }
@@ -346,7 +347,7 @@ function refreshPopI() {
     setHtml($('pp-reg'), h);
     $('pp-reg').onclick = e => { const tr = e.target.closest('[data-reg]'); if (!tr) return; const i = +tr.dataset.reg; popUi.reg = popUi.reg === i ? null : i; refreshPop(); }; }
   setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
-  setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n, fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2), fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
+  setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n + ', ' + unitOf(g), fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2) + ' кр', fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
   const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
   setHtml($('pp-insp'), tbl(['', ''], [
     ['Людей', fmtN(x.n)], ['Безработных', fmtN(x.un)], ['Учатся', fmtN(x.st)], ['Заняты', fmtN(e)],

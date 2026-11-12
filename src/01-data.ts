@@ -304,6 +304,14 @@ export const DIAM = {ceres: 940, vesta: 525, pallas: 512, hygiea: 430, davida: 2
   mercury: 4879, jupiter: 139820, saturn: 116460, uranus: 50724, neptune: 49244, pluto: 2377, io: 3643, europa_j: 3122, ganymede: 5268, callisto: 4821, titan: 5150, enceladus: 504, triton: 2707, charon: 1212};
 for (const b of BODIES) if (DIAM[b.id]) b.d = DIAM[b.id];
 // Недра Земли и планет: добываются шахтами при наличии населения
+// Выход шахты, т в сутки на каждую руду (единая шкала, таблица «Пояс»): шахта (10 000 чел.) вынимает 1 млн т породы в год ≈ 2 740 т/сут,
+// руда = порода × содержание × 85% (потери обогащения). Земля: железо 50%, кремний 25%, титан и редкозем 0,1%, уран 0,05%, платина 5 г/т; уголь и нефть, газы — свои жилы.
+// cu/ni/ice/... — старые руды, уйдут на шаге 2. Правится в data/economy.json (mineYield).
+export const MINE_Y = gd('economy', 'mineYield', {fe: 1165, si: 582, ti: 2.3, ree: 2.3, u: 1.2, pt: .012, cu: 12, ni: 5, ice: 50});
+// угольная шахта (уголь и нефть — свои пласты): 1 млн т породы в год ≈ 2 300 т угля в сутки
+export const COAL_Y = gd('economy', 'coalYield', {c: 2300});
+export const isCoal = r => COAL_Y[r] != null;
+export const myOf = r => MINE_Y[r] != null ? MINE_Y[r] : COAL_Y[r] != null ? COAL_Y[r] : 0;
 export const GROUND = {
   // реальные порядки запасов (т): разведанные запасы земной коры; Марс ~0.1 и Венера ~0.8 от Земли по массе
   // Земля (решено с владельцем): доступных недр — на ~50 лет при полной добыче под потребности 2030 года

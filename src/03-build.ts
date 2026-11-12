@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { gd, DEFAULTS } from './00-gd.ts';
-import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff } from './01-data.ts';
+import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff, myOf } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { TECH, techById, tm, ensureOffers, dealField, BEFF } from './15-techs.ts';
 import { sciMult, train, useWear } from './02-crew.ts';
@@ -9,7 +9,7 @@ import { sciMult, train, useWear } from './02-crew.ts';
 export const MINE_RATE = 1;
 export const BLD = gd('buildings', 'buildings', {
   cfactory:   {name: 'Строительный завод', sb: 2000, cbSB: 50, cost: {fe: 400, cu: 80, c: 80}, desc: 'Даёт 50 СБ в сутки на всю стройку (здания, госзаводы, шахты, верфи). На старте 10.'},
-  mine:       {name: 'Шахта на Земле', sb: 500, desc: 'Добывает все жилы Земли сразу: 1 т/сутки на жилу × эффективность жилы (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
+  mine:       {name: 'Шахта на Земле', sb: 500, desc: 'Добывает все жилы Земли сразу: 1 млн т породы в год: железо 1 165 т/сут, уголь и нефть 1 500, кремний 582, титан и редкозем 2,3, уран 1,2, платина 12 кг (× эффективность жилы) (40 рабочих). Недр хватит на десятки лет.', cost: {fe: 300, cu: 100, ti: 50}, days: 25},
   fuelplant:  {name: 'Топливный завод', desc: 'Перерабатывает лёд в топливо: 20 т/сутки на завод.', cost: {fe: 300, cu: 80}, days: 20},
   sparesplant:{name: 'Завод тех. изделий', desc: 'Делает 1 тех. изделие в сутки из 1 железа и 1 кремния, пока на складе меньше 200.', cost: {fe: 400, ni: 100, si: 100, cu: 60}, days: 30},
   shipyard:   {name: 'Верфь', sb: 5000, tech: 'yard', desc: 'Новая верфь: свой стапель, до 1 000 т корабля, 1 бригада (10 000 чел., 1 т корабля в сутки). Тоннаж и бригады верфи расширяются ниже, каждый раз дороже.', cost: {fe: 800, ti: 300, cu: 200}, days: 45},
@@ -107,8 +107,8 @@ export function buildTick(h) {
   const sp = Math.max(0, Math.min(B.sparesplant * h, S.fe, S.si, 200 - S.spares));
   S.fe -= sp; S.si -= sp; S.spares += sp; rec('fe', 'out', sp, 'plant'); rec('si', 'out', sp, 'plant'); rec('spares', 'in', sp, 'plant');
   if (B.mine) {
-    const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу, 1 единица в сутки на жилу × эффективность
-    for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
+    const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу: myOf(руда) т в сутки × эффективность
+    for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * myOf(k) * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
   }
   for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
     let q = m.perDay * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
