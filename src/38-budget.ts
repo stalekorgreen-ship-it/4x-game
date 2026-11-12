@@ -64,6 +64,7 @@ export function budgetTick(P, dt, k) {
   add(B.exp, 'Зарплаты гос. рабочих: ваши постройки (шахты, стройка, станции)', (state.bldWageDay || 0) * dt); add(B.exp, 'Зарплаты гос. рабочих: госшахты Земли', (state.lmWage || 0) * dt);
   add(B.exp, 'Образование, пенсии, рождаемость (старые законы)', (P.exp || 0) / Math.max(1e-9, k) * dt);
   state.budget = {inc: B.inc, exp: B.exp, k, days: dt, t: state.t};
+  state.lawBase = {...(state.laws || {})};
 }
 // поправки к жизни населения: пенсии и пособия — к доходу, НДС — к цене корзины, рождаемость — от выплат
 export const benefits = () => ({ret: blaw('penFix'), un: blaw('unemp'), vat: blaw('vat') / 100, birthK: 1 + .5 * Math.min(1, blaw('childFix') / (40000 * KR))});
@@ -80,3 +81,36 @@ export function budgetHtml() {
   return `<div class="box" style="flex-direction:row;gap:12px;align-items:center"><span>Баланс (ваш)/мес:</span><b class="${bcl}" style="font-family:var(--mono);font-size:14px">${bal >= 0 ? '+' : ''}${fmtN(bal)} кр</b><span style="color:var(--muted);font-size:11px">доля ${fmtN(b.k * 100, 1)}%</span></div>` + tb(b.inc, 'Доходы', 'ok') + tb(b.exp, 'Расходы', 'err') + `<div class="help">Колонка «ваших» — с учётом доли на космос. Налог на прибыль, ставки, налог на добычу, углеродный налог и субсидии корпорациям идут целиком через вашу казну.</div>`;
 }
 hooks.budgetTick = budgetTick; hooks.benefits = benefits; hooks.govStaffK = govStaffK;
+// Оценка: сколько закон k при значении v даёт вашей казне в месяц (+ доход, − расход). null — оценить нельзя.
+// Отталкивается от прошлого месяца: state.lawBase — значения законов, при которых он считался.
+export function lawEff(k, v) {
+  const b = state.budget, P = state.pop; if (!b || !P) return null;
+  const m = 30 / Math.max(1, b.days), K = b.k, base = state.lawBase || {}, bv = base[k] != null ? base[k] : v;
+  const inc = Object.values(b.inc).reduce((a, c) => a + c, 0) * m, sc = (x) => bv > 0 ? x * v / bv : null;
+  const cs = corps(), cnt = key => cs.reduce((a, c) => a + allCiv(c).reduce((s, q) => s + countOf(q, key), 0), 0);
+  if (k.startsWith('lev_')) return cnt(k.slice(4)) * v / 12;
+  if (k.startsWith('sub_')) return -cnt(k.slice(4)) * v / 12;
+  if (/^m[A-Z]/.test(k) || k === 'inv') return -inc * K * v / 100;
+  let ret = 0, un = 0; if (P.c) for (let s = 0; s < 4; s++) { for (let a = 65; a <= 100; a++) ret += P.c[s][a].n; for (let a = 15; a < 65; a++) un += P.c[s][a].un; }
+  const FWK = 10000;
+  switch (k) {
+    case 'tax': return sc((b.inc['Налог на зарплату'] || 0) * m * K);
+    case 'space': return sc(inc * K);
+    case 'vat': { let sp = 0; for (const g in P.dem || {}) if (P.price && P.price[g] && P.sat) sp += (P.dem[g] || 0) * (P.sat[g] || 0) * P.price[g]; return sp * (v / 100) / (1 + v / 100) * 30 * K; }
+    case 'ptax': return cs.reduce((a, c) => a + Math.max(0, c.lastPm || 0), 0) * v / 100;
+    case 'carbon': return cnt('tps') * 7.5e6 / 12 * v;
+    case 'penFix': return -ret * v * 30 * K;
+    case 'unemp': return -un * v * 30 * K;
+    case 'childFix': return -(P.birth || 0) / 12 * v * K;
+    case 'wTeach': return -((P.fac.edu || 0) + (P.fac.exp || 0)) * FWK * v * 30 * K;
+    case 'wDoc': return -(P.fac.meds || 0) * FWK * v * 30 * K;
+    case 'sciPct': return -inc * K * v / 100;
+    case 'edu': { const x = sc(-((P.expP && P.expP.edu) || 0) * 30); return x; }
+    case 'birthSup': return sc(-((P.expP && P.expP.bth) || 0) * 30);
+    case 'pension': return sc(-((P.expP && P.expP.pen) || 0) * 30);
+    case 'tariff': return sc((P.tarDay || 0) * 30);
+    case 'mineTax': return sc((b.inc['Налог на добычу'] || 0) * m);
+  }
+  return null;
+}
+hooks.lawEff = lawEff;

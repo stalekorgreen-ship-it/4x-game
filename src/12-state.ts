@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { gd } from './00-gd.ts';
-import { BTYPES, BUDGET_LAWS, budgetHtml } from './38-budget.ts';
+import { BTYPES, BUDGET_LAWS, budgetHtml, lawEff } from './38-budget.ts';
 import { hooks } from './00-hooks.ts';
 // Государство и финансы: законы (налоги, субсидии), кредиты, банкротства и поглощения, патенты, кризисы.
 import { log, state, fmtN } from './01-data.ts';
@@ -119,38 +119,20 @@ export function refreshLaws() {
   const L = laws(), P = state.pop;
   if (!p._built) {
     p._built = true;
-    const row = (k, name, min, max, hint, u = '%', st = 1) => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow">${name}</b><span class="mono" id="lv-${k}">${fmtN(L[k] || 0)}${u}</span></div><input type="range" data-law="${k}" data-u="${u}" min="${min}" max="${max}" step="${st}" value="${L[k] || 0}" style="width:100%"><div class="help">${hint}</div></div>`;
-    p.innerHTML = `<div class="box"><h2>Налоги и субсидии</h2>${row('tax', 'Налог на зарплаты', 5, 40, 'Базовая ставка 20%. Выше: кредитов у вас больше, но доходы людей и довольство падают. Ниже: наоборот.')}
-      ${row('subInd', 'Субсидия промышленности', 0, 50, 'Государство оплачивает долю строительства заводов и шахт корпораций (из ваших кредитов).')}
-      ${row('subSci', 'Субсидия науке', 0, 50, 'Доля стоимости лабораторий, которую платите вы.')}
-      ${row('subSpace', 'Субсидия космосу', 0, 50, 'Доля стоимости кораблей и станций корпораций, которую платите вы.')}<div id="lw-st"></div></div>
-      <div class="box"><h2>Труд</h2>${row('minWage', 'Минимальная зарплата (% от базовой)', 0, 150, '0 — не действует. Если выше рыночной: у низших страт растёт доход, но работодатели нанимают меньше (безработица) и товары дорожают.')}
-      ${row('hours', 'Рабочая неделя (часов)', 30, 50, 'Базовая 40. Больше часов: выше выпуск и доход, но ниже рождаемость и выше смертность. Меньше: наоборот.', ' ч')}</div>
-      <div class="box"><h2>Образование и население</h2>${row('edu', 'Бюджет образования', 0, 100, 'Государство оплачивает долю платы за обучение: больше людей с высшим образованием (нужны лабораториям), расходы из вашей казны.')}
-      ${row('birthSup', 'Поддержка рождаемости', 0, 100, 'Выплаты за рождение ребёнка: рождаемость до +50%, расходы из казны.')}
-      ${row('pension', 'Пенсии', 0, 100, 'Доплата к доходу пенсионеров (старше 65): выше довольство стариков, расходы из казны.')}</div>
-      <div class="box"><h2>Торговля и космос</h2>${row('tariff', 'Ввозные пошлины', 0, 50, 'Пошлина на ввозное сырьё и товары (колонии ввозят с Земли): растёт доход казны и стимул строить своё, но дорожает жизнь.')}
-      ${row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт, которую забирает государство.')}
-      ${row('space', 'Доля налогов на космос', .1, 3, 'Остальное уходит на земные расходы. При старении доля проседает.', '%', .1)}
-      <div class="help" style="margin-top:4px"><b>Обязательные расходы</b> — доля дохода казны, ниже минимума нельзя (сейчас уходит ${fmtN(mandK() * 100, 0)}%):</div>
-      ${MAND.map(([k, n, m, h]) => row(k, n + ' (мин. ' + m + '%)', m, 40, h || 'Обязательная статья бюджета.')).join('')}
-      ${row('inv', 'Госинвестиции в экономику', 0, 20, 'Доля налогов в фонд экономических построек Земли (госзаводы, госшахты, лаборатории). Чем больше, тем меньше остаётся на земные расходы.')}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
-      <div class="box"><h2>Бюджет: налоги</h2>
-      ${row('vat', 'НДС', 0, 30, 'Процент от трат населения на товары: доход казны, но корзина дороже — довольство ниже.')}
-      ${row('ptax', 'Налог на прибыль корпораций', 0, 50, 'Процент месячной прибыли корпораций — целиком в вашу казну.')}
-      ${row('carbon', 'Углеродный налог', 0, 500, 'Кр за тонну CO₂ (ТЭС корпораций: 7,5 млн т в год на станцию). Делает ТЭС дороже АЭС и зелёной энергетики.', ' кр/т', 5)}
-      ${BTYPES.filter(t => !['cb', 'green', 'house', 'yard'].includes(t[0])).map(([key, n]) => row('lev_' + key, 'Ставка: ' + n, 0, 5e9, 'Фиксированный сбор с каждого такого здания корпораций, кр в год.', ' кр/год', 5e7)).join('')}</div>
-      <div class="box"><h2>Бюджет: расходы</h2>
-      ${row('penFix', 'Обязательная пенсия', 0, 300, 'Кр в сутки каждому старше 65 сверх его дохода. Платит Земля, ваша доля — «на космос».', ' кр/сут', 5)}
-      ${row('childFix', 'Пособие семьям за рождение', 0, 2e6, 'Кр за каждого рождённого: до +50% рождаемости при 1 млн кр.', ' кр', 1e4)}
-      ${row('unemp', 'Пособие по безработице', 0, 200, 'Кр в сутки каждому безработному.', ' кр/сут', 5)}
-      ${row('wTeach', 'Зарплата учителя (гос.)', 0, 800, '0 — по рынку. Ниже рыночной зарплаты высшей страты — часть госшкол пустует.', ' кр/сут', 10)}
-      ${row('wDoc', 'Зарплата врача (гос.)', 0, 800, '0 — по рынку. Ниже рыночной — часть больниц пустует.', ' кр/сут', 10)}
-      ${row('sciPct', 'Финансирование науки', 0, 30, 'Процент вашего бюджета на заказ исследований: очки по цене лаборатории.')}
-      ${BTYPES.map(([key, n]) => row('sub_' + key, 'Субсидия: ' + n, 0, 5e9, 'Кр в год на каждое такое здание корпораций — из вашей казны. Корпорации охотнее строят субсидируемое.', ' кр/год', 5e7)).join('')}</div>
-      <div class="box"><h2>Бюджет: доходы и расходы</h2><div id="lw-bud"></div></div>
-      <div class="box"><h2>События</h2><div id="lw-ev"></div></div><div class="box"><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div></div>`;
+    const row = (k, name, min, max, hint, u = '%', st = 1) => `<div class="nm">${name}</div><input type="range" data-law="${k}" data-u="${u}" min="${min}" max="${max}" step="${st}" value="${L[k] || 0}"><span class="v" id="lv-${k}">${fmtN(L[k] || 0)}${u}</span><span class="d" id="ld-${k}"></span><div class="h">${hint}</div>`;
+    const G = [
+      ['tax', 'Налоги', row('tax', 'Налог на зарплаты', 5, 40, 'Базовая 20%. Выше — больше кредитов, но ниже доходы и довольство.') + row('vat', 'НДС', 0, 30, 'От трат населения на товары; корзина дороже.') + row('ptax', 'Налог на прибыль корпораций', 0, 50, 'Процент месячной прибыли корпораций — целиком вам.') + row('carbon', 'Углеродный налог', 0, 500, 'Кр за т CO₂ (ТЭС: 7,5 млн т/год).', ' кр/т', 5) + row('mineTax', 'Налог на добычу', 0, 50, 'Доля выручки корпоративных шахт.') + row('tariff', 'Ввозные пошлины', 0, 50, 'На ввоз в колонии; дорожает жизнь.')],
+      ['labor', 'Труд', row('minWage', 'Минимальная зарплата, % базовой', 0, 150, '0 — нет. Выше рынка: доход низов растёт, но безработица и цены.') + row('hours', 'Рабочая неделя', 30, 50, 'Больше — выше выпуск, ниже рождаемость, выше смертность.', ' ч') + row('wTeach', 'Зарплата учителя (гос.)', 0, 800, '0 — по рынку. Ниже рынка — часть школ пустует.', ' кр/сут', 10) + row('wDoc', 'Зарплата врача (гос.)', 0, 800, '0 — по рынку. Ниже рынка — часть больниц пустует.', ' кр/сут', 10)],
+      ['soc', 'Соцрасходы', row('edu', 'Бюджет образования', 0, 100, 'Доля платы за обучение: больше людей с высшим.') + row('birthSup', 'Поддержка рождаемости', 0, 100, 'Рождаемость до +50%.') + row('pension', 'Пенсии (доплата)', 0, 100, 'Довольство стариков.') + row('penFix', 'Обязательная пенсия', 0, 300, 'Кр в сутки каждому старше 65.', ' кр/сут', 5) + row('childFix', 'Пособие за рождение', 0, 2e6, 'До +50% рождаемости при 1 млн кр.', ' кр', 1e4) + row('unemp', 'Пособие по безработице', 0, 200, 'Кр в сутки безработному.', ' кр/сут', 5)],
+      ['state', 'Госрасходы', row('space', 'Доля налогов на космос', .1, 3, 'Остальное — на земные расходы.', '%', .1) + MAND.map(([k, n, m, h]) => row(k, n + ' (мин. ' + m + '%)', m, 40, h || 'Обязательная статья.')).join('') + row('inv', 'Госинвестиции в экономику', 0, 20, 'Фонд госзаводов, госшахт, лабораторий.') + row('sciPct', 'Финансирование науки', 0, 30, 'Процент вашего бюджета на исследования.')],
+      ['sub', 'Субсидии', row('subInd', 'Субсидия промышленности', 0, 50, 'Доля стройки заводов и шахт корпораций.') + row('subSci', 'Субсидия науке', 0, 50, 'Доля стоимости лабораторий.') + row('subSpace', 'Субсидия космосу', 0, 50, 'Доля стоимости кораблей и станций.') + BTYPES.map(([key, n]) => row('sub_' + key, n, 0, 5e9, 'Кр в год на здание корпораций.', ' кр/год', 5e7)).join('')],
+      ['lev', 'Ставки на здания', BTYPES.filter(t => !['cb', 'green', 'house', 'yard'].includes(t[0])).map(([key, n]) => row('lev_' + key, n, 0, 5e9, 'Сбор с каждого такого здания корпораций.', ' кр/год', 5e7)).join('')],
+      ['bud', 'Бюджет', '<div id="lw-bg"></div><div id="lw-st"></div><div id="lw-bud"></div>'],
+      ['misc', 'События и кредиты', '<h2>События</h2><div id="lw-ev"></div><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div>']];
+    p.innerHTML = `<div class="lwtabs">${G.map(([id, n], i) => `<button class="btn sm${i ? '' : ' on'}" data-lwt="${id}">${n}</button>`).join('')}</div><div class="lwhead" id="lw-head"></div>` + G.map(([id, , h], i) => `<div class="box" data-lwg="${id}"${i ? ' hidden' : ''}>${['bud', 'misc'].includes(id) ? h : `<div class="lw">${h}</div>`}</div>`).join('');
+    p.querySelectorAll('[data-law]').forEach(i => lawDelta(i.dataset.law));
   }
+  lawHead();
   { let tx = 0, ex = 0, tr = 0; const eb = {edu: 0, pen: 0, bth: 0}; for (const id in state.cols) { const q = state.cols[id].pop; tx += q.tax || 0; ex += q.exp || 0; tr += q.tarDay || 0; if (q.expP) for (const k in eb) eb[k] += q.expP[k] || 0; }
     setHtml($('lw-bg'), `<div class="stats"><span>Налоги с зарплат (все колонии)</span><span>${fmtN(tx * 30)} кр/мес</span><span>Пошлины</span><span>${fmtN(tr * 30)} кр/мес</span><span>Налог на добычу (всего)</span><span>${fmtN(state.mtaxInc || 0)} кр</span><span>Образование</span><span>−${fmtN(eb.edu * 30)} кр/мес</span><span>Рождаемость</span><span>−${fmtN(eb.bth * 30)} кр/мес</span><span>Пенсии</span><span>−${fmtN(eb.pen * 30)} кр/мес</span><span>Обязательные расходы (${fmtN(mandK() * 100, 0)}% дохода)</span><span>−${fmtN((state.mandDay || 0) * 30)} кр/мес</span><span><b>Итого в месяц</b></span><span><b>${fmtN((tx + tr - ex - (state.mandDay || 0)) * 30)} кр</b></span></div>`); }
   setHtml($('lw-st'), `<div class="stats"><span>Налоги в месяц</span><span>${fmtN(P.tax * 30)} кр</span><span>Потрачено на субсидии</span><span>${fmtN(state.subSpent || 0)} кр</span><span>Доход с кредитов</span><span>${fmtN(state.loanInc || 0)} кр</span></div>`);
@@ -159,9 +141,23 @@ export function refreshLaws() {
   const ls = state.loans || [];
   setHtml($('lw-ln'), ls.length ? ls.map(l => { const c = state.corps.find(x => x.id === l.corp); return `<div class="row"><span class="grow">${c ? esc(c.name) : '—'}</span><span class="mono">${fmtN(l.p)} кр · ${l.r * 100}%</span></div>`; }).join('') : `<div class="help">Нет. Выдать кредит можно во вкладке «Корпорации», выбрав корпорацию.</div>`);
 }
+const sg = v => (v >= 0 ? '+' : '−') + fmtN(Math.abs(v), 0);
+function lawDelta(k) { const el = $('ld-' + k); if (!el) return; const L = laws(), B = state.lawBase || {}, v = L[k] || 0, e = lawEff(k, v), e0 = lawEff(k, B[k] != null ? B[k] : v);
+  if (e == null || Math.abs(e) < 1) { el.textContent = ''; return; } const d = e - (e0 || 0); el.innerHTML = `<span class="${e >= 0 ? 'ok' : 'err'}">${sg(e)}</span>${Math.abs(d) >= 1 ? ` <span class="${d >= 0 ? 'ok' : 'err'}">(${sg(d)})</span>` : ''}`; el.title = 'в месяц для вашей казны; в скобках — изменение к прошлому месяцу'; }
+function lawHead() {
+  const h = $('lw-head'), b = state.budget; if (!h) return; if (!b) { h.innerHTML = 'Цифры появятся после первого месяца.'; return; }
+  const m = 30 / Math.max(1, b.days), full = x => /^(Ставка|Субсидия|Налог на прибыль|Углеродный|Налог на добычу|Финансирование|Зарплаты гос. рабочих: ваши)/.test(x);
+  const sum = o => Object.entries(o).filter(([kk]) => !/^Прибыль госпредприятий/.test(kk)).reduce((a, [kk, v]) => a + v * m * (full(kk) ? 1 : b.k), 0);
+  const inc = sum(b.inc), exp = sum(b.exp), L = laws(), B = state.lawBase || {};
+  let d = 0; for (const k in L) { if (B[k] == null || B[k] === L[k]) continue; const e = lawEff(k, L[k]), e0 = lawEff(k, B[k]); if (e != null && e0 != null) d += e - e0; }
+  const g = document.querySelector('#p-laws [data-lwg]:not([hidden])'); let si = 0, se = 0; if (g) g.querySelectorAll('[data-law]').forEach(i => { const e = lawEff(i.dataset.law, L[i.dataset.law] || 0); if (e > 0) si += e; else if (e < 0) se -= e; });
+  const nx = inc - exp + d;
+  h.innerHTML = `<span><b>Доход</b><span class="ok">+${fmtN(inc, 0)}</span></span><span><b>Расход</b><span class="err">−${fmtN(exp, 0)}</span></span><span><b>След. месяц</b><span class="${nx >= 0 ? 'ok' : 'err'}">${sg(nx)}</span>${Math.abs(d) >= 1 ? ` <span class="${d >= 0 ? 'ok' : 'err'}">(законы ${sg(d)})</span>` : ''}</span><span><b>Казна через мес.</b>${fmtN((state.money || 0) + nx, 0)}</span>${si || se ? `<span><b>Эта вкладка</b><span class="ok">+${fmtN(si, 0)}</span> / <span class="err">−${fmtN(se, 0)}</span></span>` : ''}<span class="muted" style="font-family:var(--sans)">кр/мес, ваша доля</span>`;
+}
 (function lawEvents() {
   const p = document.getElementById('p-laws');
-  p.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.law; if (k) { laws()[k] = +e.target.value; const el = $('lv-' + k); if (el) el.textContent = fmtN(laws()[k]) + (e.target.dataset.u || '%'); } });
+  p.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.law; if (k) { laws()[k] = +e.target.value; const el = $('lv-' + k); if (el) el.textContent = fmtN(laws()[k]) + (e.target.dataset.u || '%'); lawDelta(k); lawHead(); } });
+  p.addEventListener('click', e => { const t = e.target.closest('[data-lwt]'); if (!t) return; p.querySelectorAll('[data-lwt]').forEach(x => x.classList.toggle('on', x === t)); p.querySelectorAll('[data-lwg]').forEach(x => x.hidden = x.dataset.lwg !== t.dataset.lwt); lawHead(); });
 })();
 
 hooks.mandK = mandK; hooks.mandOver = mandOver;
