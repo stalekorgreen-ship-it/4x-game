@@ -41,6 +41,8 @@ export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.s
 export const basket = (a, s = 1) => { let b = 0; for (const g in GOODS) b += needOf(g, a, s); return b; };
 // стоимость корзины в кр/сут по рыночным ценам (null — цен ещё нет); basketK — какую долю рыночной цены платит семья (остальное — свой огород, общий быт, скидки)
 export const BASKET_K = gd('economy', 'basketK', .6);
+// насколько сильно налог бьёт по довольству всех: множитель ((1 − налог) / 0,8) ^ taxPow
+export const TAX_POW = gd('economy', 'taxPow', 1.5);
 export const basketCost = (a, s = 1) => { const pr = state.pop && state.pop.price; if (!pr) return null; let c = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (q > 0) c += q * (pr[g] || 0); } return c > 0 ? c * BASKET_K : null; };
 // полный спрос с учётом рецептов: конечный спрос населения тянет полуфабрикаты и энергию
 export function fullDemand(c, L = 0) { const D = {}; for (const g of goodsOrder()) D[g] = 0; for (const g in LOG_IN) if (D[g] != null) D[g] += L * LOG_IN[g];
@@ -240,7 +242,7 @@ export function stepEcon(dt, init) {
     if (a < 15) i = P.parInc[s] * 2;
     else if (!work(a)) i = incomeOf(s, 64, 'ret') + BEN.ret; // + обязательная пенсия (бюджет)
     else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * (incomeOf(s, a, 'un') + BEN.un) + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
-    inc[s][a] = i * (1 - (L.tax - 20) / 100); wel[s][a] = null;
+    inc[s][a] = i * (1 - L.tax / 100) / .8; wel[s][a] = null; // зарплаты заданы «на руки» при базовых 20%
   }
   P.wbill = wb; P.taxFull = wb * L.tax / 100 * tm('tax');
   { let wk = 0, rt = 0; for (let s = 0; s < 4; s++) { for (let a = 15; a < 65; a++) wk += P.c[s][a].n; for (let a = 65; a <= 100; a++) rt += P.c[s][a].n; }
@@ -274,10 +276,12 @@ export function stepEcon(dt, init) {
   { let T = 0; for (const g in GOODS) T += mk[g].sold * tOf(g); for (const r in rawNeed) for (const id in rawNeed[r]) T += rawNeed[r][id];
     const lg = logMarket(P, ctxId(), (state.corps || []).filter(c => c.civ), T, fill, dt, init);
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
+  // достаток: доля дохода, которую оставляют налоги, против базовых 20%; при 40% у всех минус ~35% довольства
+  const TAXK = Math.pow(clampN((1 - L.tax / 100) / .8, 0, 1.2), TAX_POW);
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (!(q > 0)) continue; const w = GOODS[g].ww != null ? GOODS[g].ww : 5; ws += P.sat[g] * w; sw += w; } // вклад в довольство — веса из таблицы «Потребление»
     const bc = basketCost(a, s), aff = bc ? clampN(inc[s][a] / (bc * (a < 15 ? 1.5 : 1) * (1 + BEN.vat)), 0, 1) : 1; // доход после налогов против стоимости корзины по рыночным ценам; НДС дорожит корзину
-    wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1), 0, 1);
+    wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1) * TAXK, 0, 1);
   }
   P.wel = wel; P.inc = inc;
   { let w = 0, n = 0; for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const m = P.c[s][a].n; w += wel[s][a] * m; n += m; } P.avgWel = n > 0 ? w / n : 1; }
@@ -421,7 +425,7 @@ function refreshPopI() {
       ['Корзина в сутки', need ? `${fmtN(need, 1)} кр${vat ? ' (с НДС)' : ''}` : 'цен ещё нет'],
       ['Хватает денег на корзину', pc(aff) + (aff < 1 ? ' — доход ниже корзины: падает довольство, растёт смертность, падает рождаемость' : ' — денег хватает; дальше всё решает наличие товаров')],
       ['Шанс смерти в год', fmtN(((P.qd && P.qd[s][a]) || 0) * 100, 2) + '%'], ['Рождений на человека в год', a >= 15 && a < 50 ? fmtN(((P.qb && P.qb[s][a]) || 0) * 100, 2) + '%' : '—'],
-      ['Довольство', pc(P.wel[s][a]) + ' <span class="muted">= деньги на корзину × наличие товаров</span>']]) + `<table class="grid" style="margin-top:6px"><tr><th>Товар</th><th>Нужно в сутки</th><th>Стоит семье</th><th>Есть на рынке</th></tr>${goods}</table>`);
+      ['Довольство', pc(P.wel[s][a]) + ` <span class="muted">= деньги на корзину × наличие товаров × налоги (${fmtN(Math.min(1, Math.pow(Math.max(0, (1 - laws().tax / 100) / .8), TAX_POW)) * 100, 0)}%)</span>`]]) + `<table class="grid" style="margin-top:6px"><tr><th>Товар</th><th>Нужно в сутки</th><th>Стоит семье</th><th>Есть на рынке</th></tr>${goods}</table>`);
   }
 }
 export function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }

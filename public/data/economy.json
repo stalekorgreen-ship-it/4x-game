@@ -109,6 +109,7 @@
   "TAXK": 0.00000125
  },
  "basketK": 0.6,
+ "taxPow": 1.5,
  "earthStart": {
   "def": 0.95,
   "meds": 0.78,
