@@ -394,7 +394,10 @@ export const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
 export const GROUP_COLORS = ['#6fdc8c','#e3a94f','#c58cf0','#5ec8d8','#ef7f9a','#a8d65a'];
 
 export let state = null;
-export function setState(s) { state = s; }
+// Казна со счётчиком реального притока и оттока (для бюджета: что на самом деле пришло и ушло за месяц)
+export function wrapMoney(s) { if (!s) return s; const d0 = Object.getOwnPropertyDescriptor(s, 'money'); if (d0 && d0.get) return s; let v = s.money || 0;
+  Object.defineProperty(s, 'money', {enumerable: true, configurable: true, get() { return v; }, set(x) { const d = x - v; if (d > 0) s.mIn = (s.mIn || 0) + d; else if (d < 0) s.mOut = (s.mOut || 0) - d; v = x; }}); return s; }
+export function setState(s) { state = wrapMoney(s); }
 
 /* ===== УТИЛИТЫ ===== */
 export const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -735,6 +738,7 @@ export function newGame() {
     designs: [], groups: [], ships: [], stations: [], yard: [], log: [], ast: {}, officers: [], nextOfficer: 30,
     raid: {eta: 1e12, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),
   };
+  wrapMoney(state);
   for (const b of BODIES) { if (b.ores) state.ast[b.id] = {...b.ores}; if (b.pool) state.sites[b.id] = {...b.pool}; }
   const miner = {ion: 2, [mkKey('tank', {tv: '100'})]: 1, cargo: 1, laser: 2, cabin: 2, life: 1, sink: 1};
   const D = (name, parts) => state.designs.push({id: uid(), name, parts, prio: {cmd: 0, eng: 0, pil: 0, min: 0}});

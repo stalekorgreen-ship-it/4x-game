@@ -54,7 +54,8 @@ export function refreshHeader() {
   document.querySelectorAll('[data-sp]').forEach(b => b.classList.toggle('on', !state.paused && +b.dataset.sp === state.speedIdx));
   const st = state.stock;
   const moneyStr = fmtN(state.money || 0);
-  const incStr = state.budget ? ' <span style="color:var(--muted);font-size:10px">+' + fmtN(Object.values(state.budget.inc).reduce((a,b)=>a+b,0) * 30 / Math.max(1, state.budget.days) * state.budget.k, 0) + '/мес</span>' : '';
+  const F = state.flow, net = F ? (F.in - F.out) * 30 / Math.max(1, F.days) : null;
+  const incStr = net != null ? ` <span style="color:${net >= 0 ? 'var(--good)' : 'var(--bad)'};font-size:10px">${net >= 0 ? '+' : '−'}${fmtN(Math.abs(net), 0)}/мес</span>` : '';
   $('stock').innerHTML = `<span class="chip" id="cred-chip" style="cursor:pointer" title="Нажмите — подробно"><b>Кредиты</b>${moneyStr}${incStr}</span><span class="chip"><b>Топливо</b>${fmtN(st.fuel)}</span><span class="chip"><b>Тех. изд.</b>${fmtN(st.spares)}</span><span class="chip"><b>⚓</b>${myShips().length} кор. / ${myStations().length} ст.</span>` + raidChip();
   refreshResPopup();
 }
@@ -67,8 +68,7 @@ function refreshResPopup() {
     stockEl.innerHTML = `<h3>Склад</h3><div class="kv2">${rows.map(([k,v])=>`<span class="kv-k">${k}</span><span class="kv-v">${fmtN(v)} т</span>`).join('')}</div>`;
   }
   if (budgetEl && b) {
-    const inc = Object.values(b.inc).reduce((a:number,v:any)=>a+v,0)*30/Math.max(1,b.days)*b.k;
-    const exp = Object.values(b.exp).reduce((a:number,v:any)=>a+v,0)*30/Math.max(1,b.days)*b.k;
+    const F = state.flow || {in: 0, out: 0, days: 30}, fm = 30 / Math.max(1, F.days), inc = F.in * fm, exp = F.out * fm;
     const bal = inc - exp;
     budgetEl.innerHTML = `<h3>Бюджет/мес</h3><div class="kv2"><span class="kv-k ok">Доходы</span><span class="kv-v ok">+${fmtN(inc)} кр</span><span class="kv-k err">Расходы</span><span class="kv-v err">−${fmtN(exp)} кр</span><span class="kv-k" style="color:${bal>=0?'var(--good)':'var(--bad)'}">Баланс</span><span class="kv-v" style="color:${bal>=0?'var(--good)':'var(--bad)'}">${bal>=0?'+':''}${fmtN(bal)} кр</span></div>`;
   }

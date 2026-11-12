@@ -146,9 +146,8 @@ function lawDelta(k) { const el = $('ld-' + k); if (!el) return; const L = laws(
   if (e == null || Math.abs(e) < 1) { el.textContent = ''; return; } const d = e - (e0 || 0); el.innerHTML = `<span class="${e >= 0 ? 'ok' : 'err'}">${sg(e)}</span>${Math.abs(d) >= 1 ? ` <span class="${d >= 0 ? 'ok' : 'err'}">(${sg(d)})</span>` : ''}`; el.title = 'в месяц для вашей казны; в скобках — изменение к прошлому месяцу'; }
 function lawHead() {
   const h = $('lw-head'), b = state.budget; if (!h) return; if (!b) { h.innerHTML = 'Цифры появятся после первого месяца.'; return; }
-  const m = 30 / Math.max(1, b.days), full = x => /^(Ставка|Субсидия|Налог на прибыль|Углеродный|Налог на добычу|Финансирование|Зарплаты гос. рабочих: ваши)/.test(x);
-  const sum = o => Object.entries(o).filter(([kk]) => !/^Прибыль госпредприятий/.test(kk)).reduce((a, [kk, v]) => a + v * m * (full(kk) ? 1 : b.k), 0);
-  const inc = sum(b.inc), exp = sum(b.exp), L = laws(), B = state.lawBase || {};
+  const F = state.flow || {in: 0, out: 0, days: 30}, fm = 30 / Math.max(1, F.days);
+  const inc = F.in * fm, exp = F.out * fm, L = laws(), B = state.lawBase || {};
   let d = 0; for (const k in L) { if (B[k] == null || B[k] === L[k]) continue; const e = lawEff(k, L[k]), e0 = lawEff(k, B[k]); if (e != null && e0 != null) d += e - e0; }
   const g = document.querySelector('#p-laws [data-lwg]:not([hidden])'); let si = 0, se = 0; if (g) g.querySelectorAll('[data-law]').forEach(i => { const e = lawEff(i.dataset.law, L[i.dataset.law] || 0); if (e > 0) si += e; else if (e < 0) se -= e; });
   const nx = inc - exp + d;

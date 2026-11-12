@@ -65,6 +65,7 @@ export function budgetTick(P, dt, k) {
   add(B.exp, 'Образование, пенсии, рождаемость (старые законы)', (P.exp || 0) / Math.max(1e-9, k) * dt);
   state.budget = {inc: B.inc, exp: B.exp, k, days: dt, t: state.t};
   state.lawBase = {...(state.laws || {})};
+  state.flow = {in: state.mIn || 0, out: state.mOut || 0, days: dt}; state.mIn = 0; state.mOut = 0;
 }
 // поправки к жизни населения: пенсии и пособия — к доходу, НДС — к цене корзины, рождаемость — от выплат
 export const benefits = () => ({ret: blaw('penFix'), un: blaw('unemp'), vat: blaw('vat') / 100, birthK: 1 + .5 * Math.min(1, blaw('childFix') / (40000 * KR))});
