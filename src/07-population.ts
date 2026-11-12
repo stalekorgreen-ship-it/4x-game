@@ -182,8 +182,9 @@ export function stepDemog(dt) { // dt в днях (месяц)
 export function parentInc(s) { // средний доход занятых 30–50 лет страты
   const w = state.pop.wage[s]; return w;
 }
-export function stepAge() {
-  const P = state.pop, nw = [[], [], [], []];
+// f — доля года: старение идёт плавно каждый месяц (раньше раз в год скачком — от этого прыгали занятость, налоги и прирост)
+export function stepAge(f = 1, reset = true) {
+  const P = state.pop, old = P.c, nw = [[], [], [], []];
   for (let s = 0; s < 4; s++) { for (let a = 0; a <= 100; a++) nw[s][a] = {n: 0, un: 0, st: 0}; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const x = P.c[s][a], b = nw[s][Math.min(100, a + 1)]; b.n += x.n; b.un += x.un; b.st += x.st; }
   const wage = P.wage;
@@ -198,9 +199,10 @@ export function stepAge() {
     if (mv > 0) { const y = nw[s + 1][a], fr = mv / x.n; y.n += mv; y.st += mv; }
     x.n -= mv; x.st = 0; x.un += leave;
   }
+  if (f < 1) for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) { const o = old[s][a], q = nw[s][a]; q.n = o.n + (q.n - o.n) * f; q.un = o.un + (q.un - o.un) * f; q.st = o.st + (q.st - o.st) * f; }
   P.c = nw;
   // рождаемость за год (сброс счётчиков)
-  P.bornY = 0; P.diedY = 0;
+  if (reset) { P.bornY = 0; P.diedY = 0; }
 }
 export function stepEcon(dt, init) {
   const P = state.pop, t = totals();
@@ -294,7 +296,7 @@ export function popTick(h) {
     withCtx(id, () => {
       const dt = P.acc; P.acc = 0;
       stepDemog(dt); P.yacc += dt;
-      if (P.yacc >= 360) { P.yacc -= 360; stepAge(); }
+      stepAge(Math.min(1, dt / 360), false); if (P.yacc >= 360) { P.yacc -= 360; P.bornY = 0; P.diedY = 0; }
       immigrate(dt); stepEcon(dt);
       climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * prodOf(g) * hoursK()), dt); if (hooks.bioTick) hooks.bioTick(id, dt / 360);
     });
