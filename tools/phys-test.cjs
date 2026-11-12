@@ -11,6 +11,7 @@ const r=await p.evaluate(async(T)=>{try{const U=n=>(performance.getEntriesByType
  const mk=(name,o,tons,acc)=>({...D.fitSpec({name,eng:3,spd:1,flak:0,rails:0,...o}),tons,pow:acc*tons/120});
  const late=[];for(const sd of [0,1]){const a=sd?Math.PI:0;
   late.push({t:0,side:sd,spec:mk('Перехватчик'+sd,{L:.1,arm:1,rails:2,railCfg:RC('10',2),gat:2,gatCfg:[GC,GC],ammoCap:200,energy:5000},500,30),edge:80,ang:a});
+  late.push({t:0,side:sd,spec:{...mk('Носитель'+sd,{L:.3,arm:3,gat:4,gatCfg:Array(4).fill(GC),ammoCap:300,energy:5000},7400,6),hang:[{ds:'p:s',n:6}]},edge:90,ang:a-.1});
   late.push({t:0,side:sd,spec:mk('Броненосец'+sd,{L:.3,arm:5,rails:2,railCfg:RC('20',2),gat:4,gatCfg:Array(4).fill(GC),ammoCap:500,energy:5000},9500,5),edge:80,ang:a+.1})}
  D.state.demo=true;D.state.paused=false;B.Battle.begin({title:'t',fleets:[[],[]],late,demo:true,maxT:1e5,names:['a','b'],onEnd(){}});
  const out={raid:{},cl:{},spin:0,arm0:{},fireD:{rail:[],gat:[]},seen:new Set()};let t0=B.Battle.time();
@@ -24,5 +25,5 @@ const r=await p.evaluate(async(T)=>{try{const U=n=>(performance.getEntriesByType
  const st=B.Battle.stat(),f=a=>a.length?{n:a.length,max:+Math.max(...a).toFixed(1),avg:+(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1)}:null;
  return JSON.stringify({t:Math.round(B.Battle.time()-t0),raid:out.raid,maxClosingKmS:Object.fromEntries(Object.entries(out.cl).map(([k,v])=>[k,+v.toFixed(2)])),
   fireDistKm:{rail:f(out.fireD.rail),gat:f(out.fireD.gat)},dodges:st.dodge||0,maxSpinDegS:+(out.spin*57.3).toFixed(4),hits:st.hits,shots:st.shots,
-  armorLeft:Object.fromEntries(B.Battle.ships().map(s=>[s.T.n,(s.alive?'':'† ')+shipArm(s)+'/'+out.arm0[s.T.n]])),accel:Object.fromEntries(B.Battle.ships().map(s=>[s.T.n,+s.acc.toFixed(1)]))},null,1)}catch(e){return 'ERR '+e.stack.slice(0,500)}},T);
+  armorLeft:Object.fromEntries(B.Battle.ships().filter(s=>!s.bayOf).map(s=>[s.T.n,(s.alive?'':'† ')+shipArm(s)+'/'+out.arm0[s.T.n]])),accel:Object.fromEntries(B.Battle.ships().map(s=>[s.T.n+(s.bayOf?'@'+s.uid:''),+s.acc.toFixed(1)+(s.raider?' перехв':'')+(s.alive?'':' †')])),launched:st.launch||0,railHitPct:+(100*(st.hits[0]+st.hits[1])/Math.max(1,st.shots[0]+st.shots[1])).toFixed(1)},null,1)}catch(e){return 'ERR '+e.stack.slice(0,500)}},T);
 console.log(r);if(errs.length)console.log('ERRS',errs.slice(0,5));await b.close()})();

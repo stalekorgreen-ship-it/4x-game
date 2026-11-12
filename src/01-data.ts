@@ -557,7 +557,7 @@ COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «$
 export function designStats(parts, flags) {
   flags = flags || {};
   const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
-    cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, gat:0, hangF:0, hangB:0, hangars:0, engines:0};
+    cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, gat:0, hangF:0, hangB:0, hangars:0, hangList:[], engines:0};
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
     const c = compOf(k); if (!c || !n) continue;
@@ -586,6 +586,7 @@ export function designStats(parts, flags) {
     if (c.bq) for (const k of CR_KEYS) r.bqS[k] = (r.bqS[k] || 0) + c.bq[k] * c.hangB * n;
     r.xfer += (c.xfer || 0) * n;
     r.armor += (c.armor || 0) * n; r.rail += (c.rail || 0) * n; r.flak += (c.flak || 0) * n; r.gat += (c.gat || 0) * n;
+    if (c.hangD) r.hangList.push({ds: c.hangD, n: (c.hangN || 1) * n});
     r.hangF += (c.hangF || 0) * n; r.hangB += (c.hangB || 0) * n; r.hangars += (c.hangars || 0) * n; if (c.power) r.engines += n;
     r.repair += (c.repair || 0) * n;
     r.spareCap += (c.spares || 0) * n;
@@ -732,7 +733,10 @@ export const CR_PRE = {
   'p:s': {name: 'Истребитель (обычный)', parts: {[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 6, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {zs: '0.5'})]: 1, [mkKey('ammo', {t: '20'})]: 1, [mkKey('rail', {cal: '5', bar: '1', ld: 'a', cap: '10', saf: '0', mnt: 'a'})]: 5, [mkKey('cabin', {zs: '0.5'})]: 1, [mkKey('life', {zs: '0.5'})]: 1, armor: 4}},
   'p:h': {name: 'Штурмовик (тяжёлый)', parts: {[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 8, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {zs: '0.7'})]: 1, [mkKey('ammo', {t: '50'})]: 1, [mkKey('rail', {cal: '10', bar: '1', ld: 'a', cap: '10', saf: '0', mnt: 'a'})]: 3, [mkKey('cabin', {zs: '0.5'})]: 1, [mkKey('life', {zs: '0.5'})]: 1, armor: 8}},
 };
-export const craftList = () => [...Object.entries(CR_PRE).map(([id, v]) => ({id, name: v.name, parts: v.parts})), ...((() => { try { return state.designs || []; } catch (e) { return []; } })().filter(d => d.craft))];
+const _small = {}; let _smallBusy = false;
+// в ангар можно поставить любой проект до 500 т без собственных ангаров: истребитель, шахтёр, разведчик
+const smallDesign = d => { if (d.craft) return true; const k = JSON.stringify(d.parts); if (k in _small) return _small[k]; if (_smallBusy) return false; _smallBusy = true; try { const st = designStats(d.parts); return _small[k] = st.dry > 0 && st.dry <= FGT_MAX && !st.hangars; } catch (e) { return false; } finally { _smallBusy = false; } };
+export const craftList = () => [...Object.entries(CR_PRE).map(([id, v]) => ({id, name: v.name, parts: v.parts})), ...((() => { try { return state.designs || []; } catch (e) { return []; } })().filter(smallDesign))];
 export const craftById = id => craftList().find(d => d.id === id) || craftList()[1];
 const _crMemo = {};
 export const craftStats = d => d.id && d.id.startsWith('p:') ? (_crMemo[d.id] = _crMemo[d.id] || designStats(d.parts, {craft: true})) : designStats(d.parts, {craft: true});
@@ -755,7 +759,7 @@ COMP.hangar_f.ap = (c, s) => {
   if (_crDepth > 1) { c.hangF = 1; c.fq = {...CR_DEF.F}; c.mass = 100; c.cost = {fe: 6}; return; }
   _crDepth++; try {
   const d = craftById(s.ds.v), st = craftStats(d), q = craftFromStats(st), n = Math.max(1, Math.round(+s.nn.v));
-  q.n = n; c.hangF = n; c.fq = q; c.mass = Math.round(n * q.mass * 1.15); c.cost = {fe: Math.round(n * 6), si: Math.round(n * 2), ti: Math.round(n * 1)};
+  q.n = n; c.hangF = n; c.fq = q; c.hangD = s.ds.v; c.hangN = n; c.mass = Math.round(n * q.mass * 1.15); c.cost = {fe: Math.round(n * 6), si: Math.round(n * 2), ti: Math.round(n * 1)};
   c.name = `Ангар: ${d.name}`; c.desc = `${n} × «${d.name}»: ${q.mass} т, ${q.mps} м/с, прочность ${q.hp}, пушек ${q.ng}, боезапас ${q.ammo}, ${Math.round(q.fuel / 60)} мин тяги`;
   if (st.errors.length) c.desc += ' · ОШИБКА проекта: ' + st.errors[0];
   } finally { _crDepth--; }
