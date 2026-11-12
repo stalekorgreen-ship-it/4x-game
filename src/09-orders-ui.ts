@@ -4,7 +4,7 @@ import { GOODS } from './07-population.ts';
 import { econHtml, econOrder, regBox } from './32-econbld.ts';
 import { regNames } from './30-regions.ts';
 import { techArt } from './17-art.ts';
-import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
+import { SAVE_KEY, craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
 import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
@@ -614,6 +614,15 @@ export function addNewGameButton() {
     newGame(); ui.edit = null; ui.sel = {kind: 'body', id: 'earth'}; armed = 0; b.textContent = 'Новая игра'; saveGame(); showTab(ui.tab); refreshHeader();
   };
   $('top').appendChild(b);
+  // сохранение в файл и загрузка из файла (переносить партию между версиями, отправлять для отладки)
+  const sv = document.createElement('button'); sv.className = 'btn sm'; sv.textContent = 'Сейв в файл'; sv.title = 'Скачать сохранение (.json); в браузерной версии — копируется в буфер';
+  sv.onclick = () => { const txt = JSON.stringify(state); try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], {type: 'application/json'})); a.download = 'poyas-save-' + Math.floor(state.t) + '.json'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) {}
+    try { navigator.clipboard.writeText(txt).catch(() => {}); } catch (e) {} sv.textContent = 'Сохранено'; setTimeout(() => { sv.textContent = 'Сейв в файл'; }, 2000); };
+  const ld = document.createElement('button'); ld.className = 'btn sm'; ld.textContent = 'Загрузить файл';
+  const fi = document.createElement('input'); fi.type = 'file'; fi.accept = '.json,application/json'; fi.hidden = true;
+  fi.onchange = () => { const f = fi.files && fi.files[0]; if (!f) return; f.text().then(t => { JSON.parse(t); window.removeEventListener('pagehide', saveGame); localStorage.setItem(SAVE_KEY, t); location.reload(); }).catch(() => { ld.textContent = 'Файл не подошёл'; }); };
+  ld.onclick = () => fi.click();
+  $('top').append(sv, ld, fi);
 }
 
 export let lastT = performance.now(), lastUi = 0;
