@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { orb, liftT, liftCap, liftBank } from './36-lift.ts';
 import { GOODS } from './07-population.ts';
-import { econHtml, econOrder } from './32-econbld.ts';
+import { econHtml, econOrder, regBox } from './32-econbld.ts';
 import { regNames } from './30-regions.ts';
 import { techArt } from './17-art.ts';
 import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
@@ -354,13 +354,13 @@ export function renderDesigner(full) {
 
 /* ===== ПАНЕЛЬ «ЗЕМЛЯ» ===== */
 export function refreshEarth() {
-  { const ae = document.activeElement, pe = $('p-earth'); if (ae && ae.tagName === 'INPUT' && pe && pe.contains && pe.contains(ae)) return; } // не мешать вводу
+  { const ae = document.activeElement, pe = $('p-earth'); if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT') && pe && pe.contains && pe.contains(ae)) return; } // не мешать вводу
   const S = state.stock, B = state.bld; for (const t in BLD) if (B[t] == null) B[t] = 0;
   const vw = `<div class="row"><button class="btn sm${ui.bview === 'econ' ? '' : ' on'}" data-a="bview" data-v="">Здания и склад</button><button class="btn sm${ui.bview === 'econ' ? ' on' : ''}" data-a="bview" data-v="econ">Экономические постройки</button></div>`;
-  if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + econHtml() + queueHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
+  if (ui.bview === 'econ') { $('p-earth').innerHTML = vw + regBox() + econHtml() + queueHtml(); const n = $('ec-n'); if (n) n.onchange = () => { state.ecN = Math.max(1, +n.value || 1); }; return; }
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
-  let h = vw + `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}${(orb()[k] || 0) >= 1 ? ` <span class="muted" title="на орбите — подъём не нужен">(орб. ${fmtN(Math.min(orb()[k], S[k] || 0))})</span>` : ''}</span>`).join('')}</div>
+  let h = vw + regBox() + `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}${(orb()[k] || 0) >= 1 ? ` <span class="muted" title="на орбите — подъём не нужен">(орб. ${fmtN(Math.min(orb()[k], S[k] || 0))})</span>` : ''}</span>`).join('')}</div>
     <div class="help">Безлимитный склад. Подъём с Земли на орбиту: <b>${fmtN(liftT())} кр/т</b>, космодромы поднимают <b>${fmtN(liftCap() * 360)} т в год</b> (накоплено ${fmtN(liftBank())} т) — платят верфь (за массу корабля из земных материалов), заправка и запчасти с поверхности. Привезённое из космоса лежит на орбите («орб.») и подъёма не требует. Топливо делают топливные заводы из угля и нефти. Всего уплачено за подъём: ${fmtN(state.liftPaid || 0)} кр.</div></div>`;
   h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Материалы, т</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `ур. ${B[t] || 0}` : `${B[t] || 0}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t) / 10, 1)} лет.${gate ? ' ' + gate : ''}`;

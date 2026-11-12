@@ -9,6 +9,7 @@ import { MC, LAB_COST, LAB_RP, LAB_MIX, lmCap, lmEff } from './10-civil.ts';
 import { esc } from './08-map-ui.ts';
 import { matOf, matTxt, queueMat, CORP } from './03-build.ts';
 import { PT } from './26-goods.ts';
+import { regsOf, regNames } from './30-regions.ts';
 
 export const ECON_DAYS = {fac: 180, mine: 120, lab: 90};
 const E = () => (state.econ = state.econ || []);
@@ -37,6 +38,14 @@ export function econTick(dt) {
 hooks.econTick = econTick; hooks.econCost = econCost;
 
 const ORE = {fe: 'Железо', si: 'Кремний', w: 'Вольфрам', c: 'Уголь и нефть', co: 'Кобальт', ti: 'Титан', ice: 'Лёд', ree: 'Редкозем', pt: 'Платина', u: 'Уран'};
+// Регионы Земли: люди, работа, зарплата и чего не хватает
+export function regBox() {
+  const R = regsOf('earth'); if (!R) return ''; const N = regNames('earth'), pc = x => `<span class="${x < .7 ? 'err' : x < .95 ? 'warn' : 'ok'}">${fmtN(x * 100, 0)}%</span>`;
+  const rows = R.map((r, i) => { const lack = Object.entries(r.sat || {}).filter(([, v]) => v < .95).sort((a, b) => a[1] - b[1]).slice(0, 4);
+    const ok = Object.entries(r.sat || {}).filter(([, v]) => v >= .95).length, wf = (r.emp || 0) + (r.un || 0);
+    return `<tr><td><b>${esc(N[i])}</b></td><td class="n">${fmtN(r.n || 0)}</td><td class="n">${fmtN(r.emp || 0)}</td><td class="n">${wf > 0 ? pc(1 - (r.un || 0) / wf) : '—'}</td><td class="n">${fmtN(r.wage || 0)}</td><td class="n">${r.wel != null ? pc(r.wel) : '—'}</td><td>${lack.length ? lack.map(([g, v]) => `${esc(GOODS[g] ? GOODS[g].n : g)} ${pc(v)}`).join(', ') : '<span class="ok">всего хватает</span>'}${ok ? ` <span class="muted">· в норме ${ok}</span>` : ''}</td></tr>`; }).join('');
+  return `<div class="box"><h2>Регионы Земли</h2><table class="grid"><tr><th>Регион</th><th>Люди</th><th>Занято</th><th>Занятость</th><th>Зарплата, кр/сут</th><th>Обеспеченность</th><th>Не хватает (сначала худшее)</th></tr>${rows}</table></div>`;
+}
 export function econHtml() {
   const P = EP(); if (!P) return '';
   const pc = x => `<span class="${x < .7 ? 'err' : x < .95 ? 'warn' : ''}">${fmtN(x * 100, 0)}%</span>`, btn = (k, g) => `<button class="btn sm" data-a="econ" data-k="${k}" data-g="${g}">В очередь</button>`;
