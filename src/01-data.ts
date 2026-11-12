@@ -234,8 +234,9 @@ export const RES = {fe:'Железо', ti:'Титан', si:'Кремний', c:'
 // Эффективность = сложность × (остаток / исходный запас): выбрали 50% железа — вдвое медленнее.
 export function veinBase(id, k) { let h = 2166136261; for (const ch of id + ':' + k) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return Math.round((.1 + .9 * ((h >>> 0) % 1000) / 999) * 20) / 20; }
 // Через сколько лет жила выработается на 90% при текущей добыче M т/сутки на жилу (экспоненциально: чем меньше остаток, тем медленнее)
-export function depleteYears(id, k, init, M) { const b = veinBase(id, k); return init > 0 && M > 0 ? Math.log(10) * init / (M * b) / 360 : Infinity; }
-export function veinEff(id, k, cur, init) { return init > 0 ? veinBase(id, k) * Math.max(0, Math.min(1, cur / init)) : 0; }
+export function depleteYears(id, k, init, M) { const b = veinBase(id, k); if (!(init > 0 && M > 0)) return Infinity; let d = 0; for (let i = 0; i < 9; i++) d += init * .1 / (M * b * (1 - .05 * i)); return d / 360; } // до 90% выработки
+// истощение (таблица «Переработка»): каждые выработанные 10% запаса снижают содержание на 5% от исходного — лучшую руду выбирают первой
+export function veinEff(id, k, cur, init) { if (!(init > 0) || !(cur > 0)) return 0; const dep = Math.max(0, Math.min(1, 1 - cur / init)); return veinBase(id, k) * (1 - .05 * Math.floor(dep * 10 + 1e-9)); }
 export const BODIES = [
   {id:'sun', name:'Солнце', a:0, ang:0, kind:'sun', hot:true, sci:{phys:15}, pool:{phys:12000}},
   {id:'venus', name:'Венера', a:0.723, ang:2.2, kind:'planet', sci:{phys:10, bio:4}, pool:{phys:6000, bio:2000}},
@@ -680,7 +681,7 @@ export function newGame() {
     t: 0, speedIdx: 5, spv: 2, paused: true,
     counters: {id: 0, ship: {}, station: {}},
     stock: {fe: 3600, ti: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100, co: 400},
-    bld: {gbuild: 100, mine: 100, fuelplant: 1, supplies: 1, shipyard: 0, lab: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
+    bld: {gbuild: 100, mine: 100, benef: 100, smelt: 30, fuelplant: 1, supplies: 1, shipyard: 0, lab: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
     designs: [], groups: [], ships: [], stations: [], yard: [], log: [], ast: {}, officers: [], nextOfficer: 30,
     raid: {eta: 1e12, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),
   };

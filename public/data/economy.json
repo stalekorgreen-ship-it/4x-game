@@ -2,7 +2,8 @@
  "_readme": "Экономика. population: FACT_W — людей на завод, PROD — т товара на человека в сутки, RAW_PER — руда на т товара, BASEW — зарплаты страт, TUIT — плата за учёбу, FACT_COST_KR — цена завода корпорации (×25). earthStart — доля спроса, закрытая госзаводами Земли на старте. corps — параметры корпораций. prices — базовые цены сырья за т (×25). laws — законы по умолчанию. mandatory — обязательные расходы [ключ, название, минимум %, подсказка]. corpsCount — сколько корпораций максимум.",
  "lift": {
   "base": 720000,
-  "techs": {"reuse": 0.3, "superheavy": 0.1, "elevator": 0.02},
+  "techs": {"reuse": 0.3, "superheavy": 0.1},
+  "body": {"earth": {"elevator": 0.02}, "luna": {"catapult": 0.01, "bodylift": 0.02}, "mars": {"bodylift": 0.02}},
   "capBase": 20000,
   "capPort": 10000,
   "grav": {"earth": 1, "venus": 0.9, "mercury": 0.3, "mars": 0.25, "luna": 0.05, "io": 0.05, "europa_j": 0.04, "ganymede": 0.06, "callisto": 0.06, "titan": 0.05, "triton": 0.03, "pluto": 0.02, "small": 0.01}

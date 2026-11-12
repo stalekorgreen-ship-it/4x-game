@@ -13,6 +13,9 @@ const L = [
   ['rock1000', 'eng', 'u', 1100, 'Крупные астероиды II', 'Корабельные лазеры берут тела до 1000 км (Церера, Веста).', 0, 'rock300'],
   ['reuse', 'eng', 'c', 1500, 'Многоразовые ракеты', 'Подъём груза с Земли на орбиту дешевле в 3 раза.'],
   ['superheavy', 'eng', 'u', 4000, 'Сверхтяжёлые многоразовые ракеты', 'Подъём с Земли дешевле в 10 раз от исходного.', 0, 'reuse'],
+  ['h2smelt', 'phys', 'u', 0, 'Водородная плавка', 'Плавильные заводы работают без угля и CO₂, но тратят вдвое больше энергии.'],
+  ['catapult', 'eng', 'u', 0, 'Лунная катапульта', 'Подъём с Луны дешевле в 100 раз (электромагнитная катапульта).', 0, 'reuse'],
+  ['bodylift', 'phys', 'u', 0, 'Лифт на Луне и Марсе', 'Трос из современных волокон: подъём с Луны и Марса дешевле в 50 раз. Мегапроект.', 0, 'reuse'],
   ['elevator', 'phys', 'r', 15000, 'Космический лифт', 'Трос из нанотрубок: подъём с Земли дешевле в 50 раз. Мегапроект.', 0, 'superheavy'],
 ];
 // модули кораблей: [ключ, область, редкость, цена, требуется]
@@ -32,6 +35,11 @@ export function addModuleTechs(COMP) {
   const def = {}; for (const t of TECH) def[t.id] = {name: t.name, desc: t.desc, f: t.f, r: t.r, cost: t.cost, req: t.req};
   const ov = gd('techs', 'techs', def); for (const t of TECH) if (ov[t.id]) Object.assign(t, ov[t.id]);
   for (const id in ov) if (!BYID[id] && ov[id]) { const t = {id, f: 'eng', r: 'c', cost: 500, name: id, desc: '', eff: null, req: null, excl: null, ...ov[id]}; TECH.push(t); BYID[id] = t; } // новые технологии из редактора
+  // Цена по тиру (решено с владельцем): тир = редкость (обычная 0, необычная 1, редкая 2) + глубина цепочки «требуется»; первый тир 40 очков, каждый следующий ×2.
+  // Своя цена в data/techs.json сохраняется, только если у записи costFix: true.
+  const TC = gd('techs', 'tierCost', {base: 40, mult: 2}), RI = {c: 0, u: 1, r: 2}, dep = {};
+  const depth = (t, n = 0) => { if (dep[t.id] != null) return dep[t.id]; const p = t.req && BYID[t.req]; return (dep[t.id] = p && n < 20 ? depth(p, n + 1) + 1 : 0); };
+  for (const t of TECH) { t.tier = (RI[t.r] || 0) + depth(t); if (!(ov[t.id] && ov[t.id].costFix)) t.cost = Math.round(TC.base * Math.pow(TC.mult, t.tier)); }
 }
 export const TECH = L.map(([id, f, r, base, name, desc, eff, req, excl]) => ({id, f, r, cost: Math.round(base * RARITY[r].k), name, desc, eff: eff || null, req: req || null, excl: excl || null}));
 export const excluded = t => !!(t.excl && state.tech && state.tech[t.excl]);

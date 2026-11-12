@@ -36,11 +36,12 @@ export const CMAT = CV.CMAT;
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return (isCoal(r) ? (P.lcN || 0) : P.lmN) * myOf(r) * lmEff(r) * (P.mfill || 1); }; // госшахты: рудные (все металлы сразу) и угольные
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];
 export const LAB_COST = CV.LAB_COST_KR * KR, LAB_RP = CV.LAB_RP / 360 /* LAB_RP — очков в год на лабораторию (таблица «Пояс») */, LAB_MIX = CV.LAB_MIX, LAB_SI = 0.1 / 30;
+// технологии корпораций: тир = глубина цепочки, 40 очков × 2^тир (как у игрока)
 export const CTECH = [
-  {id: 'out1', k: 'out', cost: 2000, name: 'Выпуск товара +5%'}, {id: 'out2', k: 'out', cost: 6000, req: 'out1', name: 'Выпуск товара +5% (II)'}, {id: 'out3', k: 'out', cost: 15000, req: 'out2', name: 'Выпуск товара +5% (III)'},
-  {id: 'lab1', k: 'lab', cost: 2500, name: 'Штат завода −5%'}, {id: 'lab2', k: 'lab', cost: 7000, req: 'lab1', name: 'Штат завода −5% (II)'}, {id: 'lab3', k: 'lab', cost: 18000, req: 'lab2', name: 'Штат завода −5% (III)'},
-  {id: 'raw1', k: 'raw', cost: 1500, name: 'Расход сырья −10%'}, {id: 'raw2', k: 'raw', cost: 4500, req: 'raw1', name: 'Расход сырья −10% (II)'},
-  {id: 'xfer', k: 'xfer', cost: 5000, name: 'Передача топлива и припасов в космосе'},
+  {id: 'out1', k: 'out', cost: 40, name: 'Выпуск товара +5%'}, {id: 'out2', k: 'out', cost: 80, req: 'out1', name: 'Выпуск товара +5% (II)'}, {id: 'out3', k: 'out', cost: 160, req: 'out2', name: 'Выпуск товара +5% (III)'},
+  {id: 'lab1', k: 'lab', cost: 40, name: 'Штат завода −5%'}, {id: 'lab2', k: 'lab', cost: 80, req: 'lab1', name: 'Штат завода −5% (II)'}, {id: 'lab3', k: 'lab', cost: 160, req: 'lab2', name: 'Штат завода −5% (III)'},
+  {id: 'raw1', k: 'raw', cost: 40, name: 'Расход сырья −10%'}, {id: 'raw2', k: 'raw', cost: 80, req: 'raw1', name: 'Расход сырья −10% (II)'},
+  {id: 'xfer', k: 'xfer', cost: 80, name: 'Передача топлива и припасов в космосе'},
 ];
 const tk = (c, k) => CTECH.filter(t => t.k === k && c.civ.tech[t.id]).length;
 export const outMult = c => 1 + .05 * tk(c, 'out');
@@ -155,7 +156,9 @@ export function goodsMarket(g, D, legCap, staff, inS = 1) {
   if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: (1.7 * KR * gval(g) * (P.dist || 1) + liftT() * tOf(g)) * (1 + tf)}); // ввоз с Земли: базовая цена × доставка + подъём с Земли за тонну
   S.sort((a, b) => a.price - b.price);
   let left = D; for (const s of S) { s.sold = Math.min(s.cap, left); left -= s.sold; }
-  const sold = D - left, sat = D > 0 ? Math.min(1, sold / D) : 1, mult = clampN(1 + 1.5 * (1 - sat), 1, 3);
+  let cap0 = 0; for (const s of S) if (s.id !== 'imp') cap0 += s.cap;
+  // цена от избытка (таблица «Переработка»): базовая × (спрос / предложение)^0,5, но не ниже себестоимости и не выше ×3
+  const sold = D - left, sat = D > 0 ? Math.min(1, sold / D) : 1, lo = clampN(((P.uc && P.uc[g]) || 0) / Math.max(1e-9, S[0].price), .3, 1), mult = D > 0 ? clampN(Math.sqrt(D / Math.max(1e-9, cap0)), lo, 3) : 1;
   let paid = 0, cap = 0; for (const s of S) { paid += s.sold * s.price; if (s.id !== 'imp') cap += s.cap; }
   for (const s of S) s.comp = S.filter(x => x !== s).reduce((m, x) => Math.min(m, x.price), 9 * KR);
   const im = S.find(x => x.id === 'imp'); P.gImp = P.gImp || {}; P.gImp[g] = im ? im.sold : 0;

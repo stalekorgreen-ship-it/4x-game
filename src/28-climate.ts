@@ -5,6 +5,7 @@
 // Тепло топит ледники → уровень моря растёт → города уходят под воду (люди теряют жильё, заводы гибнут).
 // Пар: датацентры (и любые источники addVapor) — короткоживущий парниковый газ, копится по регионам; много пара — вечные дожди.
 import { state, log } from './01-data.ts';
+import { hooks } from './00-hooks.ts';
 import { climateBase } from './14-climate.ts';
 import { regNames } from './30-regions.ts';
 
@@ -56,3 +57,5 @@ export function climTick(id, P, goods, fe, dt) {
 // Поправки к жизни: жара повышает смертность и снижает выработку
 export const heatDeath = id => { const c = state.clim && state.clim[id]; return c ? 1 + .03 * Math.max(0, c.dT - 1.5) : 1; };
 export const heatWork = id => { const c = state.clim && state.clim[id]; return c ? 1 - .02 * Math.max(0, c.dT - 2) : 1; };
+
+hooks.addCO2 = (id, t) => { const c = clim(id); if (c && t > 0) c.co2 += t; }; // выбросы построек игрока (кокс плавки)

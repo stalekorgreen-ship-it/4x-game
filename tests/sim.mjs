@@ -46,9 +46,9 @@ ok(s().corps.some((c) => c.civ.tech.xfer), 'кто-то освоил перед�
 ok(Object.values(s().pop.sat).every((x) => x > 0.4), 'товары не обвалились без игрока ' + Object.entries(s().pop.sat).filter(([k, v]) => v <= .4).map(([k, v]) => k + ':' + v.toFixed(2)).join(' '));
 // 3. Наука игрока: изучается постепенно, контракт с лабораторией отдаёт очки игроку
 const lab = s().corps.find((c) => c.civ.labs > 0);
-s().research.eng = 'yard'; s().sci.eng = 100; s().tprog = {}; s().offers = s().offers || {}; s().offers.eng = ['yard'];
+s().research.eng = 'yard'; s().sci.eng = 20; s().tprog = {}; s().offers = s().offers || {}; s().offers.eng = ['yard'];
 B.researchTick(1);
-ok(s().tprog.yard === 100 && !s().tech.yard, 'исследование идёт постепенно (100/500)');
+ok(s().tprog.yard === 20 && !s().tech.yard, 'исследование идёт постепенно (20/40)');
 s().sci.eng = 450; B.researchTick(1);
 ok(s().tech.yard === true, 'тема изучена, когда набрались очки');
 s().sciBuy = {amt: 5000, max: 20000 * 25}; s().money = 1e9 * 25; // деньги в масштабе KR=25 const rp0 = s().rp;
@@ -118,7 +118,7 @@ Object.assign(L, F.LAW_DEFAULT);
 
 // 8. Сложность жил
 { const b = D.veinBase('eros', 'fe'); ok(b >= .3 && b <= 1 && D.veinBase('eros', 'fe') === b, 'сложность жилы детерминирована (' + b + ')');
-  ok(Math.abs(D.veinEff('eros', 'fe', 50, 100) - b / 2) < 1e-9, 'выбрали 50% — эффективность вдвое ниже');
+  ok(Math.abs(D.veinEff('eros', 'fe', 50, 100) - b * .75) < 1e-9, 'выбрали 50% — содержание ниже на 25% (−5% за каждые 10%)');
   D.newGame(); const ss = D.state; ss.paused = true; const sh = ss.ships[0]; ss.ast.eros = {...D.BODY.eros.ores}; sh.at = 'eros'; const f0 = ss.ast.eros.fe, i0 = ss.ast.eros.si;
   E.execOrder(sh, {type: 'mine', target: 'eros', res: 'all', pct: 100}, 1);
   ok(ss.ast.eros.fe < f0 && ss.ast.eros.si < i0, 'лазер добывает несколько жил сразу'); }

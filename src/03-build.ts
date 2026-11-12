@@ -14,6 +14,9 @@ export const BLD = gd('buildings', 'buildings', {
   lab:       {name: 'Лаборатория', sb: 400, cost: {fe: 5000, ree: 20, pt: 2}, sci: {phys: 10, eng: 10, bio: 10}, use: {pow: 10, elx: 1000}, desc: 'Даёт 10 очков науки в год во всех областях. Позволяет изучать аномалии на планете. Расход: 10 МВт, 1 000 т электроники в год, 10 000 человек с высшим образованием.'},
   dcenter:   {name: 'Дата-центр', sb: 800, cost: {fe: 20000, si: 5000, ree: 100, pt: 5}, sci: {phys: 50, eng: 50, bio: 50}, use: {pow: 100, elx: 1000}, desc: 'Даёт 50 очков науки в год во всех областях. Расход: 100 МВт, 1 000 т электроники в год, 10 000 экспертов, 7 млн т воды (пар).'},
   mine:      {name: 'Государственная шахта', sb: 100, cost: {fe: 20000, ti: 200}, use: {pow: 50}, desc: 'Добывает 1 млн т породы в год: железо 420 тыс. т, уголь и нефть 540 тыс., кремний 210 тыс., титан и редкозем по 830, уран 430, платина 4 т (× эффективность жилы). Всё — на ваш склад. Расход: 50 МВт, 10 000 человек низкого образования.'},
+  benef:     {name: 'Обогатительная фабрика', sb: 100, cost: {fe: 30000, ti: 100}, use: {pow: 100}, desc: 'Порода → концентрат: 1 млн т породы в год (одна госшахта). Потери 15% металла уже в выходе шахты. Без фабрик шахты стоят. 10 000 человек среднего образования, 100 МВт.'},
+  smelt:     {name: 'Плавильный завод', sb: 200, cost: {fe: 60000, ti: 200, w: 50}, desc: 'Концентрат → металл: до 500 000 т в год. Кокс: 0,5 т угля на 1 т железа → 1,8 т CO₂ (с «Водородной плавкой» — без угля, энергии ×2). Энергия ~5,2 МВт·ч на т, редкие металлы ×10. 10 000 человек среднего образования.'},
+  spaceport: {name: 'Космодром', sb: 200, cost: {fe: 20000, ti: 400, si: 600}, desc: '+10 000 т в год подъёма с Земли на орбиту (верфь, заправка, запчасти). 10 000 человек среднего образования.'},
   gbuild:    {name: 'Государственная стройка', sb: 100, cost: {fe: 5000}, cbSB: 10, desc: 'Даёт 10 СБ в год на всю стройку. 10 000 человек низкого образования.'},
   shipyard:  {name: 'Военная космическая верфь', sb: 4000, cost: {fe: 100000, ti: 2000, w: 500, ree: 200, pt: 10}, desc: 'Верфь в космосе: стапель до 1 000 т, 1 бригада (10 000 чел.) строит 365 т корабля в год. Тоннаж и бригады расширяются ниже, каждый раз дороже. 10 000 экспертов.'},
   green:     {name: 'Зелёная энергетика', sb: 100, cost: {fe: 40000, si: 3000, ree: 50}, crew: 0, fac: {pow: 0.3}, use: {elx: 50}, desc: 'Вырабатывает 600 МВт для Земли по цене самоокупа. Без топлива и почти без людей. Расход: 50 т электроники в год.'},
@@ -102,6 +105,7 @@ export function queueMat() { const o = {}, cap = buildUnits(); let left = 100;
   for (const j of state.build || []) { const m = matOf(j), e = Math.min(j.pct || 0, left); left -= e; const u = unitSB(j), n = Math.min((j.n || 1) - (j.paid ? 1 : 0), Math.ceil(cap * e / 100 * 30 / Math.max(1, u)));
     for (const r in m) o[r] = (o[r] || 0) + m[r] * Math.max(0, n); } return o; }
 import { hooks as _hk } from './00-hooks.ts';
+const hooks = _hk;
 _hk.queueMat = () => queueMat(); _hk.BLD = BLD;
 export const matTxt = m => Object.entries(m).map(([r, v]) => `${(RESN[r] || r).toLowerCase()} ${(+v).toLocaleString("ru-RU")}`).join(', ');
 const RESN = {fe: 'Железо', co: 'Кобальт', ti: 'Титан', w: 'Вольфрам', si: 'Кремний', c: 'Уголь и нефть', ice: 'Лёд', pt: 'Платина', ree: 'Редкозем', u: 'Уран'};
@@ -127,9 +131,17 @@ export function buildTick(h) {
   { const w = bldWage() * h, f = Math.min(w, Math.max(0, state.invFund || 0)); state.invFund = (state.invFund || 0) - f; state.money -= w - f; state.bldWageDay = bldWage(); } // зарплаты стройки и построек: сначала фонд госинвестиций
   { let d = 0; for (const t in BLD) { const u = BLD[t].use; if (u && B[t]) for (const g in u) d += B[t] * u[g] * (g === 'pow' ? 24 : 1 / 360) * gval(g) * KR; } state.money -= d * h; state.useDay = d; } // поле use: расход товаров зданиями (энергия — МВт, прочее — т в год), платим по цене товара
   wearTick();
-  if (B.mine) {
-    const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу: myOf(руда) т в сутки × эффективность
-    for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * myOf(k) * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
+  if (B.mine) { // таблица «Переработка»: шахта → обогатительная фабрика (порода) → плавильный завод (металл); шахты добывают только то, что успевают переработать
+    const g = state.ground.earth, g0 = GROUND.earth, k0 = B.mine * MINE_RATE * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h, part = {}, RARE = {ti: 1, w: 1, co: 1, ree: 1, pt: 1, u: 1};
+    for (const k of Object.keys(g)) part[k] = Math.min(g[k], k0 * myOf(k) * veinEff('earth', k, g[k], g0[k] || g[k]));
+    const rock = B.mine * 1e6 / 360 * h, pB = Math.min(1, (B.benef || 0) * 1e6 / 360 * h / Math.max(1e-9, rock));
+    let met = 0; for (const k in part) if (k !== 'c' && k !== 'ice') met += part[k] * pB;
+    const h2 = techOn('h2smelt'), coke = h2 ? 0 : .5, coalOK = coke ? ((S.c || 0) + (part.c || 0) * pB) / Math.max(1e-9, coke * (part.fe || 0) * pB) : Infinity;
+    const pS = Math.min(1, (B.smelt || 0) * 5e5 / 360 * h / Math.max(1e-9, met), coalOK);
+    let mwh = 0; state.proc = {pB, pS, rock: rock / h, met: met / h};
+    for (const k in part) { const f = k === 'c' || k === 'ice' ? pB : pB * pS, v = part[k] * f; if (!(v > 0)) continue; g[k] -= v; S[k] = (S[k] || 0) + v; rec(k, 'in', v, 'mine'); if (f !== pB) mwh += v * 5.18 * (RARE[k] ? 10 : 1) * (h2 ? 2 : 1); }
+    const fe = (part.fe || 0) * pB * pS; if (coke && fe > 0) { const q = Math.min(S.c || 0, fe * coke); S.c -= q; rec('c', 'out', q, 'plant'); if (hooks.addCO2) hooks.addCO2('earth', fe * 1.8); }
+    if (mwh > 0) state.money -= mwh * gval('pow') * KR; // энергия плавки — по цене энергии
   }
   for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0 || m.perYear > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
     let q = (m.perYear ? m.perYear / 360 : m.perDay) * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
