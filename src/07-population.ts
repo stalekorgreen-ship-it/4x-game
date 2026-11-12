@@ -32,7 +32,8 @@ export const ASF = (() => { const w = []; let t = 0; for (let a = 0; a <= 100; a
 export const tfMod = () => { const y = (state.t || 0) / 360; return .72 + .28 * Math.exp(-y / 40); }; // к 2100 году рождаемость ниже на четверть (мировой коэффициент с 2,3 до ~1,7)
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
-export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
+const ageK = (G, a) => { for (const [m, k] of G.ages) if (a < m) return k; return 0; };
+export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; if (G.ages) return G.need * ageK(G, a) * (G.ns ? G.ns[s] : 1); return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
 export const basket = (a, s = 1) => { let b = 0; for (const g in GOODS) b += needOf(g, a, s); return b; };
 // полный спрос с учётом рецептов: конечный спрос населения тянет полуфабрикаты и энергию
 export function fullDemand(c, L = 0) { const D = {}; for (const g of goodsOrder()) D[g] = 0; for (const g in LOG_IN) if (D[g] != null) D[g] += L * LOG_IN[g];
@@ -76,7 +77,7 @@ const settlerF = a => a < 15 ? .3 : a < 20 ? .5 : a < 50 ? 1.6 : a < 65 ? .5 : .
 export function initPop() { state.cols = {}; state.ctx = 'earth'; mkCol('earth', 'Земля', 8.5e9, {f: earthF, fs: 1, cover: EARTH_COVER, hab: 0, dist: 1, seed: 0}); }
 const cov = (o, g) => typeof o.cover === 'object' ? (o.cover[g] != null ? o.cover[g] : o.cover.def) : o.cover;
 // Земля 2030 (решено с владельцем): мир в плохом состоянии — дефицит медицины, электроники и др.; Африка и Индия страдают сильнее (регионы)
-export const EARTH_COVER = gd('economy', 'earthStart', {def: .95, meds: .78, elx: .8, tech: .85, house: .88, water: .9, pow: .9}); // доля спроса, которую закрывают госзаводы Земли на старте
+export const EARTH_COVER = gd('economy', 'earthStart', {def: .95, meds: .78, elx: .8, wear: .85, house: .88, edu: .85, exp: .8, pow: .9}); // доля спроса, которую закрывают госзаводы Земли на старте
 export function mkCol(id, name, T0, o) {
   const f = o.f; let sum = 0; for (let a = 0; a <= 100; a++) sum += f(a);
   const c = [[], [], [], []];
@@ -187,7 +188,7 @@ export function stepAge() {
     let up = 0;
     if (s < 3 && a <= 25) {
       const aff = clampN((1 + .12 * colN(ctxId(), 'school')) * P.parInc[s] * 2 / (TUIT[s + 1] * (1 - Math.min(100, laws().edu + 3 * (hooks.mandOver ? hooks.mandOver('mEdu') : 0)) / 100) * 2 + 1e-9), 0, 1), prem = wage[s + 1] / wage[s], inc = clampN((prem - 1) / .3, 0, 1);
-      up = aff * inc * CAPS[s];
+      const es = P.sat && (s < 2 ? P.sat.edu : P.sat.exp); up = aff * inc * CAPS[s] * (es == null ? 1 : es); // нехватка образования (экспертного — для перехода в эксперты) снижает переход в следующую страту
     }
     const mv = x.st * up, leave = x.st - mv;
     if (mv > 0) { const y = nw[s + 1][a], fr = mv / x.n; y.n += mv; y.st += mv; }

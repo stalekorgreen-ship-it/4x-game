@@ -13,7 +13,7 @@ import { bldJobs, BRIG, BLD_MIX, BLD } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
-const CV = gd('economy', 'corps', {MINE_COST_KR: 5e7, MINE_MIX: [.6, .3, .1, 0], YARD_COST_KR: 2e10, SHIP_K: 250, YARD_MASS: {fe: 850, ti: 50, si: 40, co: 30}, LAB_COST_KR: 3e7, LAB_RP: 10, LAB_MIX: [0, .3, .5, .2], CORP_KEEP: 200, CMAT: {fac: {fe: 24, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 14, si: 12}}, SPACE_IND: ['comp', 'shipm', 'infra', 'ammo', 'air']});
+const CV = gd('economy', 'corps', {MINE_COST_KR: 5e7, MINE_MIX: [.6, .3, .1, 0], YARD_COST_KR: 2e10, SHIP_K: 250, YARD_MASS: {fe: 850, ti: 50, si: 40, co: 30}, LAB_COST_KR: 3e7, LAB_RP: 10, LAB_MIX: [0, .3, .5, .2], CORP_KEEP: 200, CMAT: {fac: {fe: 24, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 14, si: 12}}, SPACE_IND: ['shipm', 'infra', 'ammo', 'air']});
 export const MINE_COST = CV.MINE_COST_KR * KR, MINE_T = 100, MINE_MIX = CV.MINE_MIX, YARD_COST = CV.YARD_COST_KR * KR, SHIP_K = CV.SHIP_K, YARD_MASS = CV.YARD_MASS;
 // товары для космоса (корабли, станции, колонии): их госзаводы на Земле достраиваются сами, остальное — игрок
 export const SPACE_IND = CV.SPACE_IND;
@@ -113,7 +113,7 @@ function buildTick(c, dt) {
 // Оплата постройки корабля: своя верфь — по себестоимости, чужая — плюс 50% владельцу верфи.
 // Верфь строит по одному заказу за раз: пока занята, новые заказы ждут (days — срок постройки).
 // Материалы кораблей и станций — товары с рынка Земли (т на 1 т сухой массы); заказ растягивает спрос на срок постройки
-export const SHIP_IN = {steel: .4, alloy: .2, elx: .1, shipm: .2, comp: .1}, STATION_IN = {steel: .4, infra: .3, elx: .1, shipm: .1, comp: .1};
+export const SHIP_IN = {steel: .4, alloy: .2, elx: .1, shipm: .3}, STATION_IN = {steel: .4, infra: .3, elx: .1, shipm: .2};
 export function matOrder(tons, days, recipe) {
   const P = state.cols && state.cols.earth ? state.cols.earth.pop : state.pop, o = {until: (state.t || 0) + days, r: {}}; let cost = 0;
   for (const g in recipe) { if (!GOODS[g]) continue; const u = tons * recipe[g] / (tOf(g) || UT); o.r[g] = u / days; cost += u * ((P.price && P.price[g]) || KR * gval(g)); }

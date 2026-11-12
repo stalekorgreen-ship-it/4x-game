@@ -40,7 +40,7 @@
   "LAB_MIX": [0,0.3,0.5,0.2],
   "CORP_KEEP": 200,
   "CMAT": {"fac": {"fe": 24, "si": 4}, "mine": {"fe": 15, "c": 3}, "lab": {"fe": 14, "si": 12}},
-  "SPACE_IND": ["comp","shipm","infra","ammo","air"]
+  "SPACE_IND": ["shipm","infra","ammo","air"]
  },
  "prices": {
   "fe": 58,
@@ -75,9 +75,10 @@
   "def": 0.95,
   "meds": 0.78,
   "elx": 0.8,
-  "tech": 0.85,
+  "wear": 0.85,
   "house": 0.88,
-  "water": 0.9,
+  "edu": 0.85,
+  "exp": 0.8,
   "pow": 0.9
  },
  "mineYield": {
