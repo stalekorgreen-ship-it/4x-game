@@ -485,7 +485,7 @@ export function loadGame() {
     const s = JSON.parse(raw);
     if (!s || !s.ships || !s.designs || !s.stations) return false;
     setState(s); if (!state.spv) { state.speedIdx = (state.speedIdx || 0) + 4; state.spv = 2; } state.inBattle = false; state.terra = state.terra || {};
-    if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0;
+    if (!state.ground) state.ground = JSON.parse(JSON.stringify(GROUND)); if (state.bld && state.bld.mine === undefined) state.bld.mine = 0; if (state.bld && state.bld.cfactory && !state.bld.gbuild) { state.bld.gbuild = state.bld.cfactory * 5; state.bld.cfactory = 0; } /* старые здания → «Государственная стройка» (столько же СБ) */
     if (state.corps && (state.corpVer || 1) < 3) wipeCorps();
     if (!state.corps) { state.money = state.money || 6e10; initCorps(); }
     if (!state.pop && !state.cols) initPop(); relinkCols(); state.laws = {...LAW_DEFAULT, ...(state.laws || {})}; for (const b of BODIES) { if (b.ores && !state.ast[b.id]) state.ast[b.id] = {...b.ores}; if (b.pool && state.sites && !state.sites[b.id]) state.sites[b.id] = {...b.pool}; } /* новые тела в старых сохранениях */

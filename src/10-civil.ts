@@ -10,7 +10,7 @@ import { state, log, rec, fmtN, GROUND, veinEff, veinBase, myOf, isCoal } from '
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId, spaceK } from './07-population.ts';
-import { bldJobs, BRIG, BLD_MIX, BLD } from './03-build.ts';
+import { bldJobs, BRIG, BLD_MIX, BLD, CORP_GOODS } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
@@ -30,7 +30,7 @@ export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEf
 export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return myOf(r) * oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
 export const CORP_KEEP = CV.CORP_KEEP; // т каждой руды, которые корпорация держит под свою стройку
 // склад игрока не продаёт Земле месячный запас сырья своих заводов (топливный — уголь, переработка по полю make)
-const plantKeep = r => { const B = state.bld || {}; let k = r === 'c' ? (B.fuelplant || 0) * 20 * 1.5 * 30 : 0; for (const t in BLD) { const m = BLD[t].make; if (m && m.in && m.in[r] && B[t]) k += B[t] * (m.perDay || 0) * m.in[r] * 30; } return k; };
+const plantKeep = r => { const B = state.bld || {}; let k = 0; for (const t in BLD) { const m = BLD[t].make; if (m && m.in && m.in[r] && B[t]) k += B[t] * (m.perDay || 0) * m.in[r] * 30; } return k; };
 export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0) + plantKeep(r);
 export const CMAT = CV.CMAT;
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return (isCoal(r) ? (P.lcN || 0) : P.lmN) * myOf(r) * lmEff(r) * (P.mfill || 1); }; // госшахты: рудные (все металлы сразу) и угольные
@@ -250,7 +250,7 @@ function civTick(c, mk, dt, col) {
   const avail = c.credits - monthly * 2 - committed(v), foc = c.strat && c.strat.focus, FJ = jobCost('fac'), MJ = jobCost('mine');
   // правила ИИ из редактора (data/ai.json): сработало правило — встроенная логика в этом месяце молчит
   if (hooks.aiCorp && hooks.aiCorp(c, {avail, mk, q: cq(v).length}, {
-    fac: (g, n) => { if (!GOODS[g] || avail < FJ) return false; n = Math.min(n, Math.floor(avail / FJ)); for (let i = 0; i < n; i++) startJob(c, 'fac', g); return n > 0; },
+    fac: (g, n) => { if (!GOODS[g] || !CORP_GOODS.includes(g) || avail < FJ) return false; n = Math.min(n, Math.floor(avail / FJ)); for (let i = 0; i < n; i++) startJob(c, 'fac', g); return n > 0; },
     mine: r => { if (PRICE[r] == null || avail < MJ) return false; startJob(c, 'mine', r); return true; },
     lab: () => { if (col || avail < jobCost('lab')) return false; startJob(c, 'lab'); return true; },
     yard: () => { if (col || v.yard || queued(v, 'yard') || avail < jobCost('yard')) return false; startJob(c, 'yard'); return true; },
@@ -268,11 +268,12 @@ function civTick(c, mk, dt, col) {
   if (v.month % 2 === 0 && avail > FJ * 1.5 && !queued(v, 'tr')) { const t = wantTransport(c, state.pop, ctxId()); if (t) { startJob(c, 'tr', t); return; } }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
-  for (const k in GOODS) { const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001 && !(state.pop.staff && state.pop.staff[k] < .9)) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
+  for (const k of CORP_GOODS) { if (!GOODS[k]) continue; const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001 && !(state.pop.staff && state.pop.staff[k] < .9)) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
   const unmet = g !== null; // строят заводы только под неудовлетворённый спрос
-  if (g === null) for (const k in v.fac) if (v.fac[k] > 0) { g = k; break; }
+  if (g === null) for (const k in v.fac) if (v.fac[k] > 0 && CORP_GOODS.includes(k)) { g = k; break; }
+  if (g === null) g = CORP_GOODS.find(k => GOODS[k]) || null; // корпорации строят только постройки из таблицы
   if (g === null) return;
-  if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k in GOODS) if (k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
+  if (tot >= 6 && v.month % 3 === 0) { let o = null, ob = 0; for (const k of CORP_GOODS) if (GOODS[k] && k !== g && (v.fac[k] || 0) < tot * .3) { const sc = mk[k].avg * mk[k].mult; if (sc > ob) { ob = sc; o = k; } } if (o) g = o; }
   for (const r of Object.keys(PRICE)) if (state.mp && state.mp[r] > 1.3 && (v.mines[r] || 0) > 0 && v.mines[r] + queued(v, 'mine', r) < (foc === 'mining' ? 30 : 15) && avail > MJ * 4 && mineOK(r)) { startJob(c, 'mine', r); return; }
   const raw = GOODS[g].raw;
   if (raw && !(v.mines[raw] > 0) && tot >= 3 && mineOK(raw)) { if (!queued(v, 'mine', raw) && avail > MJ * 1.2) startJob(c, 'mine', raw); return; }
