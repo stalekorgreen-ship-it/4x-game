@@ -40,7 +40,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:10
 #mapctl{position:absolute;left:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap}
 #maphint{position:absolute;left:10px;bottom:8px;color:var(--muted);font-size:11px;pointer-events:none}
 #side{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--line);border-radius:6px;background:var(--panel);position:fixed;z-index:40}
-#side.card{right:max(16px,env(safe-area-inset-right,0px));top:96px;width:370px;max-width:calc(100vw - 32px);max-height:calc(100vh - 112px)}
+#side.card{right:max(16px,env(safe-area-inset-right,0px));top:96px;width:clamp(370px,28vw,500px);max-width:calc(100vw - 32px);max-height:calc(100vh - 112px)}
 #side.card #mclose{display:none}
 #side.modal{left:50%;top:104px;transform:translateX(-50%);width:min(1240px,calc(100vw - 24px));height:calc(100vh - 118px);box-shadow:0 20px 80px #000c;border-radius:10px}
 #side.modal #subtabs{padding-right:44px}
@@ -219,3 +219,21 @@ table.grid td.ds{max-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;c
 .alic:hover{background:#5a1c1c}
 @keyframes alp{50%{box-shadow:0 0 6px var(--bad)}}
 .box>.btn{align-self:flex-start}
+/* таблица бюджета */
+table.grid{border-collapse:collapse;width:100%;font-size:12px}
+table.grid td{padding:2px 5px;border-top:1px solid var(--line)}
+table.grid td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+table.grid td.ok{color:var(--good)}
+table.grid td.err{color:var(--bad)}
+/* компактная 2-колоночная таблица */
+.kv2{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.kv2 .kv-row{display:contents}
+.kv2 .kv-k{padding:2px 4px;color:var(--muted);font-size:11.5px;border-top:1px solid var(--line)}
+.kv2 .kv-v{padding:2px 4px;font-family:var(--mono);font-size:11.5px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* попап ресурсов из шапки */
+#resPopup{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 32px #000a;padding:8px 10px;min-width:220px;display:none}
+#resPopup.vis{display:block}
+#resPopup h3{margin:0 0 6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+/* пирамида + таблица рядом */
+.pop-top{display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:start}
+@media(max-width:460px){.pop-top{grid-template-columns:1fr}}

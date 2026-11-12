@@ -313,11 +313,11 @@ function refreshPopI() {
   const p = $('p-pop'); if (!p || !state.pop) return;
   if (!p._built) {
     p._built = true;
-    p.innerHTML = `<div class="box"><div id="pp-pick"></div><h2 id="pp-h">Население</h2><div id="pp-sum"></div></div>
-    <div class="box"><h2>Возрастная пирамида</h2><canvas id="pp-cv" width="560" height="300" style="width:100%;max-width:560px;height:auto;background:var(--panel2,#0003);border-radius:6px"></canvas><div class="help">Слева направо: возраст 0–100 по строкам сверху вниз; цвета — страты: ${STR.map((x, i) => `<span style="color:${STR_COL[i]}">■</span> ${x}`).join(' ')}</div></div>
-    <div class="box"><h2>Регионы</h2><div id="pp-reg"></div><div class="help">Число регионов зависит от размера тела. Заводы нанимают людей своего региона: где мест больше, чем людей, заводы недобирают работников, и туда едут мигранты; где людей больше, туда со временем переезжают рабочие места. На колониях жить можно только там, куда завезли инфраструктуру (регион выбирается в заказе груза).</div></div>
+    p.innerHTML = `<div class="box"><div id="pp-pick"></div><h2 id="pp-h">Население</h2>
+    <div class="pop-top"><div id="pp-sum"></div><div><canvas id="pp-cv" width="180" height="220" style="width:100%;height:auto;background:var(--panel2,#0003);border-radius:4px;display:block"></canvas><div class="help" style="font-size:10px;margin-top:3px">${STR.map((x, i) => `<span style="color:${STR_COL[i]}">■</span>${x}`).join(' ')}</div></div></div></div>
+    <div class="box"><h2>Регионы</h2><div id="pp-reg"></div><div class="help">Заводы нанимают людей своего региона; мигранты едут туда, где не хватает рабочих мест. На колониях — только куда завезли инфраструктуру.</div></div>
     <div class="box"><h2>Страты</h2><div id="pp-str"></div></div>
-    <div class="box"><h2>Товары и заводы</h2><div id="pp-goods"></div><div class="help">Завод нанимает ${fmtN(FACT_W)} человек (на колониях заводы в 100 раз меньше), молодых в первую очередь. Чем больше свободных рук, тем ниже зарплата. Сырьё: 1 т на 10 млн человек в сутки; закупается у вас по ценам рынка, остальное завозят.</div></div>
+    <div class="box"><h2>Товары и заводы</h2><div id="pp-goods"></div><div class="help">Завод нанимает ${fmtN(FACT_W)} чел. Сырьё: 1 т на 10 млн чел./сут.</div></div>
     <div class="box"><h2>Когорта</h2><div class="row">Страта <select id="pp-s">${STR.map((x, i) => `<option value="${i}">${x}</option>`).join('')}</select> Возраст <input id="pp-a" type="number" min="0" max="100" value="${popUi.a}" style="width:70px"></div><div id="pp-insp"></div></div>`;
     $('pp-s').value = popUi.s;
     $('pp-s').onchange = e => { popUi.s = +e.target.value; refreshPop(); };
@@ -326,11 +326,17 @@ function refreshPopI() {
   const P = state.pop, t = totals(), yr = Math.floor(state.t / 360), CL = state.cols[colSel()];
   setHtml($('pp-pick'), colPicker()); $('pp-h').textContent = 'Население: ' + CL.name;
   const tbl = (head, rows) => `<div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr>${head.map(x => `<th style="text-align:left;padding:2px 6px">${x}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(x => `<td style="padding:2px 6px;border-top:1px solid #8883">${x}</td>`).join('')}</tr>`).join('')}</table></div>`;
-  setHtml($('pp-sum'), tbl(['Показатель', 'Значение'], [
-    ['Население', fmtN(t.n)], ['Дети 0–14', fmtN(sumAge(0, 14))], ['Трудоспособные 15–64', fmtN(sumAge(15, 64))], ['Старше 65', fmtN(sumAge(65, 100))],
-    ['Занято / безработных', `${fmtN(t.emp)} / ${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`], ['Учатся (15+)', fmtN(t.st - sumSt(0, 14))],
-    ['Рождаемость / смертность в год', `${fmtN(P.birth)} / ${fmtN(P.death)}`], ['Прирост в год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
-    ['Фонд зарплат в месяц', fmtN(P.wbill * 30) + ' кр'], ['Налоги всего в месяц', fmtN((P.taxFull || 0) * 30) + ' кр'], ['Земные расходы в месяц', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '% × ' + fmtN((P.depK || 1) * 100, 0) + '% (старение)'], ['Налоги вам в месяц', fmtN(P.tax * 30) + ' кр'], ...(P.log ? [['Логистика', `${P.log.how}, Ø ${fmtN(P.log.D, 1)} км, плечо ${fmtN(P.log.d, 1)} км`], ['Нужно т·км в сутки / доставлено', `${fmtN(P.log.L)} / ${fmtN(P.log.sat * 100, 1)}%`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Доли: наземная / морская / воздушная', ['land', 'sea', 'air'].map(t => fmtN(P.log.L > 0 ? P.log.used[t] / P.log.L * 100 : 0, 0) + '%').join(' / ')], ['Госпредприятий транспорта', ['land', 'sea', 'air'].map(t => fmtN((P.tr && P.tr[t]) || 0)).join(' / ')]] : []), ...(P.hab ? [['Вместимость тела', fmtN(P.hab)], ['Переселенцев с Земли за год', fmtN(P.immY || 0)]] : [])]));
+  const kv2 = rows => `<div class="kv2">${rows.map(([k, v]) => `<span class="kv-k">${k}</span><span class="kv-v">${v}</span>`).join('')}</div>`;
+  setHtml($('pp-sum'), kv2([
+    ['Население', fmtN(t.n)], ['Прирост/год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
+    ['Дети 0–14', fmtN(sumAge(0, 14))], ['15–64', fmtN(sumAge(15, 64))],
+    ['Занято', fmtN(t.emp)], ['Безраб.', `${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`],
+    ['Рождений/год', fmtN(P.birth)], ['Смертей/год', fmtN(P.death)],
+    ['ФЗП/мес', fmtN(P.wbill * 30) + ' кр'], ['Налоги/мес', fmtN((P.taxFull || 0) * 30) + ' кр'],
+    ['Расходы Земли/мес', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '%×' + fmtN((P.depK || 1) * 100, 0) + '%'],
+    ['Вам/мес', fmtN(P.tax * 30) + ' кр'], ...(P.hab ? [['Вместимость', fmtN(P.hab)], ['Иммигр./год', fmtN(P.immY || 0)]] : []),
+    ...(P.log ? [['Логистика', P.log.how], ['Плечо', `${fmtN(P.log.D, 0)} / ${fmtN(P.log.d, 0)} км`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Покрытие', fmtN(P.log.sat * 100, 1) + '%']] : [])
+  ]));
   { const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1, f0 = x => (x >= 0 ? '+' : '') + fmtN(x, 0);
     const C = R.map((r, i) => regClim(id, i)), pc = x => fmtN(x * 100, 1) + '%', sel = popUi.reg != null && R[popUi.reg] ? popUi.reg : null;
     const rows = R.map((r, i) => `<tr data-reg="${i}" style="cursor:pointer${sel === i ? ';background:#ffffff14' : ''}">` + [T[i].n, fmtN(r.n), r.un != null ? `${fmtN(r.un)} (${pc(r.un / Math.max(1, r.un + (r.emp || 0)))})` : '—', r.wage ? fmtN(r.wage, 0) + ' кр' : '—',
@@ -368,10 +374,15 @@ function refreshPopI() {
 export function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }
 export function sumSt(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].st; return n; }
 export function drawPyr() {
-  const cv = $('pp-cv'); if (!cv) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, P = state.pop;
+  const cv = $('pp-cv'); if (!cv) return;
+  const dpr = window.devicePixelRatio || 1, cw = cv.clientWidth || 180, ch = cv.clientHeight || 220;
+  if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); }
+  const g = cv.getContext('2d'), W = cv.width / dpr, H = cv.height / dpr, P = state.pop;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, W, H); let mx = 1; for (let a = 0; a <= 100; a++) { let n = 0; for (let s = 0; s < 4; s++) n += P.c[s][a].n; mx = Math.max(mx, n); }
-  const rh = (H - 10) / 101;
-  for (let a = 0; a <= 100; a++) { let x0 = 40; for (let s = 0; s < 4; s++) { const w = P.c[s][a].n / mx * (W - 60); g.fillStyle = STR_COL[s]; g.fillRect(x0, 5 + a * rh, w, rh - .5); x0 += w; } }
-  g.fillStyle = '#999'; g.font = '11px sans-serif'; for (let a = 0; a <= 100; a += 20) g.fillText(a, 6, 5 + a * rh + 9);
-  g.fillStyle = '#fff'; const ya = 5 + popUi.a * rh; g.fillRect(30, ya, 8, Math.max(2, rh));
+  const lm = 22, rh = (H - 6) / 101;
+  for (let a = 0; a <= 100; a++) { let x0 = lm; for (let s = 0; s < 4; s++) { const w = P.c[s][a].n / mx * (W - lm - 2); g.fillStyle = STR_COL[s]; g.fillRect(x0, 3 + a * rh, w, rh - .3); x0 += w; } }
+  g.fillStyle = '#888'; g.font = `${Math.max(8, Math.round(9 * Math.min(1, W / 180)))}px sans-serif`;
+  for (let a = 0; a <= 100; a += 20) g.fillText(a, 2, 3 + a * rh + rh * .7);
+  g.fillStyle = 'rgba(255,255,255,.7)'; const ya = 3 + popUi.a * rh; g.fillRect(lm - 4, ya, 3, Math.max(1.5, rh));
 }

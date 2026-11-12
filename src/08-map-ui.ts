@@ -53,7 +53,17 @@ export function refreshHeader() {
   const bp = $('bpause'); bp.textContent = state.paused ? '▶ Пуск' : '⏸ Пауза'; bp.classList.toggle('on', state.paused);
   document.querySelectorAll('[data-sp]').forEach(b => b.classList.toggle('on', !state.paused && +b.dataset.sp === state.speedIdx));
   const st = state.stock;
-  $('stock').innerHTML = `<span class="chip"><b>Топливо</b>${fmtN(st.fuel)}</span><span class="chip"><b>Тех. изд.</b>${fmtN(st.spares)}</span><span class="chip"><b>Кораблей</b>${myShips().length}</span><span class="chip"><b>Станций</b>${myStations().length}</span><span class="chip"><b>Кредиты</b>${fmtN(state.money || 0)}</span>` + raidChip();
+  const moneyStr = fmtN(state.money || 0);
+  const incStr = state.budget ? ' <span style="color:var(--muted);font-size:10px">+' + fmtN(Object.values(state.budget.inc).reduce((a,b)=>a+b,0) * 30 / Math.max(1, state.budget.days) * state.budget.k, 0) + '/мес</span>' : '';
+  $('stock').innerHTML = `<span class="chip" id="cred-chip" style="cursor:pointer" title="Нажмите — подробно"><b>Кредиты</b>${moneyStr}${incStr}</span><span class="chip"><b>Топливо</b>${fmtN(st.fuel)}</span><span class="chip"><b>Тех. изд.</b>${fmtN(st.spares)}</span><span class="chip"><b>⚓</b>${myShips().length} кор. / ${myStations().length} ст.</span>` + raidChip();
+  refreshResPopup();
+}
+function refreshResPopup() {
+  let el = document.getElementById('resPopup'); if (!el) { el = document.createElement('div'); el.id = 'resPopup'; document.body.appendChild(el); el.addEventListener('mouseleave', () => el.classList.remove('vis')); }
+  const st = state.stock, b = state.budget;
+  const rows = [['Железо', st.fe||0], ['Сталь', st.st||0], ['Алюминий', st.al||0], ['Лёд', st.ice||0], ['Уголь', st.c||0], ['Кремний', st.si||0], ['Редкозём.', st.ree||0], ['Запчасти', st.spares||0], ['Топливо', st.fuel||0]];
+  el.innerHTML = `<h3>Склад (ключевые ресурсы)</h3><div class="kv2">${rows.map(([k,v]) => `<span class="kv-k">${k}</span><span class="kv-v">${fmtN(v)} т</span>`).join('')}</div>` + (b ? `<h3 style="margin-top:8px">Бюджет/мес (ваша доля)</h3><div class="kv2"><span class="kv-k ok">Доходы</span><span class="kv-v ok">+${fmtN(Object.values(b.inc).reduce((a,v)=>a+v,0)*30/Math.max(1,b.days)*b.k)} кр</span><span class="kv-k err">Расходы</span><span class="kv-v err">−${fmtN(Object.values(b.exp).reduce((a,v)=>a+v,0)*30/Math.max(1,b.days)*b.k)} кр</span></div>` : '');
+  const chip = document.getElementById('cred-chip'); if (chip) { chip.onmouseenter = () => { const r = chip.getBoundingClientRect(); el.style.right = (window.innerWidth - r.right) + 'px'; el.style.top = (r.bottom + 4) + 'px'; el.style.left = 'auto'; el.classList.add('vis'); }; }
 }
 
 /* ===== КАРТА ===== */
