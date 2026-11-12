@@ -74,7 +74,7 @@ export function civJobs() {
 // СБ — как в таблице «Пояс» (постройки корпораций), бригада даёт 10 СБ в год. CSB — для оценок и строительного бюро (cb).
 export const CSB = {fac: 100, mine: 100, lab: 400, tr: 200, yard: 4000, cb: 5}, CBR = CV.CBR || 50, BRIG_MARKUP = 1.25;
 const brigY = () => ECON.BRIG_Y || 10; // СБ в год на бригаду
-const jobBr = j => Math.min(CBR, Math.max(1, Math.ceil(j.left / brigY() / 2))); // закончить за 2 года // бригад на объект: чтобы закончить за год, не больше CBR
+const jobBr = j => Math.min(CBR, Math.max(1, Math.ceil((j.total || j.left) / brigY()))); // бригад на объект: чтобы весь объект строился около года, не больше CBR // бригад на объект: чтобы закончить за год, не больше CBR
 // энергия у корпорации: смесь станций по типам (эквиваленты); старые заводы без смеси — по стартовой доле мира
 export const pmixOf = v => { if (!v.pmix && (v.fac.pow || 0) > 0) { v.pmix = {}; for (const t in PT) v.pmix[t] = v.fac.pow * (PMIX0[t] || 0); } return v.pmix || null; };
 // какую станцию строить: зелёная — пока её меньше четверти мощности, дальше — что дешевле по топливу и людям
@@ -118,7 +118,8 @@ export function brigMarket(dt) {
 function buildTick(c, dt) {
   const v = c.civ, q = cq(v); if (!q.length) return;
   let b = v.bAlloc || 0;
-  for (const j of q) { const k = Math.min(jobBr(j), b); b -= k; j.left -= Math.min(j.left, k * dt * brigY() / 360); } // зарплата уже оплачена (свои) или аренда (чужие)
+  const ks = q.map(j => { const k = Math.min(jobBr(j), b); b -= k; return k; }); for (let i = 0; i < q.length && b > 0; i++) { const x = Math.min(CBR - ks[i], b); ks[i] += x; b -= x; } // свободные бригады — на те же объекты
+  q.forEach((j, i) => { j.left -= Math.min(j.left, ks[i] * dt * brigY() / 360); }); // зарплата уже оплачена (свои) или аренда (чужие)
   for (const j of q.filter(j => j.left <= 1e-9)) {
     if (j.k === 'fac') { const e = CORP[j.id] || {}, eq = (e.k || 1) * (j.u || 1); if (j.g === 'pow') { const m = pmixOf(v) || (v.pmix = {}); const t = PT[j.id] ? j.id : 'tps'; m[t] = (m[t] || 0) + eq; }
       v.fac[j.g] = (v.fac[j.g] || 0) + eq; v.built++; if (!v.pr[j.g]) v.pr[j.g] = .95 * KR * gval(j.g); if (e.life) (v.age = v.age || []).push({g: j.g, id: j.id, eq, end: state.t + e.life * 360}); }
@@ -286,14 +287,14 @@ function civTick(c, mk, dt, col) {
     yard: () => { if (col || v.yard || queued(v, 'yard') || avail < jobCost('yard')) return false; startJob(c, 'yard'); return true; },
     cb: () => { if (avail < jobCost('cb')) return false; startJob(c, 'cb'); return true; } })) return;
   if ((v.bNeed || 0) > 0 && queued(v, 'cb') < 1 + Math.floor(cbOf(v) / 4) && (v.bShort || 0) >= 2 && avail > jobCost('cb') * 5) { startJob(c, 'cb'); return; } // не хватает бригад — открывают бюро
-  if (cq(v).length - queued(v, 'cb') >= 3 + Math.ceil(tot / 8)) return; // стройплощадок не больше, чем потянет управление
   // верфь: первый, кто накопил, строит её; остальные покупают постройки у него
-  if (!col && !v.yard && !queued(v, 'yard') && tot >= 15 && avail > jobCost('yard') * 1.5 && (!hasYard() || avail > jobCost('yard') * 8)) {
+  if (!col && !v.yard && !queued(v, 'yard') && tot >= 15 && avail > jobCost('yard') * .05 && (!hasYard() || tot >= 40) /* верфь строится годами бригадами, платят по ходу: на руках нужна десятая часть */) {
     startJob(c, 'yard'); return;
   }
+  if (cq(v).length - queued(v, 'cb') >= 3 + Math.ceil(tot / 8)) return; // стройплощадок не больше, чем потянет управление
   if (!col && v.month % (foc === 'expand' ? 1 : 4) === 0 && avail > FC() * (foc === 'expand' ? 3 : 6) && tryExpand(c)) return;
-  const wantLabs = col ? 0 : tot >= 6 ? Math.min(40, Math.ceil(tot / 12 * (foc === 'science' ? 2.5 : foc === 'industry' ? .7 : 1))) : 0;
-  if ((v.labs || 0) + queued(v, 'lab') * 3 < wantLabs && avail > jobCost('lab') * 1.5) { startJob(c, 'lab', wantLabs - (v.labs || 0) >= 5 && avail > jobCost('lab', 'dc') * 3 ? 'dc' : undefined); return; }
+  const wantLabs = col ? 0 : tot >= 4 ? Math.min(40, Math.ceil(tot / 12 * (foc === 'science' ? 2.5 : foc === 'industry' ? .7 : 1))) : 0;
+  if ((v.labs || 0) + queued(v, 'lab') * 3 < wantLabs && avail > jobCost('lab')) { startJob(c, 'lab', wantLabs - (v.labs || 0) >= 5 && avail > jobCost('lab', 'dc') * 3 ? 'dc' : undefined); return; }
   // транспорт: дорогая доставка или нехватка — строят предприятие своего вида
   if (v.month % 2 === 0 && avail > FJ * 1.5 && !queued(v, 'tr')) { const t = wantTransport(c, state.pop, ctxId()); if (t) { startJob(c, 'tr', t); return; } }
   // сырьё: нет шахты — строят

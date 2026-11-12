@@ -8,14 +8,14 @@ import { specFromShip } from './05-battle.ts';
 
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), pick = a => a[Math.floor(Math.random() * a.length)];
 const MS = [['10', '1', '1', '1', '1', '0', '1'], ['30', '5', '10', '1', '0', '0', '0'], ['100', '2', '30', '3', '3', '2', '1']]; // мощность, двигатель, топливо, ЭМ, ТЕП, радар, самонаведение
-const AMMO_SZ = [1000, 500, 200, 100, 50, 20], REACT_SZ = [5000, 1000, 300, 100, 50, 20];
+const AMMO_SZ = [500, 100, 25, 5], REACT_SZ = [5000, 1000, 300, 100, 50, 20];
 export let BOT_REAL = true;
 export const setBotReal = v => { BOT_REAL = !!v; };
 
 // гены: что бот пробует менять
 function randGenes(sp) {
   const big = (sp.tons || (sp.L || .5) * TON_L) > 20000;
-  return {k: R(.75, 1.15), ld: pick(['m', 'a', 'a', 'f']), cap: RI(4, 22), mat: pick(['s', 's', 't', 'r']), armAdj: pick([-1, 0, 0, 1]), eng: big && Math.random() < .6 ? 'fusion' : 'ion',
+  return {k: R(.75, 1.15), ld: pick(['m', 'a', 'a', 'f']), cap: RI(4, 22), mat: pick(['s', 's', 't', 'r']), armAdj: pick([-1, 0, 0, 1]), eng: big && Math.random() < .4 ? 'fusion' : Math.random() < .6 ? 'chem' : 'ion', ez: pick(['10', '20', '50', '100']),
     epw: pick(['100', '200', '300', '500']), tune: pick(['n', 'n', 'e', 'b']), fu: R(.03, .09), am: pick([1, 1.3, 1.8]), ms: RI(0, 2), cl: pick(['l', 's', 's', 'h']), gn: pick(['1', '2', '2', '4'])};
 }
 function mutate(g) {
@@ -24,14 +24,14 @@ function mutate(g) {
   h[f] = r[f]; return h;
 }
 const add = (parts, k, n) => { if (n > 0) parts[k] = (parts[k] || 0) + n; };
-function sumAmmoParts(parts, need) { let left = need; for (const s of AMMO_SZ) { while (left >= s * .85 && left > 0) { add(parts, mkKey('ammo', {t: String(s)}), 1); left -= s; } } if (left > 0) add(parts, mkKey('ammo', {t: '20'}), Math.ceil(left / 20)); }
+function sumAmmoParts(parts, need) { let left = need; for (const s of AMMO_SZ) { while (left >= s * .85 && left > 0) { add(parts, mkKey('ammo', {t: String(s)}), 1); left -= s; } } if (left > 0) add(parts, mkKey('ammo', {t: '5'}), Math.ceil(left / 5)); }
 function sumReactors(parts, need) { let left = need; for (const s of REACT_SZ) { while (left >= s * .85 && left > 0) { add(parts, mkKey('reactor', {p: String(s)}), 1); left -= s; } } if (left > 0) add(parts, mkKey('reactor', {p: '20'}), Math.ceil(left / 20)); }
 
 // оружие, броня, ангары, сенсоры — всё, кроме двигателей, реакторов, баков, жилья
 function weaponsPart(sp, g) {
   const p = {}, k = g.k, rc = (sp.railCfg && sp.railCfg[0]) || {cal: 10, bar: 1};
   const nr = sp.rails ? Math.max(1, Math.round(sp.rails * k)) : 0, ng = sp.gat ? Math.max(1, Math.round(sp.gat * k)) : 0, nf = sp.flak ? Math.max(1, Math.round(sp.flak * k)) : 0;
-  if (nr) add(p, mkKey('rail', {cal: String(rc.cal), bar: String(rc.bar), ld: g.ld, cap: String(g.cap), saf: '1'}), nr);
+  if (nr) add(p, mkKey('rail', {cal: String(rc.cal), bar: String(rc.bar), ld: g.ld, cap: 'a', saf: '1'}), nr);
   if (ng) add(p, mkKey('gat', {tw: String((sp.gatCfg && sp.gatCfg[0] && sp.gatCfg[0].tw) || 0)}), ng);
   if (nf) add(p, mkKey('flak', {cal: '40', rt: 'n', saf: '0'}), nf);
   if (sp.lasers && sp.laserCfg && sp.laserCfg[0]) { const L = sp.laserCfg[0]; add(p, mkKey('lgun', {lens: String(L.lens || 20), dur: String(L.dur || 5), caps: String(L.caps || 100)}), 1); }
@@ -39,7 +39,7 @@ function weaponsPart(sp, g) {
   if (sp.F) { const key = mkKey('hangar_f', {ds: 'p:' + (g.cl || 's'), nn: '10'}); add(p, key, Math.max(1, Math.ceil(sp.F / (compOf(key).hangF || 10)))); }
   if (sp.B) { const key = mkKey('hangar_b', {cl: g.cl === 'l' ? 's' : g.cl, en: '100', fu: '30'}); add(p, key, Math.max(1, Math.ceil(sp.B / (compOf(key).hangB || 5)))); }
   const arm = Math.max(0, Math.min(12, (sp.arm || 0) + g.armAdj));
-  if (arm) add(p, 'armor', arm);
+  if (arm) add(p, mkKey('armor', {mat: g.mat === 'r' ? 'w' : 's'}), arm);
   for (const s of sp.scList || []) { if (s.k === 'ir') add(p, mkKey('irs', {res: s.res >= 1 ? 'n' : 'w'}), 1); else if (s.k === 'em') add(p, mkKey('ems', {res: 'w'}), 1); else if (s.k === 'rad') add(p, mkKey('radar', {pw: s.rng >= 500 ? 'l' : s.rng >= 250 ? 'm' : 's', res: s.fine ? 'f' : 'c'}), 1); }
   { let n = sp.fcsN || 0; while (n >= 8) { add(p, mkKey('fcs', {ch: '8'}), 1); n -= 8; } if (n >= 4) { add(p, mkKey('fcs', {ch: '4'}), 1); n -= 4; } if (n >= 2) { add(p, mkKey('fcs', {ch: '2'}), 1); n -= 2; } if (n >= 1) add(p, mkKey('fcs', {ch: '1'}), 1); }
   if (sp.mar) add(p, 'marines', Math.max(1, Math.ceil(sp.mar / 10)));
@@ -60,20 +60,21 @@ function complete(sp, g, base, ship) {
   let best = null;
   for (let e = 1; e <= 16; e++) {
     const p = {...parts}; let engMW = 0;
-    if (!ship) { add(p, mkKey(g.eng, {pw: g.epw, tune: g.tune}), e); engMW = compOf(mkKey(g.eng, {pw: g.epw, tune: g.tune})).power * e * .5; }
+    if (!ship) { const ek = g.eng === 'chem' ? mkKey('chem', {zs: g.ez || '20', md: 's', al: 't'}) : mkKey(g.eng, {pw: g.epw, tune: g.tune}); add(p, ek, e); engMW = compOf(ek).elec ? compOf(ek).power * e * .5 : 0; }
     sumReactors(p, engMW + draw);
     let st = designStats(p), dry = st.dry;
     const fuelNeed = Math.max(100, dry * g.fu);
-    if (!ship) { const key = mkKey('tank', {sz: 'x', dn: 'n'}), per = compOf(key).fuel; add(p, key, Math.max(1, Math.ceil(fuelNeed / per))); }
+    if (!ship) { const key = mkKey('tank', {tv: fuelNeed > 1500 ? '2000' : fuelNeed > 300 ? '500' : '100'}), per = compOf(key).fuel; add(p, key, Math.max(1, Math.ceil(fuelNeed / per))); }
     st = designStats(p);
     for (let i = 0; i < 6 && st.errors.length; i++) {
       for (const er of st.errors) {
-        if (er.includes('кают')) add(p, mkKey('cabin', {sz: 'x'}), Math.max(1, Math.ceil((st.crewNeed - st.crewCap) / 100)));
+        if (er.includes('кают')) add(p, mkKey('cabin', {cv: '100'}), Math.max(1, Math.ceil((st.crewNeed - st.crewCap) / 100)));
         else if (er.includes('Жизнеобеспечение')) add(p, mkKey('life', {sz: 'x'}), Math.max(1, Math.ceil((st.crewNeed - st.lifeCap) / 200)));
       }
       st = designStats(p);
     }
     if (st.errors.length) continue;
+    if ((st.enIdle || 0) > (st.sinkMW || 0)) { add(p, mkKey('sink', {np: '100'}), Math.ceil(((st.enIdle || 0) - (st.sinkMW || 0)) / 6.4)); st = designStats(p); } // радиаторы под тепло электроники
     best = {p, st};
     if (ship ? e >= 1 : (st.power / Math.max(1, st.dry) >= target * .25 || st.bspd >= target)) break;
   }

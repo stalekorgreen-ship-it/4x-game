@@ -123,6 +123,17 @@ export function serve(s, baseId) {
     s.fuel += take; st.fuel -= take;
   }
 }
+// Обслуживание (таблица «Переработка»): 5% стоимости корабля в год запчастями — у базы со склада, в пути — из трюма;
+// не хватило — долг копится, и узлы изнашиваются быстрее. Реактор деления жжёт 0,01 т урана на МВт в год (со склада Земли).
+export function maintTick(s, h) {
+  if (s.corp || !s.st || !(s.st.dry > 0)) return;
+  const need = .05 * s.st.dry / 360 * h + (s.mDebt || 0); let got = 0;
+  if (s.at && isBase(s.at)) { const st = isSt(s.at) ? stById(s.at) : null; got = st ? Math.min(need, st.spares || 0) : takeSpares(need); if (st) st.spares -= got; }
+  else if (s.cargo && s.cargo.spares > 0) { got = Math.min(need, s.cargo.spares); s.cargo.spares -= got; }
+  s.mDebt = Math.max(0, need - got);
+  if (s.mDebt > .01 * s.st.dry && s.eq) { const ks = Object.keys(s.eq); if (ks.length) useWear(s, ks[Math.floor(Math.random() * ks.length)], .02 * h, .0005 * h * Math.min(10, s.mDebt / (.01 * s.st.dry))); }
+  if (s.st.uYear > 0) { const u = s.st.uYear / 360 * h; state.stock.u = Math.max(0, (state.stock.u || 0) - u); rec('u', 'out', u, 'spares'); }
+}
 // ремонт у базы; true — корабль занят ремонтом и ждёт
 export function repairStep(s, h) {
   if (!s.at || !isBase(s.at) || shipCond(s) >= 99.5) return false;
@@ -169,6 +180,7 @@ export function shipTickInner(s, h) {
   if (s.towedBy) { s.status = 'На буксире'; return; }
   if (s.at) { const p = objPos(s.at, state.t); s.x = p.x; s.y = p.y; }
   s.broken = failed(s, 'engine');
+  maintTick(s, h);
   if (repairStep(s, h)) return;
   if (!isBase(s.at)) {
     useWear(s, 'life', 0.02 * h, 0.0006 * h);

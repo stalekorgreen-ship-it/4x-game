@@ -93,6 +93,8 @@ function mkShip(side,sp,x,y){
   return sh;
 }
 const FORMS=['wedge','claw','x','sphere'];
+// тепло (таблица «Корабли (система)»): теплоёмкость корпуса 0,5 МДж на т на °C; s.heat = °C выше нормы / 100 (выше +100 °C — сбои)
+function addHeat(s,MJ){const T=Math.max(1,(s.T&&s.T.tons)||(s.spec&&s.spec.tons)||1000);s.heat=Math.max(0,s.heat+MJ/(.5*T)/100)}
 function mdead(s,m){if(!m.alive)return;m.alive=false;s.aliveN--;if(m.k==='E')s.engN--;else if(m.k==='R')s.rcsN--;else if(m.k==='D')s.radN--}
 function mrev(s,m){m.alive=true;s.aliveN++;if(m.k==='E')s.engN++;else if(m.k==='R')s.rcsN++;else if(m.k==='D')s.radN++}
 function addFlights(sh,ty,total){
@@ -341,7 +343,7 @@ function steer(s,dt){
   {const kf=Math.min(1,dt*.35);s.dvx=s.dvx==null?vx:s.dvx+(vx-s.dvx)*kf;s.dvy=s.dvy==null?vy:s.dvy+(vy-s.dvy)*kf;vx=s.dvx;vy=s.dvy}
   // скорость вперёд больше, назад и вбок — меньше
   const c=Math.cos(s.hd),sn=Math.sin(s.hd);let fw=vx*c+vy*sn,lt=-vx*sn+vy*c;if(fw<0)fw*=.5;lt*=.6;vx=fw*c-lt*sn;vy=fw*sn+lt*c;
-  if(s.ovh)boost=Math.min(boost,1.1);if(boost>1.02)s.heat+=.01*(boost-1)*dt;
+  if(s.ovh)boost=Math.min(boost,1.1); // тепло химического двигателя уходит с выхлопом
   // поломка двигателя при форсаже: чем сильнее ускорение, тем выше шанс
   if(boost>1.02&&s.engN>0&&Math.random()<.00006*(1+3*(boost-1))*dt*s.engN){
     const em=[];for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive)em.push(m);
@@ -593,6 +595,10 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
     if(!m)break;if(m.ar>0&&m.k!=='C'){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.7});continue}mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}
   const tk=(kind==='laser'&&pw&&pw<1)?pw:1; // такт лазера (0,1 с): побочные эффекты проникновения редкие, иначе корабль горит непрерывно
   if(tk===1||Math.random()<tk*.5){fx.push({z:o.z,x,y,t0:t,d:10,r:3});SFX.boom(3);spawnPlates(o,x,y,2+Math.min(3,k),true);addDecal(o,x,y,vx,vy,1.2,1)}
+  if(o.mag>0&&o.spec.magFr&&Math.random()<Math.min(.5,o.spec.magFr*k*1.5)*tk){ // пробоина у погреба: слой брони погреба держит одно попадание, отстрел — без взрыва, иначе детонация
+    o.magAr=o.magAr==null?(o.spec.magArm||0):o.magAr;
+    if(o.magAr>0)o.magAr--;else if(o.spec.magEj){if(!o.magEjT)o.magEjT=t+60}else{o.mag=0;fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(2,o.T.L*.8)});SFX.boom(6);
+      const al=[];for(const zz of o.zones)for(const q of zz.mods)if(q.alive&&q.k!=='C')al.push(q);for(let i=0;i<Math.min(al.length,4+Math.round(o.spec.magFr*40));i++)mdead(o,al.splice((Math.random()*al.length)|0,1)[0]);o.crew=Math.max(0,o.crew-.15);o.mor-=.2;say(o.side,'mod',o)}}
   o.crew=Math.max(0,o.crew-(.012*k+.004)*tk);o.mor-=(.012+.01*k)*tk;
   if(Math.random()<(.07+.04*k)*tk*(tk<1?.5:1)){const zi2=o.zones.indexOf(z);if(zi2>=0){o.fire[zi2]=Math.min(3,o.fire[zi2]+1);stat.fires++;say(o.side,'fire_',o)}}
   say(o.side,'hit',o);
@@ -642,7 +648,8 @@ function gatStep(s,m,dt){
     if(!e)for(const p of torps){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=3}}}
   if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,GV)&&hitP(s,s.tg,GV,1)>=PMIN){e=s.tg;kind=4} // дальше 12 км пуля всё равно угаснет — не стреляем
   if(!e||m.lock||s.mag<=0){m.why=m.lock?'перегрев: остывает ('+Math.round(m.heat*100)+'%, стрельба с 55%)':s.mag<=0?'нет боеприпасов':'нет целей ближе '+Math.min(C.rng,GV*20).toFixed(0)+' км'+(m.last?' · последний: '+m.last:'');m.heat=Math.max(0,m.heat-C.cool/60*dt);if(m.lock&&m.heat<.55)m.lock=false;return}
-  m.heat+=C.heat/60*dt;{const tn=C.ammoH/3600*dt;(stat.gatT=stat.gatT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}
+  if(C.rot&&!C.ax){const want=Math.atan2(e.y-s.y,e.x-s.x);if(m.ang==null)m.ang=want;const d=adiff(m.ang,want),st=C.rot*Math.PI/180*dt;if(Math.abs(d)>st){m.ang+=Math.sign(d)*st;m.why='турель разворачивается ('+C.rot+'°/с)';m.heat=Math.max(0,m.heat-C.cool/60*dt);return}m.ang=want} // скорость разворота турели
+  m.heat+=C.heat/60*dt;addHeat(s,(C.heatMW||.5)*dt);if(C.failM&&Math.random()<C.failM/60*dt){m.alive=false;mdead(s,m);m.why='пулемёт сломался при стрельбе (1% в минуту)';return}{const tn=C.ammoH/3600*dt;(stat.gatT=stat.gatT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}
   if(m.heat>=1){m.heat=1;if(Math.random()<.3){m.alive=false;mdead(s,m);fx.push({x:s.x,y:s.y,t0:t,d:4,r:1});return}m.lock=true;return}
   m.fa=Math.atan2(e.y-s.y,e.x-s.x);m.rt=performance.now();m.acc+=dt*10;const w=C.rpm/600,dist=Math.hypot(e.x-s.x,e.y-s.y),eR=Math.max(.5,effR(s,e,GV));
   const pAcc=Math.max(.02,(.55-.4*Math.min(1,dist/eR))*(1-.95*m.heat))*(1.2-.05*m.sk);
@@ -699,7 +706,7 @@ function hurtMis(q,n){q.hp-=n;if(q.hp<=0){const i=mis.indexOf(q);if(i>=0){mis.sp
 // боевой лазер: на огромной дистанции луч дрожит и уводится движением цели; урон идёт каждые 0,1 с в точку, где луч сейчас, и она ползёт по пластинам; луч оставляет чёрную копоть
 function fireLaser(s,m,o,C){
   const bm={a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:performance.now()+C.dur*1000,c0:performance.now(),side:s.side,w:C.dmg,ld:1};beams.push(bm);
-  lasBeams.push({s,m,o,C,t1:t+C.dur,nx:t,ox:0,oy:0,bm,dc:0});s.flash=t;SFX.shot('laser');say(s.side,'laser',s);m.last=m.why='лазер: импульс по '+(o.T?o.T.n:'цели');stat.las[s.side]++;s.heat+=C.dmg*.12}
+  lasBeams.push({s,m,o,C,t1:t+C.dur,nx:t,ox:0,oy:0,bm,dc:0});s.flash=t;SFX.shot('laser');say(s.side,'laser',s);m.last=m.why='лазер: импульс по '+(o.T?o.T.n:'цели');stat.las[s.side]++;addHeat(s,2.3*(C.E||1000)) /* КПД 30%: 2,3 МДж тепла на 1 МДж луча */}
 function lasStep(dt){
   for(let i=lasBeams.length-1;i>=0;i--){const q=lasBeams[i],{s,o,C}=q;
     if(!s.alive||!q.m.alive||!o.alive||t>=q.t1){if(q.bm.rt>performance.now()+300)q.bm.rt=performance.now()+300;lasBeams[i]=lasBeams[lasBeams.length-1];lasBeams.pop();continue}
@@ -776,7 +783,7 @@ function step(dt){
           if(C.dur){fireLaser(s,m,o,C);m.cd=Math.max(180,C.E/800)*R(.95,1.05)/s.enR;continue}
           {const lx=o.x-s.x,ly=o.y-s.y,ll=lx*lx+ly*ly||1;let bk=null,bu=2;for(const f of around(s.side,s.x+lx/2,s.y+ly/2,Math.sqrt(ll)/2+3)){if(f===s||!f.alive)continue;const u=((f.x-s.x)*lx+(f.y-s.y)*ly)/ll;if(u<=.02||u>=1)continue;if(Math.hypot(s.x+lx*u-f.x,s.y+ly*u-f.y)<f.T.L*.38&&u<bu){bu=u;bk=f}}
             if(bk){beams.push({a:s,b:bk,tx:bk.x,ty:bk.y,tz:bk.z,rt:m.rt+(C.dur?C.dur*1000:600),c0:m.rt,ld:C.dur?1:0,side:s.side,w:C.dmg});stat.ff=(stat.ff||0)+1;for(let q=0;q<(C.dur||1);q++)if(!C.dur||Math.random()<C.ap)hitShip(bk,'laser',lx,ly,bk.x,bk.y,C.dmg*1.7);m.cd=C.dur?Math.max(180,C.E/800)*R(.95,1.05)/s.enR:cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;continue}}
-          const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;s.heat+=C.dmg*.12;SFX.shot('laser');say(s.side,'laser',s);
+          const be=env.length?los(s.x,s.y,o.x,o.y):null;s.flash=t;addHeat(s,2.3*(C.E||1000));SFX.shot('laser');say(s.side,'laser',s);
           if(be){const dd=Math.hypot(be.x-s.x,be.y-s.y)||1;beams.push({a:s,b:{alive:false},tx:be.x-(be.x-s.x)/dd*be.r,ty:be.y-(be.y-s.y)/dd*be.r,tz:0,rt:m.rt+(C.dur?C.dur*1000:600),c0:m.rt,ld:C.dur?1:0,side:s.side,w:C.dmg});stat.las[s.side]++;fx.push({x:be.x,y:be.y,t0:t,d:4,r:.8})}
           else{beams.push({a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:m.rt+(C.dur?C.dur*1000:600),c0:m.rt,ld:C.dur?1:0,side:s.side,w:C.dmg});
           stat.las[s.side]++;stat.lasHit[s.side]++;for(let q=0;q<(C.dur||1);q++)if(!C.dur||Math.random()<C.ap)hitShip(o,'laser',o.x-s.x,o.y-s.y,o.x,o.y,C.dmg*1.7)}
@@ -800,7 +807,7 @@ function step(dt){
         for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
         if(bl&&Math.random()<.4){m.cd=2+Math.random()*3;m.why='на линии огня свой корабль — пропускает выстрел';continue}}
       if(s.mag<=0){m.cd=20;m.why='нет боеприпасов';if(!s.dryS){s.dryS=1;say(s.side,'dry',s)}continue}
-      m.last=m.why='выстрел по '+(fl[0].T?fl[0].T.n:'цель')+' с '+Math.hypot(fl[0].x-s.x,fl[0].y-s.y).toFixed(1)+' км';s.heat+=.004;say(s.side,'fire',s);
+      m.last=m.why='выстрел по '+(fl[0].T?fl[0].T.n:'цель')+' с '+Math.hypot(fl[0].x-s.x,fl[0].y-s.y).toFixed(1)+' км';addHeat(s,(C.heatGJ!=null?C.heatGJ:.15)*1000*C.shells);say(s.side,'fire',s); /* КПД 50%: половина энергии выстрела — в корпус */
       const B=BURST[C.cal]||8;
       for(let b=0;b<C.shells;b++)bursts.push({s,m,o:fl[(Math.random()*fl.length)|0],C,n:B,i:0,t0:t+b*.03});
       {const rs=60*C.rel,tn=(C.ammoH||2)*rs/3600*C.shells;m.cd=rs*(1.3-.06*m.sk)*R(.8,1.25)/s.enR;(stat.railT=stat.railT||[0,0])[s.side]+=tn;s.mag=Math.max(0,s.mag-tn)}jamChk(s,m,C);if(--m.am<=0){m.am=0;m.cd=1e9;say(s.side,'dry',s)}
@@ -923,7 +930,9 @@ function crewStep(dc){
   env=env.filter(e=>e.ttl>t);for(const e of env)if(e.vx||e.vy){e.x+=e.vx*dc;e.y+=e.vy*dc}
   for(const s of ships){if(!s.alive)continue;const sk=s.spec.sk||5.5,hp=hpf(s);
     // тепло
-    s.heat=Math.max(0,s.heat-.004*dc*(.5+.5*hp)*(t<s.blk?2:1)*(s.spec.sink!=null?.6+.5*Math.min(5,s.spec.sink):1)*(s.side===0?1+ta('dcx'):1));
+    { const sp=s.spec,idle=sp.idleMW!=null&&sp.real?sp.idleMW:6,sink=sp.sinkMW!=null&&sp.real?sp.sinkMW:idle*1.6; // электроника и экипаж греют корпус; радиаторы (64 кВт на панель при 500 K) отводят, пока корпус теплее нормы
+      const out=s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle);addHeat(s,(idle-out)*dc);
+      if(s.magEjT&&t>=s.magEjT){s.magEjT=0;s.mag=0;say(s.side,'mod',s)} } // погреб отстрелен
     if(s.heat>1&&!s.ovh){s.ovh=1;stat.ovh++;say(s.side,'heat',s)}else if(s.ovh&&s.heat<.55)s.ovh=0;
     if(s.heat>1.4&&Math.random()<.03*dc){const al=s.tur.filter(m=>m.alive);if(al.length){const m=al[(Math.random()*al.length)|0];m.alive=false;s.aliveN--;fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:6,r:1.5});s.heat=1}}
     // боезапас орудий: без снарядов корабль уходит из боя
@@ -1286,6 +1295,13 @@ export const Battles = {main: mainBattle, get cur() { return curB; }, set cur(b)
 export const Battle = new Proxy({}, {get: (_, k) => (typeof curB[k] === 'function' ? (...a) => curB[k](...a) : curB[k])});
 
 /* ===== НАЛЁТЫ ===== */
+// примеры кораблей из таблицы: k — с какой силы налёта появляются
+export const DOCTRINES = gd('battle', 'doctrines', [
+  {name: 'Сторож ПВО', k: 0, tons: 1257, gat: 6, rad: 1, ir: 1, em: 1, fine: 1, fcs: 2, arm: 2, spd: 1.2},
+  {name: 'Наводчик', k: 1, tons: 598, gat: 2, rad: 2, ir: 1, em: 1, fine: 1, ew: 1, fcs: 2, arm: 1, spd: 1.4},
+  {name: 'Рельсотронщик', k: 1, tons: 8289, rails: 4, cal: 15, gat: 2, rad: 1, ir: 1, fcs: 2, dcon: 1, arm: 4, spd: 1},
+  {name: 'Броненосец', k: 2, tons: 9524, rails: 2, cal: 20, gat: 4, rad: 1, ir: 1, em: 1, fcs: 3, dcon: 2, arm: 5, spd: .8},
+  {name: 'Носитель', k: 2, tons: 7423, F: 20, gat: 8, rad: 1, ir: 1, em: 1, ew: 1, fcs: 2, dcon: 1, arm: 3, spd: .9}]);
 export function raidSpecs(k) {
   const sp = (name, o) => Object.assign({name, rails: 0, flak: 0, arm: 2, eng: 3, L: 0.7, F: 0, B: 0, sk: 4 + Math.min(4, k * 0.5), dmg: 0, spd: 1, ref: null}, o);
   const out = [], rails = 8 + 3 * k, arm = 2 + Math.floor(k / 2);
@@ -1295,6 +1311,9 @@ export function raidSpecs(k) {
   for (let i = 0; i < nd; i++) out.push(sp(i >= nd - nl ? 'Налётчик-эсминец (подкрепление)' : 'Налётчик-эсминец', {rails, arm, L: 0.8, spd: 1.25, late: i >= nd - nl, railCfg: RC(dc, 1, 'a', 1, rails)}));
   for (let i = 0; i < 1 + Math.floor(k / 2); i++) out.push(sp('Налётчик-фрегат', {flak: 8, arm: Math.max(1, arm - 1), L: 0.5}));
   for (let i = 0; i < Math.floor(k / 3); i++) out.push(sp('Налётчик-крейсер', {rails: 30 + 10 * k, arm: arm + 2, eng: 4, L: 1.8, late: true, railCfg: RC(hc, 2, 'a', 2, 30 + 10 * k)}));
+  // доктрины ботов из таблицы «Корабли (система)» (классов нет — это намерения, корабль собирается из модулей)
+  const SC = (r, i, e, fine) => [...Array(r).fill(0).map((_, j) => ({k: 'rad', rng: 330, res: fine && j === 0 ? 1 : .4, fine: fine && j === 0 ? 1 : 0})), ...(i ? [{k: 'ir', rng: 120, res: 1}] : []), ...(e ? [{k: 'em', rng: 200, res: .4}] : [])];
+  for (const d of DOCTRINES) if (k >= d.k) for (let i = 0; i < (d.n || 1); i++) out.push(sp(d.name, {tons: 0, L: d.tons / 50000, rails: d.rails || 0, railCfg: d.rails ? RC(String(d.cal), '1', 'a', 1, d.rails) : undefined, gat: d.gat || 0, F: d.F || 0, fq: d.F ? randCraft('F') : undefined, arm: d.arm, scList: SC(d.rad || 0, d.ir, d.em, d.fine), fcsN: d.fcs || 0, ew: d.ew || 0, dcon: d.dcon || 0, spd: d.spd || 1}));
   if (k >= 2) out.push(sp('Налётчик-авианосец', {fq: randCraft('F'), bq: randCraft('B'), late: true, rails: 4, arm, eng: 4, L: 2.2, F: 10 * (1 + Math.floor(k / 2)), B: 5 * Math.floor(k / 2)}));
   return out;
 }
@@ -1302,13 +1321,13 @@ export function raidSpecs(k) {
 export function specFromStats(st, name, sk) {
   return {real: 1, name: name || 'Корабль', arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines || 1)), L: st.L, tons: st.tons || st.dry, sk: sk || 5,
     spd: st.bspd || 1, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, miss: st.msl, missCfg: st.misList, fuelCap: st.fuelCap || 0, frate: st.fuelRate || 0, engT: st.engM || 0, pow: st.power || 0,
-    ammoCap: st.ammoCap || 0, energy: st.energy || 0, defl: st.defl, trail: st.trail || null, scList: st.scList || [], fcsN: st.fcsN || 0, ew: st.ew || 0, mar: 0, dcon: st.dcon || 0, sink: st.sink || 0};
+    ammoCap: st.ammoCap || 0, energy: st.energy || 0, defl: st.defl, trail: st.trail || null, scList: st.scList || [], fcsN: st.fcsN || 0, ew: st.ew || 0, mar: 0, dcon: st.dcon || 0, sink: st.sink || 0, idleMW: st.enIdle || 0, sinkMW: st.sinkMW || 0, magArm: st.magArm || 0, magEj: st.magEj || 0, magFr: (st.ammoCap || 0) * 1.1 / Math.max(1, st.tons || st.dry)};
 }
 export function specFromShip(s) {
   const st = s.st, cmd = (function(){ try { return effSkill(s, "cmd") } catch (e) { return 4 } })();
   return {real: 1, engCnt: st.engines || 0, name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L, tons: st.tons,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (shipSpeedTrue(s) > 0 ? shipSpeedTrue(s) * AU_M / 86400 / 1000 / (.2 * VMK) : (st.L < 1 ? 1.25 : 1)) /* единая скорость: как на карте, км/с */,
-    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, fuel: s.fuel != null ? s.fuel : null, fuelCap: st.fuelCap || 0, frate: (st.fuelRate || 0) * (function(){ try { return pilFuel(s) } catch (e) { return 1 } })(), fpa: (function(){ try { return fuelPerAU(s) } catch (e) { return 0 } })(), engT: st.engM || 0, pow: st.power || 0, hang: st.hangList || null, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, trail: st.trail || null, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, fuel: s.fuel != null ? s.fuel : null, fuelCap: st.fuelCap || 0, frate: (st.fuelRate || 0) * (function(){ try { return pilFuel(s) } catch (e) { return 1 } })(), fpa: (function(){ try { return fuelPerAU(s) } catch (e) { return 0 } })(), engT: st.engM || 0, pow: st.power || 0, hang: st.hangList || null, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, trail: st.trail || null, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0, idleMW: st.enIdle||0, sinkMW: st.sinkMW||0, magArm: st.magArm||0, magEj: st.magEj||0, magFr: (st.ammoCap||0)*1.1/Math.max(1, st.tons||st.dry)};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }

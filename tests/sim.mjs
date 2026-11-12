@@ -51,16 +51,16 @@ B.researchTick(1);
 ok(s().tprog.yard === 20 && !s().tech.yard, 'исследование идёт постепенно (20/40)');
 s().sci.eng = 450; B.researchTick(1);
 ok(s().tech.yard === true, 'тема изучена, когда набрались очки');
-s().sciBuy = {amt: 5000, max: 20000 * 25}; s().money = 1e9 * 25; // деньги в масштабе KR=25 const rp0 = s().rp;
+s().sciBuy = {amt: 5000, max: 1e9 * 25}; /* очко науки — по себестоимости лаборатории (≈120 млн кр) */ s().money = 1e9 * 25; // деньги в масштабе KR=25 const rp0 = s().rp;
 s().research.phys = 'fusion'; for (let i = 0; i < 60; i++) g.advance(2);
 ok(s().tech.m_fusion || s().tprog.m_fusion > 0 || s().tech.fusion || s().tprog.fusion > 0, 'купленные очки идут игроку');
 ok(s().sciInfo && s().sciInfo.avail > 0 && s().sciInfo.bought > 0, 'сводка науки: доступно и куплено');
 // закупки руды: политика игрока
 s().buyPol = {cu: {mode: 'month', amt: 500, max: 0}, si: {mode: 'all', amt: 0, max: 1}}; const fe0 = s().stock.cu || 0, si0 = s().stock.si || 0; const _sv = s().ships; s().ships = []; // свои шахтёры не должны подвозить руду во время проверки закупок
-const lm0 = s().cols.earth.pop.lmN; s().cols.earth.pop.lmN = 0; // госшахты везут руду на склад — на время проверки закупок выключены
+const lm0 = s().cols.earth.pop.lmN, bm0 = s().bld.mine; s().cols.earth.pop.lmN = 0; s().bld.mine = 0; // и госшахты игрока (на склад) // госшахты везут руду на склад — на время проверки закупок выключены
 for (const c of s().corps.slice(0, 3)) c.civ.mines.cu = (c.civ.mines.cu || 0) + 300; // избыток руды у корпораций (шахта — 1 т каждой руды × эффективность)
 for (let i = 0; i < 120; i++) g.advance(2);
-s().ships = _sv; s().cols.earth.pop.lmN = lm0;
+s().ships = _sv; s().cols.earth.pop.lmN = lm0; s().bld.mine = bm0;
 ok((s().stock.cu || 0) > fe0, 'руда покупается по месячной квоте (+' + Math.round((s().stock.cu || 0) - fe0) + ' т меди; железа на Земле не хватает — излишков нет)');
 ok((s().stock.si || 0) <= si0 + 1e-6, 'при слишком низкой максимальной цене ничего не покупается');
 
