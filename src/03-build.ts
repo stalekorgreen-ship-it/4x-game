@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { gd, DEFAULTS } from './00-gd.ts';
-import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff, myOf } from './01-data.ts';
+import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff, myOf, objPos } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { gval, PT } from './26-goods.ts';
 import { TECH, techById, tm, ensureOffers, dealField, BEFF } from './15-techs.ts';
@@ -106,6 +106,8 @@ export function queueMat() { const o = {}, cap = buildUnits(); let left = 100;
     for (const r in m) o[r] = (o[r] || 0) + m[r] * Math.max(0, n); } return o; }
 import { hooks as _hk } from './00-hooks.ts';
 const hooks = _hk;
+const objPosB = id => objPos(id, state.t);
+import { toOrbit as toOrbitB } from './36-lift.ts';
 _hk.queueMat = () => queueMat(); _hk.BLD = BLD;
 export const matTxt = m => Object.entries(m).map(([r, v]) => `${(RESN[r] || r).toLowerCase()} ${(+v).toLocaleString("ru-RU")}`).join(', ');
 const RESN = {fe: 'Железо', co: 'Кобальт', ti: 'Титан', w: 'Вольфрам', si: 'Кремний', c: 'Уголь и нефть', ice: 'Лёд', pt: 'Платина', ree: 'Редкозем', u: 'Уран'};
@@ -116,7 +118,7 @@ export const ECON_SB = ECON.ECON_SB;
 export function unitSB(j) { if (j.type === 'econ') return (CORP[j.b] && CORP[j.b].sb) || 100; return j.type === 'yardton' || j.type === 'yardcrew' ? yardUpSB(yards()[j.yi] || {nt: 0, nc: 0}, j.type === 'yardton' ? 'ton' : 'crew') : ECON_SB[j.type] || bldSB(j.type); }
 export function queueBld(t, yi, n = 1, pct = 10, g) { n = Math.max(1, Math.floor(+n || 1)); pct = Math.max(0, Math.min(100, +pct || 0)); // доля сохраняется как задана; лишнее ждёт своей очереди
   if (BLD[t]) { const b = BLD[t], room = (b.max || 99999) - state.bld[t] - bldQueued(t); n = Math.min(n, room); if (n <= 0) return false; }
-  state.build.push({id: Date.now() + Math.random(), type: t, yi, g, n, pct, prog: 0}); return true; }
+  state.build.push({id: Date.now() + Math.random(), type: t, yi, g, n, pct, prog: 0, reg: state.bqReg | 0}); return true; } // reg — регион Земли, где встанет постройка
 export const pctSum = () => Math.min(100, state.build.reduce((a, j) => a + (j.pct || 0), 0)); // сколько мощности реально занято
 // по порядку очереди: каждый берёт свою долю, пока сумма не дойдёт до 100%; остальные ждут
 export function effPct() { let left = 100; for (const j of state.build) { j.eff = j.paid === false && j.wait ? 0 : Math.max(0, Math.min(j.pct || 0, left)); left -= j.eff; } } // ждущие материалы мощность не занимают
@@ -136,15 +138,27 @@ export function buildTick(h) {
     for (const k of Object.keys(g)) part[k] = Math.min(g[k], k0 * myOf(k) * veinEff('earth', k, g[k], g0[k] || g[k]));
     const rock = B.mine * 1e6 / 360 * h, pB = Math.min(1, (B.benef || 0) * 1e6 / 360 * h / Math.max(1e-9, rock));
     let met = 0; for (const k in part) if (k !== 'c' && k !== 'ice') met += part[k] * pB;
-    const h2 = techOn('h2smelt'), coke = h2 ? 0 : .5, coalOK = coke ? ((S.c || 0) + (part.c || 0) * pB) / Math.max(1e-9, coke * (part.fe || 0) * pB) : Infinity;
+    const h2 = techOn('h2smelt'), coke = h2 ? 0 : .5, cRes = (queueMat().c || 0) + 5000, coalOK = coke ? Math.max(0, (S.c || 0) + (part.c || 0) * pB - cRes) / Math.max(1e-9, coke * (part.fe || 0) * pB) : Infinity; // уголь под стройку и 5 000 т не идут в кокс
     const pS = Math.min(1, (B.smelt || 0) * 5e5 / 360 * h / Math.max(1e-9, met), coalOK);
     let mwh = 0; state.proc = {pB, pS, rock: rock / h, met: met / h};
     for (const k in part) { const f = k === 'c' || k === 'ice' ? pB : pB * pS, v = part[k] * f; if (!(v > 0)) continue; g[k] -= v; S[k] = (S[k] || 0) + v; rec(k, 'in', v, 'mine'); if (f !== pB) mwh += v * 5.18 * (RARE[k] ? 10 : 1) * (h2 ? 2 : 1); }
-    const fe = (part.fe || 0) * pB * pS; if (coke && fe > 0) { const q = Math.min(S.c || 0, fe * coke); S.c -= q; rec('c', 'out', q, 'plant'); if (hooks.addCO2) hooks.addCO2('earth', fe * 1.8); }
+    const fe = (part.fe || 0) * pB * pS; if (coke && fe > 0) { const q = Math.min(Math.max(0, (S.c || 0) - cRes), fe * coke); S.c -= q; rec('c', 'out', q, 'plant'); if (hooks.addCO2) hooks.addCO2('earth', fe * 1.8); }
     if (mwh > 0) state.money -= mwh * gval('pow') * KR; // энергия плавки — по цене энергии
   }
+  { const C = state.conc; if (C && B.smelt) { // концентрат, привезённый кораблями из космоса: плавится свободной мощностью плавильных заводов
+    const used = state.proc ? state.proc.met * h * (state.proc.pS || 0) : 0; let cap = Math.max(0, B.smelt * 5e5 / 360 * h - used); const h2 = techOn('h2smelt'); let mwh = 0, fe = 0;
+    for (const k in C) { if (cap <= 0) break; let q = Math.min(C[k], cap); if (k === 'fe' && !h2) q = Math.min(q, Math.max(0, (S.c || 0) - 5000) / .5); if (!(q > 0)) continue; C[k] -= q; cap -= q; S[k] = (S[k] || 0) + q; rec(k, 'in', q, 'mine'); mwh += q * 5.18 * (k === 'fe' || k === 'si' ? 1 : 10) * (h2 ? 2 : 1); if (k === 'fe') fe += q; }
+    if (fe > 0 && !h2) { S.c -= fe * .5; rec('c', 'out', fe * .5, 'plant'); if (hooks.addCO2) hooks.addCO2('earth', fe * 1.8); }
+    if (mwh > 0) state.money -= mwh * gval('pow') * KR; } }
+  // катапульта станции: склад летит к Земле контейнерами (~2 км/с), по прибытии — на орбитальный склад
+  for (const st of state.stations || []) if (st.st && st.st.acat && st.store && st.at && st.at !== 'earth' && BODY[st.at]) { let cap = st.st.acat / 360 * h; const box = {}; let tot = 0;
+    for (const k in st.store) { const q = Math.min(st.store[k], cap); if (q <= 0) continue; st.store[k] -= q; cap -= q; box[k] = q; tot += q; const rw = st.raw && st.raw[k] ? Math.min(st.raw[k], q) : 0; if (rw) { st.raw[k] -= rw; box['raw:' + k] = rw; } }
+    if (tot > 0) { const p0 = objPosB(st.at), pe = objPosB('earth'), dAU = Math.hypot(p0.x - pe.x, p0.y - pe.y); (state.boxes = state.boxes || []).push({cargo: box, arrive: state.t + dAU * 1.496e8 / 2 / 86400, from: st.name}); } }
+  if (state.boxes && state.boxes.length) state.boxes = state.boxes.filter(b => { if (b.arrive > state.t) return true; for (const k in b.cargo) { if (k.startsWith('raw:')) { const C = state.conc || (state.conc = {}), r = k.slice(4); C[r] = (C[r] || 0) + b.cargo[k]; S[r] = Math.max(0, (S[r] || 0) - b.cargo[k]); continue; } S[k] = (S[k] || 0) + b.cargo[k]; toOrbitB(k, b.cargo[k]); } log(`Контейнеры со станции «${b.from}» прибыли к Земле.`); return false; });
+  // станции с плавильней плавят свой концентрат
+  for (const st of state.stations || []) if (st.raw && st.st && st.st.smeltY) { let cap = st.st.smeltY / 360 * h; for (const k in st.raw) { const q = Math.min(st.raw[k], cap); st.raw[k] -= q; cap -= q; if (cap <= 0) break; } }
   for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0 || m.perYear > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
-    let q = (m.perYear ? m.perYear / 360 : m.perDay) * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
+    let q = (m.perYear ? m.perYear / 360 : m.perDay) * B[t] * h; const QM = queueMat(); for (const r in m.in || {}) q = Math.min(q, Math.max(0, (S[r] || 0) - (QM[r] || 0) - 5000) / Math.max(1e-9, m.in[r])); // запас под стройку и 5 000 т не перерабатываются for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
     if (q > 0) { for (const r in m.in || {}) { S[r] -= q * m.in[r]; rec(r, 'out', q * m.in[r], 'plant'); } for (const r in m.out || {}) { S[r] = (S[r] || 0) + q * m.out[r]; rec(r, 'in', q * m.out[r], 'plant'); } } }
   for (const t in BLD) { const b = BLD[t]; if (b.sci && B[t]) for (const f in b.sci) if (f in state.sci) state.sci[f] += b.sci[f] / 360 * B[t] * h * tm('sci'); } // поле sci: очки науки в год на здание
   {
@@ -172,7 +186,7 @@ function finish(j) {
   if (j.type === 'emine') { if (P) P.lmN = (P.lmN || 0) + 1; if (j.n === 0) log('Достроены госшахты.'); return; }
   if (j.type === 'econ') { const c = CORP[j.b]; if (c) { if (c.kind === 'fac' && P) addFac(P, c.g, c.k || 1, j.b, c.life); else if (c.kind === 'mine' && P) P.lmN = (P.lmN || 0) + 1; else if (c.kind === 'lab') state.labs = (state.labs || 0) + (c.k || 1); else if (c.kind === 'yard') { B.shipyard = (B.shipyard || 0) + 1; yards(); } if (j.n === 0) log(`Достроено: «${c.name}».`); } return; }
   if (j.type === 'elab') { state.labs = (state.labs || 0) + 1; if (j.n === 0) log('Достроены лаборатории.'); return; }
-  B[j.type]++; if (j.type === 'shipyard') yards(); { const b = BLD[j.type], f = b.fac; if (f && P) for (const g in f) addFac(P, g, f[g], j.type, null); if (b.life) (state.ages = state.ages || []).push({t: j.type, end: state.t + b.life * 360}); } // госзаводы Земли от зданий (энергия, жильё, медицина, школы) if (j.n === 0 || BLD[j.type].level) log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`);
+  B[j.type]++; { const R = state.bldReg || (state.bldReg = {}), a = R[j.type] || (R[j.type] = []); a[j.reg | 0] = (a[j.reg | 0] || 0) + 1; } if (j.type === 'shipyard') yards(); { const b = BLD[j.type], f = b.fac; if (f && P) for (const g in f) addFac(P, g, f[g], j.type, null); if (b.life) (state.ages = state.ages || []).push({t: j.type, end: state.t + b.life * 360}); } // госзаводы Земли от зданий (энергия, жильё, медицина, школы) if (j.n === 0 || BLD[j.type].level) log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`);
 }
 // госзаводы Земли от построек игрока: энергия помнит тип станции (смесь станций → рецепт и штат); у построек с износом — срок
 function addFac(P, g, k, id, life) { P.fac[g] = (P.fac[g] || 0) + k; if (g === 'pow' && PT[id]) { const m = state.pmixP = state.pmixP || {}; m[id] = (m[id] || 0) + k; }

@@ -106,7 +106,7 @@ function move(r, from, to, q) { const v = Math.min(r.km[from] || 0, q); if (!(v 
 const FERT_FROM = ['meadow', 'steppe', 'sav', 'delta', 'decid', 'tropS', 'trop', 'mixed'];
 function humanTick(id, B, y, init) {
   const R = regsOf(id); if (!R) return;
-  B.reg.forEach((r, i) => { const popM = (R[i] && R[i].n || 0) / 1e6, bld = id === 'earth' ? (Object.values(state.bld || {}).reduce((a, b) => a + (b || 0), 0) / B.reg.length) : 0;
+  B.reg.forEach((r, i) => { const popM = (R[i] && R[i].n || 0) / 1e6, bld = id === 'earth' ? Object.keys(state.bldReg || {}).reduce((a, t) => a + bReg(t, i), 0) : 0; // здания региона
     const land = KM(r), city = Math.min(land * .3, popM * BP.CITY + bld * BP.CITY_BLD), farm = id === 'earth' || (r.km.farm || 0) > 0 || r.km.meadow ? Math.min(land * .4, popM * BP.FARM) : 0;
     const go = (k, want) => { const cur = r.km[k] || 0, sp = init ? 1 : Math.min(1, .02 * y * 50); // к цели — до 2% цели в год
       if (want > cur) { let need = (want - cur) * sp; for (const f of (k === 'farm' ? FERT_FROM : [...FERT_FROM, 'farm', 'semi', 'steppe', 'coast', 'taiga', 'sand', 'rockd'])) { if (need <= 0) break; need -= move(r, f, k, need); } if (need > 0 && k === 'city') for (const f in r.km) if (f !== 'city') { need -= move(r, f, k, need); if (need <= 0) break; } }
@@ -130,15 +130,18 @@ export function regBioClim(id, i) {
   const vap = c && c.reg && c.reg[i] ? c.reg[i].rain || 0 : 0, P = Math.max(0, ((id === 'earth' ? P0_E[i] || 600 : 0) + vap * 1000) * Math.pow(1.07, (mean - (T.t ? T.t[0] : mean)))) ;
   const land = KM(r) || 1, wat = ((r.km.swamp || 0) + (r.km.delta || 0) + (r.km.subice || 0) * .3 + (r.km.shelf || 0) + (r.km.subocn || 0)) / land * 100 + P / 100;
   const gas = b.gas || {}, co2 = ((gas.co2 || 0) + (c && c.co2_0 ? (c.co2 - c.co2_0) / Math.max(1, b.atmT) * (29 / 44) : 0)) * 100, o2 = (gas.o2 || 0) * 100 + (c && c.o2add ? c.o2add / Math.max(1, b.atmT) * 100 : 0);
-  return {mean, min: mean - rng / 2, max: mean + rng / 2, rng, P, wat, co2, o2, atm: p, pol: r.pol || 0, sea: c ? c.sea || 0 : 0, alb: r.alb, bad: r.bad, bio: r.bio, fert: r.fert};
+  const h = id === 'earth' ? LAT_H[i] || 500 : Math.round(1000 * (T.mtn || 0) * 3), co2r = co2 * (1 + .002 * (r.pol || 0)); // атмосфера региона: планета + выбросы региона
+  return {mean, min: mean - rng / 2, max: mean + rng / 2, rng, P, wat, co2, co2r, o2, atm: p, pol: r.pol || 0, sea: c ? c.sea || 0 : 0, alb: r.alb, bad: r.bad, bio: r.bio, fert: r.fert, h};
 }
 // ТЭС-эквиваленты Земли (по смеси станций) — источник загрязнения, по регионам — пропорционально рабочим местам
+const LAT_H = [720, 600, 340, 600, 900, 960, 400, 340]; // средняя высота регионов Земли, м
+const bReg = (t, i) => ((state.bldReg && state.bldReg[t]) || [])[i] || 0; // ваши здания в регионе
 const tpsN = () => (state.govMix && state.govMix.tps || 0) + (state.corps || []).reduce((a, c) => a + ((c.civ && c.civ.pmix && c.civ.pmix.tps) || 0), 0);
 // Годовой шаг (вызывать раз в месяц с y = доля года)
 export function bioTick(id, y) {
   const B = bioOf(id); if (!B) return; const R = regsOf(id), jw = R ? R.reduce((a, r) => a + (r.jw || 0), 0) || 1 : 1, nT = id === 'earth' ? tpsN() : 0, c = state.clim && state.clim[id];
   humanTick(id, B, y, false);
-  B.reg.forEach((r, i) => { const land = KM(r) / 1e6 || 1, src = nT * ((R && R[i] && R[i].jw) || 0) / jw;
+  B.reg.forEach((r, i) => { const land = KM(r) / 1e6 || 1, src = nT * ((R && R[i] && R[i].jw) || 0) / jw + (id === 'earth' ? bReg('tps', i) : 0); // ТЭС мира — по рабочим местам, ваши — где построены
     if (r.pol0 == null) { r.pol0 = 1; r.pol = BP.POL * src / land / BP.CLEAN; } // старт — в равновесии
     r.pol = Math.max(0, r.pol + (BP.POL * src / land - BP.CLEAN * r.pol) * y); // загрязнение: выбросы ТЭС региона − 2% в год очистки
     const v = regBioClim(id, i); r.T = v.mean; r.P = v.P;

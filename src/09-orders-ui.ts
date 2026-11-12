@@ -2,6 +2,7 @@
 import { orb, liftT, liftCap, liftBank } from './36-lift.ts';
 import { GOODS } from './07-population.ts';
 import { econHtml, econOrder } from './32-econbld.ts';
+import { regNames } from './30-regions.ts';
 import { techArt } from './17-art.ts';
 import { craftFromStats, syncCraftOpts, FGT_MAX, snapNum, veinBase, BODIES, BODY, COMP, FIELDS, RES, SPEEDS, STAT_IN, STAT_OUT, TERRA, baseOf, compOf, crewLabel, designStats, fmtDur, fmtN, groupOf, isSh, isSt, mkKey, myShips, myStations, nameOf, newGame, newGroup, objPos, snapPct, state, stockOK, sumVals, uid } from './01-data.ts';
 import { ROLES, SKILLS, freeOfficers, officerById, setCrew, slotsFor, staffFor } from './02-crew.ts';
@@ -118,6 +119,8 @@ export function renderOrders() {
   const hasUnlock = state.designs.some(d => Object.entries(d.parts).some(([k, n]) => n && (baseOf(k) === 'xfer' || baseOf(k) === 'hook')));
   html += `<div class="box"><h2>Программа</h2>
     <label class="row"><input type="checkbox" data-c="loop" ${prog.loop ? 'checked' : ''}> Повторять по кругу</label>${orderHtml}
+    ${(() => { let inc = 0, exp = 0, d = 0; for (const s of members) { const p = s.pl; if (!p) continue; inc += p.inc; exp += p.exp; d = Math.max(d, state.t - (p.t0 || 0)); } if (!(d > 30)) return ''; const y = 360 / d, net = (inc - exp) * y;
+      return `<div class="help">Сводка: выручка ${fmtN(inc * y)} кр/год (руда по рыночной цене), расходы ${fmtN(exp * y)} кр/год (топливо с подъёмом, запчасти) → <b class="${net < 0 ? 'err' : 'ok'}">${net < 0 ? '' : '+'}${fmtN(net)} кр/год</b>${net < 0 ? ' — лишние корабли работают в минус' : ''}.</div>`; })()}
     <div class="row"><select id="newType">${typeOpts('', members, prog)}</select><button class="btn" data-a="oadd">Добавить приказ</button></div>
     ${members.length && hasUnlock ? '<div class="help">Приказы тягача и танкера видны, когда в группе есть такой корабль.</div>' : ''}
     <div class="row"><select id="presetAst">${bodyOpts('eros', 'ast')}</select><button class="btn" data-a="preset">Шаблон автодобычи</button></div>
@@ -302,6 +305,9 @@ export function renderDesigner(full) {
   const s = dStats(d), aff = stockOK(s.cost);
   $('dstats').innerHTML = `<div class="stats">
     <span>Водоизмещение (без топлива)</span><span>${fmtN(s.dry)} т</span>${s.warship ? `<span>Длина (50 т на метр)</span><span>${fmtN(s.L * 1000)} м${s.armT ? ' · броня ' + fmtN(s.armT) + ' т' : ''}</span>` : ''}<span>Мощность двигателей</span><span>${fmtN(s.power)}${s.engFactor < 1 ? ' <span class="warn">из ' + fmtN(s.powerNom) + ' (тяга ' + Math.round(s.engFactor * 100) + '%: мало энергии реакторов)</span>' : ''}</span>
+    ${s.thrust ? `<span>Тяга / удельный импульс</span><span>${fmtN(s.thrust / 1e6, 2)} МН / ${fmtN(s.isp)} с</span><span>Ускорение / Δv (Циолковский)</span><span>${fmtN(s.acc, 1)} м/с² / ${fmtN((s.dv || 0) / 1000, 2)} км/с</span>` : ''}
+    <span>Тепло электроники / радиаторы</span><span>${fmtN(s.enIdle || 0, 1)} / ${fmtN(s.sinkMW || 0, 1)} МВт${s.htMW ? ' · реактор: ' + fmtN(s.htMW) + ' МВт в высокотемп. радиаторы' : ''}</span>
+    ${s.armSteel || s.armTung ? `<span>Броня</span><span>${s.armSteel ? s.armSteel + ' сл. стали' : ''}${s.armSteel && s.armTung ? ' + ' : ''}${s.armTung ? s.armTung + ' сл. вольфрама' : ''} · ${fmtN(s.area)} м² · ${fmtN(s.armT)} т · каркас ${fmtN(s.frameT)} т</span>` : `<span>Каркас (8%)</span><span>${fmtN(s.frameT || 0)} т</span>`}
     <span>КПД двигателей</span><span>${fmtN(s.eff, 2)}</span><span>Скорость (полный бак)</span><span>${mps(s.speedFull)}</span>
     <span>Дальность на баке</span><span>${fmtN(s.range * 0.1496, 2)} млрд км</span><span>Работа на полной тяге (весь бак)</span><span>${s.fuelRate > 0 && s.fuelCap ? burnTxt(s.fuelCap / s.fuelRate / 60) : '—'}</span><span>Расход на полной тяге</span><span>${fmtN((s.fuelRate || 0) * 86400, 2)} т/сут</span><span>Топливо на 1 а.е.</span><span>${s.speedFull ? fmtN((s.fuelRate || 0) * 86400 / s.speedFull, 1) : '—'} т</span><span>Топливо</span><span>${fmtN(s.fuelCap)} т</span>
     <span>Груз</span><span>${fmtN(s.cargoCap)} т</span><span>Добыча</span><span>${fmtN(s.mine)} т/сут</span>
@@ -368,13 +374,14 @@ export function refreshEarth() {
 // Очередь стройки: доля мощности у каждого проекта, количество; общие поля «сколько» и «доля» для новых проектов
 const qN = () => { const v = Math.max(1, Math.floor(+(($('bq-n') || {}).value) || state.bqN || 1)); state.bqN = v; return v; };
 const qP = () => { const v = Math.max(0, Math.min(100, +(($('bq-p') || {}).value) || state.bqP || 10)); state.bqP = v; return v; };
+if (typeof window !== 'undefined') window.__bqr = v => { state.bqReg = +v || 0; };
 export function qName(q) { return q.type === 'yardton' ? `Верфь №${q.yi + 1}: +1 000 т` : q.type === 'yardcrew' ? `Верфь №${q.yi + 1}: +1 бригада` : q.type === 'efac' ? `Госзавод: ${GOODS[q.g] ? GOODS[q.g].n : q.g}` : q.type === 'emine' ? 'Госшахта' : q.type === 'elab' ? 'Лаборатория' : q.type === 'econ' ? (CORP[q.b] ? CORP[q.b].name : q.b) : BLD[q.type] ? BLD[q.type].name : q.type; }
 function queueHtml() {
   const cap = buildUnits(); effPct(); const ps = pctSum();
   const rows = state.build.map(q => { const c = unitSB(q), r = cap * (q.eff || 0) / 100, d1 = r > 0 ? (c - q.prog) / r : Infinity, dall = r > 0 ? ((q.n - 1) * c + c - q.prog) / r : Infinity;
     return `<tr><td>${esc(qName(q))}</td><td class="n">${fmtN(q.n)}</td><td><input type="number" min="0" max="100" value="${fmtN(q.pct || 0, 0)}" data-qp="${q.id}" style="width:48px">%${q.wait ? ` <span class="warn">${esc(q.wait)}</span>` : q.eff < (q.pct || 0) ? ` <span class="muted">(работает ${fmtN(q.eff, 0)}%${q.eff <= 0 ? ', ждёт' : ''})</span>` : ''}</td><td class="n">${fmtN(r * 360, 0)}</td><td>${bar(q.prog / c)}</td><td class="n">${fmtN(q.prog, 0)} / ${fmtN(c)}</td><td class="n">${isFinite(d1) ? fmtN(d1, 0) + ' сут' : 'стоит'}</td><td class="n">${isFinite(dall) ? fmtDur(dall) : '—'}</td><td><button class="btn sm" data-a="bcancel" data-id="${q.id}">✕</button></td></tr>`; }).join('');
   return `<div class="box"><div class="row"><h2 class="grow">Очередь стройки · мощность ${fmtN(cap * 360, 0)} СБ/год (госстроек ${state.bld.gbuild || 0} × ${BLD.gbuild ? BLD.gbuild.cbSB : 10} + бригад ${buildSlots()} × 10) · распределено ${fmtN(ps, 0)}%${ps < 100 ? ` <span class="warn">(${fmtN(100 - ps, 0)}% простаивает)</span>` : ''}</h2>
-    Новый проект: <input type="number" id="bq-n" min="1" value="${state.bqN || 1}" style="width:60px"> шт., доля <input type="number" id="bq-p" min="0" max="100" value="${state.bqP || 10}" style="width:48px">%</div>
+    Новый проект: <input type="number" id="bq-n" min="1" value="${state.bqN || 1}" style="width:60px"> шт., доля <input type="number" id="bq-p" min="0" max="100" value="${state.bqP || 10}" style="width:48px">%, регион <select id="bq-r" onchange="window.__bqr&&window.__bqr(this.value)">${regNames('earth').map((n, i) => `<option value="${i}" ${(state.bqReg | 0) === i ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     ${rows ? `<table class="grid"><tr><th>Проект</th><th>Осталось</th><th>Доля мощности</th><th>СБ/год</th><th></th><th>Текущая, СБ</th><th>След. через</th><th>Вся партия</th><th></th></tr>${rows}</table>` : '<div class="help">Очередь пуста: мощность простаивает. Выберите здание или экономическую постройку, задайте количество и долю мощности.</div>'}</div>`;
 }
 export const lackTxt = c => Object.entries(c).filter(([k, v]) => (state.stock[k] || 0) < v).map(([k, v]) => `${RES[k].toLowerCase()} ${fmtN(v - (state.stock[k] || 0))}`).join(', ');

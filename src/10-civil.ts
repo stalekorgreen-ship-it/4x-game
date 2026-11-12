@@ -30,7 +30,7 @@ export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEf
 export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return myOf(r) * oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
 export const CORP_KEEP = CV.CORP_KEEP; // т каждой руды, которые корпорация держит под свою стройку
 // склад игрока не продаёт Земле месячный запас сырья своих заводов (топливный — уголь, переработка по полю make)
-const plantKeep = r => { const B = state.bld || {}; let k = 0; for (const t in BLD) { const m = BLD[t].make; if (m && m.in && m.in[r] && B[t]) k += B[t] * (m.perDay || 0) * m.in[r] * 30; } return k; };
+const plantKeep = r => { const B = state.bld || {}; let k = 0; for (const t in BLD) { const m = BLD[t].make; if (m && m.in && m.in[r] && B[t]) k += B[t] * (m.perYear ? m.perYear / 360 : m.perDay || 0) * m.in[r] * 30; } if (r === 'c' && B.smelt && !(state.tech && state.tech.h2smelt)) k += Math.min(B.smelt * 5e5, ((state.proc && state.proc.met) || 0) * 360) / 360 * .5 * 30; return k; }; // + кокс плавильных заводов на месяц
 export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0) + plantKeep(r);
 export const CMAT = CV.CMAT;
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return (isCoal(r) ? (P.lcN || 0) : P.lmN) * myOf(r) * lmEff(r) * (P.mfill || 1); }; // госшахты: рудные (все металлы сразу) и угольные

@@ -306,3 +306,5 @@ export function refreshCorp() {
     p._h = null; refreshCorp();
   });
 })();
+
+hooks.priceOf = k => PRICE[k] || 0; // цены для сводки групп (доход − расход)

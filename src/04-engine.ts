@@ -92,15 +92,17 @@ export function serve(s, baseId) {
   if (s.corp && baseId === 'earth') { corpSellToEarth(s); return; }
   { const cs = stById(baseId); if (cs && cs.corp) { corpBuyFuel(s, cs); return; } }
   if (baseId === 'earth') {
-    for (const [k, v] of Object.entries(s.cargo)) {
-      if (v <= 0) continue;
+    { let val = 0; for (const [k, v] of Object.entries(s.cargo)) if (v > 0) val += v * ((PRICE_OF && PRICE_OF(k)) || 0); s.pl = s.pl || {inc: 0, exp: 0, t0: state.t}; s.pl.inc += val; } // сводка группы: выручка по рыночной цене
+    for (const [k, v0] of Object.entries(s.cargo)) {
+      if (v0 <= 0) continue; const r = Math.min(v0, (s.raw && s.raw[k]) || 0), v = v0 - r; // концентрат — в очередь земных плавильных заводов
+      if (r > 0) { const C = state.conc || (state.conc = {}); C[k] = (C[k] || 0) + r; }
       state.stock[k] = (state.stock[k] || 0) + v; toOrbit(k, v); // привезённое из космоса остаётся на орбитальном складе
-      got.push(`${fmtN(v)} т ${RES[k].toLowerCase()}`);
+      got.push(`${fmtN(v0)} т ${RES[k].toLowerCase()}${r > 0 ? ` (концентрат ${fmtN(r)} — на плавку)` : ''}`);
     }
-    s.cargo = {};
+    s.cargo = {}; s.raw = {};
     let take = Math.min(s.st.fuelCap - s.fuel, state.stock.fuel);
     clampOrb(); const fo = Math.min(take, orb().fuel || 0), fl = useLift(Math.min(take - fo, state.money / liftT())); take = fo + fl; // с орбиты — сразу, с поверхности — сколько поднимут космодромы
-    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel'); liftFrom('fuel', take); payLift(fl); // топливо с поверхности — подъём
+    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel'); s.pl = s.pl || {inc: 0, exp: 0, t0: state.t}; s.pl.exp += take * ((PRICE_OF && PRICE_OF('fuel')) || 0) + fl * liftT(); liftFrom('fuel', take); payLift(fl); // топливо с поверхности — подъём
     if (got.length) log(`«${s.name}» разгрузился на Земле: ${got.join(', ')}.`);
     return;
   }
@@ -111,7 +113,7 @@ export function serve(s, baseId) {
     const before = amt;
     if (k === 'ice') { const f = Math.min(amt, st.st.fuelCap - st.fuel); st.fuel += f; amt -= f; }
     if (k === 'spares') { const m = Math.min(amt, st.st.spareCap - st.spares); st.spares += m; amt -= m; }
-    else { const m = Math.min(amt, Math.max(0, freeStore(st))); st.store[k] = (st.store[k] || 0) + m; amt -= m; }
+    else { const m = Math.min(amt, Math.max(0, freeStore(st))); st.store[k] = (st.store[k] || 0) + m; amt -= m; const rw = Math.min(m, (s.raw && s.raw[k]) || 0); if (rw > 0) { s.raw[k] -= rw; st.raw = st.raw || {}; st.raw[k] = (st.raw[k] || 0) + rw; } }
     s.cargo[k] = amt;
     if (before - amt > 0.01) got.push(`${fmtN(before - amt)} т ${RES[k].toLowerCase()}`);
     if (amt > 0.01) left = true;
@@ -125,12 +127,22 @@ export function serve(s, baseId) {
 }
 // Обслуживание (таблица «Переработка»): 5% стоимости корабля в год запчастями — у базы со склада, в пути — из трюма;
 // не хватило — долг копится, и узлы изнашиваются быстрее. Реактор деления жжёт 0,01 т урана на МВт в год (со склада Земли).
+// что плавится (металлы); уголь, лёд и газы — нет
+export const SMELT_OF = k => ['fe', 'si', 'ti', 'w', 'co', 'ree', 'pt', 'u'].includes(k);
+export const colSmelt = id => { const c = state.cols && state.cols[id], n = c && c.bld && c.bld.smelter || 0; return n * 300000 / 360; }; // т в сутки
+const PRICE_OF = k => (hooks.priceOf ? hooks.priceOf(k) : 0);
+// засорение орбит (таблица «Переработка»): риск столкновения в одной зоне ∝ (число объектов)²: каждому кораблю — пропорционально числу соседей
+let _dz = null, _dzT = -1;
+function debrisRisk(s, h) { if (!s.at) return; if (_dzT !== state.t) { _dzT = state.t; _dz = {}; for (const x of state.ships) if (x.at) _dz[x.at] = (_dz[x.at] || 0) + 1; for (const x of state.stations || []) if (x.at) _dz[x.at] = (_dz[x.at] || 0) + 1; }
+  const n = (_dz[s.at] || 1) - 1, p = DEBRIS_K * n * h; if (n > 0 && Math.random() < p) { s.hullDmg = Math.min(.95, (s.hullDmg || 0) + .1); if (s.eq) { const ks = Object.keys(s.eq); useWear(s, ks[Math.floor(Math.random() * ks.length)], 30, .5); } log(`«${s.name}»: столкновение с обломками на орбите (${n + 1} объектов в зоне).`); } }
+export const DEBRIS_K = 2e-6; // вероятность в сутки на каждого соседа: 100 кораблей в зоне — ~0,02%/сут каждому, 1 000 — ~0,2%
 export function maintTick(s, h) {
+  debrisRisk(s, h);
   if (s.corp || !s.st || !(s.st.dry > 0)) return;
   const need = .05 * s.st.dry / 360 * h + (s.mDebt || 0); let got = 0;
   if (s.at && isBase(s.at)) { const st = isSt(s.at) ? stById(s.at) : null; got = st ? Math.min(need, st.spares || 0) : takeSpares(need); if (st) st.spares -= got; }
   else if (s.cargo && s.cargo.spares > 0) { got = Math.min(need, s.cargo.spares); s.cargo.spares -= got; }
-  s.mDebt = Math.max(0, need - got);
+  s.mDebt = Math.max(0, need - got); if (got > 0) { s.pl = s.pl || {inc: 0, exp: 0, t0: state.t}; s.pl.exp += got * ((PRICE_OF && PRICE_OF('spares')) || 0); }
   if (s.mDebt > .01 * s.st.dry && s.eq) { const ks = Object.keys(s.eq); if (ks.length) useWear(s, ks[Math.floor(Math.random() * ks.length)], .02 * h, .0005 * h * Math.min(10, s.mDebt / (.01 * s.st.dry))); }
   if (s.st.uYear > 0) { const u = s.st.uYear / 360 * h; state.stock.u = Math.max(0, (state.stock.u || 0) - u); rec('u', 'out', u, 'spares'); }
 }
@@ -302,7 +314,8 @@ export function execOrder(s, o, h) {
       const base = BODY[o.target].ores || {}, rate = s.st.mine * minRate(s) * h * SHIP_ROCK, want = {}; let sum = 0;
       for (const k of ks) { want[k] = Math.min(ores[k], rate * gradeOf(o.target, k) * .85 * veinEff(o.target, k, ores[k], base[k] || ores[k])); sum += want[k]; }
       const kf = sum > lim - load ? Math.max(0, lim - load) / sum : 1;
-      for (const k of ks) { const part = want[k] * kf; ores[k] -= part; s.cargo[k] = (s.cargo[k] || 0) + part; rec(k, 'in', part, 'ship'); }
+      { const at = s.at || s.target, sm = (s.st.smeltY || 0) / 360 * h + colSmelt(at) * h; let met = 0; for (const k of ks) if (SMELT_OF(k)) met += want[k] * kf; const f = met > 0 ? Math.min(1, sm / met) : 1; // плавка на месте: корабль-фабрика или плавильня на теле
+        for (const k of ks) { const part = want[k] * kf; ores[k] -= part; s.cargo[k] = (s.cargo[k] || 0) + part; rec(k, 'in', part, 'ship'); if (SMELT_OF(k) && f < 1) { s.raw = s.raw || {}; s.raw[k] = (s.raw[k] || 0) + part * (1 - f); } } }
       useWear(s, 'laser', WEAR_MINE * h, 0.004 * h); train(s, 'min', h);
       s.status = ks.length > 1 ? `Добывает всё сразу на «${BODY[o.target].name}»` : `Добывает ${RES[ks[0]].toLowerCase()} на «${BODY[o.target].name}»`;
       return cargoTotal(s) >= lim - 1e-6;
@@ -321,7 +334,7 @@ export function execOrder(s, o, h) {
       } else {
         const st = stById(base);
         if (st && o.item === 'spares') { const m = Math.min(room, st.spares); st.spares -= m; s.cargo.spares = (s.cargo.spares || 0) + m; }
-        else if (st) for (const k of Object.keys(st.store)) { const m = Math.min(room, st.store[k]); st.store[k] -= m; room -= m; s.cargo[k] = (s.cargo[k] || 0) + m; }
+        else if (st) for (const k of Object.keys(st.store)) { const tot0 = st.store[k], m = Math.min(room, tot0); st.store[k] -= m; room -= m; s.cargo[k] = (s.cargo[k] || 0) + m; const rw = st.raw && st.raw[k] && tot0 > 0 ? st.raw[k] * m / tot0 : 0; if (rw > 0) { st.raw[k] -= rw; s.raw = s.raw || {}; s.raw[k] = (s.raw[k] || 0) + rw; } }
         if (st && st.corp && !s.corp) corpChargeLoad(s, before, st);
       }
       return true;

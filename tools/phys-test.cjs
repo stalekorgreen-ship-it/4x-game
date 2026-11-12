@@ -2,7 +2,7 @@
 // Перехватчик (500 т, ~30 м/с²) и тяжёлый (9 500 т, ~5 м/с²) с каждой стороны. Печатает числа: наскоки, сближение, дальности выстрелов, уклонения, вращение, пробития.
 const {chromium}=require('playwright');
 (async()=>{const T=+(process.argv[2]||600);
-const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});const p=await b.newPage();
+const b=await chromium.launch({executablePath:process.env.CHROME||undefined,args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});const p=await b.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('http://127.0.0.1:5200/');await p.waitForTimeout(2500);
 const r=await p.evaluate(async(T)=>{try{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);

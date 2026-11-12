@@ -26,5 +26,12 @@
   "DISP": 0.0003,
   "GDISP": 0.002,
   "PMIN": 0.15
- }
+ },
+ "doctrines": [
+  {"name": "Сторож ПВО", "k": 0, "tons": 1257, "gat": 6, "rad": 1, "ir": 1, "em": 1, "fine": 1, "fcs": 2, "arm": 2, "spd": 1.2},
+  {"name": "Наводчик", "k": 1, "tons": 598, "gat": 2, "rad": 2, "ir": 1, "em": 1, "fine": 1, "ew": 1, "fcs": 2, "arm": 1, "spd": 1.4},
+  {"name": "Рельсотронщик", "k": 1, "tons": 8289, "rails": 4, "cal": 15, "gat": 2, "rad": 1, "ir": 1, "fcs": 2, "dcon": 1, "arm": 4, "spd": 1},
+  {"name": "Броненосец", "k": 2, "tons": 9524, "rails": 2, "cal": 20, "gat": 4, "rad": 1, "ir": 1, "em": 1, "fcs": 3, "dcon": 2, "arm": 5, "spd": 0.8},
+  {"name": "Носитель", "k": 2, "tons": 7423, "F": 20, "gat": 8, "rad": 1, "ir": 1, "em": 1, "ew": 1, "fcs": 2, "dcon": 1, "arm": 3, "spd": 0.9}
+ ]
 }

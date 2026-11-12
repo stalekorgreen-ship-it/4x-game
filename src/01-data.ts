@@ -57,6 +57,9 @@ export const COMP = gd('modules', 'modules', {
   sink:{name:'Радиатор', desc:'Панели по 10 м² (100 кг): 64 кВт каждая при 500 K', sink:1, mass:10, cost:{fe:20}},
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
+  benefm:{name:'Обогатитель', desc:'Порода → концентрат прямо на корабле или станции (вместе с «Плавильней»). Нужно 5 000 человек', mass:2500, crewN:5000, cost:{fe:150000, ti:500}},
+  smeltm:{name:'Плавильня', desc:'Концентрат → металл на борту: до 150 000 т в год (с «Обогатителем»). Стоимость ×10 земной, 5 000 человек. Металл везут без плавки на Земле', smeltY:150000, mass:3000, crewN:5000, cost:{fe:600000, ti:2000, w:500}},
+  acat:  {name:'Катапульта для контейнеров', desc:'Для станции у астероида: запускает склад станции к Земле контейнерами по медленным траекториям, без кораблей — до 50 000 т в год, ~2 км/с (нужна технология)', acat:50000, mass:800, crewN:20, cost:{fe:20000, ti:500, co:100}, tech:'acat'},
   hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, co: 2}},
 }); // данные модулей можно править в data/modules.json
 /* ===== НАСТРАИВАЕМЫЕ МОДУЛИ ===== */
@@ -612,7 +615,7 @@ export function designStats(parts, flags) {
     r.dry += c.mass * n; r.armW = (r.armW || 0) + (c.armW || 0) * n;
     r.power += (c.power || 0) * n * tm('thrust'); if (c.power) r.fuelS = (r.fuelS || 0) + Math.pow(c.power * tm('thrust'), 2) * n * FUEL_K / Math.max(.05, c.eff || 1) * FUEL_S; r.engDraw = (r.engDraw || 0) + (c.elec ? (c.power || 0) * n * 0.5 : 0); if (c.power) r.engM = (r.engM || 0) + c.mass * n;
     { const th = c.thrust || (c.power ? c.power * 120000 : 0); if (th) { r.thrust = (r.thrust || 0) + th * n * tm('thrust'); r.ispW = (r.ispW || 0) + th * n / Math.max(1, c.isp || (c.eff || 1) * 1000); if (c.zs > engMax()) r.errors.push(`Двигатель ${c.zs} т больше доступного (${engMax()} т): изучите «Крупные двигатели».`); } }
-    r.rcsT = (r.rcsT || 0) + (c.rcsT || 0) * n; r.sinkMW = (r.sinkMW || 0) + (c.sinkMW || 0) * n; r.htMW = (r.htMW || 0) + (c.htMW || 0) * n; r.uYear = (r.uYear || 0) + (c.uYear || 0) * n;
+    r.rcsT = (r.rcsT || 0) + (c.rcsT || 0) * n; r.benef = (r.benef || 0) + (baseOf(k) === 'benefm' ? n : 0); r.smeltY = (r.smeltY || 0) + (c.smeltY || 0) * n; r.acat = (r.acat || 0) + (c.acat || 0) * n; r.sinkMW = (r.sinkMW || 0) + (c.sinkMW || 0) * n; r.htMW = (r.htMW || 0) + (c.htMW || 0) * n; r.uYear = (r.uYear || 0) + (c.uYear || 0) * n;
     r.enIdle = (r.enIdle || 0) + (c.enIdle != null ? c.enIdle : IDLE_MW[baseOf(k)] || 0) * n; // энергия и тепло в корпус в обычном режиме (таблица)
     if (c.drop) { r.dropF = (r.dropF || 0) + c.fuel * n; r.dropM = (r.dropM || 0) + c.mass * n; } if (c.tankArm) r.tankArm = Math.max(r.tankArm || 0, c.tankArm); if (c.magArm) r.magArm = Math.max(r.magArm || 0, c.magArm); if (c.magEj) r.magEj = 1;
     if (c.armWw) r.armWw = (r.armWw || 0) + c.armWw * n;
@@ -699,6 +702,7 @@ export function designStats(parts, flags) {
     if (!r.rail && !r.gat) r.warns.push('Без пушек истребитель никого не собьёт: поставьте рельсотрон или пулемёт (лучше осевое крепление — втрое легче).');
     if ((r.rail || r.gat) && !r.ammoCap) r.warns.push('Нет погреба: у истребителя не будет боезапаса.');
   }
+  if (r.smeltY && !r.benef) r.warns.push('Плавильне нужен «Обогатитель»: без него плавить нечего.'); if (r.benef && !r.smeltY) r.warns.push('«Обогатитель» без «Плавильни» бесполезен.'); if (!r.benef) r.smeltY = 0; else r.smeltY = Math.min(r.smeltY, r.benef * 150000);
   if (r.dry === 0) r.errors.push('Проект пуст.');
   if (!r.station) {
     if (!r.power) r.errors.push('Нужен хотя бы один двигатель.');
