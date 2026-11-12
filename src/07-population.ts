@@ -39,6 +39,9 @@ export const NA_AGES = [12, 18, 30, 55, 80, 101];
 const naBand = a => { for (let i = 0; i < NA_AGES.length; i++) if (a < NA_AGES[i]) return i; return NA_AGES.length - 1; };
 export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; if (G.na) return G.na[naBand(a)] * G.naK * (G.ns ? G.ns[s] : 1); if (G.ages) return G.need * ageK(G, a) * (G.ns ? G.ns[s] : 1); return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
 export const basket = (a, s = 1) => { let b = 0; for (const g in GOODS) b += needOf(g, a, s); return b; };
+// стоимость корзины в кр/сут по рыночным ценам (null — цен ещё нет); basketK — какую долю рыночной цены платит семья (остальное — свой огород, общий быт, скидки)
+export const BASKET_K = gd('economy', 'basketK', .6);
+export const basketCost = (a, s = 1) => { const pr = state.pop && state.pop.price; if (!pr) return null; let c = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (q > 0) c += q * (pr[g] || 0); } return c > 0 ? c * BASKET_K : null; };
 // полный спрос с учётом рецептов: конечный спрос населения тянет полуфабрикаты и энергию
 export function fullDemand(c, L = 0) { const D = {}; for (const g of goodsOrder()) D[g] = 0; for (const g in LOG_IN) if (D[g] != null) D[g] += L * LOG_IN[g];
   for (const g of goodsOrder()) { if (GOODS[g].need) for (let a = 0; a <= 100; a++) for (let s = 0; s < 4; s++) D[g] += c[s][a].n * needOf(g, a, s);
@@ -169,13 +172,14 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
   const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * (ctxId() === 'earth' && hooks.benefits ? hooks.benefits().birthK : 1) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
+  const QD = P.qd = P.qd || [[], [], [], []], QB = P.qb = P.qb || [[], [], [], []];
   let b = 0, d = 0; const medQ = 1e-4 * 100 * Math.max(0, 1 - ((P.sat && P.sat.meds != null) ? P.sat.meds : 1)) + (hooks.polMort ? hooks.polMort(ctxId()) : 0); // + загрязнение: 0,01% за каждый 1% // нехватка медицины: +0,01% смертности в год за каждый недостающий процент
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
     const w = (wel[s] && wel[s][a] != null) ? wel[s][a] : 1;
-    const q = clampN((mortQ(a) * mk * (1 + 3 * (1 - w)) + medQ) * f, 0, .5), dd = x.n * q; d += dd;
+    const q = clampN((mortQ(a) * mk * (1 + 3 * (1 - w)) + medQ) * f, 0, .5), dd = x.n * q; d += dd; QD[s][a] = q / f;
     const k = 1 - q; x.n *= k; x.un *= k; x.st *= k;
-    if (a >= 15 && a < 50) b += x.n * .5 * TFR0[s] * ASF[a] * tfMod() * (.85 + .15 * w) * f * bk * bk2 * lg; // половина — женщины; дети на женщину по образованию × возрастной профиль
+    { const br = a >= 15 && a < 50 ? .5 * TFR0[s] * ASF[a] * tfMod() * (.85 + .15 * w) * bk * bk2 * lg : 0; QB[s][a] = br; b += x.n * br * f; } // половина — женщины; дети на женщину по образованию × возрастной профиль
   }
   P.c[0][0].n += b; P.c[0][0].st += b; P.birth = b / f; P.death = d / f; P.bornY += b; P.diedY += d;
 }
@@ -272,7 +276,7 @@ export function stepEcon(dt, init) {
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (!(q > 0)) continue; const w = GOODS[g].ww != null ? GOODS[g].ww : 5; ws += P.sat[g] * w; sw += w; } // вклад в довольство — веса из таблицы «Потребление»
-    const aff = clampN(inc[s][a] / (basket(a, s) * (a < 15 ? 1.5 : 1) * (1 + BEN.vat)), 0, 1); // НДС дорожит корзину
+    const bc = basketCost(a, s), aff = bc ? clampN(inc[s][a] / (bc * (a < 15 ? 1.5 : 1) * (1 + BEN.vat)), 0, 1) : 1; // доход после налогов против стоимости корзины по рыночным ценам; НДС дорожит корзину
     wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1), 0, 1);
   }
   P.wel = wel; P.inc = inc;
@@ -408,10 +412,16 @@ function refreshPopI() {
   }
   if (pTab === 'coh') {
     const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
+    const pr = P.price || {}, bc = basketCost(a, s), gross = P.inc[s][a] / Math.max(.01, 1 - (laws().tax - 20) / 100), vat = (hooks.benefits ? hooks.benefits().vat : 0) || 0, need = bc ? bc * (a < 15 ? 1.5 : 1) * (1 + vat) : null;
+    const aff = need ? Math.min(1, P.inc[s][a] / need) : 1, pc = v => `<span class="${v < .7 ? 'err' : v < .95 ? 'warn' : 'ok'}">${fmtN(v * 100, 0)}%</span>`;
+    const goods = Object.keys(GOODS).filter(g => needOf(g, a, s) > 0).map(g => { const q = needOf(g, a, s), sat = P.sat[g] == null ? 1 : P.sat[g]; return `<tr><td>${GOODS[g].n}</td><td class="n">${fmtN(q, q < .01 ? 4 : 3)}</td><td class="n">${fmtN((pr[g] || 0) * q * BASKET_K, 2)} кр</td><td class="n">${pc(sat)}</td></tr>`; }).join('');
     setHtml($('pp-insp'), tbl(['', ''], [
       ['Людей', fmtN(x.n)], ['Безработных', fmtN(x.un)], ['Учатся', fmtN(x.st)], ['Заняты', fmtN(e)],
-      ['Средний доход в сутки', fmtN(P.inc[s][a], 2)], ['Потребности в сутки', fmtN(basket(a), 2) + ' (' + Object.keys(GOODS).map(g => GOODS[g].n + ' ' + fmtN(needOf(g, a), 2)).join(', ') + ')'],
-      ['Шанс смерти в год', fmtN(mortQ(a) * (1 + 3 * (1 - P.wel[s][a])) * 100, 2) + '%'], ['Рождаемость на человека в год', a >= 20 && a < 40 ? fmtN(.056 * FERT[s] * (.6 + .4 * P.wel[s][a]) * 100, 1) + '%' : '—'], ['Довольство', fmtN(P.wel[s][a] * 100, 0) + '%']]));
+      ['Доход в сутки', `${fmtN(gross, 1)} до налогов → <b>${fmtN(P.inc[s][a], 1)}</b> на руки`],
+      ['Корзина в сутки', need ? `${fmtN(need, 1)} кр${vat ? ' (с НДС)' : ''}` : 'цен ещё нет'],
+      ['Хватает денег на корзину', pc(aff) + (aff < 1 ? ' — доход ниже корзины: падает довольство, растёт смертность, падает рождаемость' : ' — денег хватает; дальше всё решает наличие товаров')],
+      ['Шанс смерти в год', fmtN(((P.qd && P.qd[s][a]) || 0) * 100, 2) + '%'], ['Рождений на человека в год', a >= 15 && a < 50 ? fmtN(((P.qb && P.qb[s][a]) || 0) * 100, 2) + '%' : '—'],
+      ['Довольство', pc(P.wel[s][a]) + ' <span class="muted">= деньги на корзину × наличие товаров</span>']]) + `<table class="grid" style="margin-top:6px"><tr><th>Товар</th><th>Нужно в сутки</th><th>Стоит семье</th><th>Есть на рынке</th></tr>${goods}</table>`);
   }
 }
 export function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }

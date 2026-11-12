@@ -255,3 +255,4 @@ table.grid td.err{color:var(--bad)}
 .lw input{width:100%;margin:0}
 .lw .h{grid-column:1/-1;color:var(--muted);font-size:10.5px;margin:-2px 0 3px}
 #p-laws [data-lwg][hidden]{display:none}
+#pp-insp table{width:auto!important;min-width:0!important}#pp-insp td{padding-right:14px}
