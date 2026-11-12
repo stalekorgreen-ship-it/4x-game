@@ -82,7 +82,7 @@ export function renderEditor() {
   p.innerHTML = `<div class="box"><div class="row"><b>Файл</b><select id="ed-file">${Object.keys(FILES).filter(f => DEFAULTS[f]).map(f => `<option value="${f}"${f === E.file ? ' selected' : ''}>${FILES[f]} (data/${f}.json)</option>`).join('')}</select>
     <b>Раздел</b><select id="ed-sec">${secs.map(s => `<option${s === E.sec ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>
     <span class="grow"></span>${E.dirty ? '<span class="warn">есть несохранённые правки</span>' : ''}<button class="btn sm" id="ed-save">Сохранить</button><button class="btn sm" id="ed-saver">Сохранить и перезапустить</button><button class="btn sm" id="ed-undo">Отменить правки</button></div>
-    <div class="help">${esc(E.model._readme || '')} Объект (например, материалы) пишется как «fe: 10, cu: 4»; список — через запятую. Сохранённое применяется после перезапуска игры.</div>${E.msg ? `<div class="ok">${esc(E.msg)}</div>` : ''}</div>
+    <div class="help">${esc(E.model._readme || '')} Объект (например, материалы) пишется как «fe: 10, ti: 4»; список — через запятую. Сохранённое применяется после перезапуска игры.</div>${E.msg ? `<div class="ok">${esc(E.msg)}</div>` : ''}</div>
     <div class="box">${sectionHtml()}</div>`;
 }
 async function doSave(restart) {

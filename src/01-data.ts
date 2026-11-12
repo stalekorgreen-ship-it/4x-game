@@ -24,40 +24,40 @@ export const EPOCH = Date.UTC(2030, 0, 1);
 export const SPEEDS = [{m:1/60,l:'1 сек'},{m:2/60,l:'2 сек'},{m:5/60,l:'5 сек'},{m:.5,l:'30 сек'},{m:1,l:'1 мин'},{m:20,l:'20 мин'},{m:60,l:'1 час'},{m:180,l:'3 часа'},{m:480,l:'8 часов'},{m:1440,l:'1 день'},{m:7200,l:'5 дней'}];
 
 export const COMP = gd('modules', 'modules', {
-  ion:   {name:'Ионный двигатель', desc:'Мощность 20, экономичный', power:20, mass:5, eff:1, cost:{ti:15, ree:4, cu:10}},
-  chem:  {name:'Химический двигатель', desc:'Мощность 50, жрёт топливо (КПД 0.35)', power:50, mass:6, eff:0.35, cost:{fe:15, ni:10}},
+  ion:   {name:'Ионный двигатель', desc:'Мощность 20, экономичный', power:20, mass:5, eff:1, cost:{ti:15, ree:4, fe: 10, co: 3}},
+  chem:  {name:'Химический двигатель', desc:'Мощность 50, жрёт топливо (КПД 0.35)', power:50, mass:6, eff:0.35, cost:{fe:15, co: 5}},
   tank:  {name:'Топливный бак', desc:'50 т топлива', fuel:50, mass:4, cost:{fe:6, ti:4}},
   cargo: {name:'Грузовой отсек / склад', desc:'200 т груза (руда, лёд, платина)', cargo:200, mass:8, cost:{fe:12}},
-  laser: {name:'Шахтёрский лазер', desc:'1 т/сутки на каждую жилу сразу (× эффективность жилы), нужно 2 человека экипажа', mine:1, mass:6, cost:{pt:3, ree:3, si:8}},
+  laser: {name:'Шахтёрский лазер', desc:'Копает 1 000 т породы в сутки; руда — по содержанию тела (железо до 85%, платина 5–50 г/т) × эффективность жилы; нужно 2 человека экипажа', mine:1, mass:6, cost:{pt:3, ree:3, si:8}},
   cabin: {name:'Каюты экипажа', desc:'5 мест', crew:5, mass:4, cost:{fe:6, c:6}},
-  life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, cu:6, si:4}},
-  xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{cu:8, si:6, ti:4}, tech:'xfer'},
-  repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:30, cu:15, si:10, pt:1}},
+  life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, si:4, fe: 6}},
+  xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{si:6, ti:4, fe: 8}, tech:'xfer'},
+  repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:45, si:10, pt:1}},
   spares:{name:'Склад тех. изделий', desc:'Хранит 100 тех. изделий', spares:100, mass:6, cost:{fe:10, ti:4}},
-  lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, cu:8, ree:2}},
-  lab_eng: {name:'Инженерная лаборатория', desc:'Изучает инженерные аномалии', lab:'eng', mass:8, cost:{fe:10, ti:5, cu:6}},
-  lab_bio: {name:'Биолаборатория', desc:'Изучает биологические аномалии', lab:'bio', mass:8, cost:{c:10, si:6, cu:4}},
-  fusion:{name:'Термоядерный двигатель', desc:'Мощность 120, КПД 1.6 (нужна технология)', power:120, mass:10, eff:1.6, cost:{u:5, ti:20, ree:6, cu:15}, tech:'fusion'},
+  lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, ree:2, fe: 8}},
+  lab_eng: {name:'Инженерная лаборатория', desc:'Изучает инженерные аномалии', lab:'eng', mass:8, cost:{fe:16, ti:5}},
+  lab_bio: {name:'Биолаборатория', desc:'Изучает биологические аномалии', lab:'bio', mass:8, cost:{c:10, si:6, fe: 4}},
+  fusion:{name:'Термоядерный двигатель', desc:'Мощность 120, КПД 1.6 (нужна технология)', power:120, mass:10, eff:1.6, cost:{u:5, ti:20, ree:6, fe: 15, co: 8}, tech:'fusion'},
   laser2:{name:'Тяжёлый лазер', desc:'2 т/сутки на каждую жилу (нужна технология)', mine:2, mass:9, cost:{pt:5, ree:5, si:12}, tech:'laser2'},
   armor: {name:'Броневая плита', desc:'+1 слой брони на каждом секторе корабля', armor:1, mass:20, cost:{fe:40, ti:10}},
-  rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:10, cu:8, ti:4}},
-  ammo:  {name:'Погреб боеприпасов', desc:'Хранит боеприпасы для рельсотронов и пулемётов; без него орудия молчат', ammoCap:100, mass:110, cost:{fe:60, cu:20, ti:10}},
-  reactor:{name:'Боевой реактор', desc:'Вырабатывает энергию для конденсаторов рельсотронов и лазера', reactor:1, en:100, mass:60, cost:{fe:40, cu:50, u:2, ti:10}},
-  gat:   {name:'Пулемёт Гатлинга', desc:'ПВО и оружие против истребителей: 6000 выстр/мин, дальность 15 км, перегрев 40%/мин, остывание 20%/мин, бронепробитие 2%, 5 т боеприпасов в час', gat:1, mass:25, cost:{fe:20, cu:14, si:8}},
-  flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:8, cu:8, si:6}},
-  lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:240, cu:290, si:190, ree:48}},
-  missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:14, cu:10, ti:6, si:6}},
-  irs:{name:'Тепловой сканер (пассивный)', desc:'Ловит тепло чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'ir', mass:5, crewN:1, cost:{fe:6, cu:8, si:10}},
-  ems:{name:'ЭМ-сканер (пассивный)', desc:'Ловит радиоизлучение чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'em', mass:6, crewN:1, cost:{fe:6, cu:10, si:12}},
-  radar:{name:'Активный радар', desc:'Точные координаты цели для наведения, но выдаёт ваш корабль', sc:'rad', mass:12, crewN:3, cost:{fe:12, cu:18, si:14}},
-  fcs:{name:'Система управления огнём', desc:'Ведёт цели на прицел: по одной цели на канал', fcs:1, mass:4, crewN:2, cost:{fe:8, cu:10, si:8, ti:2}},
-  ew:{name:'Станция РЭБ', desc:'Помехи: сбивает вражескую наводку рядом с кораблём. Нужны 3 человека', ew:1, mass:12, cost:{fe:14, cu:20, si:16, ti:4}},
+  rail:  {name:'Рельсотрон (турель)', desc:'Бьёт по кораблям на 60 км, перезарядка 60 с', rail:1, mass:6, cost:{fe:18, ti:4}},
+  ammo:  {name:'Погреб боеприпасов', desc:'Хранит боеприпасы для рельсотронов и пулемётов; без него орудия молчат', ammoCap:100, mass:110, cost:{fe:80, ti:10}},
+  reactor:{name:'Боевой реактор', desc:'Вырабатывает энергию для конденсаторов рельсотронов и лазера', reactor:1, en:100, mass:60, cost:{fe:90, u:2, ti:10}},
+  gat:   {name:'Пулемёт Гатлинга', desc:'ПВО и оружие против истребителей: 6000 выстр/мин, дальность 15 км, перегрев 40%/мин, остывание 20%/мин, бронепробитие 2%, 5 т боеприпасов в час', gat:1, mass:25, cost:{fe:34, si:8}},
+  flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:16, si:6}},
+  lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:530, si:190, ree:48}},
+  missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:24, ti:6, si:6}},
+  irs:{name:'Тепловой сканер (пассивный)', desc:'Ловит тепло чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'ir', mass:5, crewN:1, cost:{fe:14, si:10}},
+  ems:{name:'ЭМ-сканер (пассивный)', desc:'Ловит радиоизлучение чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'em', mass:6, crewN:1, cost:{fe:16, si:12}},
+  radar:{name:'Активный радар', desc:'Точные координаты цели для наведения, но выдаёт ваш корабль', sc:'rad', mass:12, crewN:3, cost:{fe:30, si:14}},
+  fcs:{name:'Система управления огнём', desc:'Ведёт цели на прицел: по одной цели на канал', fcs:1, mass:4, crewN:2, cost:{fe:18, si:8, ti:2}},
+  ew:{name:'Станция РЭБ', desc:'Помехи: сбивает вражескую наводку рядом с кораблём. Нужны 3 человека', ew:1, mass:12, cost:{fe:34, si:16, ti:4}},
   marines:{name:'Десантный отсек', desc:'10 морпехов для абордажа сдавшихся и обездвиженных кораблей. Морпехи занимают койки', mar:10, mass:14, cost:{fe:20, ti:6, si:4}},
   dcon:{name:'Пост аварийной команды', desc:'Быстрее тушит пожары и чинит модули в бою. Нужны 3 человека', dcon:1, mass:6, cost:{fe:8, ti:6}},
-  sink:{name:'Радиатор', desc:'Отводит тепло: реже перегрев лазеров и форсажа', sink:1, mass:12, cost:{fe:16, cu:10}},
+  sink:{name:'Радиатор', desc:'Отводит тепло: реже перегрев лазеров и форсажа', sink:1, mass:12, cost:{fe:26}},
   hangar_f:{name:'Ангар истребителей', desc:'10 истребителей (пополняются техизделиями)', hangF:10, hangars:1, mass:30, cost:{fe:60, si:20, ti:10}},
   hangar_b:{name:'Ангар бомбардировщиков', desc:'5 бомбардировщиков с торпедами', hangB:5, hangars:1, mass:30, cost:{fe:60, si:20, ti:10, pt:2}},
-  hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, ni:5}},
+  hook:  {name:'Буксирная сцепка', desc:'Тянет до 2000 т (корабль или станцию)', tow:2000, mass:8, cost:{ti:15, fe:15, co: 2}},
 }); // данные модулей можно править в data/modules.json
 /* ===== НАСТРАИВАЕМЫЕ МОДУЛИ ===== */
 // Ключ варианта: «база|опция=знач|опция=знач». Голый ключ = значения по умолчанию.
@@ -105,8 +105,8 @@ for (const k of ['lgun', 'hangar_f', 'hangar_b']) COMP[k].off = true; // вре�
 for (const k in COMP) if (!COMP[k].tech) COMP[k].tech = 'm_' + k;
 addModuleTechs(COMP);
 COMP.laser.opts = [SZ, O('cool', 'Охлаждение', 'n', [['n', 'пассивное'], ['a', 'активное +30%']])];
-COMP.laser.ap = (c, s) => { if (s.cool.v === 'a') { c.mine *= 1.3; c.mass = Math.round(c.mass * 1.25 * 10) / 10; addCost(c, 'cu', 4); addCost(c, 'si', 4); } scl(c, SZK[s.sz.v]); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки, 2 человека экипажа на лазер`; };
-COMP.laser2.opts = COMP.laser.opts; COMP.laser2.ap = (c, s) => { COMP.laser.ap(c, s); c.desc = `${Math.round(c.mine * 10) / 10} т/сутки (нужна технология)`; };
+COMP.laser.ap = (c, s) => { if (s.cool.v === 'a') { c.mine *= 1.3; c.mass = Math.round(c.mass * 1.25 * 10) / 10; addCost(c, 'fe', 4); addCost(c, 'si', 4); } scl(c, SZK[s.sz.v]); c.desc = `${fmtN(c.mine * SHIP_ROCK)} т породы в сутки, 2 человека экипажа на лазер`; };
+COMP.laser2.opts = COMP.laser.opts; COMP.laser2.ap = (c, s) => { COMP.laser.ap(c, s); c.desc = `${fmtN(c.mine * SHIP_ROCK)} т породы в сутки (нужна технология)`; };
 const SCW = {w: {k: 1.5, r: .5, m: 1, n: 'широкий (дальше, грубо)'}, n: {k: .8, r: 1, m: 1.3, n: 'узкий (ближе, точно)'}};
 for (const k of ['irs', 'ems']) {
   COMP[k].opts = [O('res', 'Разрешение', 'w', [['w', 'широкое: дальше, грубо'], ['n', 'узкое: ближе, видит мелочь']])];
@@ -140,7 +140,7 @@ COMP.rail.ap = (c, s) => {
   const cal = +s.cal.v, bar = +s.bar.v, ld = RAIL_LD[s.ld.v], saf = +s.saf.v, B = RAIL_CAL[cal], caps = Math.max(1, Math.min(40, +s.cap.v || 10)), cp = {m: 0.6 + 0.4 * Math.min(1, caps / 10) + 0.012 * Math.max(0, caps - 10)};
   const f = Math.pow(cal / 10, 1.5) * (1 + 0.55 * (bar - 1));
   c.mass = Math.round(B.m * (1 + 1.03 * (bar - 1)) * ld.mass * cp.m * (1 + 0.08 * saf));
-  c.cost = {fe: Math.max(2, Math.round(10 * f)), cu: Math.max(2, Math.round(8 * f * (s.ld.v === 'm' ? 1 : s.ld.v === 'a' ? 1.3 : 1.8))), ti: Math.max(1, Math.round(4 * f)) + 2 * saf};
+  c.cost = {fe: (Math.max(2, Math.round(10 * f))) + (Math.max(2, Math.round(8 * f * (s.ld.v === 'm' ? 1 : s.ld.v === 'a' ? 1.3 : 1.8)))), ti: Math.max(1, Math.round(4 * f)) + 2 * saf};
   const chg = 10 * bar / caps; // с на перезарядку: 20 энергии на ствол при 2·N энергии/с
   c.rcfg = {cal, bar, dmg: B.dmg, vp: B.vp, rng: B.rng, ap: B.ap, shells: bar, caps, chg, draw: 2 * caps, ammoH: 2,
     rel: Math.round(chg * ld.rel / 60 * 10000) / 10000,
@@ -154,18 +154,18 @@ COMP.rail.ap = (c, s) => {
 // --- зенитка ---
 export const FLK = {20: {blast: 0.8, rng: 45, rel: 0.7, m: 3}, 40: {blast: 1.2, rng: 60, rel: 1, m: 5}, 76: {blast: 1.8, rng: 75, rel: 1.4, m: 9}};
 COMP.ammo.opts = [O('t', 'Ёмкость, т', '100', [['2', '2'], ['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100'], ['200', '200'], ['500', '500'], ['1000', '1000']])];
-COMP.ammo.ap = (c, s) => { const t = +s.t.v; c.ammoCap = t; c.mass = Math.round(t * 1.1); c.cost = {fe: Math.round(t * .6), cu: Math.round(t * .2), ti: Math.max(1, Math.round(t * .1))}; c.name = `Погреб ${t} т`; c.desc = `${t} т боеприпасов: рельсотрон тратит 2 т/ч на ствол, пулемёт Гатлинга 5 т/ч`; };
+COMP.ammo.ap = (c, s) => { const t = +s.t.v; c.ammoCap = t; c.mass = Math.round(t * 1.1); c.cost = {fe: Math.round(t * .8), ti: Math.max(1, Math.round(t * .1)), w: Math.max(1, Math.round(t * .05))}; c.name = `Погреб ${t} т`; c.desc = `${t} т боеприпасов: рельсотрон тратит 2 т/ч на ствол, пулемёт Гатлинга 5 т/ч`; };
 COMP.reactor.opts = [O('p', 'Мощность, МВт', '100', [['5', '5'], ['10', '10'], ['20', '20'], ['50', '50'], ['100', '100'], ['300', '300'], ['1000', '1000'], ['5000', '5000']])];
-COMP.reactor.ap = (c, s) => { const p = +s.p.v; c.en = p; c.mass = Math.round(p * 0.6); c.cost = {fe: Math.round(p * .4), cu: Math.round(p * .5), u: Math.max(1, Math.round(p / 50)), ti: Math.max(1, Math.round(p / 10))}; c.name = `Реактор ${p} МВт`; c.desc = `${p} МВт: питает конденсаторы рельсотронов (2 МВт на конденсатор) и лазер (800 МВт на подзарядку)`; };
+COMP.reactor.ap = (c, s) => { const p = +s.p.v; c.en = p; c.mass = Math.round(p * 0.6); c.cost = {fe: (Math.round(p * .4)) + (Math.round(p * .5)), u: Math.max(1, Math.round(p / 50)), ti: Math.max(1, Math.round(p / 10))}; c.name = `Реактор ${p} МВт`; c.desc = `${p} МВт: питает конденсаторы рельсотронов (2 МВт на конденсатор) и лазер (800 МВт на подзарядку)`; };
 COMP.gat.opts = [O('tw', 'Установка', '0', [['0', 'одиночный'], ['1', 'спаренный']])];
-COMP.gat.ap = (c, s) => { const tw = +s.tw.v; c.mass = tw ? 45 : 25; c.cost = {fe: tw ? 36 : 20, cu: tw ? 26 : 14, si: tw ? 14 : 8};
+COMP.gat.ap = (c, s) => { const tw = +s.tw.v; c.mass = tw ? 45 : 25; c.cost = {fe: (tw ? 36 : 20) + (tw ? 26 : 14), si: tw ? 14 : 8};
   c.gcfg = {tw, rpm: 6000 * (tw ? 2 : 1), heat: 0.40, cool: 0.20, pen: 0.02, rng: 15, ammoH: 5 * (tw ? 2 : 1), mass: c.mass}; };
 COMP.flak.opts = [O('cal', 'Калибр', '40', [['20', '20 мм'], ['40', '40 мм'], ['76', '76 мм']]),
   O('rt', 'Темп огня', 'n', [['n', 'обычный'], ['b', 'очередями']]), O('saf', 'Предохранители', '0', [['0', 'нет'], ['1', '1'], ['2', '2']])];
 COMP.flak.ap = (c, s) => {
   const B = FLK[+s.cal.v], b = s.rt.v === 'b', saf = +s.saf.v;
   c.mass = Math.round(B.m * (b ? 1.3 : 1) * (1 + 0.08 * saf) * 10) / 10;
-  c.cost = {fe: Math.round(B.m * 1.6), cu: Math.round(B.m * 1.6 * (b ? 1.4 : 1)), si: Math.round(B.m * 1.2) + saf * 2};
+  c.cost = {fe: (Math.round(B.m * 1.6)) + (Math.round(B.m * 1.6 * (b ? 1.4 : 1))), si: Math.round(B.m * 1.2) + saf * 2};
   c.fcfg = {blast: B.blast, rng: B.rng, rel: Math.round(B.rel * (b ? 0.7 : 1) * 100) / 100, fail: Math.round(0.01 * (b ? 1.8 : 1) * Math.pow(0.5, saf) * 10000) / 10000};
   c.name = `Зенитка ${s.cal.v} мм`;
   c.desc = `взрыв ${B.blast} км, дальность ${B.rng} км, перезарядка ${Math.round(60 * c.fcfg.rel)} с, ${b ? 'очередями' : 'обычный темп'}, осечка ${(c.fcfg.fail * 100).toFixed(1)}%`;
@@ -227,7 +227,7 @@ export function compOf(key) {
 const MIL_MASS = {flak: 22, lgun: 20, missile: 30, irs: 20, ems: 20, radar: 30, fcs: 2, ew: 25, marines: 40, dcon: 25, sink: 30};
 
 export const FIELDS = {phys: 'Физика', eng: 'Инженерия', bio: 'Биология'};
-export const RES = {fe:'Железо', ni:'Никель', ti:'Титан', cu:'Медь', si:'Кремний', c:'Углерод', ice:'Лёд', pt:'Платиноиды', ree:'Редкоземельные', n2:'Азот', co2:'Углекислый газ', ch4:'Метан', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
+export const RES = {fe:'Железо', ti:'Титан', si:'Кремний', c:'Уголь и нефть', ice:'Лёд', pt:'Платина', ree:'Редкозем', w:'Вольфрам', co:'Кобальт', n2:'Азот', co2:'Углекислый газ', ch4:'Топливные газы', nh3:'Аммиак', u:'Уран', spares:'Тех. изделия'};
 
 // Точки Лагранжа Солнце–Земля. Расстояния условно увеличены, чтобы их было видно на карте.
 // Сложность добычи жилы: 0.1–1.0 у каждого тела свой (детерминированно), падает вместе с выработкой.
@@ -247,55 +247,55 @@ export const BODIES = [
   {id:'saturn', name:'Сатурн', a:9.537, ang:4.9, kind:'giant', sci:{phys:10}, pool:{phys:7000}},
   {id:'uranus', name:'Уран', a:19.19, ang:0.8, kind:'giant', sci:{phys:8}, pool:{phys:5000}},
   {id:'neptune', name:'Нептун', a:30.07, ang:3.4, kind:'giant', sci:{phys:8}, pool:{phys:5000}},
-  {id:'pluto', name:'Плутон', a:39.48, ang:2.1, kind:'planet', ores:{ice:60000, n2:20000, ch4:8000, c:5000}},
-  {id:'io', name:'Ио', parent:'jupiter', r:0.002819, per:1.769, ang:0.3, kind:'moon', ores:{fe:30000, si:20000, u:300, cu:2000}},
-  {id:'europa_j', name:'Европа', parent:'jupiter', r:0.004486, per:3.551, ang:2.1, kind:'moon', ores:{ice:200000, si:10000, c:3000}, sci:{bio:12}, pool:{bio:8000}},
-  {id:'ganymede', name:'Ганимед', parent:'jupiter', r:0.007155, per:7.155, ang:4.0, kind:'moon', ores:{ice:150000, si:30000, fe:15000}},
-  {id:'callisto', name:'Каллисто', parent:'jupiter', r:0.012585, per:16.689, ang:5.5, kind:'moon', ores:{ice:120000, c:20000, si:15000}},
-  {id:'titan', name:'Титан', parent:'saturn', r:0.008168, per:15.945, ang:1.2, kind:'moon', ores:{ice:150000, ch4:80000, n2:50000, c:20000}, sci:{bio:10}, pool:{bio:6000}},
-  {id:'enceladus', name:'Энцелад', parent:'saturn', r:0.001591, per:1.370, ang:3.8, kind:'moon', ores:{ice:40000, nh3:3000, co2:2000}},
-  {id:'triton', name:'Тритон', parent:'neptune', r:0.002371, per:5.877, ang:0.9, kind:'moon', ores:{ice:50000, n2:20000, ch4:5000}},
-  {id:'charon', name:'Харон', parent:'pluto', r:0.000131, per:6.387, ang:4.4, kind:'moon', ores:{ice:30000, nh3:2000}},
-  {id:'luna', name:'Луна', parent:'earth', r:0.00257, per:27.32, ang:1.0, kind:'moon', ores:{si:30000, fe:20000, ti:8000, ree:500, ice:3000}},
-  {id:'phobos', name:'Фобос', parent:'mars', r:0.0000627, per:0.319, ang:0.5, kind:'moon', ores:{c:5000, fe:1500, ice:1000}},
-  {id:'deimos', name:'Деймос', parent:'mars', r:0.000157, per:1.263, ang:3.0, kind:'moon', ores:{c:3000, ice:2000}},
+  {id:'pluto', name:'Плутон', a:39.48, ang:2.1, kind:'planet', ores:{ice:.5, n2:.05, ch4:.02, c:.02}},
+  {id:'io', name:'Ио', parent:'jupiter', r:0.002819, per:1.769, ang:0.3, kind:'moon', ores:{fe:.2, si:.2, u:.00005, co:.0005}},
+  {id:'europa_j', name:'Европа', parent:'jupiter', r:0.004486, per:3.551, ang:2.1, kind:'moon', ores:{ice:.6, si:.1, c:.01}, sci:{bio:12}, pool:{bio:8000}},
+  {id:'ganymede', name:'Ганимед', parent:'jupiter', r:0.007155, per:7.155, ang:4.0, kind:'moon', ores:{ice:.5, si:.2, fe:.1}},
+  {id:'callisto', name:'Каллисто', parent:'jupiter', r:0.012585, per:16.689, ang:5.5, kind:'moon', ores:{ice:.4, c:.1, si:.2}},
+  {id:'titan', name:'Титан', parent:'saturn', r:0.008168, per:15.945, ang:1.2, kind:'moon', ores:{ice:.5, ch4:.1, n2:.1, c:.05}, sci:{bio:10}, pool:{bio:6000}},
+  {id:'enceladus', name:'Энцелад', parent:'saturn', r:0.001591, per:1.370, ang:3.8, kind:'moon', ores:{ice:.7, nh3:.01, co2:.01}},
+  {id:'triton', name:'Тритон', parent:'neptune', r:0.002371, per:5.877, ang:0.9, kind:'moon', ores:{ice:.5, n2:.1, ch4:.02}},
+  {id:'charon', name:'Харон', parent:'pluto', r:0.000131, per:6.387, ang:4.4, kind:'moon', ores:{ice:.5, nh3:.01}},
+  {id:'luna', name:'Луна', parent:'earth', r:0.00257, per:27.32, ang:1.0, kind:'moon', ores:{si:.2, fe:.1, ti:.03, ree:.0005, ice:.001, w:.00005, u:.00001}},
+  {id:'phobos', name:'Фобос', parent:'mars', r:0.0000627, per:0.319, ang:0.5, kind:'moon', ores:{c:.05, fe:.15, si:.15, ice:.02}},
+  {id:'deimos', name:'Деймос', parent:'mars', r:0.000157, per:1.263, ang:3.0, kind:'moon', ores:{c:.05, ice:.03, si:.15}},
   {id:'l1', name:'Земля L1', kind:'lagrange', lp:{r:0.95, da:0}},
   {id:'l2', name:'Земля L2', kind:'lagrange', lp:{r:1.05, da:0}},
   {id:'l3', name:'Земля L3', kind:'lagrange', lp:{r:1.0, da:Math.PI}},
   {id:'l4', name:'Земля L4', kind:'lagrange', lp:{r:1.0, da:Math.PI / 3}},
   {id:'l5', name:'Земля L5', kind:'lagrange', lp:{r:1.0, da:-Math.PI / 3}},
-  {id:'apophis', name:'Апофис', a:0.92, ang:5.0, kind:'ast', ores:{pt:800, fe:1500}},
-  {id:'bennu', name:'Бенну', a:1.126, ang:1.1, kind:'ast', ores:{ice:6000, c:3000, fe:800}},
-  {id:'ryugu', name:'Рюгу', a:1.19, ang:3.3, kind:'ast', ores:{ice:4000, c:4000, si:1000}},
-  {id:'eros', name:'Эрос', a:1.458, ang:0.9, kind:'ast', ores:{fe:20000, si:8000, ni:3000, pt:200}},
-  {id:'vesta', name:'Веста', a:2.362, ang:5.6, kind:'ast', ores:{fe:25000, ti:6000, si:12000, ree:300}},
-  {id:'juno', name:'Юнона', a:2.67, ang:2.5, kind:'ast', ores:{fe:15000, si:7000, ni:3000, pt:1000, u:150}},
-  {id:'ceres', name:'Церера', a:2.767, ang:3.9, kind:'ast', ores:{ice:80000, c:20000, si:6000, cu:1500}},
-  {id:'pallas', name:'Паллада', a:2.772, ang:0.2, kind:'ast', ores:{fe:15000, si:12000, ti:4000, c:5000}},
-  {id:'psyche', name:'Психея', a:2.92, ang:1.7, kind:'ast', ores:{fe:50000, ni:12000, pt:4000, cu:3000, ree:500, u:100}},
-  {id:'hygiea', name:'Гигея', a:3.14, ang:4.7, kind:'ast', ores:{ice:30000, c:10000, cu:800}},
-  {id:'itokawa', name:'Итокава', a:1.324, ang:2.0, kind:'ast', ores:{si:3000, fe:2000, ni:400}},
-  {id:'icarus', name:'Икар', a:1.078, ang:5.5, kind:'ast', ores:{ti:2500, fe:3000, u:60}},
-  {id:'orpheus', name:'Орфей', a:1.209, ang:3.6, kind:'ast', ores:{pt:600, ti:700, ree:80}},
-  {id:'gaspra', name:'Гаспра', a:2.21, ang:4.4, kind:'ast', ores:{si:2500, fe:4000, cu:300}},
-  {id:'toutatis', name:'Таутатис', a:2.51, ang:5.9, kind:'ast', ores:{ni:3000, fe:6000, ti:800}},
-  {id:'eunomia', name:'Эвномия', a:2.64, ang:1.3, kind:'ast', ores:{si:10000, fe:12000, ni:2500, ti:1000}},
-  {id:'mathilde', name:'Матильда', a:2.65, ang:3.1, kind:'ast', ores:{c:12000, ice:3000}},
-  {id:'kleopatra', name:'Клеопатра', a:2.79, ang:0.7, kind:'ast', ores:{fe:30000, ni:9000, pt:2500, cu:1200}},
-  {id:'ida', name:'Ида', a:2.86, ang:5.2, kind:'ast', ores:{fe:9000, si:5000, ti:900, ree:60}},
-  {id:'interamnia', name:'Интерамния', a:3.06, ang:2.8, kind:'ast', ores:{ice:18000, c:9000, cu:600}},
-  {id:'europa', name:'Европа (астероид)', a:3.09, ang:6.0, kind:'ast', ores:{ice:15000, c:8000, u:40}},
-  {id:'themis', name:'Фемида', a:3.13, ang:0.4, kind:'ast', ores:{ice:40000, c:6000}},
-  {id:'davida', name:'Давида', a:3.17, ang:4.0, kind:'ast', ores:{c:14000, ice:9000, si:3000}},
-  {id:'sylvia', name:'Сильвия', a:3.49, ang:1.9, kind:'ast', ores:{ice:12000, c:7000, ree:200, cu:900}},
-  {id:'phaethon', name:'Фаэтон', a:1.27, ang:4.9, kind:'ast', strange:true, ores:{fe:3000, ni:1000}, sci:{eng:10, phys:4}, pool:{eng:3500, phys:1000}},
+  {id:'apophis', name:'Апофис', a:0.92, ang:5.0, kind:'ast', ores:{si:.2, fe:.2, co:.001, pt:.00005, w:.00005}},
+  {id:'bennu', name:'Бенну', a:1.126, ang:1.1, kind:'ast', ores:{ice:.1, c:.05, fe:.15, si:.15}},
+  {id:'ryugu', name:'Рюгу', a:1.19, ang:3.3, kind:'ast', ores:{ice:.08, c:.05, si:.15, fe:.15}},
+  {id:'eros', name:'Эрос', a:1.458, ang:0.9, kind:'ast', ores:{fe:.2, si:.2, co:.001, ti:.002, pt:.000005}},
+  {id:'vesta', name:'Веста', a:2.362, ang:5.6, kind:'ast', ores:{fe:.15, si:.25, ti:.005, ree:.0003, co:.0005}},
+  {id:'juno', name:'Юнона', a:2.67, ang:2.5, kind:'ast', ores:{fe:.2, si:.2, co:.001, pt:.000005, u:.00002}},
+  {id:'ceres', name:'Церера', a:2.767, ang:3.9, kind:'ast', ores:{ice:.25, c:.05, si:.15, fe:.1, co:.0005}},
+  {id:'pallas', name:'Паллада', a:2.772, ang:0.2, kind:'ast', ores:{fe:.15, si:.2, ti:.002, c:.03}},
+  {id:'psyche', name:'Психея', a:2.92, ang:1.7, kind:'ast', ores:{fe:.85, co:.005, pt:.00003, w:.0003, ree:.0001, u:.00001}},
+  {id:'hygiea', name:'Гигея', a:3.14, ang:4.7, kind:'ast', ores:{ice:.15, c:.05, si:.15, fe:.15, co:.0005}},
+  {id:'itokawa', name:'Итокава', a:1.324, ang:2.0, kind:'ast', ores:{si:.2, fe:.2, co:.001}},
+  {id:'icarus', name:'Икар', a:1.078, ang:5.5, kind:'ast', ores:{ti:.003, fe:.2, si:.2, u:.00002}},
+  {id:'orpheus', name:'Орфей', a:1.209, ang:3.6, kind:'ast', ores:{pt:.00005, ti:.01, ree:.0003, si:.2, fe:.2}},
+  {id:'gaspra', name:'Гаспра', a:2.21, ang:4.4, kind:'ast', ores:{si:.2, fe:.25, co:.001}},
+  {id:'toutatis', name:'Таутатис', a:2.51, ang:5.9, kind:'ast', ores:{co:.002, fe:.3, ti:.002, si:.2}},
+  {id:'eunomia', name:'Эвномия', a:2.64, ang:1.3, kind:'ast', ores:{si:.2, fe:.2, co:.001, ti:.002}},
+  {id:'mathilde', name:'Матильда', a:2.65, ang:3.1, kind:'ast', ores:{c:.08, ice:.05, si:.15, fe:.15}},
+  {id:'kleopatra', name:'Клеопатра', a:2.79, ang:0.7, kind:'ast', ores:{fe:.85, co:.005, pt:.00003, w:.0003}},
+  {id:'ida', name:'Ида', a:2.86, ang:5.2, kind:'ast', ores:{fe:.2, si:.2, ti:.002, ree:.0002}},
+  {id:'interamnia', name:'Интерамния', a:3.06, ang:2.8, kind:'ast', ores:{ice:.15, c:.05, si:.15, co:.0005}},
+  {id:'europa', name:'Европа (астероид)', a:3.09, ang:6.0, kind:'ast', ores:{ice:.15, c:.05, si:.15, u:.00002}},
+  {id:'themis', name:'Фемида', a:3.13, ang:0.4, kind:'ast', ores:{ice:.2, c:.05, si:.15}},
+  {id:'davida', name:'Давида', a:3.17, ang:4.0, kind:'ast', ores:{c:.05, ice:.1, si:.15}},
+  {id:'sylvia', name:'Сильвия', a:3.49, ang:1.9, kind:'ast', ores:{ice:.15, c:.05, ree:.0002, co:.0005}},
+  {id:'phaethon', name:'Фаэтон', a:1.27, ang:4.9, kind:'ast', strange:true, ores:{fe:.3, co:.002, si:.2}, sci:{eng:10, phys:4}, pool:{eng:3500, phys:1000}},
   {id:'xanomaly', name:'Аномалия X', a:2.45, ang:0.1, kind:'ast', strange:true, ores:{}, sci:{phys:10, bio:6, eng:6}, pool:{phys:3000, bio:2000, eng:2000}},
-  {id:'oumuamua', name:'Оумуамуа', a:3.3, ang:2.3, kind:'ast', strange:true, ores:{fe:500}, sci:{phys:10, eng:5}, pool:{phys:4000, eng:1500}},
-  {id:'chiron', name:'Хирон', a:3.45, ang:3.7, kind:'ast', strange:true, ores:{ice:5000, c:2000}, sci:{bio:10, phys:3}, pool:{bio:4000, phys:800}},
+  {id:'oumuamua', name:'Оумуамуа', a:3.3, ang:2.3, kind:'ast', strange:true, ores:{fe:.5}, sci:{phys:10, eng:5}, pool:{phys:4000, eng:1500}},
+  {id:'chiron', name:'Хирон', a:3.45, ang:3.7, kind:'ast', strange:true, ores:{ice:.5, c:.05}, sci:{bio:10, phys:3}, pool:{bio:4000, phys:800}},
 ];
 // Газы и льды в астероидах
-export const GAS_ADD = {ceres: {nh3: 6000, n2: 2500}, bennu: {co2: 1200, ch4: 400}, ryugu: {nh3: 900, ch4: 500}, hygiea: {nh3: 3000, n2: 1500}, themis: {co2: 5000, nh3: 3000},
-  interamnia: {n2: 2000, co2: 3000}, chiron: {n2: 3000, ch4: 2500}, mathilde: {ch4: 1500, co2: 2000}, phobos: {co2: 600}, deimos: {nh3: 400}, europa: {n2: 1500, nh3: 1200}, sylvia: {co2: 1500, nh3: 800}};
+export const GAS_ADD = {ceres: {nh3: .01, n2: .005}, bennu: {co2: .005, ch4: .002}, ryugu: {nh3: .005, ch4: .003}, hygiea: {nh3: .01, n2: .005}, themis: {co2: .02, nh3: .01}, // доли массы
+  interamnia: {n2: .005, co2: .01}, chiron: {n2: .03, ch4: .02}, mathilde: {ch4: .005, co2: .01}, phobos: {co2: .002}, deimos: {nh3: .002}, europa: {n2: .005, nh3: .005}, sylvia: {co2: .005, nh3: .003}};
 for (const b of BODIES) if (GAS_ADD[b.id]) Object.assign(b.ores, GAS_ADD[b.id]);
 // Диаметры (км): оборудование кораблей берёт только небольшие тела
 export const DIAM = {ceres: 940, vesta: 525, pallas: 512, hygiea: 430, davida: 270, interamnia: 330, europa: 315, sylvia: 270, eunomia: 255, juno: 234, psyche: 226, themis: 200, kleopatra: 135,
@@ -306,17 +306,20 @@ for (const b of BODIES) if (DIAM[b.id]) b.d = DIAM[b.id];
 // Недра Земли и планет: добываются шахтами при наличии населения
 // Выход шахты, т в сутки на каждую руду (единая шкала, таблица «Пояс»): шахта (10 000 чел.) вынимает 1 млн т породы в год ≈ 2 740 т/сут,
 // руда = порода × содержание × 85% (потери обогащения). Земля: железо 50%, кремний 25%, титан и редкозем 0,1%, уран 0,05%, платина 5 г/т; уголь и нефть, газы — свои жилы.
-// cu/ni/ice/... — старые руды, уйдут на шаге 2. Правится в data/economy.json (mineYield).
-export const MINE_Y = gd('economy', 'mineYield', {fe: 1165, si: 582, ti: 2.3, ree: 2.3, u: 1.2, pt: .012, cu: 12, ni: 5, ice: 50});
+// Вольфрам 0,05%, кобальт 0,02%. Лёд на Земле не добывают (вода просто есть). Правится в data/economy.json (mineYield).
+export const MINE_Y = gd('economy', 'mineYield', {fe: 1165, si: 582, ti: 2.3, ree: 2.3, u: 1.2, pt: .012, w: 1.17, co: .47});
 // угольная шахта (уголь и нефть — свои пласты): 1 млн т породы в год ≈ 2 300 т угля в сутки
 export const COAL_Y = gd('economy', 'coalYield', {c: 2300});
+// корабельный лазер: т породы в сутки на единицу мощности добычи; руда = порода × содержание тела × 85% × эффективность жилы
+export const SHIP_ROCK = gd('economy', 'shipRock', 1000);
+export const gradeOf = (id, k) => { const b = BODY[id]; if (!b) return 0; if (b.grade && b.grade[k] != null) return b.grade[k]; const o = b.ores || {}, W = Object.values(o).reduce((a, v) => a + v, 0); return W > 0 ? (o[k] || 0) / W * .5 : 0; };
 export const isCoal = r => COAL_Y[r] != null;
 export const myOf = r => MINE_Y[r] != null ? MINE_Y[r] : COAL_Y[r] != null ? COAL_Y[r] : 0;
 export const GROUND = {
   // реальные порядки запасов (т): разведанные запасы земной коры; Марс ~0.1 и Венера ~0.8 от Земли по массе
   // Земля (решено с владельцем): доступных недр — на ~50 лет при полной добыче под потребности 2030 года
-  earth: {fe: 7.9e6, si: 6.2e6, cu: 2.4e6, c: 3.9e6, ni: 3.2e5, ti: 1.5e5, ice: 1.4e7, ree: 4e5, pt: 5.4e4, u: 6.6e6},
-  mars: {fe: 1.8e10, si: 1e12, cu: 9e7, ice: 5e15, ni: 1e7, ti: 7e7, c: 1e11, ree: 1.2e7, pt: 7e3}, venus: {fe: 1.4e11, si: 8e12, cu: 7e8, ti: 5e8, ni: 8e7, u: 5e6, c: 8e11},
+  earth: {fe: 7.9e6, si: 6.2e6, c: 3.9e6, ti: 1.5e5, ree: 4e5, pt: 5.4e4, u: 6.6e6, w: 3e5, co: 1.2e5}, // начальные недра этой игры пересчитываются под госшахты (state.gMax)
+  mars: {fe: 1.8e10, si: 1e12, ice: 5e15, co: 5e6, w: 9e6, ti: 7e7, c: 1e11, ree: 1.2e7, pt: 7e3}, venus: {fe: 1.4e11, si: 8e12, ti: 5e8, co: 4e7, w: 7e7, u: 5e6, c: 8e11},
 };
 export const POP = {earth: 1500}; // рабочие, доступные на Земле (колоний пока нет)
 export const shipMineLimit = () => (state && state.tech && state.tech.rock1000) ? 1000 : (state && state.tech && state.tech.rock300) ? 300 : 100;
@@ -329,14 +332,16 @@ const MASS = {luna: 7.35e22, phobos: 1.07e16, deimos: 1.5e15, apophis: 6.1e10, b
   itokawa: 3.5e10, icarus: 1e12, orpheus: 1e11, gaspra: 1e16, toutatis: 5e13, eunomia: 3.1e19, mathilde: 1e17, kleopatra: 4.6e18, ida: 4.2e16, interamnia: 3.5e19, europa: 2.4e19, themis: 1.2e19, davida: 3.4e19,
   sylvia: 1.5e19, phaethon: 1.4e14, xanomaly: 1e17, oumuamua: 4e9, chiron: 4e18};
 const rscale = (b, kg, share) => { const W = Object.values(b.ores).reduce((a, v) => a + v, 0); b.mass = kg; if (W <= 0) return; const t = kg / 1000 * share; for (const k in b.ores) b.ores[k] = Math.round(t * b.ores[k] / W); };
-for (const b of BODIES) if (b.ores && MASS[b.id]) rscale(b, MASS[b.id], .5);
+// именные тела: ores — содержание (доля массы); запас = масса × содержание; b.grade — содержание для добычи
+for (const b of BODIES) if (b.ores && MASS[b.id]) { b.mass = MASS[b.id]; b.grade = {...b.ores}; for (const k in b.ores) b.ores[k] = Math.round(MASS[b.id] / 1000 * b.grade[k]); }
 // Процедурные астероиды и кометы
 function mkRng(seed) { let a = seed; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const GR = mkRng(20240611), LET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+// Содержание (доля массы) по типам: C — углеродные (лёд, органика), S — каменные, M — металлические (железо-никель, платиноиды ~30 г/т)
 const AST_TYPES = [
-  {k: 'C', w: .5, rho: 1300, ores: {c: .25, ice: .2, si: .15, fe: .1, nh3: .04, co2: .03, ni: .004, cu: .0005, ree: .0002}},
-  {k: 'S', w: .35, rho: 2700, ores: {si: .35, fe: .3, ni: .03, ti: .02, cu: .003, ree: .001, pt: .0001}},
-  {k: 'M', w: .15, rho: 5300, ores: {fe: .55, ni: .12, ti: .01, cu: .005, pt: .002, ree: .0008, u: .00003}},
+  {k: 'C', w: .5, rho: 1300, ores: {ice: .15, c: .05, si: .15, fe: .15, nh3: .01, co2: .01, co: .0005, ree: .0001, pt: .000001}},
+  {k: 'S', w: .35, rho: 2700, ores: {si: .2, fe: .2, co: .001, ti: .002, ree: .0002, w: .00005, u: .00002, pt: .000005}},
+  {k: 'M', w: .15, rho: 5300, ores: {fe: .85, co: .005, ti: .001, w: .0003, ree: .0001, u: .00001, pt: .00003}},
 ];
 export const AST_TYPE_NAME = {C: 'углеродный (C)', S: 'каменный (S)', M: 'металлический (M)'};
 for (let i = 0; i < 900; i++) {
@@ -345,7 +350,7 @@ for (let i = 0; i < 900; i++) {
   const kg = 4 / 3 * Math.PI * Math.pow(d * 500, 3) * ty.rho, ores = {};
   for (const k in ty.ores) ores[k] = 1;
   const b = {id: 'ga' + i, name: (2001 + Math.floor(GR() * 30)) + ' ' + LET[Math.floor(GR() * 24)] + LET[Math.floor(GR() * 24)] + Math.floor(1 + GR() * 400), a: Math.round(a * 1000) / 1000, ang: GR() * 6.2832, kind: 'ast', gen: true, type: ty.k, d, ores};
-  rscale(b, kg, 1); for (const k in ty.ores) b.ores[k] = Math.round(kg / 1000 * ty.ores[k]);
+  rscale(b, kg, 1); b.grade = {...ty.ores}; for (const k in ty.ores) b.ores[k] = Math.round(kg / 1000 * ty.ores[k]);
   BODIES.push(b);
 }
 // Кометы: ледяные ядра, закручены в вихрь у внешнего края (три рукава)
@@ -463,7 +468,7 @@ export const mkLaser = (lens, dur, caps) => {
 };
 COMP.lgun.ap = (c, s) => {
   const L = mkLaser(+s.lens.v, +s.dur.v, +s.caps.v); c.lcfg = L; c.mass = L.mass;
-  c.cost = {fe: Math.round(L.mass * 0.5), cu: Math.round(L.mass * 0.6), si: Math.round(L.mass * 0.4), ree: Math.max(1, Math.round(L.mass * 0.1))};
+  c.cost = {fe: (Math.round(L.mass * 0.5)) + (Math.round(L.mass * 0.6)), si: Math.round(L.mass * 0.4), ree: Math.max(1, Math.round(L.mass * 0.1))};
   c.name = `Лазер ${L.lens} м / ${L.rng} км`;
   c.desc = `линза ${L.lens} м, луч ${L.dur} с, ${L.caps} конд., дальность ${L.rng} км (линза даёт ${Math.round(Math.min(6000, 20 * Math.pow(L.lens, 1.2386)))}, энергии хватает на ${Math.round(L.caps * 60 / L.dur)}), выстрел ${Math.round(L.E).toLocaleString('ru')} МДж, пробитие 80%/с, перезарядка ${Math.round(Math.max(180, L.E / 800) / 60 * 10) / 10} мин; встраивается в центр корпуса, не более одного на корабль`;
 };
@@ -487,7 +492,7 @@ COMP.missile.opts = [O('pw', 'Мощность боеголовки (1–100)', 
 COMP.missile.ap = (c, s) => {
   const mt = +s.mt.v, M = mkMis2(+s.pw.v, +s.en.v, +s.fu.v, +s.em.v, +s.ir.v, +s.ac.v, s.hm.v === '1', mt);
   c.mcfg = M; c.mass = Math.round(mt * 1.2 * 10) / 10;
-  c.cost = {fe: Math.round(mt * 1.2), cu: Math.round(mt * .8), ti: Math.round(mt * .4), si: Math.round(mt * .4 + M.ammo)}; c.name = `Ракеты ${M.pw} ед. ×${M.ammo}`;
+  c.cost = {fe: (Math.round(mt * 1.2)) + (Math.round(mt * .8)), ti: Math.round(mt * .4), si: Math.round(mt * .4 + M.ammo)}; c.name = `Ракеты ${M.pw} ед. ×${M.ammo}`;
   const rn = n => n >= 1e3 ? Math.round(n / 1e3) + ' тыс.' : n;
   c.desc = `ракета ${M.tons} т (в погребе ${mt} т → ${M.ammo} шт.), мощность ${M.pw}, воронка ~${Math.round(M.blast)}, скорость ${M.spd}, дальность ${rn(M.rng)} км, ${M.hm ? 'самонаведение: ЭМ ' + MS_SN[+s.em.v][1] + ', тепло ' + MS_SN[+s.ir.v][1] + ', радар ' + MS_SN[+s.ac.v][1] : 'без самонаведения — летит по прямой в расчётную точку'}`;
 };
@@ -552,12 +557,12 @@ for (const b of ['radar', 'irs', 'ems', 'fcs', 'ew', 'sink', 'dcon']) {
 for (const b of ['tank', 'cabin', 'life', 'cargo', 'spares', 'laser']) {
   const C = COMP[b], ap0 = C.ap; C.opts = [...C.opts, ZS(1)]; if (b === 'laser') COMP.laser2.opts = C.opts;
   C.ap = (c, s) => { ap0(c, s); const z = s.zs ? +s.zs.v : 1; if (z === 1) return; scl(c, z);
-    const ex = [c.fuel && `топливо ${Math.round(c.fuel * 100) / 100} т`, c.cargo && `груз ${Math.round(c.cargo * 100) / 100} т`, c.crew && `${c.crew} мест`, c.life && `жизнеобеспечение на ${c.life}`, c.mine && `добыча ${Math.round(c.mine * 100) / 100} т/сут`, c.spares && `${Math.round(c.spares)} тех. изделий`].filter(Boolean);
+    const ex = [c.fuel && `топливо ${Math.round(c.fuel * 100) / 100} т`, c.cargo && `груз ${Math.round(c.cargo * 100) / 100} т`, c.crew && `${c.crew} мест`, c.life && `жизнеобеспечение на ${c.life}`, c.mine && `добыча ${fmtN(c.mine * SHIP_ROCK)} т породы/сут`, c.spares && `${Math.round(c.spares)} тех. изделий`].filter(Boolean);
     c.desc = `Размер ×${s.zs.v}: ${ex.join(', ')}`; };
 }
 // трассер: цвет следа за кораблём; яркость и длина следа растут со скоростью
 export const TRAIL_COL = {c: [.45, .8, 1], r: [1, .3, .25], g: [.4, 1, .45], y: [1, .85, .3], v: [.75, .45, 1], w: [1, 1, 1], o: [1, .55, .2]};
-COMP.trail = {name: 'Трассер-генератор', desc: 'Цветной след за кораблём: чем быстрее корабль, тем ярче и длиннее', mass: 0.1, cost: {fe: 1, cu: 1}};
+COMP.trail = {name: 'Трассер-генератор', desc: 'Цветной след за кораблём: чем быстрее корабль, тем ярче и длиннее', mass: 0.1, cost: {fe: 2}};
 COMP.trail.opts = [O('col', 'Цвет', 'c', [['c', 'голубой'], ['r', 'красный'], ['g', 'зелёный'], ['y', 'жёлтый'], ['v', 'фиолетовый'], ['w', 'белый'], ['o', 'оранжевый']])];
 COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «${s.col.l}»: ярче и длиннее на скорости`; };
 /* ===== ПРОЕКТЫ ===== */
@@ -674,7 +679,7 @@ export function newGame() {
   state = {
     t: 0, speedIdx: 5, spv: 2, paused: true,
     counters: {id: 0, ship: {}, station: {}},
-    stock: {fe: 3000, ni: 800, ti: 600, cu: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100},
+    stock: {fe: 3600, ti: 600, si: 600, c: 500, ice: 0, pt: 60, ree: 80, u: 0, fuel: 2000, spares: 100, co: 400},
     bld: {cfactory: 10, mine: 0, fuelplant: 1, sparesplant: 1, shipyard: 0, academy: 0, scicenter: 1}, build: [], sci: {phys: 0, eng: 0, bio: 0}, tech: {}, research: {}, tprog: {}, contracts: {}, rp: 0, sites: {}, marks: {},
     designs: [], groups: [], ships: [], stations: [], yard: [], log: [], ast: {}, officers: [], nextOfficer: 30,
     raid: {eta: 1e12, k: 0, warned: false}, inBattle: false, terra: {}, ground: JSON.parse(JSON.stringify(GROUND)),

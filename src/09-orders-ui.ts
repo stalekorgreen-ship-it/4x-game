@@ -430,7 +430,7 @@ export function renderFind() {
     <div id="fmarks"></div><div id="flist"></div>`;
   refreshFindList();
 }
-const FCOLS = ['fe', 'ni', 'ti', 'cu', 'si', 'c', 'ice', 'pt', 'ree', 'u', 'vol'];
+const FCOLS = ['fe', 'co', 'ti', 'w', 'si', 'c', 'ice', 'pt', 'ree', 'u', 'vol'];
 const VOLS = ['n2', 'co2', 'ch4', 'nh3'];
 const cn = n => n < 1e5 ? fmtN(n) : Number(n).toExponential(1).replace('e+', 'e').replace('.', ',');
 export function refreshFindList() {

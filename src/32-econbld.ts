@@ -35,7 +35,7 @@ export function econTick(dt) {
 }
 hooks.econTick = econTick; hooks.econCost = econCost;
 
-const ORE = {fe: 'Железо', si: 'Кремний', cu: 'Медь', c: 'Углерод', ni: 'Никель', ti: 'Титан', ice: 'Лёд', ree: 'Редкоземельные', pt: 'Платиноиды', u: 'Уран'};
+const ORE = {fe: 'Железо', si: 'Кремний', w: 'Вольфрам', c: 'Уголь и нефть', co: 'Кобальт', ti: 'Титан', ice: 'Лёд', ree: 'Редкозем', pt: 'Платина', u: 'Уран'};
 export function econHtml() {
   const P = EP(); if (!P) return '';
   const pc = x => `<span class="${x < .7 ? 'err' : x < .95 ? 'warn' : ''}">${fmtN(x * 100, 0)}%</span>`, btn = (k, g) => `<button class="btn sm" data-a="econ" data-k="${k}" data-g="${g}">В очередь</button>`;

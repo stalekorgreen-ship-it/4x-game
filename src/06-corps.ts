@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { gd } from './00-gd.ts';
 import { hooks } from './00-hooks.ts';
-import { COMP, BODIES, BODY, RES, veinEff, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
+import { COMP, BODIES, BODY, RES, veinEff, gradeOf, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
 import { KR } from './00-kr.ts';
 import { eqFor, repairParts } from './02-crew.ts';
 import { execOrder, isBase, serve, travel } from './04-engine.ts';
@@ -24,7 +24,7 @@ export function allowBuy(k, price) {
   if (p.mode === 'keep') return Math.max(0, p.amt - (state.stock[k] || 0));
   return Math.max(0, p.amt - boughtMonth(k));
 }
-export const PRICE = Object.fromEntries(Object.entries(gd('economy', 'prices', {fe: 58, ni: 6200, ti: 3650, cu: 3300, si: 730, c: 36.5, ice: 18, pt: 1.1e7, ree: 18250, u: 47500, n2: 18, co2: 11, ch4: 110, nh3: 146, fuel: 25, spares: 1500} /* единая шкала: от себестоимости шахты, реальные соотношения */)).map(([k, v]) => [k, v * KR])); // базовые цены сырья (×KR), data/economy.json → prices
+export const PRICE = Object.fromEntries(Object.entries(gd('economy', 'prices', {fe: 58, co: 12000, ti: 3650, w: 14600, si: 730, c: 36.5, ice: 18, pt: 1.1e7, ree: 18250, u: 47500, n2: 18, co2: 11, ch4: 110, nh3: 146, fuel: 25, spares: 1500} /* единая шкала: от себестоимости шахты, реальные соотношения */)).map(([k, v]) => [k, v * KR])); // базовые цены сырья (×KR), data/economy.json → prices
 export const SERVICE_MARKUP = 1.6, TAX_PER_DAY = 300000 * KR;
 export const CORP_DEF = [
   {name: 'Вега Майнинг', tpl: 'Лёгкий', aggr: 1.0, parts: {ion: 2, tank: 2, cargo: 1, laser: 2, cabin: 2, life: 1}},
@@ -98,8 +98,8 @@ function minePool() {
   for (const b of BODIES) {
     if (b.kind !== 'ast' || b.comet || !canShipMine(b.id) || !state.ast[b.id]) continue;
     const ores = state.ast[b.id]; let tot = 0, val = 0, se = 0;
-    for (const kk in ores) { tot += ores[kk]; const e = ores[kk] > 0 ? veinEff(b.id, kk, ores[kk], (b.ores && b.ores[kk]) || ores[kk]) : 0; se += e; val += e * (PRICE[kk] || 30) * (allowBuy(kk, PRICE[kk] || 30) > 0 ? 1 : 0.3); }
-    if (tot < 800 || se < .05) continue; val = val / se * Math.min(1, .5 + se / 2);
+    for (const kk in ores) { tot += ores[kk]; const e = ores[kk] > 0 ? veinEff(b.id, kk, ores[kk], (b.ores && b.ores[kk]) || ores[kk]) : 0; se += e; val += e * gradeOf(b.id, kk) * (PRICE[kk] || 30) * (allowBuy(kk, PRICE[kk] || 30) > 0 ? 1 : 0.3); }
+    if (tot < 800 || se < .05) continue; val = val / se * Math.min(1, .5 + se / 2); /* цена тонны породы: Σ содержание × цена */
     const P = objPos(b.id, state.t); let Rc = null, Rk = -1;
     v.push({id: b.id, P, tot, val, R: bases => { if (Rk !== state.stations.length || Rc === null) { Rc = 1e9; for (const x of bases) Rc = Math.min(Rc, dist(P, basePos(x))); Rk = state.stations.length; } return Rc; }});
   }

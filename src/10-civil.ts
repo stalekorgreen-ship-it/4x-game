@@ -9,11 +9,11 @@ import { state, log, rec, fmtN, GROUND, veinEff, veinBase, myOf, isCoal } from '
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { GOODS, PROD, RAW_PER, BASEW, clampN, FW, FC, fs, hoursK, ctxId, spaceK } from './07-population.ts';
-import { bldJobs, BRIG, BLD_MIX } from './03-build.ts';
+import { bldJobs, BRIG, BLD_MIX, BLD } from './03-build.ts';
 import { PRICE, allowBuy, noteBought, respawnTick } from './06-corps.ts';
 import { eventTick, finTick, laws, licenseTick, pay } from './12-state.ts';
 
-const CV = gd('economy', 'corps', {MINE_COST_KR: 5e7, MINE_MIX: [.6, .3, .1, 0], YARD_COST_KR: 2e10, SHIP_K: 250, YARD_MASS: {fe: 800, ni: 60, ti: 50, cu: 50, si: 40}, LAB_COST_KR: 3e7, LAB_RP: 10, LAB_MIX: [0, .3, .5, .2], CORP_KEEP: 200, CMAT: {fac: {fe: 20, cu: 4, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 10, si: 12, cu: 4}}, SPACE_IND: ['comp', 'shipm', 'infra', 'ammo', 'air']});
+const CV = gd('economy', 'corps', {MINE_COST_KR: 5e7, MINE_MIX: [.6, .3, .1, 0], YARD_COST_KR: 2e10, SHIP_K: 250, YARD_MASS: {fe: 850, ti: 50, si: 40, co: 30}, LAB_COST_KR: 3e7, LAB_RP: 10, LAB_MIX: [0, .3, .5, .2], CORP_KEEP: 200, CMAT: {fac: {fe: 24, si: 4}, mine: {fe: 15, c: 3}, lab: {fe: 14, si: 12}}, SPACE_IND: ['comp', 'shipm', 'infra', 'ammo', 'air']});
 export const MINE_COST = CV.MINE_COST_KR * KR, MINE_T = 100, MINE_MIX = CV.MINE_MIX, YARD_COST = CV.YARD_COST_KR * KR, SHIP_K = CV.SHIP_K, YARD_MASS = CV.YARD_MASS;
 // товары для космоса (корабли, станции, колонии): их госзаводы на Земле достраиваются сами, остальное — игрок
 export const SPACE_IND = CV.SPACE_IND;
@@ -28,7 +28,9 @@ export const oreEff = r => { const id = ctxId(); if (id === 'earth') return lmEf
 // корпорация строит шахту, только если выручка с неё (1 т × эффективность × цена) покрывает хотя бы половину зарплат
 export const mineOK = r => { const P = state.pop; if (!P || !P.wage) return false; let wp = 0; for (let s = 0; s < 4; s++) wp += MINE_MIX[s] * P.wage[s] * .96 * hoursK(); return myOf(r) * oreEff(r) * (PRICE[r] || 0) * mpOf(r) * fs() > FW() * wp * .5; };
 export const CORP_KEEP = CV.CORP_KEEP; // т каждой руды, которые корпорация держит под свою стройку
-export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0);
+// склад игрока не продаёт Земле месячный запас сырья своих заводов (топливный — уголь, переработка по полю make)
+const plantKeep = r => { const B = state.bld || {}; let k = r === 'c' ? (B.fuelplant || 0) * 20 * 1.5 * 30 : 0; for (const t in BLD) { const m = BLD[t].make; if (m && m.in && m.in[r] && B[t]) k += B[t] * (m.perDay || 0) * m.in[r] * 30; } return k; };
+export const keepOf = r => ((hooks.queueMat ? hooks.queueMat()[r] : 0) || 0) + ((state.keep && state.keep[r]) || 0) + plantKeep(r);
 export const CMAT = CV.CMAT;
 export const lmCap = r => { const P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P || !P.lmN) return 0; return (isCoal(r) ? (P.lcN || 0) : P.lmN) * myOf(r) * lmEff(r) * (P.mfill || 1); }; // госшахты: рудные (все металлы сразу) и угольные
 export const SPECIALTY = ['elx', 'wear', 'pow', 'meds', 'house'];

@@ -4,7 +4,7 @@ import { colBuildTick } from './19-colbld.ts';
 import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE, canShipMine, cargoTotal, createShip, createStation, designStats, dist, fmtDur, fmtN, fuelPerAU, fuelFor, groupOf, isSh, isSt, log, massOf, nameOf, objPos, programOf, rec, setState, shById, shipSpeed, stById, state, stockOK, storeTotal } from './01-data.ts';
 import { planRoute, KMS } from './29-flyby.ts';
 import { KR } from './00-kr.ts';
-import { veinEff } from './01-data.ts';
+import { veinEff, SHIP_ROCK, gradeOf } from './01-data.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
 import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed, yards, yardRate } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
@@ -280,9 +280,9 @@ export function execOrder(s, o, h) {
       const lim = s.st.cargoCap * (o.pct || 100) / 100;
       const load = cargoTotal(s);
       if (load >= lim - 1e-6) return true;
-      // каждый лазер добывает все жилы сразу: по единице в сутки на жилу × эффективность жилы
-      const base = BODY[o.target].ores || {}, rate = s.st.mine * minRate(s) * h, want = {}; let sum = 0;
-      for (const k of ks) { want[k] = Math.min(ores[k], rate * veinEff(o.target, k, ores[k], base[k] || ores[k])); sum += want[k]; }
+      // лазеры копают породу (SHIP_ROCK т в сутки на единицу), руда — по содержанию тела × 85% × эффективность жилы
+      const base = BODY[o.target].ores || {}, rate = s.st.mine * minRate(s) * h * SHIP_ROCK, want = {}; let sum = 0;
+      for (const k of ks) { want[k] = Math.min(ores[k], rate * gradeOf(o.target, k) * .85 * veinEff(o.target, k, ores[k], base[k] || ores[k])); sum += want[k]; }
       const kf = sum > lim - load ? Math.max(0, lim - load) / sum : 1;
       for (const k of ks) { const part = want[k] * kf; ores[k] -= part; s.cargo[k] = (s.cargo[k] || 0) + part; rec(k, 'in', part, 'ship'); }
       useWear(s, 'laser', WEAR_MINE * h, 0.004 * h); train(s, 'min', h);

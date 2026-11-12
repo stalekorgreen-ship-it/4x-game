@@ -19,14 +19,14 @@ export const GOODS_ALL = gd('goods', 'goods', {
   fuel:  {n: 'Топливо', kind: 'energy', mix: M1, t: 1, prod: 0.27, in: {c: 1.5, pow: 0.05}},
   // полуфабрикаты
   steel: {n: 'Сталь', kind: 'semi', mix: M1, t: 1, prod: 0.137, in: {fe: 1, c: 0.5, pow: 0.5}},
-  alloy: {n: 'Сплавы', kind: 'semi', mix: M2, t: 1, prod: 0.05, in: {fe: 0.9, ti: 0.05, ni: 0.05, pow: 1}},
+  alloy: {n: 'Сплавы', kind: 'semi', mix: M2, t: 1, prod: 0.05, in: {fe: 0.9, ti: 0.05, co: 0.02, w: 0.01, pow: 1}},
   plast: {n: 'Пластик', kind: 'semi', mix: M1, t: 1, prod: 0.2, in: {c: 1.2, pow: 0.3}},
   chem:  {n: 'Химия', kind: 'semi', mix: M2, t: 1, prod: 0.2, in: {c: 0.5, n2: 0.3, nh3: 0.2, pow: 0.3}},
-  elx:   {n: 'Электроника', kind: 'semi', mix: M3, t: 1, prod: 0.0137, in: {si: 0.2, cu: 0.1, ree: 0.01, fe: 0.3, pow: 2}, need: 1.9e-05},
+  elx:   {n: 'Электроника', kind: 'semi', mix: M3, t: 1, prod: 0.0137, in: {si: 0.3, ree: 0.01, fe: 0.4, pow: 2}, need: 1.9e-05},
   glass: {n: 'Стекло', kind: 'semi', mix: M1, t: 1, prod: 0.2, in: {si: 1, pow: 0.5}},
   comp:  {n: 'Композиты', kind: 'semi', mix: M3, t: 1, prod: 0.05, in: {c: 0.6, plast: 0.3, pow: 0.5}},
   opt:   {n: 'Оптика', kind: 'semi', mix: M4, t: 1, prod: 0.01, in: {glass: 0.6, ree: 0.005, pow: 0.5}},
-  batt:  {n: 'Аккумуляторы', kind: 'semi', mix: M2, t: 1, prod: 0.05, in: {cu: 0.2, ni: 0.2, chem: 0.2, ree: 0.005, pow: 0.5}},
+  batt:  {n: 'Аккумуляторы', kind: 'semi', mix: M2, t: 1, prod: 0.05, in: {fe: 0.2, co: 0.05, chem: 0.2, ree: 0.005, pow: 0.5}},
   // жизнеобеспечение (еды нет: гидропоника — рабочие места жизнеобеспечения)
   water: {n: 'Вода', kind: 'life', mix: M1, t: 0, prod: 40, in: {pow: 0.0002}, need: 0.9},
   air:   {n: 'Воздух и газы', kind: 'life', mix: M1, t: 1, prod: 1, in: {ice: 1.2, pow: 0.01}, need: 0.00084, space: true},

@@ -5,10 +5,10 @@ import { BODY, RES, fmtN, log, state } from './01-data.ts';
 import { KR } from './00-kr.ts';
 
 export const CBLD = {
-  clinic:  {name: 'Поликлиника', desc: 'Смертность в колонии −8% за здание', cost: {fe: 60, si: 30, cu: 30}, units: 30, max: 5},
-  school:  {name: 'Школа', desc: 'Образование доступнее: дети чаще идут на следующую ступень (+12% за здание)', cost: {fe: 50, si: 40, cu: 20}, units: 25, max: 5},
-  nursery: {name: 'Дом семьи', desc: 'Рождаемость в колонии +6% за здание', cost: {fe: 50, si: 30, cu: 20, c: 20}, units: 25, max: 5},
-  lab:     {name: 'Колониальная лаборатория', desc: '+2 очка науки в сутки в каждой области', cost: {fe: 80, si: 80, cu: 60, c: 20}, units: 40, max: 5},
+  clinic:  {name: 'Поликлиника', desc: 'Смертность в колонии −8% за здание', cost: {fe: 90, si: 30}, units: 30, max: 5},
+  school:  {name: 'Школа', desc: 'Образование доступнее: дети чаще идут на следующую ступень (+12% за здание)', cost: {fe: 70, si: 40}, units: 25, max: 5},
+  nursery: {name: 'Дом семьи', desc: 'Рождаемость в колонии +6% за здание', cost: {fe: 70, si: 30, c: 20}, units: 25, max: 5},
+  lab:     {name: 'Колониальная лаборатория', desc: '+2 очка науки в сутки в каждой области', cost: {fe: 140, si: 80, c: 20}, units: 40, max: 5},
 };
 export const colB = id => { const c = state.cols && state.cols[id]; if (!c) return {}; return c.bld || (c.bld = {}); };
 export const colN = (id, t) => (state.cols && state.cols[id] && state.cols[id].bld && state.cols[id].bld[t]) || 0;

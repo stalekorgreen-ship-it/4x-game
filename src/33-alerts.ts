@@ -9,7 +9,7 @@ import { GROUND } from './01-data.ts';
 import { esc, ui } from './08-map-ui.ts';
 
 const pc = x => fmtN(x * 100, 0) + '%';
-const ORE = {fe: 'железа', si: 'кремния', cu: 'меди', c: 'углерода', ni: 'никеля', ti: 'титана', ice: 'льда', ree: 'редкоземельных', pt: 'платиноидов', u: 'урана'};
+const ORE = {fe: 'железа', si: 'кремния', w: 'вольфрама', c: 'угля и нефти', co: 'кобальта', ti: 'титана', ice: 'льда', ree: 'редкозема', pt: 'платины', u: 'урана'};
 // lvl: 2 — плохо, 1 — внимание, 0 — возможность. go — куда вести: [вкладка, вид построек]
 export function alerts() {
   const A = [], P = state.cols && state.cols.earth && state.cols.earth.pop; if (!P) return A;
