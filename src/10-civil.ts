@@ -48,7 +48,10 @@ export const outMult = c => 1 + .05 * tk(c, 'out');
 export const laborMult = c => Math.pow(.95, tk(c, 'lab'));
 export const rawMult = c => Math.pow(.9, tk(c, 'raw'));
 export const hasXfer = c => !!(c.civ && c.civ.tech && c.civ.tech.xfer);
-export const rpPrice = c => (c.civ.rpPrice || (c.civ.rpPrice = (8000 + (c.id % 7) * 600) * KR)) * tm('rpcost');
+// цена очка науки: себестоимость лаборатории (10 000 чел. × зарплаты страт × год) / очков в год, плюс наценка корпорации
+export const rpCost = () => { const W = state.pop && state.pop.wage; if (!W) return 1e8; let w = 0; for (let s = 0; s < 4; s++) w += LAB_MIX[s] * W[s]; return FW() * w * 360 / Math.max(1e-9, CV.LAB_RP); };
+hooks.rpCost = () => rpCost();
+export const rpPrice = c => rpCost() * (1.15 + (c.id % 7) * .04) * tm('rpcost');
 export const labRP = c => (c.civ.labs || 0) * LAB_RP * ((state.pop && state.pop.fill) ? LAB_MIX.reduce((a, m, s) => a + m * state.pop.fill[s], 0) : 1);
 export const newCiv = (spec) => ({cb: CV.CB0 || 8, fac: {[spec]: 2}, mines: GOODS[spec].raw ? {[GOODS[spec].raw]: 1} : {}, yard: 0, pr: {}, mp: {}, sold: {}, cap: {}, unitc: {}, comp: {}, month: 0, built: 0, labs: 0, tech: {}, cur: null, prog: 0, rpPool: 0, hired: 0});
 const corpsAll = () => (state.corps || []).filter(c => c.civ);
@@ -120,7 +123,7 @@ function buildTick(c, dt) {
     if (j.k === 'fac') { const e = CORP[j.id] || {}, eq = (e.k || 1) * (j.u || 1); if (j.g === 'pow') { const m = pmixOf(v) || (v.pmix = {}); const t = PT[j.id] ? j.id : 'tps'; m[t] = (m[t] || 0) + eq; }
       v.fac[j.g] = (v.fac[j.g] || 0) + eq; v.built++; if (!v.pr[j.g]) v.pr[j.g] = .95 * KR * gval(j.g); if (e.life) (v.age = v.age || []).push({g: j.g, id: j.id, eq, end: state.t + e.life * 360}); }
     else if (j.k === 'mine') { if (!(v.mines[j.g] > 0)) log(`«${c.name}» открыла шахту: ${j.g}.`); v.mines[j.g] = (v.mines[j.g] || 0) + 1; }
-    else if (j.k === 'lab') v.labs = (v.labs || 0) + ((CORP[j.id] && CORP[j.id].k) || 1);
+    else if (j.k === 'lab') { v.labs = (v.labs || 0) + ((CORP[j.id] && CORP[j.id].k) || 1); if (j.id === 'cdc') v.dc = (v.dc || 0) + 1; }
     else if (j.k === 'tr') { v.tr = v.tr || {}; v.tr[j.g] = (v.tr[j.g] || 0) + 1; }
     else if (j.k === 'cb') v.cb = cbOf(v) + 1;
     else if (j.k === 'yard') { v.yard = 1; log(`Корпорация «${c.name}» построила коммерческую верфь: теперь корабли можно строить и покупать у неё.`); }
@@ -235,7 +238,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
       if (!leg) corpCap += s.cap;
       const rev = s.sold * s.price * R.mult - s.sold * (tpu(G) * LC + ic); // минус доставка и входные товары по рецепту
       if (init) continue;
-      if (leg) { P.cap[g] += (rev - wc - rc) * dt * .5; P.rev = P.rev || {}; P.rev[g] = rev; P.uc[g] = s.cap > 0 ? (wc + rc) / Math.max(s.cap, n * FACT_W * prodOf(g) * .5) * 1.1 + (tpu(G) * LC + ic) * 1.1 : 0; }
+      if (leg) { P.cap[g] += (rev - wc - rc) * dt * .5; P.legPM = (P.legPM || 0) + (rev - wc - rc) * dt; P.rev = P.rev || {}; P.rev[g] = rev; P.uc[g] = s.cap > 0 ? (wc + rc) / Math.max(s.cap, n * FACT_W * prodOf(g) * .5) * 1.1 + (tpu(G) * LC + ic) * 1.1 : 0; }
       else {
         const c = s.c; c.credits += (rev - wc - rc) * dt; c.civ.pm = (c.civ.pm || 0) + (rev - wc - rc) * dt; c.civ.sold[g] = s.sold; c.civ.cap[g] = s.cap; c.civ.unitc[g] = (wc + rc) / Math.max(1, s.cap, n * FACT_W * prodOf(g) * .5) + tpu(G) * LC + ic; /* простой из-за нехватки входов не раздувает себестоимость */ c.civ.comp[g] = s.comp * R.mult;
         const util = s.cap > 0 ? s.sold / s.cap : 0, u = c.civ.unitc[g];
@@ -263,7 +266,7 @@ export function settleEconomy(mk, rawNeed, dt, init) {
     c.credits -= (c.civ.labs || 0) * FACT_W * lw * dt;
     rpMonth(c, dt, sellers, off.get(c) ? off.get(c).rp : 0);
     licenseTick(c);
-    const pm = (c.civ.pm || 0) + (c.pmAdd || 0); c.civ.pm = 0; c.pmAdd = 0;
+    const pm = (c.civ.pm || 0) + (c.pmAdd || 0); c.civ.pm = 0; c.pmAdd = 0; c.lastPm = pm;
     if (finTick(c, dt, pm)) continue;
     civTick(c, mk, dt);
   }
@@ -295,7 +298,7 @@ function civTick(c, mk, dt, col) {
   if (v.month % 2 === 0 && avail > FJ * 1.5 && !queued(v, 'tr')) { const t = wantTransport(c, state.pop, ctxId()); if (t) { startJob(c, 'tr', t); return; } }
   // сырьё: нет шахты — строят
   let g = null, best = -1;
-  for (const k of CORP_GOODS) { if (!GOODS[k]) continue; const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001 && !(state.pop.staff && state.pop.staff[k] < .9)) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)); if (sc > best) { best = sc; g = k; } } }
+  for (const k of CORP_GOODS) { if (!GOODS[k]) continue; const own = v.fac[k] || 0; if (own <= 0) continue; const util = v.cap[k] > 0 ? v.sold[k] / v.cap[k] : 0; if (util >= .9 && mk[k].sat < 1.001 && !(state.pop.staff && state.pop.staff[k] < .9)) { const sc = mk[k].avg * mk[k].mult * (1 + (SPECIALTY.indexOf(k) >= 0 ? .1 : 0)) * subBonus(k, FJ); if (sc > best) { best = sc; g = k; } } }
   const unmet = g !== null; // строят заводы только под неудовлетворённый спрос
   if (g === null) for (const k in v.fac) if (v.fac[k] > 0 && CORP_GOODS.includes(k)) { g = k; break; }
   if (g === null) g = CORP_GOODS.find(k => GOODS[k]) || null; // корпорации строят только постройки из таблицы
@@ -308,6 +311,9 @@ function civTick(c, mk, dt, col) {
   if (unmet || tot < 6) for (let i = 0; i < k; i++) startJob(c, 'fac', g);
 }
 
+// субсидия на вид зданий (кр в год) делает этот товар привлекательнее: 5 лет субсидии к цене постройки
+const SUBT = {elx: ['elx'], wear: ['wear'], lux: ['lux'], fuel: ['fuel'], pow: ['tps', 'npp', 'green'], meds: ['clinic'], edu: ['school'], house: ['house']};
+function subBonus(g, FJ) { const L = state.laws || {}, t = SUBT[g]; if (!t) return 1; const s = Math.max(...t.map(x => L['sub_' + x] || 0)); return 1 + Math.min(2, s * 5 / Math.max(1, FJ)); }
 // --- исследования корпораций и контракты лабораторий ---
 function nextTech(c) {
   const v = c.civ, tot = Object.values(v.fac).reduce((a, b) => a + b, 0);

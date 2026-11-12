@@ -168,7 +168,7 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
-  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
+  const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * (ctxId() === 'earth' && hooks.benefits ? hooks.benefits().birthK : 1) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
   let b = 0, d = 0; const medQ = 1e-4 * 100 * Math.max(0, 1 - ((P.sat && P.sat.meds != null) ? P.sat.meds : 1)) + (hooks.polMort ? hooks.polMort(ctxId()) : 0); // + загрязнение: 0,01% за каждый 1% // нехватка медицины: +0,01% смертности в год за каждый недостающий процент
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
@@ -227,13 +227,13 @@ export function stepEcon(dt, init) {
   if (!init) { P.n = t.n; let Jt = 0; for (let s = 0; s < 4; s++) Jt += J[s] + oth[s]; P.regK = regTick(ctxId(), P, Jt, t.wf, dt, t); }
   for (let s = 0; s < 4; s++) fill[s] *= P.regK || 1;
   // 2) доходы, зарплатный фонд, налог
-  let wb = 0;
+  let wb = 0; const BEN = ctxId() === 'earth' && hooks.benefits ? hooks.benefits() : {ret: 0, un: 0, vat: 0, birthK: 1};
   const wel = [[], [], [], []], inc = [[], [], [], []];
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; let i;
     if (a < 15) i = P.parInc[s] * 2;
-    else if (!work(a)) i = incomeOf(s, 64, 'ret');
-    else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * incomeOf(s, a, 'un') + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
+    else if (!work(a)) i = incomeOf(s, 64, 'ret') + BEN.ret; // + обязательная пенсия (бюджет)
+    else { const e = Math.max(0, x.n - x.un - x.st); i = x.n > 0 ? (e * incomeOf(s, a, 'emp') + x.un * (incomeOf(s, a, 'un') + BEN.un) + x.st * incomeOf(s, a, 'un') * .3) / x.n : 0; wb += e * incomeOf(s, a, 'emp'); }
     inc[s][a] = i * (1 - (L.tax - 20) / 100); wel[s][a] = null;
   }
   P.wbill = wb; P.taxFull = wb * L.tax / 100 * tm('tax');
@@ -257,7 +257,8 @@ export function stepEcon(dt, init) {
     D = D * ((P.evDem && P.evDem[g]) || 1) + DI[g];
     let staff = 0; for (let s = 0; s < 4; s++) staff += G.mix[s] * fill[s];
     let inS = 1; for (const k in G.in) if (GOODS[k]) inS = Math.min(inS, sat0[k] == null ? 1 : sat0[k]); else if (P.rawSat && P.rawSat[k] != null) inS = Math.min(inS, .3 + .7 * P.rawSat[k]); // нет входа — нет выпуска
-    const R = goodsMarket(g, D, P.fac[g] * FW() * prodOf(g) * tm('prod') * hoursK() * staff * inS, staff, inS); mk[g] = R;
+    const gk = ctxId() === 'earth' && hooks.govStaffK ? hooks.govStaffK(g, P) : 1; // фикс. зарплата учителей/врачей ниже рынка — часть госшкол и больниц пустует
+    const R = goodsMarket(g, D, P.fac[g] * FW() * prodOf(g) * tm('prod') * hoursK() * staff * inS * gk, staff, inS); mk[g] = R;
     P.dem[g] = D; P.prod[g] = R.cap; P.sat[g] = R.sat; P.staff[g] = staff;
     for (const k in G.in) if (GOODS[k]) DI[k] += R.sold * G.in[k];
       else for (const s of R.S) if (s.id !== 'imp') add(k, s.id === 'leg' ? 'leg:' + g : s.id, s.sold * G.in[k] * RAW_PER * (s.c ? rawMult(s.c) : 1));
@@ -269,7 +270,7 @@ export function stepEcon(dt, init) {
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (!(q > 0)) continue; const w = GOODS[g].ww != null ? GOODS[g].ww : 5; ws += P.sat[g] * w; sw += w; } // вклад в довольство — веса из таблицы «Потребление»
-    const aff = clampN(inc[s][a] / (basket(a, s) * (a < 15 ? 1.5 : 1)), 0, 1);
+    const aff = clampN(inc[s][a] / (basket(a, s) * (a < 15 ? 1.5 : 1) * (1 + BEN.vat)), 0, 1); // НДС дорожит корзину
     wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1), 0, 1);
   }
   P.wel = wel; P.inc = inc;
@@ -284,7 +285,7 @@ export function stepEcon(dt, init) {
   P.parInc = pi;
   // 4) выручка, расходы, сырьё, инвестиции
   P.tarAcc = 0; settleEconomy(mk, rawNeed, dt, init);
-  if (!init) { P.tarDay = P.tarAcc / dt; state.money += (P.tarDay - P.exp) * dt; }
+  if (!init) { P.tarDay = P.tarAcc / dt; state.money += (P.tarDay - P.exp) * dt; if (ctxId() === 'earth' && hooks.budgetTick) hooks.budgetTick(P, dt, spaceK() * (P.depK || 1)); }
 }
 export function popTick(h) {
   const cs = state.cols; if (!cs) return;

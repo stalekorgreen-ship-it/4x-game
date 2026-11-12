@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gd } from './00-gd.ts';
+import { BTYPES, BUDGET_LAWS, budgetHtml } from './38-budget.ts';
 import { hooks } from './00-hooks.ts';
 // Государство и финансы: законы (налоги, субсидии), кредиты, банкротства и поглощения, патенты, кризисы.
 import { log, state, fmtN } from './01-data.ts';
@@ -15,7 +16,7 @@ export const mandOver = k => { const L = laws(), m = MAND.find(x => x[0] === k)[
 export const BANK_RATE = .12, PLAYER_RATE = .06;
 // Детерминированный генератор случайных чисел (чтобы игры и тесты воспроизводились)
 export function rnd() { let a = state.rng = ((state.rng === undefined ? 12345 : state.rng) + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
-export const laws = () => state.laws || (state.laws = {...LAW_DEFAULT});
+export const laws = () => state.laws || (state.laws = {...LAW_DEFAULT, ...BUDGET_LAWS});
 // Субсидия: государство берёт на себя долю расхода корпорации, если у вас хватает кредитов.
 export function pay(c, cost, kind) {
   const sub = (laws()[kind] || 0) / 100, s = cost * sub;
@@ -113,11 +114,12 @@ export function eventTick(dt) {
 
 /* --- вкладка «Законы» --- */
 export function refreshLaws() {
+  { const e = document.getElementById('lw-bud'); if (e) e.innerHTML = budgetHtml(); }
   const p = $('p-laws'); if (!p || !state.pop) return;
   const L = laws(), P = state.pop;
   if (!p._built) {
     p._built = true;
-    const row = (k, name, min, max, hint, u = '%', st = 1) => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow">${name}</b><span class="mono" id="lv-${k}">${L[k]}${u}</span></div><input type="range" data-law="${k}" min="${min}" max="${max}" step="${st}" value="${L[k]}" style="width:100%"><div class="help">${hint}</div></div>`;
+    const row = (k, name, min, max, hint, u = '%', st = 1) => `<div class="dcol" style="gap:2px"><div class="row"><b class="grow">${name}</b><span class="mono" id="lv-${k}">${fmtN(L[k] || 0)}${u}</span></div><input type="range" data-law="${k}" data-u="${u}" min="${min}" max="${max}" step="${st}" value="${L[k] || 0}" style="width:100%"><div class="help">${hint}</div></div>`;
     p.innerHTML = `<div class="box"><h2>Налоги и субсидии</h2>${row('tax', 'Налог на зарплаты', 5, 40, 'Базовая ставка 20%. Выше: кредитов у вас больше, но доходы людей и довольство падают. Ниже: наоборот.')}
       ${row('subInd', 'Субсидия промышленности', 0, 50, 'Государство оплачивает долю строительства заводов и шахт корпораций (из ваших кредитов).')}
       ${row('subSci', 'Субсидия науке', 0, 50, 'Доля стоимости лабораторий, которую платите вы.')}
@@ -133,6 +135,20 @@ export function refreshLaws() {
       <div class="help" style="margin-top:4px"><b>Обязательные расходы</b> — доля дохода казны, ниже минимума нельзя (сейчас уходит ${fmtN(mandK() * 100, 0)}%):</div>
       ${MAND.map(([k, n, m, h]) => row(k, n + ' (мин. ' + m + '%)', m, 40, h || 'Обязательная статья бюджета.')).join('')}
       ${row('inv', 'Госинвестиции в экономику', 0, 20, 'Доля налогов в фонд экономических построек Земли (госзаводы, госшахты, лаборатории). Чем больше, тем меньше остаётся на земные расходы.')}</div><div class="box"><h2>Бюджет</h2><div id="lw-bg"></div></div>
+      <div class="box"><h2>Бюджет: налоги</h2>
+      ${row('vat', 'НДС', 0, 30, 'Процент от трат населения на товары: доход казны, но корзина дороже — довольство ниже.')}
+      ${row('ptax', 'Налог на прибыль корпораций', 0, 50, 'Процент месячной прибыли корпораций — целиком в вашу казну.')}
+      ${row('carbon', 'Углеродный налог', 0, 500, 'Кр за тонну CO₂ (ТЭС корпораций: 7,5 млн т в год на станцию). Делает ТЭС дороже АЭС и зелёной энергетики.', ' кр/т', 5)}
+      ${BTYPES.filter(t => !['cb', 'green', 'house', 'yard'].includes(t[0])).map(([key, n]) => row('lev_' + key, 'Ставка: ' + n, 0, 5e9, 'Фиксированный сбор с каждого такого здания корпораций, кр в год.', ' кр/год', 5e7)).join('')}</div>
+      <div class="box"><h2>Бюджет: расходы</h2>
+      ${row('penFix', 'Обязательная пенсия', 0, 300, 'Кр в сутки каждому старше 65 сверх его дохода. Платит Земля, ваша доля — «на космос».', ' кр/сут', 5)}
+      ${row('childFix', 'Пособие семьям за рождение', 0, 2e6, 'Кр за каждого рождённого: до +50% рождаемости при 1 млн кр.', ' кр', 1e4)}
+      ${row('unemp', 'Пособие по безработице', 0, 200, 'Кр в сутки каждому безработному.', ' кр/сут', 5)}
+      ${row('wTeach', 'Зарплата учителя (гос.)', 0, 800, '0 — по рынку. Ниже рыночной зарплаты высшей страты — часть госшкол пустует.', ' кр/сут', 10)}
+      ${row('wDoc', 'Зарплата врача (гос.)', 0, 800, '0 — по рынку. Ниже рыночной — часть больниц пустует.', ' кр/сут', 10)}
+      ${row('sciPct', 'Финансирование науки', 0, 30, 'Процент вашего бюджета на заказ исследований: очки по цене лаборатории.')}
+      ${BTYPES.map(([key, n]) => row('sub_' + key, 'Субсидия: ' + n, 0, 5e9, 'Кр в год на каждое такое здание корпораций — из вашей казны. Корпорации охотнее строят субсидируемое.', ' кр/год', 5e7)).join('')}</div>
+      <div class="box"><h2>Бюджет: доходы и расходы</h2><div id="lw-bud"></div></div>
       <div class="box"><h2>События</h2><div id="lw-ev"></div></div><div class="box"><h2>Ваши кредиты корпорациям</h2><div id="lw-ln"></div></div>`;
   }
   { let tx = 0, ex = 0, tr = 0; const eb = {edu: 0, pen: 0, bth: 0}; for (const id in state.cols) { const q = state.cols[id].pop; tx += q.tax || 0; ex += q.exp || 0; tr += q.tarDay || 0; if (q.expP) for (const k in eb) eb[k] += q.expP[k] || 0; }
@@ -145,7 +161,7 @@ export function refreshLaws() {
 }
 (function lawEvents() {
   const p = document.getElementById('p-laws');
-  p.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.law; if (k) { laws()[k] = +e.target.value; const el = $('lv-' + k); if (el) el.textContent = laws()[k] + (k === 'hours' ? ' ч' : '%'); } });
+  p.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.law; if (k) { laws()[k] = +e.target.value; const el = $('lv-' + k); if (el) el.textContent = fmtN(laws()[k]) + (e.target.dataset.u || '%'); } });
 })();
 
 hooks.mandK = mandK; hooks.mandOver = mandOver;
