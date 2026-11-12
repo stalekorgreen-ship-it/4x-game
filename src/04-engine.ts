@@ -5,7 +5,7 @@ import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE,
 import { planRoute, KMS } from './29-flyby.ts';
 import { KR } from './00-kr.ts';
 import { veinEff, SHIP_ROCK, gradeOf } from './01-data.ts';
-import { liftNeed, liftFrom, liftT, payLift, toOrbit } from './36-lift.ts';
+import { liftNeed, liftFrom, liftT, payLift, toOrbit, liftTick, useLift, liftBank, orb, clampOrb } from './36-lift.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
 import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed, yards, yardRate } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
@@ -19,7 +19,7 @@ export function advance(days, maxStep) {
   while (days > 1e-9) {
     const h = Math.min(days, Battle.active() ? 1 / 86400 : (maxStep || 1 / 48));
     state.t += h;
-    yardTick(h); buildTick(h); colBuildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
+    liftTick(h); yardTick(h); buildTick(h); colBuildTick(h); sciTick(h); researchTick(h); raidTick(h); corpTick(h);
     while (state.t >= state.nextOfficer) { graduate(); state.nextOfficer += academyInterval(); }
     const bat = Battle.active();
     for (const s of state.ships) {
@@ -38,14 +38,16 @@ export function yardTick(h) {
     const st = designStats(j.parts), c = st.cost, busy = new Set(state.yard.filter(q => q.started).map(q => q.yi));
     let yi = -1; for (let i = 0; i < Y.length; i++) if (!busy.has(i) && Y[i].ton >= st.dry && (yi < 0 || Y[i].ton < Y[yi].ton)) yi = i;
     j.why = yi < 0 ? (Y.some(y => y.ton >= st.dry) ? 'ждёт свободную верфь' : `нет верфи на ${Math.round(st.dry)} т`) : '';
-    let lc = 0; if (yi >= 0 && stockOK(c)) { let tot = 0, up = 0; for (const [k, v] of Object.entries(c)) { tot += v; up += liftNeed(k, v); } lc = tot > 0 ? up / tot * st.dry * liftT() : 0; } // верфь на орбите: корабль из земных материалов платит подъём своей массы
-    if (yi >= 0 && stockOK(c) && state.money < lc) j.why = `нет кредитов на подъём с Земли: ${fmtN(lc)} кр`;
-    else if (yi >= 0 && stockOK(c)) {
-      for (const [k, v] of Object.entries(c)) { liftFrom(k, v); state.stock[k] -= v; rec(k, 'out', v, 'yard'); } if (lc > 0) { state.money -= lc; state.liftPaid = (state.liftPaid || 0) + lc; }
+    if (yi >= 0 && stockOK(c)) {
+      let tot = 0, up = 0; for (const [k, v] of Object.entries(c)) { tot += v; up += liftFrom(k, v); state.stock[k] -= v; rec(k, 'out', v, 'yard'); }
+      j.lf = tot > 0 ? up / tot : 0; // доля корабля из земных материалов: эту часть массы поднимают с Земли по мере постройки
       j.started = true; j.yi = yi; j.left = j.total = st.dry; // остаток постройки — в тоннах
     } else if (yi >= 0) j.why = 'не хватает материалов';
   }
-  for (const j of state.yard) if (j.started) j.left -= h * yardRate(Y[j.yi] || Y[0]);
+  for (const j of state.yard) if (j.started) { // постройка: подъём земной доли массы ограничен космодромами и кредитами
+    let d = h * yardRate(Y[j.yi] || Y[0]);
+    if (j.lf > 0) { const need = d * j.lf, can = Math.min(need, liftBank(), Math.max(0, state.money) / liftT()), got = useLift(can); payLift(got); d = got / j.lf; j.why = got < need - 1e-9 ? (liftBank() < 1e-6 ? 'ждёт космодром: подъём с Земли занят' : 'нет кредитов на подъём с Земли') : ''; }
+    j.left -= d; }
   const done = [];
   for (const j of state.yard) {
     if (!j.started || j.left > 0) continue;
@@ -81,8 +83,8 @@ export function resolveBase(s, base) {
   return stById(base) ? base : 'earth';
 }
 export function takeSpares(n) {
-  const got = Math.min(n, state.stock.spares);
-  state.stock.spares -= got; rec('spares', 'out', got, 'spares'); payLift(liftFrom('spares', got)); // запчасти с поверхности — подъём
+  clampOrb(); const so = Math.min(n, orb().spares || 0, state.stock.spares), sl = useLift(Math.min(n - so, state.stock.spares - so, state.money / liftT())), got = so + sl;
+  state.stock.spares -= got; rec('spares', 'out', got, 'spares'); liftFrom('spares', got); payLift(sl); // запчасти: с орбиты сразу, с поверхности — через космодромы
   return got;
 }
 export function serve(s, baseId) {
@@ -96,8 +98,9 @@ export function serve(s, baseId) {
       got.push(`${fmtN(v)} т ${RES[k].toLowerCase()}`);
     }
     s.cargo = {};
-    const take = Math.min(s.st.fuelCap - s.fuel, state.stock.fuel);
-    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel'); payLift(liftFrom('fuel', take)); // топливо с поверхности — подъём
+    let take = Math.min(s.st.fuelCap - s.fuel, state.stock.fuel);
+    clampOrb(); const fo = Math.min(take, orb().fuel || 0), fl = useLift(Math.min(take - fo, state.money / liftT())); take = fo + fl; // с орбиты — сразу, с поверхности — сколько поднимут космодромы
+    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel'); liftFrom('fuel', take); payLift(fl); // топливо с поверхности — подъём
     if (got.length) log(`«${s.name}» разгрузился на Земле: ${got.join(', ')}.`);
     return;
   }

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { liftT, gravK } from './36-lift.ts';
 import { AST_TYPE_NAME, depleteYears, veinEff, BODIES, BODY, FIELDS, GROUND, RES, SPEEDS, TERRA, canShipMine, cargoTotal, fmtDate, fmtN, FUEL_K, AU_M, fuelPerAU, groupOf, massOf, myShips, myStations, nameOf, objPos, shipMass, shipMineLimit, shipSpeed, shipSpeedTrue, state, storeTotal } from './01-data.ts';
 import { GROUP_NAME, ROLES, anyFailed, officerById, shipCond } from './02-crew.ts';
 import { Battle, raidChip } from './05-battle.ts';
@@ -407,6 +408,7 @@ export function refreshObj() {
   if (b.d) h += `<div class="muted">Диаметр ${fmtN(b.d, b.d < 10 ? 2 : 0)} км · ${canShipMine(b.id) ? 'доступен корабельным лазерам' : 'слишком велик для корабельных лазеров (лимит ' + shipMineLimit() + ' км, растёт с технологиями): нужны шахты и население'}</div>`;
   if (state.ground && state.ground[b.id]) {
     const gr = state.ground[b.id];
+    if (b.kind !== 'sun' && !['jupiter', 'saturn', 'uranus', 'neptune'].includes(b.id)) h += `<div class="muted" style="margin-top:6px">Подъём с поверхности на орбиту: <b>${fmtN(liftT(b.id))} кр/т</b> (× ${gravK(b.id)} от земного)</div>`;
     h += `<div class="muted" style="margin-top:6px"><b>Недра</b>${b.id === 'earth' ? ': шахты строятся во вкладке «Земля» (каждая — 1 млн т породы в год, выход по содержанию руды).' : ': для добычи нужны шахты и работающее население — колоний пока нет.'}</div>` + (b.id === 'earth' ? '' : Object.entries(gr).map(([k, v]) => `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / GROUND[b.id][k])}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff(b.id, k, v, GROUND[b.id][k]) * 100, 0)}%</span></div>`).join(''));
     if (b.id === 'earth') h += Object.entries(gr).map(([k, v]) => { const n = state.bld.mine * (state.tech && state.tech.deepdrill ? 1.5 : 1), y = depleteYears('earth', k, GROUND.earth[k] || v, n); return `<div class="row"><span style="width:70px">${RES[k]}</span>${bar(v / (GROUND.earth[k] || v))}<span class="mono">${fmtN(v)} т · эфф. ${fmtN(veinEff('earth', k, v, GROUND.earth[k] || v) * 100, 0)}% · ${n > 0 ? '90% за ' + (y > 1e6 ? '>1 млн' : fmtN(y, y < 10 ? 1 : 0)) + ' лет' : 'нет шахт'}</span></div>`; }).join('');
   }

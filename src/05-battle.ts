@@ -39,13 +39,15 @@ function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),t
 // тонкая сетка брони: ячейки 10×10 см, в ячейке — остаток толщины, мм (хранятся только тронутые, остальные целые).
 // Слой = 2 см стали, держит 2 МДж/см² → удар выбивает 10 мм на каждый 1 МДж/см²; не хватило энергии — остаётся вмятина, следующий удар в то же место пробьёт легче
 const CELL=.1,LAYER_MM=20,MM_E=LAYER_MM/ARM_E;
-function dig(o,z,x,y,iz,Eu,n){
+function dig(o,z,x,y,iz,Eu,n,inf){
   const L=o.T.L*1000,cs=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),dx=(x-o.x)*1000,dy=(y-o.y)*1000,u=dx*cs+dy*sn,v=-dx*sn+dy*cs,w=((iz!=null?iz:o.z)-(o.z||0))*1000;
   const NX=Math.max(1,Math.ceil(L/CELL)),W=Math.max(1,Math.ceil(Math.PI*L*.22/4/CELL)),ix0=Math.max(0,Math.min(NX-1,Math.floor((u+L/2)/CELL))),Q=Math.PI/2,qq=((Math.atan2(w,v)%Q)+Q)%Q,iy0=Math.min(W-1,Math.floor(qq/Q*W));
   const F=z.arm*LAYER_MM,dep=Eu*MM_E,h=n>>1;if(!z.g)z.g=new Map();let took=0,left=0,rem=F;
   for(let i=-h;i<n-h;i++)for(let j=-h;j<n-h;j++){const ix=ix0+i,iy=iy0+j;if(ix<0||ix>=NX||iy<0||iy>=W)continue;const k=ix*8192+iy,r=z.g.has(k)?z.g.get(k):F,tk=Math.min(r,dep);if(tk>0)z.g.set(k,r-tk);took+=tk;if(!i&&!j){left=dep-tk;rem=r-tk}}
   const nc=z.nc,c=Math.max(0,Math.min(nc-1,Math.floor(ix0/NX*nc))),lay=Math.floor(rem/LAYER_MM+1e-9);if(lay<z.cols[c]){z.armN-=z.cols[c]-lay;z.cols[c]=lay} // метровая колонка (для ИИ и картинки) — по самому глубокому месту
-  stat.armMM=(stat.armMM||0)+took;return {c,took,left,rem,dep}}
+  stat.armMM=(stat.armMM||0)+took;
+  if(inf&&(dep-left>=1||left>0)){const hl=o.hl||(o.hl=[]);hl.unshift({t,k:inf.k,v:inf.v,Eu,F,before:rem+dep-left,dep,after:rem,left,zi:o.zones.indexOf(z),n});if(hl.length>12)hl.pop()} // журнал пробитий для панели корабля (мм)
+  return {c,took,left,rem,dep}}
 // скорость сближения, км/с (плюс — сходимся)
 function closing(s,o){const dx=o.x-s.x,dy=o.y-s.y,d=Math.hypot(dx,dy)||1,ox=o.sx!=null?o.sx:(o.vx||0),oy=o.sy!=null?o.sy:(o.vy||0);return -((ox-(s.sx||0))*dx+(oy-(s.sy||0))*dy)/d}
 // дальность огня = (скорость снаряда + скорость сближения) × 20 с жизни снаряда
@@ -599,7 +601,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   };
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
-    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1);c=g.c; // пуля: одна ячейка, глубина по энергии
+    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1,{k:'пуля 14 г',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
       if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
       if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
     else if(z.cols[c]>0){const gl=(pr?GAT_K*vr*vr:.0015)/ARM_E,ly=Math.floor(gl)+(Math.random()<gl%1?1:0); // МДж/см² пули / порог слоя: 0,6 км/с — ~0,08%, от 22 км/с — слой
@@ -608,10 +610,14 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
     const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
     if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
   if(kind==='rail'&&pr&&pr.kk){ // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
-    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10))),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
+    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
     if(g.took<.5&&!pass){ricochet(o,x,y,vx,vy);if(imp){imp.rico=1;imp.left=z.cols[g.c];imp.arm=z.arm}return}
     fin(g.c,z.nc,cut,pass);return}
-  // прочее (ракеты, торпеды, лазер, камни): слои по метровым колонкам
+  if(kind==='laser'||kind==='torp'||kind==='rock'){ // лазер — пятно 10 см, торпеда — 30 см, камень — 50 см; удельная энергия = прежние «слои» × 2 МДж/см² (торпеда — 30 МДж/см²)
+    const Eu=kind==='torp'?30:Math.max(0,dmg*(kind==='laser'?.7:.22))*ARM_E,g=dig(o,z,x,y,iz,Eu,kind==='torp'?3:kind==='rock'?5:1,{k:kind==='laser'?'лазер':kind==='torp'?'торпеда':'камень',v:Math.hypot(vx,vy,vz||0)}),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;
+    if(imp){imp.mm=g.rem;imp.dep=g.dep}if(g.took<.5&&!pass){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});if(imp){imp.left=z.cols[g.c];imp.arm=z.arm}return}
+    fin(g.c,z.nc,cut,pass);return}
+  // ракеты: слои по метровым колонкам (переделаем отдельно)
   let dm=kind==='torp'?1:(kind==='rail'&&pr&&pr.kk)?pr.kk*vr*vr/ARM_E:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22); dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
   if(dm<=0){if(kind==='rail')ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
   const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5)))),w=(kind==='rail'&&pr&&pr.kk)?Math.max(1,Math.round(PW*(pr.cal||10)/10)):Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
@@ -1178,6 +1184,13 @@ function modPanel(s){let el=document.getElementById('bmods');
   const moving=Math.hypot(s.sx||0,s.sy||0)>.002,mods=[];for(const z of s.zones)for(const m of z.mods)mods.push([m,z]);
   const ord={T:0,G:1,A:2,L:3,M:4,E:5,R:6,D:7,C:8};mods.sort((a,b)=>(ord[a[0].k]??9)-(ord[b[0].k]??9));
   const cnt={};let h=`<b class="c${'ab'[s.side]}">${s.T.n}</b> — детали (${s.aliveN}/${s.total})<br><span class="muted">цель: ${s.tg&&s.tg.alive?s.tg.T.n+' · '+Math.hypot(s.tg.x-s.x,s.tg.y-s.y).toFixed(1)+' км':'нет'} · высота ${Math.round(s.z||0)} км</span><hr style="border-color:#2b3647">`;
+  { const F=(s.T.arm||0)*LAYER_MM;h+=`<b>Броня</b> <span class="muted">· ${s.T.arm||0} слоёв по 2 см стали = ${F} мм, держит ${(F/MM_E).toFixed(0)} МДж/см²</span>`;
+    const sec=s.zones.map((z,i)=>{let mn=F,n=0;if(z.g)for(const v of z.g.values()){n++;if(v<mn)mn=v}return `${ZN[i]}: ${n?'тронуто '+n+' яч., меньше всего '+Math.round(mn)+' мм':'целая'}`});h+=`<div class="muted" style="margin:2px 0 4px">${sec.join(' · ')}</div>`;
+    for(const q of (s.hl||[]).slice(0,8)){const W=260,sc=W/Math.max(1,q.F),pre=Math.max(0,q.F-q.before),cut=Math.max(0,q.before-q.after),thr=q.left>0; // полоса = толщина брони: серое — выбито раньше, оранжевое — этим ударом, синее — осталось, красное — пробил насквозь
+      h+=`<div style="margin:3px 0"><span class="muted">${q.k}, ${q.v.toFixed(1)} км/с, ${q.Eu<.1?q.Eu.toFixed(3):q.Eu.toFixed(1)} МДж/см² → ${q.dep<10?q.dep.toFixed(1):Math.round(q.dep)} мм</span><br>
+        <span style="display:inline-block;width:${W}px;height:9px;background:#1b2433;vertical-align:middle;position:relative"><span style="position:absolute;left:0;width:${pre*sc}px;height:9px;background:#4a5262"></span><span style="position:absolute;left:${pre*sc}px;width:${Math.max(1,cut*sc)}px;height:9px;background:#ffa040"></span><span style="position:absolute;left:${(pre+cut)*sc}px;width:${q.after*sc}px;height:9px;background:#5f9ad8"></span></span>
+        <span style="color:${thr?'#ff6b5a':'#8fe3a0'}"> ${thr?'насквозь, +'+Math.round(q.left)+' мм в модули':'осталось '+(q.after<10?q.after.toFixed(1):Math.round(q.after))+' мм'}</span></div>`}
+    if(!(s.hl||[]).length)h+='<div class="muted">попаданий в броню ещё не было</div>';h+='<hr style="border-color:#2b3647">'}
   for(const[m,z]of mods){cnt[m.k]=(cnt[m.k]||0)+1;const nm=(MODNAME[m.k]||m.k)+' №'+cnt[m.k],zi=s.zones.indexOf(z),side=ZN[zi]||'';
     let st,col;if(!m.alive){st='уничтожен';col='#ff6b5a'}else{col='#8fe3a0';
       if(m.k==='E')st=s.engN>0&&moving?'даёт тягу':'исправен, корабль без хода';

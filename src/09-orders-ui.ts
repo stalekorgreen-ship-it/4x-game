@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { orb, liftT } from './36-lift.ts';
+import { orb, liftT, liftCap, liftBank } from './36-lift.ts';
 import { GOODS } from './07-population.ts';
 import { econHtml, econOrder } from './32-econbld.ts';
 import { techArt } from './17-art.ts';
@@ -355,7 +355,7 @@ export function refreshEarth() {
   const keys = Object.keys(RES).filter(k => k !== 'spares').concat(['fuel', 'spares']);
   const name = k => k === 'fuel' ? 'Топливо' : RES[k];
   let h = vw + `<div class="box"><h2>Склад Земли</h2><button class="btn sm" data-a="openstats">Ресурсы: приток и расход</button><div class="res">${keys.map(k => `<span>${name(k)}</span><span>${fmtN(S[k] || 0)}${(orb()[k] || 0) >= 1 ? ` <span class="muted" title="на орбите — подъём не нужен">(орб. ${fmtN(Math.min(orb()[k], S[k] || 0))})</span>` : ''}</span>`).join('')}</div>
-    <div class="help">Безлимитный склад. Подъём с Земли на орбиту: <b>${fmtN(liftT())} кр/т</b> — платят верфь (за массу корабля из земных материалов), заправка и запчасти с поверхности. Привезённое из космоса лежит на орбите («орб.») и подъёма не требует. Топливо делают топливные заводы из угля и нефти. Всего уплачено за подъём: ${fmtN(state.liftPaid || 0)} кр.</div></div>`;
+    <div class="help">Безлимитный склад. Подъём с Земли на орбиту: <b>${fmtN(liftT())} кр/т</b>, космодромы поднимают <b>${fmtN(liftCap() * 360)} т в год</b> (накоплено ${fmtN(liftBank())} т; каждый «Космодром» +10 000 т) — платят верфь (за массу корабля из земных материалов), заправка и запчасти с поверхности. Привезённое из космоса лежит на орбите («орб.») и подъёма не требует. Топливо делают топливные заводы из угля и нефти. Всего уплачено за подъём: ${fmtN(state.liftPaid || 0)} кр.</div></div>`;
   h += '<div class="box"><h2>Здания</h2><table class="grid"><tr><th>Здание</th><th>Есть</th><th>СБ</th><th>Материалы, т</th><th>Описание (наведите — целиком)</th><th></th></tr>' + Object.entries(BLD).map(([t, b]) => {
     const have = b.level ? `ур. ${B[t] || 0}` : `${B[t] || 0}`, can = bldCanAdd(t), gate = bldGate(t), full = `${b.desc} Нанимает ${fmtN(BW[t])} чел. Одной бригадой ${fmtN(bldSB(t))} сут.${gate ? ' ' + gate : ''}`;
     return `<tr><td><b>${b.name}</b></td><td class="n">${have}</td><td class="n">${fmtN(bldSB(t))}</td><td>${matTxt(matOf(t))}</td><td class="ds" title="${esc(full)}">${gate ? `<span class="warn">${esc(gate)}</span> · ` : ''}${esc(b.desc)}</td><td><button class="btn sm" data-a="bbuild" data-t="${t}" ${can ? '' : 'disabled'}>В очередь</button></td></tr>`;
