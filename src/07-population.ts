@@ -6,7 +6,7 @@ import {colonyCost} from './14-climate.ts';
 import { climTick, heatDeath, heatWork } from './28-climate.ts';
 import { BODY, RES, fmtN, log, rec, state } from './01-data.ts';
 import { logMarket, logJobs, lsShare } from './25-logistics.ts';
-import { GOODS, UT, LOG_IN, goodsOrder, prodOf, tOf, unitOf } from './26-goods.ts';
+import { GOODS, UT, LOG_IN, goodsOrder, prodOf, tOf, unitOf , wkOf} from './26-goods.ts';
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { regTick, addRegPeople, regsOf, regTemplate, regHab, regClim } from './30-regions.ts';
@@ -33,7 +33,10 @@ export const tfMod = () => { const y = (state.t || 0) / 360; return .72 + .28 * 
 export const ageF = a => a < 25 ? .7 : a < 30 ? .85 : a < 55 ? 1 : 1.05;
 export const needF = a => a < 15 ? .7 : a >= 65 ? 1.1 : 1;
 const ageK = (G, a) => { for (const [m, k] of G.ages) if (a < m) return k; return 0; };
-export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; if (G.ages) return G.need * ageK(G, a) * (G.ns ? G.ns[s] : 1); return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
+// Потребление по таблице «Пояс» (вкладка «Потребление»): na — на 1 млн человек в год по возрастам 0–12, 12–18, 18–30, 30–55, 55–80, 80–100; naK — перевод в единицы на человека в сутки
+export const NA_AGES = [12, 18, 30, 55, 80, 101];
+const naBand = a => { for (let i = 0; i < NA_AGES.length; i++) if (a < NA_AGES[i]) return i; return NA_AGES.length - 1; };
+export const needOf = (g, a, s = 1) => { const G = GOODS[g]; if (!G.need || (G.space && ctxId() === 'earth')) return 0; if (G.na) return G.na[naBand(a)] * G.naK * (G.ns ? G.ns[s] : 1); if (G.ages) return G.need * ageK(G, a) * (G.ns ? G.ns[s] : 1); return G.need * needF(a) * (G.old && a >= 50 ? 1 + (a - 50) / 25 : 1) * (G.ns ? G.ns[s] : 1); };
 export const basket = (a, s = 1) => { let b = 0; for (const g in GOODS) b += needOf(g, a, s); return b; };
 // полный спрос с учётом рецептов: конечный спрос населения тянет полуфабрикаты и энергию
 export function fullDemand(c, L = 0) { const D = {}; for (const g of goodsOrder()) D[g] = 0; for (const g in LOG_IN) if (D[g] != null) D[g] += L * LOG_IN[g];
@@ -147,7 +150,7 @@ export function addSettlers(id, q) {
   for (let a = 22; a <= 38; a++) { const sh = [.45, .38, .14, .03]; for (let s = 0; s < 4; s++) { const x = P.c[s][a], m = q / 17 * sh[s]; x.n += m; x.un += m; } }
 }
 export function jobsFac() { const P = state.pop, J = civJobs(), LJ = logJobs(P, state.corps || []), E = empBy(), ls = lsShare(ctxId()); for (let s = 0; s < 4; s++) J[s] += LJ[s] + E[s] * ls + ((P.lmN || 0) + (P.lcN || 0)) * FW() * MINE_MIX[s]; // + госшахты (10 000 чел. каждая) + жизнеобеспечение (гидропоника и т. п.)
-  for (const g in GOODS) for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s]; return J; }
+  for (const g in GOODS) { const wk = wkOf(g, g === 'pow' && ctxId() === 'earth' ? state.govMix : null); for (let s = 0; s < 4; s++) J[s] += P.fac[g] * FW() * GOODS[g].mix[s] * wk; } return J; }
 export function empBy() { const P = state.pop, E = [0, 0, 0, 0]; for (let s = 0; s < 4; s++) for (let a = 15; a < 65; a++) { const x = P.c[s][a]; E[s] += Math.max(0, x.n - x.un - x.st); } return E; }
 export function totals() {
   const P = state.pop, t = {n: 0, un: 0, st: 0, emp: 0, wf: 0, S: [0, 1, 2, 3].map(() => ({n: 0, un: 0, wf: 0, emp: 0}))};
@@ -165,11 +168,11 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
   const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
-  let b = 0, d = 0;
+  let b = 0, d = 0; const medQ = 1e-4 * 100 * Math.max(0, 1 - ((P.sat && P.sat.meds != null) ? P.sat.meds : 1)); // нехватка медицины: +0,01% смертности в год за каждый недостающий процент
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
     const w = (wel[s] && wel[s][a] != null) ? wel[s][a] : 1;
-    const q = clampN(mortQ(a) * mk * (1 + 3 * (1 - w)) * f, 0, .5), dd = x.n * q; d += dd;
+    const q = clampN((mortQ(a) * mk * (1 + 3 * (1 - w)) + medQ) * f, 0, .5), dd = x.n * q; d += dd;
     const k = 1 - q; x.n *= k; x.un *= k; x.st *= k;
     if (a >= 15 && a < 50) b += x.n * .5 * TFR0[s] * ASF[a] * tfMod() * (.85 + .15 * w) * f * bk * bk2 * lg; // половина — женщины; дети на женщину по образованию × возрастной профиль
   }
@@ -264,7 +267,7 @@ export function stepEcon(dt, init) {
     const lg = logMarket(P, ctxId(), (state.corps || []).filter(c => c.civ), T, fill, dt, init);
     if (lg.sat < 1) for (const g in GOODS) P.sat[g] *= lg.sat; }
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
-    let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); ws += P.sat[g] * q; sw += q; }
+    let ws = 0, sw = 0; for (const g in GOODS) { const q = needOf(g, a, s); if (!(q > 0)) continue; const w = GOODS[g].ww != null ? GOODS[g].ww : 5; ws += P.sat[g] * w; sw += w; } // вклад в довольство — веса из таблицы «Потребление»
     const aff = clampN(inc[s][a] / (basket(a, s) * (a < 15 ? 1.5 : 1)), 0, 1);
     wel[s][a] = clampN(aff * (sw > 0 ? ws / sw : 1), 0, 1);
   }

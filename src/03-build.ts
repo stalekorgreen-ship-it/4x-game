@@ -2,30 +2,30 @@
 import { gd, DEFAULTS } from './00-gd.ts';
 import { BODY, FIELDS, GROUND, log, rec, state, stockOK, veinEff, myOf } from './01-data.ts';
 import { KR } from './00-kr.ts';
-import { gval } from './26-goods.ts';
+import { gval, PT } from './26-goods.ts';
 import { TECH, techById, tm, ensureOffers, dealField, BEFF } from './15-techs.ts';
 import { sciMult, train, useWear } from './02-crew.ts';
 
 /* ===== ЗДАНИЯ НА ЗЕМЛЕ ===== */
 export const MINE_RATE = 1;
 export const BLD = gd('buildings', 'buildings', {
-  // Здания игрока — по таблице «Пояс» (вкладка «Здания», верх). cost — реальные тонны; crew — рабочих; use — расход в год (энергия — МВт постоянно), оплачивается деньгами по цене товара;
-  // sci — очков науки в сутки в каждой области; cbSB — СБ в сутки; make — переработка со склада на склад; fac — сколько госзаводов товара даёт здание Земле.
-  lab:       {name: 'Лаборатория', sb: 400, cost: {fe: 5000, ree: 20, pt: 2}, sci: {phys: 10, eng: 10, bio: 10}, use: {pow: 10, elx: 1000}, desc: 'Даёт 10 очков науки в сутки во всех областях. Позволяет изучать аномалии на планете. Расход: 10 МВт, 1 000 т электроники в год, 10 000 человек с высшим образованием.'},
-  dcenter:   {name: 'Дата-центр', sb: 800, cost: {fe: 20000, si: 5000, ree: 100, pt: 5}, sci: {phys: 50, eng: 50, bio: 50}, use: {pow: 100, elx: 1000}, desc: 'Даёт 50 очков науки в сутки во всех областях. Расход: 100 МВт, 1 000 т электроники в год, 10 000 экспертов, 7 млн т воды (пар).'},
-  mine:      {name: 'Государственная шахта', sb: 100, cost: {fe: 20000, ti: 200}, use: {pow: 50}, desc: 'Добывает 1 млн т породы в год: железо 1 165 т/сут, уголь и нефть 1 500, кремний 582, титан и редкозем 2,3, уран 1,2, платина 12 кг (× эффективность жилы). Всё — на ваш склад. Расход: 50 МВт, 10 000 человек низкого образования.'},
-  gbuild:    {name: 'Государственная стройка', sb: 100, cost: {fe: 5000}, cbSB: 10, desc: 'Даёт 10 СБ в сутки на всю стройку. 10 000 человек низкого образования.'},
-  shipyard:  {name: 'Военная космическая верфь', sb: 4000, cost: {fe: 100000, ti: 2000, w: 500, ree: 200, pt: 10}, desc: 'Верфь в космосе: стапель до 1 000 т, 1 бригада (10 000 чел.) строит 1 т корабля в сутки. Тоннаж и бригады расширяются ниже, каждый раз дороже. 10 000 экспертов.'},
-  green:     {name: 'Зелёная энергетика', sb: 100, cost: {fe: 40000, si: 3000, ree: 50}, crew: 0, fac: {pow: 0.3}, use: {elx: 50}, desc: 'Вырабатывает 600 МВт для Земли по цене самоокупа. Расход: 50 т электроники в год.'},
-  tps:       {name: 'Государственная ТЭС', sb: 200, cost: {fe: 100000}, crew: 0, fac: {pow: 1}, desc: 'Вырабатывает 2 000 МВт для Земли по цене самоокупа. Сжигает 3 млн т угля и нефти в год, 7,5 млн т CO₂. 10 000 человек среднего образования.'},
-  npp:       {name: 'Государственная АЭС', sb: 1000, cost: {fe: 200000, ti: 500, w: 100, u: 2000}, crew: 0, fac: {pow: 3}, desc: 'Вырабатывает 6 000 МВт для Земли по цене самоокупа. 1 200 т урана в год. 10 000 человек высшего образования.'},
+  // Здания игрока — по таблице «Пояс» (вкладка «Здания», верх). Все числа — в год. cost — реальные тонны; crew — рабочих; use — расход в год (pow — МВт постоянно), оплачивается по цене товара;
+  // sci — очков науки в год в каждой области; cbSB — СБ в год; make — переработка со склада на склад (perYear — т выхода в год); fac — сколько заводов-эквивалентов товара получает Земля; life — лет до износа.
+  lab:       {name: 'Лаборатория', sb: 400, cost: {fe: 5000, ree: 20, pt: 2}, sci: {phys: 10, eng: 10, bio: 10}, use: {pow: 10, elx: 1000}, desc: 'Даёт 10 очков науки в год во всех областях. Позволяет изучать аномалии на планете. Расход: 10 МВт, 1 000 т электроники в год, 10 000 человек с высшим образованием.'},
+  dcenter:   {name: 'Дата-центр', sb: 800, cost: {fe: 20000, si: 5000, ree: 100, pt: 5}, sci: {phys: 50, eng: 50, bio: 50}, use: {pow: 100, elx: 1000}, desc: 'Даёт 50 очков науки в год во всех областях. Расход: 100 МВт, 1 000 т электроники в год, 10 000 экспертов, 7 млн т воды (пар).'},
+  mine:      {name: 'Государственная шахта', sb: 100, cost: {fe: 20000, ti: 200}, use: {pow: 50}, desc: 'Добывает 1 млн т породы в год: железо 420 тыс. т, уголь и нефть 540 тыс., кремний 210 тыс., титан и редкозем по 830, уран 430, платина 4 т (× эффективность жилы). Всё — на ваш склад. Расход: 50 МВт, 10 000 человек низкого образования.'},
+  gbuild:    {name: 'Государственная стройка', sb: 100, cost: {fe: 5000}, cbSB: 10, desc: 'Даёт 10 СБ в год на всю стройку. 10 000 человек низкого образования.'},
+  shipyard:  {name: 'Военная космическая верфь', sb: 4000, cost: {fe: 100000, ti: 2000, w: 500, ree: 200, pt: 10}, desc: 'Верфь в космосе: стапель до 1 000 т, 1 бригада (10 000 чел.) строит 365 т корабля в год. Тоннаж и бригады расширяются ниже, каждый раз дороже. 10 000 экспертов.'},
+  green:     {name: 'Зелёная энергетика', sb: 100, cost: {fe: 40000, si: 3000, ree: 50}, crew: 0, fac: {pow: 0.3}, use: {elx: 50}, desc: 'Вырабатывает 600 МВт для Земли по цене самоокупа. Без топлива и почти без людей. Расход: 50 т электроники в год.'},
+  tps:       {name: 'Государственная ТЭС', sb: 200, cost: {fe: 100000}, crew: 0, fac: {pow: 1}, life: 50, desc: 'Вырабатывает 2 000 МВт для Земли по цене самоокупа. Сжигает 3 млн т угля и нефти в год, 7,5 млн т CO₂. 10 000 человек среднего образования. Изнашивается за 50 лет.'},
+  npp:       {name: 'Государственная АЭС', sb: 1000, cost: {fe: 200000, ti: 500, w: 100, u: 2000}, crew: 0, fac: {pow: 3}, life: 70, desc: 'Вырабатывает 6 000 МВт для Земли по цене самоокупа. 1 200 т урана в год. 10 000 человек высшего образования. Изнашивается за 70 лет.'},
   lifeinfra: {name: 'Инфраструктура жизнеобеспечения', sb: 50, cost: {fe: 20000, w: 100, si: 2000}, crew: 0, desc: 'Позволяет жить 10 000 граждан на непригодной планете (годность 0,1). На Земле не нужна.'},
-  fuelplant: {name: 'Топливный завод', sb: 200, cost: {fe: 50000, ree: 100}, make: {in: {c: 1.5}, out: {fuel: 1}, perDay: 2740}, use: {pow: 50}, desc: 'Делает 1 млн т топлива в год (2 740 т/сут) из 1,5 млн т угля и нефти со склада — на ваш склад. Расход: 50 МВт, 10 000 человек среднего образования.'},
-  supplies:  {name: 'Фабрика припасов', sb: 200, cost: {fe: 30000, ti: 200}, make: {in: {fe: 0.8, ree: 0.01}, out: {spares: 1}, perDay: 137}, use: {pow: 20}, desc: 'Делает 50 000 т припасов в год (еда в рейс, запчасти, расходники) из 40 000 т железа и 500 т редкозема — на ваш склад. Расход: 20 МВт, 10 000 человек среднего образования.'},
-  housing:   {name: 'Социальное жильё', sb: 10, cost: {fe: 5000}, crew: 0, fac: {house: 0.02}, desc: 'Жильё на 10 000 человек бесплатно. Приходит в негодность через 50 лет.'},
-  cityhosp:  {name: 'Городская больница', sb: 30, cost: {fe: 10000}, crew: 0, fac: {meds: 0.7}, desc: 'Медицина на 400 000 человек бесплатно. 10 000 человек высшего образования.'},
-  school:    {name: 'Образовательное учреждение', sb: 30, cost: {fe: 10000}, crew: 0, fac: {edu: 1}, desc: 'Учит 150 000 учеников бесплатно. 10 000 человек высшего образования.'},
-  institute: {name: 'Институт с узкой специализацией', sb: 50, cost: {fe: 10000, si: 500, ree: 20, pt: 2}, crew: 0, fac: {exp: 1}, desc: 'Учит 20 000 студентов-экспертов бесплатно. 10 000 человек высшего образования.'},
+  fuelplant: {name: 'Топливный завод', sb: 200, cost: {fe: 50000, ree: 100}, make: {in: {c: 1.5}, out: {fuel: 1}, perYear: 1000000}, use: {pow: 50}, desc: 'Делает 1 млн т топлива в год из 1,5 млн т угля и нефти со склада — на ваш склад. Расход: 50 МВт, 10 000 человек среднего образования.'},
+  supplies:  {name: 'Фабрика припасов', sb: 200, cost: {fe: 30000, ti: 200}, make: {in: {fe: 0.8, ree: 0.01}, out: {spares: 1}, perYear: 50000}, use: {pow: 20}, desc: 'Делает 50 000 т припасов в год (еда в рейс, запчасти, расходники) из 40 000 т железа и 500 т редкозема — на ваш склад. Расход: 20 МВт, 10 000 человек среднего образования.'},
+  housing:   {name: 'Социальное жильё', sb: 10, cost: {fe: 5000}, crew: 0, fac: {house: 0.02}, life: 50, desc: 'Жильё на 10 000 человек бесплатно. Изнашивается за 50 лет.'},
+  cityhosp:  {name: 'Городская больница', sb: 30, cost: {fe: 10000}, crew: 0, fac: {meds: 0.7}, life: 50, desc: 'Медицина на 400 000 человек бесплатно. 10 000 человек высшего образования. Изнашивается за 50 лет.'},
+  school:    {name: 'Образовательное учреждение', sb: 30, cost: {fe: 10000}, crew: 0, fac: {edu: 1}, life: 50, desc: 'Учит 150 000 учеников бесплатно. 10 000 человек высшего образования. Изнашивается за 50 лет.'},
+  institute: {name: 'Институт с узкой специализацией', sb: 50, cost: {fe: 10000, si: 500, ree: 20, pt: 2}, crew: 0, fac: {exp: 1}, life: 50, desc: 'Учит 20 000 студентов-экспертов бесплатно. 10 000 человек высшего образования. Изнашивается за 50 лет.'},
 }); // правится в data/buildings.json
 // модификаторы зданий за уровень (beff) — тоже в файле; встроенные берём из BEFF
 for (const t in BEFF) if (BLD[t] && !BLD[t].beff) { BLD[t].beff = {...BEFF[t]}; const D = DEFAULTS.buildings && DEFAULTS.buildings.buildings; if (D && D[t]) D[t].beff = {...BEFF[t]}; }
@@ -37,7 +37,7 @@ export const BW = Object.fromEntries(Object.keys(BLD).map(t => [t, BLD[t].crew !
 export const bldSB = t => { const b = BLD[t]; return Math.round((b.sb || 1000) * (b.level ? Math.pow(1.5, state.bld[t] || 0) : 1)); };
 export const brigades = () => (2 + (state.bld.cbureau || 0)); // свои: зарплата идёт всегда
 export const rentN = () => (state.build && state.build.length ? (state.rent || []).reduce((a, r) => a + r.n, 0) : 0); // арендованные у корпораций
-export const ECON = gd('buildings', 'econ', {CF_SB: 50, ECON_SB: {efac: 1000, emine: 500, elab: 1000}, ECON_MAT: {efac: {fe: 24, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 14, si: 12}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 25}}, matDiv: 1});
+export const ECON = gd('buildings', 'econ', {BRIG_Y: 10, CF_SB: 50, ECON_SB: {efac: 1000, emine: 500, elab: 1000}, ECON_MAT: {efac: {fe: 24, si: 4}, emine: {fe: 15, c: 3}, elab: {fe: 14, si: 12}, yardton: {fe: 80, ti: 10}, yardcrew: {fe: 25}}, matDiv: 1});
 export const CF_SB = ECON.CF_SB;
 // Постройки корпораций — по таблице «Пояс» (вкладка «Здания», низ). Их же может строить игрок во вкладке «Экономические постройки» (кроме only:true).
 // kind: fac — госзавод товара g (k — сколько заводов-эквивалентов), mine — шахта на рынок Земли, lab — лаборатория (k — сколько), corp — только корпорации.
@@ -46,24 +46,37 @@ export const CORP = gd('buildings', 'corp', {
   elx:     {name: 'Фабрика электроники', kind: 'fac', g: 'elx', sb: 100, cost: {fe: 30000, ree: 100}, desc: '50 000 т электроники в год на общий рынок. 10 000 человек высшего образования, 100 МВт.'},
   lux:     {name: 'Фабрика роскоши', kind: 'fac', g: 'lux', sb: 100, cost: {fe: 20000}, desc: '10 000 т роскоши в год на общий рынок. 10 000 человек среднего образования, 50 МВт.'},
   wear:    {name: 'Фабрика бытовых товаров', kind: 'fac', g: 'wear', sb: 100, cost: {fe: 30000}, desc: '200 000 т бытовых товаров в год на общий рынок. 10 000 человек низкого образования, 100 МВт.'},
-  green:   {name: 'Зелёная энергетика', kind: 'fac', g: 'pow', k: 0.3, sb: 100, cost: {fe: 40000, si: 3000, ree: 50}, desc: '600 МВт на общий рынок.'},
-  tps:     {name: 'ТЭС', kind: 'fac', g: 'pow', sb: 200, cost: {fe: 100000}, desc: '2 000 МВт на общий рынок. 3 млн т угля и нефти в год, загрязнение.'},
-  npp:     {name: 'АЭС', kind: 'fac', g: 'pow', k: 3, sb: 1000, cost: {fe: 200000, ti: 500, w: 100, u: 2000}, desc: '6 000 МВт на общий рынок. 1 200 т урана в год.'},
+  green:   {name: 'Зелёная энергетика', kind: 'fac', g: 'pow', k: 0.3, sb: 100, cost: {fe: 40000, si: 3000, ree: 50}, desc: '600 МВт на общий рынок, без топлива и почти без людей.'},
+  tps:     {name: 'ТЭС', kind: 'fac', g: 'pow', sb: 200, cost: {fe: 100000}, life: 50, desc: '2 000 МВт на общий рынок. 3 млн т угля и нефти в год, загрязнение. 50 лет.'},
+  npp:     {name: 'АЭС', kind: 'fac', g: 'pow', k: 3, sb: 1000, cost: {fe: 200000, ti: 500, w: 100, u: 2000}, life: 70, desc: '6 000 МВт на общий рынок. 1 200 т урана в год. 70 лет.'},
   fuel:    {name: 'Топливный завод', kind: 'fac', g: 'fuel', sb: 200, cost: {fe: 50000, ree: 100}, desc: '1 млн т топлива в год на общий рынок.'},
-  yard:    {name: 'Космическая верфь', kind: 'corp', sb: 4000, cost: {fe: 100000, ti: 2000, w: 500, ree: 200, pt: 10}, desc: 'Верфь корпорации в космосе: строит корабли на продажу.'},
-  house:   {name: 'Жилой комплекс', kind: 'fac', g: 'house', k: 0.02, sb: 10, cost: {fe: 5000}, desc: 'Жильё на 10 000 человек, на общий рынок.'},
-  clinic:  {name: 'Частная клиника', kind: 'fac', g: 'meds', k: 0.7, sb: 30, cost: {fe: 10000}, desc: 'Медицина на 400 000 человек, на общий рынок.'},
-  pschool: {name: 'Частная школа', kind: 'fac', g: 'edu', sb: 30, cost: {fe: 10000}, desc: 'Учит 150 000 учеников, на общий рынок.'},
-  pinst:   {name: 'Частный институт с узкой специализацией', kind: 'fac', g: 'exp', sb: 50, cost: {fe: 10000, si: 500, ree: 20, pt: 2}, desc: 'Учит 20 000 студентов-экспертов, на общий рынок.'},
-  clab:    {name: 'Коммерческая лаборатория', kind: 'lab', sb: 400, cost: {fe: 5000, ree: 20, pt: 2}, desc: '10 очков науки в сутки во всех областях — продаются на рынке науки.'},
-  cdc:     {name: 'Коммерческий дата-центр', kind: 'lab', k: 5, sb: 800, cost: {fe: 20000, si: 5000, ree: 100, pt: 5}, desc: '50 очков науки в сутки во всех областях — продаются на рынке науки.'},
-  logland: {name: 'Наземный логистический центр', kind: 'corp', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность наземной логистики.'},
-  logsea:  {name: 'Водный логистический центр', kind: 'corp', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность морской логистики.'},
-  logair:  {name: 'Воздушный логистический центр', kind: 'corp', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность воздушной логистики.'},
+  yard:    {name: 'Космическая верфь', kind: 'yard', sb: 4000, cost: {fe: 100000, ti: 2000, w: 500, ree: 200, pt: 10}, desc: 'Верфь в космосе: стапель до 1 000 т, 1 бригада строит 365 т корабля в год. Корпорации строят на ней корабли на продажу; ваша — ещё одна верфь игрока.'},
+  house:   {name: 'Жилой комплекс', kind: 'fac', g: 'house', k: 0.02, sb: 10, cost: {fe: 5000}, life: 50, desc: 'Жильё на 10 000 человек, на общий рынок. 50 лет.'},
+  clinic:  {name: 'Частная клиника', kind: 'fac', g: 'meds', k: 0.7, sb: 30, cost: {fe: 10000}, life: 50, desc: 'Медицина на 400 000 человек, на общий рынок. 50 лет.'},
+  pschool: {name: 'Частная школа', kind: 'fac', g: 'edu', sb: 30, cost: {fe: 10000}, life: 50, desc: 'Учит 150 000 учеников, на общий рынок. 50 лет.'},
+  pinst:   {name: 'Частный институт с узкой специализацией', kind: 'fac', g: 'exp', sb: 50, cost: {fe: 10000, si: 500, ree: 20, pt: 2}, life: 50, desc: 'Учит 20 000 студентов-экспертов, на общий рынок. 50 лет.'},
+  clab:    {name: 'Коммерческая лаборатория', kind: 'lab', sb: 400, cost: {fe: 5000, ree: 20, pt: 2}, desc: '10 очков науки в год во всех областях — продаются на рынке науки.'},
+  cdc:     {name: 'Коммерческий дата-центр', kind: 'lab', k: 5, sb: 800, cost: {fe: 20000, si: 5000, ree: 100, pt: 5}, desc: '50 очков науки в год во всех областях — продаются на рынке науки.'},
+  logland: {name: 'Наземный логистический центр', kind: 'tr', g: 'land', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность наземной логистики. 10 000 человек среднего образования.'},
+  logsea:  {name: 'Водный логистический центр', kind: 'tr', g: 'sea', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность морской логистики (доля ограничена: груз всё равно довозят по земле).'},
+  logair:  {name: 'Воздушный логистический центр', kind: 'tr', g: 'air', sb: 200, cost: {fe: 20000, ti: 100}, desc: '1 млрд т·км в год × эффективность воздушной логистики (слабая без технологий, доля ограничена).'},
+  // нет в таблице — остальные товары тоже делают корпорации; цены — как у фабрик таблицы (правьте здесь)
+  steel:   {name: 'Сталелитейный завод', kind: 'fac', g: 'steel', sb: 100, cost: {fe: 30000}, desc: '50 000 т стали в год. 10 000 человек низкого образования.'},
+  alloy:   {name: 'Завод сплавов', kind: 'fac', g: 'alloy', sb: 100, cost: {fe: 30000, ti: 100}, desc: '18 000 т сплавов в год. 10 000 человек среднего образования.'},
+  shipm:   {name: 'Завод компонентов', kind: 'fac', g: 'shipm', sb: 100, cost: {fe: 30000, ree: 50}, desc: '3 600 т компонентов кораблей в год. 10 000 человек высшего образования.'},
+  spares:  {name: 'Завод припасов', kind: 'fac', g: 'spares', sb: 100, cost: {fe: 30000, ti: 200}, desc: '11 000 т запчастей и припасов в год.'},
+  infra:   {name: 'Завод инфраструктуры', kind: 'fac', g: 'infra', sb: 100, cost: {fe: 30000}, desc: '72 000 т инфраструктуры для колоний в год.'},
+  ammo:    {name: 'Завод боеприпасов', kind: 'fac', g: 'ammo', sb: 100, cost: {fe: 30000, w: 50}, desc: '18 000 т боеприпасов в год.'},
+  serv:    {name: 'Сервисная компания', kind: 'fac', g: 'serv', sb: 30, cost: {fe: 5000}, desc: 'Услуги для 500 000 человек.'},
+  water:   {name: 'Водоочистная станция', kind: 'fac', g: 'water', sb: 50, cost: {fe: 10000}, desc: 'Вода для 450 000 человек (вне Земли).'},
+  air:     {name: 'Станция воздуха и газов', kind: 'fac', g: 'air', sb: 50, cost: {fe: 10000, ti: 100}, desc: 'Воздух и газы (вне Земли).'},
+  robot:   {name: 'Завод роботов', kind: 'fac', g: 'robot', sb: 200, cost: {fe: 30000, ree: 100, pt: 2}, desc: 'Роботы (после технологии).'},
 });
 // товары, заводы которых корпорации могут строить (остальное — фоновое хозяйство Земли)
-export const CORP_GOODS = [...new Set(Object.values(CORP).filter(c => c.kind === 'fac').map(c => c.g))]; // СБ в сутки от строительного завода
-export const buildUnits = () => ((brigades() + rentN()) + Object.keys(BLD).reduce((a, t) => a + (BLD[t].cbSB || 0) * (state.bld[t] || 0), 0)) * tm('build') * tm('buildu'); // СБ в сутки: бригады + здания с полем cbSB (строительные заводы)
+export const CORP_GOODS = [...new Set(Object.values(CORP).filter(c => c.kind === 'fac').map(c => c.g))];
+export const YR = 360; // суток в игровом году
+export const corpBld = g => Object.keys(CORP).find(i => CORP[i].kind === 'fac' && CORP[i].g === g); // СБ в сутки от строительного завода
+export const buildUnits = () => ((brigades() + rentN()) * (ECON.BRIG_Y || 10) + Object.keys(BLD).reduce((a, t) => a + (BLD[t].cbSB || 0) * (state.bld[t] || 0), 0)) / 360 * tm('build') * tm('buildu'); // СБ в сутки: всё в таблице — СБ в год (бригада и госстройка по 10) // СБ в сутки: бригады + здания с полем cbSB (строительные заводы)
 export const buildSlots = () => brigades() + rentN();
 export const HIRE_PRICE = 120000 * KR;
 // верфи игрока: у каждой свой предельный тоннаж и свои бригады; 1 бригада (10 000 чел.) = 1 т корабля в сутки
@@ -112,15 +125,16 @@ export function buildTick(h) {
     for (const r of state.rent) { const c = (state.corps || []).find(x => x.id === r.id), p = r.n * r.price * tm('hire') * h; if (!c || state.money < p) { r.n = 0; continue; } state.money -= p; c.credits += p; c.brigInc = (c.brigInc || 0) + p; }
     state.rent = state.rent.filter(r => r.n > 0); }
   { const w = bldWage() * h, f = Math.min(w, Math.max(0, state.invFund || 0)); state.invFund = (state.invFund || 0) - f; state.money -= w - f; state.bldWageDay = bldWage(); } // зарплаты стройки и построек: сначала фонд госинвестиций
-  { let d = 0; for (const t in BLD) { const u = BLD[t].use; if (u && B[t]) for (const g in u) d += B[t] * u[g] * (g === 'pow' ? 24 : 1 / 365) * gval(g) * KR; } state.money -= d * h; state.useDay = d; } // поле use: расход товаров зданиями (энергия — МВт, прочее — т в год), платим по цене товара
+  { let d = 0; for (const t in BLD) { const u = BLD[t].use; if (u && B[t]) for (const g in u) d += B[t] * u[g] * (g === 'pow' ? 24 : 1 / 360) * gval(g) * KR; } state.money -= d * h; state.useDay = d; } // поле use: расход товаров зданиями (энергия — МВт, прочее — т в год), платим по цене товара
+  wearTick();
   if (B.mine) {
     const g = state.ground.earth, g0 = GROUND.earth; // каждая шахта берёт все жилы сразу: myOf(руда) т в сутки × эффективность
     for (const k of Object.keys(g)) { const part = Math.min(g[k], B.mine * MINE_RATE * myOf(k) * (techOn('deepdrill') ? 1.5 : 1) * tm('mine') * h * veinEff('earth', k, g[k], g0[k] || g[k])); if (part > 0) { g[k] -= part; S[k] = (S[k] || 0) + part; rec(k, 'in', part, 'mine'); } }
   }
-  for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
-    let q = m.perDay * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
+  for (const t in BLD) { const b = BLD[t], m = b.make; if (!m || !B[t] || !(m.perDay > 0 || m.perYear > 0)) continue; // поле make: переработка {in: {руда: т на 1 т выхода}, out: {что: т}, perDay, max — предел склада выхода}
+    let q = (m.perYear ? m.perYear / 360 : m.perDay) * B[t] * h; for (const r in m.in || {}) q = Math.min(q, (S[r] || 0) / Math.max(1e-9, m.in[r])); for (const r in m.out || {}) if (m.max) q = Math.min(q, Math.max(0, (m.max - (S[r] || 0)) / Math.max(1e-9, m.out[r])));
     if (q > 0) { for (const r in m.in || {}) { S[r] -= q * m.in[r]; rec(r, 'out', q * m.in[r], 'plant'); } for (const r in m.out || {}) { S[r] = (S[r] || 0) + q * m.out[r]; rec(r, 'in', q * m.out[r], 'plant'); } } }
-  for (const t in BLD) { const b = BLD[t]; if (b.sci && B[t]) for (const f in b.sci) if (f in state.sci) state.sci[f] += b.sci[f] * B[t] * h * tm('sci'); } // поле sci: очки науки в сутки на здание
+  for (const t in BLD) { const b = BLD[t]; if (b.sci && B[t]) for (const f in b.sci) if (f in state.sci) state.sci[f] += b.sci[f] / 360 * B[t] * h * tm('sci'); } // поле sci: очки науки в год на здание
   {
     const T = (state.cols && state.cols.earth && state.cols.earth.pop.tax) || 0, inc = T * Object.keys(BLD).reduce((a, t) => a + (BLD[t].taxPct || 0) / 100 * (B[t] || 0), 0) * h; if (inc > 0) state.money += inc; } // поле taxPct: % к налогам на космос на здание
   // мощность делится по долям проектов (сумма долей больше 100% — урезается пропорционально)
@@ -144,10 +158,19 @@ function finish(j) {
   if (j.type === 'yardton' || j.type === 'yardcrew') { const y = yards()[j.yi]; if (y) { if (j.type === 'yardton') { y.ton += 1000; y.nt++; } else { y.crews++; y.nc++; } log(`Верфь №${j.yi + 1}: ${j.type === 'yardton' ? 'предельный тоннаж ' + fmtT(y.ton) : 'бригад ' + y.crews}.`); } return; }
   if (j.type === 'efac') { if (P) P.fac[j.g] = (P.fac[j.g] || 0) + 1; if (j.n === 0) log(`Достроены госзаводы: ${j.g}.`); return; }
   if (j.type === 'emine') { if (P) P.lmN = (P.lmN || 0) + 1; if (j.n === 0) log('Достроены госшахты.'); return; }
-  if (j.type === 'econ') { const c = CORP[j.b]; if (c) { if (c.kind === 'fac' && P) P.fac[c.g] = (P.fac[c.g] || 0) + (c.k || 1); else if (c.kind === 'mine' && P) P.lmN = (P.lmN || 0) + 1; else if (c.kind === 'lab') state.labs = (state.labs || 0) + (c.k || 1); if (j.n === 0) log(`Достроено: «${c.name}».`); } return; }
+  if (j.type === 'econ') { const c = CORP[j.b]; if (c) { if (c.kind === 'fac' && P) addFac(P, c.g, c.k || 1, j.b, c.life); else if (c.kind === 'mine' && P) P.lmN = (P.lmN || 0) + 1; else if (c.kind === 'lab') state.labs = (state.labs || 0) + (c.k || 1); else if (c.kind === 'yard') { B.shipyard = (B.shipyard || 0) + 1; yards(); } if (j.n === 0) log(`Достроено: «${c.name}».`); } return; }
   if (j.type === 'elab') { state.labs = (state.labs || 0) + 1; if (j.n === 0) log('Достроены лаборатории.'); return; }
-  B[j.type]++; if (j.type === 'shipyard') yards(); { const f = BLD[j.type].fac; if (f && P) for (const g in f) P.fac[g] = (P.fac[g] || 0) + f[g]; } // госзаводы Земли от зданий (энергия, жильё, медицина, школы) if (j.n === 0 || BLD[j.type].level) log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`);
+  B[j.type]++; if (j.type === 'shipyard') yards(); { const b = BLD[j.type], f = b.fac; if (f && P) for (const g in f) addFac(P, g, f[g], j.type, null); if (b.life) (state.ages = state.ages || []).push({t: j.type, end: state.t + b.life * 360}); } // госзаводы Земли от зданий (энергия, жильё, медицина, школы) if (j.n === 0 || BLD[j.type].level) log(`Построено: «${BLD[j.type].name}»${BLD[j.type].level ? ', уровень ' + B[j.type] : ', всего ' + B[j.type]}.`);
 }
+// госзаводы Земли от построек игрока: энергия помнит тип станции (смесь станций → рецепт и штат); у построек с износом — срок
+function addFac(P, g, k, id, life) { P.fac[g] = (P.fac[g] || 0) + k; if (g === 'pow' && PT[id]) { const m = state.pmixP = state.pmixP || {}; m[id] = (m[id] || 0) + k; }
+  if (life) (state.ages = state.ages || []).push({g, k, id, end: state.t + life * 360}); }
+// износ: срок вышел — здание сносится (здания игрока — минус одно, экономические — минус их заводы-эквиваленты)
+export function wearTick() { const A = state.ages; if (!A || !A.length) return; const P = state.cols && state.cols.earth && state.cols.earth.pop;
+  for (let i = A.length - 1; i >= 0; i--) { const a = A[i]; if (a.end > state.t) continue; A.splice(i, 1);
+    if (a.t) { if (state.bld[a.t] > 0) { state.bld[a.t]--; const f = BLD[a.t] && BLD[a.t].fac; if (f && P) for (const g in f) subFac(P, g, f[g], a.t); log(`Износ: снесено «${BLD[a.t].name}».`); } }
+    else if (P) { subFac(P, a.g, a.k, a.id); log(`Износ: закрыто «${(CORP[a.id] || {}).name || a.id}».`); } } }
+function subFac(P, g, k, id) { P.fac[g] = Math.max(0, (P.fac[g] || 0) - k); const m = state.pmixP; if (g === 'pow' && m && m[id]) m[id] = Math.max(0, m[id] - k); }
 const fmtT = x => Math.round(x).toLocaleString('ru-RU') + ' т';
 export { TECH };
 // Исследование идёт постепенно: выбранной теме достаются очки области и очки по контрактам лабораторий.
