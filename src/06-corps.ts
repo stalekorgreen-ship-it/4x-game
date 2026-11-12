@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { toOrbit } from './36-lift.ts';
 import { gd } from './00-gd.ts';
 import { hooks } from './00-hooks.ts';
 import { COMP, BODIES, BODY, RES, veinEff, gradeOf, canShipMine, designStats, dist, fmtN, fuelPerAU, fuelFor, fuelPlanAU, isSt, log, nameOf, objPos, rec, stById, state, uid } from './01-data.ts';
@@ -254,7 +255,7 @@ export function corpSellToEarth(s) {
   for (const [k, v] of Object.entries(s.cargo)) {
     if (v <= 0) continue;
     const pr = PRICE[k] || 50, q = Math.max(0, Math.min(v, c ? allowBuy(k, pr) : 0, state.money / pr)), pay = q * pr + (v - q) * pr * 0.3; sum += pay;
-    if (q > 0) { plSum += q * pr; state.stock[k] = (state.stock[k] || 0) + q; noteBought(k, q); rec(k, 'in', q, 'corp'); got.push(`${fmtN(q)} т ${RES[k].toLowerCase()}`); }
+    if (q > 0) { plSum += q * pr; state.stock[k] = (state.stock[k] || 0) + q; toOrbit(k, q); noteBought(k, q); rec(k, 'in', q, 'corp'); got.push(`${fmtN(q)} т ${RES[k].toLowerCase()}`); }
   }
   s.cargo = {};
   if (c) { c.credits += sum; c.sold += sum; }

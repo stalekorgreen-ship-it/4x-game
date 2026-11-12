@@ -4,6 +4,7 @@ import { gd } from './00-gd.ts';
 import { evTick } from './24-events.ts';
 import { wantTransport } from './25-logistics.ts';
 import { UT, gval, prodOf, tOf } from './26-goods.ts';
+import { liftT } from './36-lift.ts';
 import { tm } from './15-techs.ts';
 import { state, log, rec, fmtN, GROUND, veinEff, veinBase, myOf, isCoal } from './01-data.ts';
 import { KR } from './00-kr.ts';
@@ -123,7 +124,7 @@ export function matDemand() { const D = {}, t = state.t || 0; state.matOrders = 
 export function payBuild(c, cost, days, tons = 0, station = 0) {
   const own = c.civ.yard ? c : null, o = own || yardOwners().filter(x => state.t >= (x.civ.busy || 0))[0];
   if (!o || state.t < (o.civ.busy || 0)) return false;
-  const price = own ? cost : cost * 1.5;
+  const price = (own ? cost : cost * 1.5) + tons * liftT(); // корабль собирают на орбите из земных материалов: подъём массы
   if (c.credits < price) return false;
   pay(c, price, 'subSpace'); o.civ.busy = state.t + days;
   if (tons > 0) pay(c, matOrder(tons, days, station ? STATION_IN : SHIP_IN), 'subSpace'); // материалы покупают на рынке
@@ -133,7 +134,7 @@ export function payBuild(c, cost, days, tons = 0, station = 0) {
 export function goodsMarket(g, D, legCap, staff, inS = 1) {
   const P = state.pop, S = [{id: 'leg', cap: legCap * ((P.evMult && P.evMult[g]) || 1), price: Math.min(KR * gval(g) * 20, Math.max(KR * gval(g), (P.uc && P.uc[g]) || 0))}], FACT_W = FW(), tf = laws().tariff / 100;
   for (const c of corpsAll()) { const n = c.civ && c.civ.fac[g] || 0; if (n > 0) { if (!c.civ.pr[g]) c.civ.pr[g] = .95 * Math.max(KR * gval(g), (P.uc && P.uc[g]) || 0); S.push({id: c.id, c, cap: n * FACT_W * prodOf(g) * hoursK() * staff * outMult(c) * ((P.evMult && P.evMult[g]) || 1) * (c.civ.strikeUntil > state.t ? .5 : 1) * inS, price: c.civ.pr[g]}); } }
-  if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: 1.7 * KR * gval(g) * (P.dist || 1) * (1 + tf)}); // ввоз с Земли: базовая цена товара × доставка
+  if (ctxId() !== 'earth') S.push({id: 'imp', cap: D, price: (1.7 * KR * gval(g) * (P.dist || 1) + liftT() * tOf(g)) * (1 + tf)}); // ввоз с Земли: базовая цена × доставка + подъём с Земли за тонну
   S.sort((a, b) => a.price - b.price);
   let left = D; for (const s of S) { s.sold = Math.min(s.cap, left); left -= s.sold; }
   const sold = D - left, sat = D > 0 ? Math.min(1, sold / D) : 1, mult = clampN(1 + 1.5 * (1 - sat), 1, 3);

@@ -5,6 +5,7 @@ import { BODIES, BODY, FIELDS, GROUND, RES, SAVE_KEY, TERRA, WEAR_AU, WEAR_MINE,
 import { planRoute, KMS } from './29-flyby.ts';
 import { KR } from './00-kr.ts';
 import { veinEff, SHIP_ROCK, gradeOf } from './01-data.ts';
+import { liftNeed, liftFrom, liftT, payLift, toOrbit } from './36-lift.ts';
 import { anyFailed, failed, graduate, minRate, repairParts, shipCond, staffFor, train, useWear } from './02-crew.ts';
 import { academyInterval, buildTick, produceSci, researchTick, sciTick, yardSlots, yardSpeed, yards, yardRate } from './03-build.ts';
 import { Battle, raidTick } from './05-battle.ts';
@@ -37,8 +38,10 @@ export function yardTick(h) {
     const st = designStats(j.parts), c = st.cost, busy = new Set(state.yard.filter(q => q.started).map(q => q.yi));
     let yi = -1; for (let i = 0; i < Y.length; i++) if (!busy.has(i) && Y[i].ton >= st.dry && (yi < 0 || Y[i].ton < Y[yi].ton)) yi = i;
     j.why = yi < 0 ? (Y.some(y => y.ton >= st.dry) ? 'ждёт свободную верфь' : `нет верфи на ${Math.round(st.dry)} т`) : '';
-    if (yi >= 0 && stockOK(c)) {
-      for (const [k, v] of Object.entries(c)) { state.stock[k] -= v; rec(k, 'out', v, 'yard'); }
+    let lc = 0; if (yi >= 0 && stockOK(c)) { let tot = 0, up = 0; for (const [k, v] of Object.entries(c)) { tot += v; up += liftNeed(k, v); } lc = tot > 0 ? up / tot * st.dry * liftT() : 0; } // верфь на орбите: корабль из земных материалов платит подъём своей массы
+    if (yi >= 0 && stockOK(c) && state.money < lc) j.why = `нет кредитов на подъём с Земли: ${fmtN(lc)} кр`;
+    else if (yi >= 0 && stockOK(c)) {
+      for (const [k, v] of Object.entries(c)) { liftFrom(k, v); state.stock[k] -= v; rec(k, 'out', v, 'yard'); } if (lc > 0) { state.money -= lc; state.liftPaid = (state.liftPaid || 0) + lc; }
       j.started = true; j.yi = yi; j.left = j.total = st.dry; // остаток постройки — в тоннах
     } else if (yi >= 0) j.why = 'не хватает материалов';
   }
@@ -79,7 +82,7 @@ export function resolveBase(s, base) {
 }
 export function takeSpares(n) {
   const got = Math.min(n, state.stock.spares);
-  state.stock.spares -= got; rec('spares', 'out', got, 'spares');
+  state.stock.spares -= got; rec('spares', 'out', got, 'spares'); payLift(liftFrom('spares', got)); // запчасти с поверхности — подъём
   return got;
 }
 export function serve(s, baseId) {
@@ -89,12 +92,12 @@ export function serve(s, baseId) {
   if (baseId === 'earth') {
     for (const [k, v] of Object.entries(s.cargo)) {
       if (v <= 0) continue;
-      state.stock[k] = (state.stock[k] || 0) + v;
+      state.stock[k] = (state.stock[k] || 0) + v; toOrbit(k, v); // привезённое из космоса остаётся на орбитальном складе
       got.push(`${fmtN(v)} т ${RES[k].toLowerCase()}`);
     }
     s.cargo = {};
     const take = Math.min(s.st.fuelCap - s.fuel, state.stock.fuel);
-    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel');
+    s.fuel += take; state.stock.fuel -= take; rec('fuel', 'out', take, 'fuel'); payLift(liftFrom('fuel', take)); // топливо с поверхности — подъём
     if (got.length) log(`«${s.name}» разгрузился на Земле: ${got.join(', ')}.`);
     return;
   }
