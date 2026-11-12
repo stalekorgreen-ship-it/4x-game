@@ -59,11 +59,19 @@ export function refreshHeader() {
   refreshResPopup();
 }
 function refreshResPopup() {
-  let el = document.getElementById('resPopup'); if (!el) { el = document.createElement('div'); el.id = 'resPopup'; document.body.appendChild(el); el.addEventListener('mouseleave', () => el.classList.remove('vis')); }
   const st = state.stock, b = state.budget;
-  const rows = [['Железо', st.fe||0], ['Сталь', st.st||0], ['Алюминий', st.al||0], ['Лёд', st.ice||0], ['Уголь', st.c||0], ['Кремний', st.si||0], ['Редкозём.', st.ree||0], ['Запчасти', st.spares||0], ['Топливо', st.fuel||0]];
-  el.innerHTML = `<h3>Склад (ключевые ресурсы)</h3><div class="kv2">${rows.map(([k,v]) => `<span class="kv-k">${k}</span><span class="kv-v">${fmtN(v)} т</span>`).join('')}</div>` + (b ? `<h3 style="margin-top:8px">Бюджет/мес (ваша доля)</h3><div class="kv2"><span class="kv-k ok">Доходы</span><span class="kv-v ok">+${fmtN(Object.values(b.inc).reduce((a,v)=>a+v,0)*30/Math.max(1,b.days)*b.k)} кр</span><span class="kv-k err">Расходы</span><span class="kv-v err">−${fmtN(Object.values(b.exp).reduce((a,v)=>a+v,0)*30/Math.max(1,b.days)*b.k)} кр</span></div>` : '');
-  const chip = document.getElementById('cred-chip'); if (chip) { chip.onmouseenter = () => { const r = chip.getBoundingClientRect(); el.style.right = (window.innerWidth - r.right) + 'px'; el.style.top = (r.bottom + 4) + 'px'; el.style.left = 'auto'; el.classList.add('vis'); }; }
+  const stockEl = document.getElementById('rp-stock');
+  const budgetEl = document.getElementById('rp-budget');
+  if (stockEl) {
+    const rows: [string,number][] = [['Железо',st.fe||0],['Сталь',st.st||0],['Алюминий',st.al||0],['Лёд',st.ice||0],['Уголь',st.c||0],['Кремний',st.si||0],['Редкозём.',st.ree||0],['Запчасти',st.spares||0],['Топливо',st.fuel||0]];
+    stockEl.innerHTML = `<h3>Склад</h3><div class="kv2">${rows.map(([k,v])=>`<span class="kv-k">${k}</span><span class="kv-v">${fmtN(v)} т</span>`).join('')}</div>`;
+  }
+  if (budgetEl && b) {
+    const inc = Object.values(b.inc).reduce((a:number,v:any)=>a+v,0)*30/Math.max(1,b.days)*b.k;
+    const exp = Object.values(b.exp).reduce((a:number,v:any)=>a+v,0)*30/Math.max(1,b.days)*b.k;
+    const bal = inc - exp;
+    budgetEl.innerHTML = `<h3>Бюджет/мес</h3><div class="kv2"><span class="kv-k ok">Доходы</span><span class="kv-v ok">+${fmtN(inc)} кр</span><span class="kv-k err">Расходы</span><span class="kv-v err">−${fmtN(exp)} кр</span><span class="kv-k" style="color:${bal>=0?'var(--good)':'var(--bad)'}">Баланс</span><span class="kv-v" style="color:${bal>=0?'var(--good)':'var(--bad)'}">${bal>=0?'+':''}${fmtN(bal)} кр</span></div>`;
+  }
 }
 
 /* ===== КАРТА ===== */

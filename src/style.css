@@ -231,9 +231,9 @@ table.grid td.err{color:var(--bad)}
 .kv2 .kv-k{padding:2px 4px;color:var(--muted);font-size:11.5px;border-top:1px solid var(--line)}
 .kv2 .kv-v{padding:2px 4px;font-family:var(--mono);font-size:11.5px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* попап ресурсов из шапки */
-#resPopup{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 32px #000a;padding:8px 10px;min-width:220px;display:none}
-#resPopup.vis{display:block}
-#resPopup h3{margin:0 0 6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#right-panel{position:fixed;right:12px;top:52px;width:220px;z-index:35;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#right-panel>*{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+#right-panel h3{margin:0 0 5px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 /* пирамида + таблица рядом */
 .pop-top{display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:start}
 @media(max-width:460px){.pop-top{grid-template-columns:1fr}}

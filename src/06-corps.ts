@@ -71,8 +71,12 @@ function makeCorp(i) {
   }
   return c;
 }
-// Корпораций на старте нет (решено с владельцем): первая — после ивента о миллиардере (5-й год), дальше по одной в год, до CORP_COUNT
-export function initCorps() { state.corps = []; state.money = state.money || 6e10; state.corpVer = 5; state.nameIdx = 0; state.corpNext = null; }
+// На старте 20 корпораций, дальше по одной в год до CORP_COUNT
+export function initCorps() {
+  state.corps = []; state.money = state.money || 6e10; state.corpVer = 5; state.nameIdx = 0; state.corpNext = state.t + 360;
+  const startCount = gd('economy', 'corpsStart', 20);
+  for (let i = 0; i < startCount; i++) spawnCorp(0.5 + Math.random());
+}
 export function spawnCorp(credK = 1) {
   const i = state.nameIdx || 0, c = makeCorp(i); state.nameIdx = i + 1; c.born = state.t; c.credits *= credK; state.corps.push(c);
   log(`Основана новая корпорация «${c.name}».`); return c;

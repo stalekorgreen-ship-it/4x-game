@@ -7,10 +7,11 @@ import { COLONIZABLE, FW, GOODS, STR, STR_COL, colInfo, colPicker, colSel, found
 import { MINE_MIX } from './10-civil.ts';
 import { PRICE, boughtMonth, buyPol } from './06-corps.ts';
 import { $, bar, esc, setHtml, ui } from './08-map-ui.ts';
+import { regTemplate } from './30-regions.ts';
 
 const I = (p) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 export const SECTIONS = [
-  {id: 'planets', name: 'Планеты', icon: I('<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/>'), subs: [['obj', 'Обзор'], ['pop', 'Население'], ['comp', 'Состав'], ['climate', 'Климат'], ['work', 'Работа'], ['col', 'Колонии'], ['earth', 'Постройки']]},
+  {id: 'planets', name: 'Планеты', icon: I('<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/>'), subs: [['obj', 'Обзор'], ['pop', 'Население'], ['climate', 'Климат'], ['earth', 'Постройки']]},
   {id: 'fleet', name: 'Флот', icon: I('<path d="M12 3l4 9v6l-4-2-4 2v-6z"/><path d="M8 12l-4 4M16 12l4 4"/>'), subs: [['fleet', 'Корабли'], ['demo', 'Бой-демо'], ['off', 'Офицеры']]},
   {id: 'orders', name: 'Приказы', icon: I('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), subs: [['orders', 'Приказы и правила']]},
   {id: 'yard', name: 'Верфь', icon: I('<path d="M4 20h16M6 20v-5h12v5M8 15V9h8v6M12 9V4"/>'), subs: [['yard', 'Верфь и конструктор']]},
@@ -45,21 +46,61 @@ export function refreshClimate() {
   const p = $('p-climate'); if (!p) return;
   const id = ui.sel.kind === 'body' ? ui.sel.id : 'earth', b = BODY[id], c = climateOf(id), K = colonyCost(id), f = (v, d = 1) => fmtN(v, d);
   const col = state.cols && state.cols[id];
-  let h = `<div class="box"><h2>Климат: ${esc(b.name)}</h2><div class="stats">
-    <span>Смена дня и ночи</span><span>${f(c.day)} ч</span><span>Альбедо</span><span>${f(c.alb, 2)}</span>
-    <span>Средняя температура</span><span>${f(c.mean, 0)} °C</span><span>Днём (максимум)</span><span>${f(c.max, 0)} °C</span><span>Ночью (минимум)</span><span>${f(c.min, 0)} °C</span>
-    <span>Температура под землёй</span><span>${f(c.under, 0)} °C</span><span>Атмосферное давление</span><span>${c.p >= .01 ? f(c.p, 2) : c.p.toExponential(1)} атм</span>
-    <span>Масса атмосферы</span><span>${c.atmT ? c.atmT.toExponential(2) + ' т' : 'нет'}</span>
-    <span>Вода (запас)</span><span>${c.water ? c.water.toExponential(2) + ' т' : 'нет'}</span><span>Гидросфера</span><span>${f(c.wcov * 100, 0)} % поверхности</span>
-    <span>Радиация</span><span>${f(c.rad, 1)} × Земли</span><span>Магнитное поле</span><span>${c.mag ? 'есть' : 'нет'}</span>
-    <span>Диаметр</span><span>${c.d ? fmtN(c.d, c.d < 10 ? 2 : 0) + ' км' : '—'}</span><span>Гравитация</span><span>${f(c.g, 3)} g</span>
-    <span>Удалённость от звезды</span><span>${f(c.a, 2)} а.е.</span></div>`;
-  { const d = state.clim && state.clim[id]; if (d) h += `<h3>Изменение климата</h3><div class="stats"><span>Потепление с 2030</span><span>${d.dT >= 0 ? '+' : ''}${f(d.dT, 2)} °C</span><span>CO₂ в атмосфере</span><span>${f(ppm(id), 0)} ppm</span><span>Выбросы</span><span>${f(d.emY / 1e9, 1)} Гт/год</span><span>Уровень моря</span><span>+${f(d.sea, 2)} м</span><span>Затоплено городов</span><span>${f(d.fl * 100, 1)} %</span>${d.reg.map(r => `<span>${esc(r.n)}: пар</span><span>${r.dc > 0 ? f(r.rain * 100, 0) + ' % до вечных дождей' : 'нет источников'}${r.wet ? ' · вечные дожди' : ''}</span>`).join('')}</div>`; }
+  const kv = (k, v) => `<span class="kv-k">${k}</span><span class="kv-v">${v}</span>`;
+  let h = `<div class="box"><h2>Климат: ${esc(b.name)}</h2><div class="kv2">
+    ${kv('Температура', `${f(c.min,0)}…${f(c.mean,0)}…${f(c.max,0)} °C`)}
+    ${kv('Под землёй', f(c.under,0)+' °C')}
+    ${kv('Атмосфера', c.atmT ? (c.p>=.01?f(c.p,2):c.p.toExponential(1))+' атм' : 'нет')}
+    ${kv('Гидросфера', c.wcov>0?f(c.wcov*100,0)+'%':'нет')}
+    ${kv('Радиация', f(c.rad,1)+' × Земли')}
+    ${kv('Магн. поле', c.mag?'есть':'нет')}
+    ${kv('Гравитация', f(c.g,3)+' g')}
+    ${kv('Удалённость', f(c.a,2)+' а.е.')}
+    </div>`;
+  // Изменение климата
+  const d = state.clim && state.clim[id];
+  if (d) {
+    const dco2 = d.emY > 0 ? `+${f(d.emY/1e9,2)} Гт/год` : '0';
+    h += `<h2 style="margin-top:6px">Изменение климата</h2><div class="kv2">
+      ${kv('CO₂', f(ppm(id),0)+' ppm')}
+      ${kv('Выбросы CO₂', dco2)}
+      ${kv('Потепление', (d.dT>=0?'+':'')+f(d.dT,2)+' °C')}
+      ${kv('Уровень моря', '+'+f(d.sea,2)+' м')}
+      ${kv('Затоплено городов', f(d.fl*100,1)+' %')}
+      </div>`;
+    if (d.reg && d.reg.some(r => r.dc > 0 || r.wet)) {
+      h += `<h2 style="margin-top:6px">Пар по регионам</h2><div class="kv2">` +
+        d.reg.map(r => kv(esc(r.n), r.wet ? '<span class="err">вечные дожди</span>' : r.dc>0 ? f(r.rain*100,0)+'% до предела' : '—')).join('') + '</div>';
+    }
+  }
+  // Газы атмосферы
   const gk = Object.keys(c.gas).sort((x, y) => c.gas[y] - c.gas[x]);
-  h += gk.length ? `<h3>Газы атмосферы</h3><div class="stats">${gk.map(k => `<span>${GAS_NAME[k] || k}</span><span>${f(c.gas[k] * 100, c.gas[k] < .01 ? 3 : 1)} % · ${c.gasT[k].toExponential(2)} т</span>`).join('')}</div>` : '<div class="muted">Атмосферы нет.</div>';
-  h += `</div><div class="box"><h2>Стоимость колонии: ${f(K.cc, 1)} — ${K.mode === 'under' ? 'под землёй' : 'на поверхности'}</h2><div class="help">Это не цена в кредитах, а показатель эффективности жизнеобеспечения. Одна единица инфраструктуры обеспечивает 10000 / (1 + стоимость) человек.</div><div class="stats"><span>На поверхности</span><span>${f(K.surf, 1)}</span><span>Под землёй</span><span>${f(K.und, 1)}</span></div><div class="help">Берётся дешевле. Если поверхность убийственна, люди живут в подземельях; терраформинг со временем делает выгодной поверхность.</div><div class="stats">${K.rows.filter(r => r[1] >= .05).map(r => `<span>${r[0]}</span><span>+${f(r[1], 1)}</span>`).join('') || '<span>Всё в норме</span><span>0</span>'}<span><b>Человек на 1 ед. инфраструктуры</b></span><span><b>${fmtN(K.per)}</b></span>`;
-  if (col) h += `<span>Инфраструктуры в колонии</span><span>${fmtN(col.infra || 0)} ед.</span><span>Вместимость</span><span>${col.pop.hab ? fmtN(col.pop.hab) : 'без ограничений'}</span>`;
-  h += '</div></div>';
+  if (gk.length) {
+    h += `<h2 style="margin-top:6px">Газы атмосферы</h2><div class="kv2">`;
+    for (const k of gk) {
+      const pct = c.gas[k]*100, mass = c.gasT[k];
+      // дельта: для CO2 — из d.emY; для остальных пока нет данных
+      const delta = (k === 'co2' && d && d.emY > 0) ? ` <span class="ok" style="font-size:10px">+${f(d.emY/mass*100/360*30,3)}%/мес</span>` : '';
+      h += kv(GAS_NAME[k]||k, `${f(pct, pct<.01?3:1)} % · ${mass.toExponential(2)} т${delta}`);
+    }
+    h += '</div>';
+  } else { h += '<div class="muted">Атмосферы нет.</div>'; }
+  h += `</div>`;
+  // Регионы тела
+  const regs = (typeof regTemplate === 'function' ? regTemplate(id) : null) || [];
+  if (regs.length) {
+    h += `<div class="box"><h2>Регионы</h2><div class="kv2">` +
+      regs.map(r => kv(esc(r.n), `${r.t ? r.t[0]+'°C' : ''}${r.desert ? ` · пустынь ${f(r.desert*100,0)}%` : ''}${r.coast ? ` · берег ${f(r.coast*100,0)}%` : ''}`)).join('') +
+      '</div></div>';
+  }
+  // Колония
+  h += `<div class="box"><h2>Колония: стоимость ${f(K.cc,1)}</h2><div class="kv2">
+    ${kv('Режим', K.mode==='under'?'под землёй':'поверхность')}
+    ${kv('На поверхности', f(K.surf,1))} ${kv('Под землёй', f(K.und,1))}
+    ${K.rows.filter(r=>r[1]>=.05).map(r=>kv(r[0],'+'+f(r[1],1))).join('')||kv('Всё в норме','0')}
+    ${kv('<b>Чел. / инфраструктура</b>',`<b>${fmtN(K.per)}</b>`)}
+    ${col ? kv('Инфраструктуры',''+fmtN(col.infra||0)+' ед.')+kv('Вместимость', col.pop?.hab?fmtN(col.pop.hab):'без ограничений') : ''}
+    </div></div>`;
   setHtml(p, h);
 }
 /* --- Состав: недра, руды, газы выбранного тела --- */

@@ -313,18 +313,39 @@ function refreshPopI() {
   const p = $('p-pop'); if (!p || !state.pop) return;
   if (!p._built) {
     p._built = true;
-    p.innerHTML = `<div class="box"><div id="pp-pick"></div><h2 id="pp-h">Население</h2>
-    <div class="pop-top"><div id="pp-sum"></div><div><canvas id="pp-cv" width="180" height="220" style="width:100%;height:auto;background:var(--panel2,#0003);border-radius:4px;display:block"></canvas><div class="help" style="font-size:10px;margin-top:3px">${STR.map((x, i) => `<span style="color:${STR_COL[i]}">■</span>${x}`).join(' ')}</div></div></div></div>
-    <div class="box"><h2>Регионы</h2><div id="pp-reg"></div><div class="help">Заводы нанимают людей своего региона; мигранты едут туда, где не хватает рабочих мест. На колониях — только куда завезли инфраструктуру.</div></div>
-    <div class="box"><h2>Страты</h2><div id="pp-str"></div></div>
-    <div class="box"><h2>Товары и заводы</h2><div id="pp-goods"></div><div class="help">Завод нанимает ${fmtN(FACT_W)} чел. Сырьё: 1 т на 10 млн чел./сут.</div></div>
-    <div class="box"><h2>Когорта</h2><div class="row">Страта <select id="pp-s">${STR.map((x, i) => `<option value="${i}">${x}</option>`).join('')}</select> Возраст <input id="pp-a" type="number" min="0" max="100" value="${popUi.a}" style="width:70px"></div><div id="pp-insp"></div></div>`;
+    p.innerHTML = `
+    <div class="box"><div id="pp-pick"></div>
+      <div class="row" style="gap:4px;margin-top:6px" id="pp-tabs">
+        <button class="btn sm on" data-ppt="sum">Сводка</button>
+        <button class="btn sm" data-ppt="reg">Регионы</button>
+        <button class="btn sm" data-ppt="str">Страты</button>
+        <button class="btn sm" data-ppt="goods">Товары</button>
+        <button class="btn sm" data-ppt="coh">Когорта</button>
+      </div>
+    </div>
+    <div id="pp-t-sum">
+      <div class="box"><h2 id="pp-h">Население</h2>
+        <div class="pop-top"><div id="pp-sum"></div><div><canvas id="pp-cv" width="180" height="220" style="width:100%;height:auto;background:var(--panel2,#0003);border-radius:4px;display:block"></canvas><div class="help" style="font-size:10px;margin-top:3px">${STR.map((x, i) => `<span style="color:${STR_COL[i]}">■</span>${x}`).join(' ')}</div></div></div>
+      </div>
+    </div>
+    <div id="pp-t-reg" hidden><div class="box"><h2>Регионы</h2><div id="pp-reg"></div><div class="help">Заводы нанимают людей своего региона; мигранты едут туда, где не хватает рабочих мест.</div></div></div>
+    <div id="pp-t-str" hidden><div class="box"><h2>Страты</h2><div id="pp-str"></div></div></div>
+    <div id="pp-t-goods" hidden><div class="box"><h2>Товары и заводы</h2><div id="pp-goods"></div><div class="help">Завод нанимает ${fmtN(FACT_W)} чел. Сырьё: 1 т на 10 млн чел./сут.</div></div></div>
+    <div id="pp-t-coh" hidden><div class="box"><h2>Когорта</h2><div class="row">Страта <select id="pp-s">${STR.map((x, i) => `<option value="${i}">${x}</option>`).join('')}</select> Возраст <input id="pp-a" type="number" min="0" max="100" value="${popUi.a}" style="width:70px"></div><div id="pp-insp"></div></div></div>`;
     $('pp-s').value = popUi.s;
     $('pp-s').onchange = e => { popUi.s = +e.target.value; refreshPop(); };
     $('pp-a').oninput = e => { popUi.a = clampN(Math.round(+e.target.value || 0), 0, 100); refreshPop(); };
+    $('pp-tabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-ppt]'); if (!b) return;
+      $('pp-tabs').querySelectorAll('.btn').forEach(x => x.classList.remove('on')); b.classList.add('on');
+      ['sum','reg','str','goods','coh'].forEach(t => { const el = $('pp-t-' + t); if (el) el.hidden = t !== b.dataset.ppt; });
+      popUi.tab = b.dataset.ppt; refreshPop();
+    });
   }
+  popUi.tab = popUi.tab || 'sum';
   const P = state.pop, t = totals(), yr = Math.floor(state.t / 360), CL = state.cols[colSel()];
-  setHtml($('pp-pick'), colPicker()); $('pp-h').textContent = 'Население: ' + CL.name;
+  setHtml($('pp-pick'), colPicker()); const ppH = $('pp-h'); if(ppH) ppH.textContent = 'Население: ' + CL.name;
+  const pTab = popUi.tab || 'sum';
   const tbl = (head, rows) => `<div data-sc style="overflow-x:auto"><table class="mono" style="width:100%;border-collapse:collapse"><tr>${head.map(x => `<th style="text-align:left;padding:2px 6px">${x}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(x => `<td style="padding:2px 6px;border-top:1px solid #8883">${x}</td>`).join('')}</tr>`).join('')}</table></div>`;
   const kv2 = rows => `<div class="kv2">${rows.map(([k, v]) => `<span class="kv-k">${k}</span><span class="kv-v">${v}</span>`).join('')}</div>`;
   setHtml($('pp-sum'), kv2([
@@ -337,7 +358,21 @@ function refreshPopI() {
     ['Вам/мес', fmtN(P.tax * 30) + ' кр'], ...(P.hab ? [['Вместимость', fmtN(P.hab)], ['Иммигр./год', fmtN(P.immY || 0)]] : []),
     ...(P.log ? [['Логистика', P.log.how], ['Плечо', `${fmtN(P.log.D, 0)} / ${fmtN(P.log.d, 0)} км`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Покрытие', fmtN(P.log.sat * 100, 1) + '%']] : [])
   ]));
-  { const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1, f0 = x => (x >= 0 ? '+' : '') + fmtN(x, 0);
+  if (pTab === 'sum') {
+    setHtml($('pp-sum'), kv2([
+      ['Население', fmtN(t.n)], ['Прирост/год', fmtN((P.birth - P.death) / Math.max(1, t.n) * 100, 2) + '%'],
+      ['Дети 0–14', fmtN(sumAge(0, 14))], ['15–64', fmtN(sumAge(15, 64))],
+      ['Занято', fmtN(t.emp)], ['Безраб.', `${fmtN(t.un)} (${fmtN(t.un / Math.max(1, t.wf) * 100, 1)}%)`],
+      ['Рождений/год', fmtN(P.birth)], ['Смертей/год', fmtN(P.death)],
+      ['ФЗП/мес', fmtN(P.wbill * 30) + ' кр'], ['Налоги/мес', fmtN((P.taxFull || 0) * 30) + ' кр'],
+      ['Расходы Земли/мес', fmtN((P.earthExp || 0) * 30) + ' кр'], ['Доля космоса', fmtN(spaceK() * 100, 2) + '%×' + fmtN((P.depK || 1) * 100, 0) + '%'],
+      ['Вам/мес', fmtN(P.tax * 30) + ' кр'], ...(P.hab ? [['Вместимость', fmtN(P.hab)], ['Иммигр./год', fmtN(P.immY || 0)]] : []),
+      ...(P.log ? [['Логистика', P.log.how], ['Плечо', `${fmtN(P.log.D, 0)} / ${fmtN(P.log.d, 0)} км`], ['Доставка 1 т', fmtN(P.log.perT, 2) + ' кр'], ['Покрытие', fmtN(P.log.sat * 100, 1) + '%']] : [])
+    ]));
+    drawPyr();
+  }
+  if (pTab === 'reg') {
+    const id = colSel(), R = regsOf(id), T = regTemplate(id), n = R.reduce((a, r) => a + r.n, 0) || 1, jw = R.reduce((a, r) => a + r.jw, 0) || 1, f0 = x => (x >= 0 ? '+' : '') + fmtN(x, 0);
     const C = R.map((r, i) => regClim(id, i)), pc = x => fmtN(x * 100, 1) + '%', sel = popUi.reg != null && R[popUi.reg] ? popUi.reg : null;
     const rows = R.map((r, i) => `<tr data-reg="${i}" style="cursor:pointer${sel === i ? ';background:#ffffff14' : ''}">` + [T[i].n, fmtN(r.n), r.un != null ? `${fmtN(r.un)} (${pc(r.un / Math.max(1, r.un + (r.emp || 0)))})` : '—', r.wage ? fmtN(r.wage, 0) + ' кр' : '—',
       (r.mig > 0 ? '+' : '') + fmtN(r.mig || 0), r.sat ? (() => { const w = Object.keys(r.sat).sort((a, b) => r.sat[a] - r.sat[b])[0]; return w && r.sat[w] < .95 ? `<span class="${r.sat[w] < .7 ? 'err' : 'warn'}">${pc(r.wel)} (${GOODS[w].n} ${pc(r.sat[w])})</span>` : pc(r.wel); })() : '—', `${fmtN(C[i].mean, 0)} (${fmtN(C[i].min, 0)}…${fmtN(C[i].max, 0)})`, C[i].air ? pc(C[i].total) : 'вся (нет воздуха)', ...(P.hab ? [fmtN(regHab(id, i))] : [])].map(x => `<td style="padding:2px 6px;border-top:1px solid #ffffff14">${x}</td>`).join('') + '</tr>').join('');
@@ -347,29 +382,35 @@ function refreshPopI() {
       const feat = [t0.desert ? `пустыни ${pc(t0.desert)}` : '', t0.cold ? `мерзлота и лёд ${pc(t0.cold)}` : '', t0.hot ? `жаркие низины ${pc(t0.hot)}` : '', t0.coast ? `низкие побережья ${pc(t0.coast)}` : '', mts ? `${t0.t ? 'горы' : 'горы и кратеры'} ${mts}% (перевозки внутри региона дороже на ${Math.round(mts / 2)}%)` : ''].filter(Boolean).join(', ');
       h += `<h3>${esc(t0.n)}: вся статистика</h3>` + tbl(['Показатель', 'Значение'], [
         ['Площадь суши', fmtN(t0.land) + ' км²'], ['Население', `${fmtN(r.n)} (${pc(r.n / n)} колонии)`], ['Плотность', fmtN(r.n / Math.max(1, t0.land * (1 - c.total)), 1) + ' чел./км² пригодной земли'],
-        ['Доля рабочих мест колонии', pc(r.jw / jw)], ['Занято', fmtN(r.emp || 0)], ['Безработных', `${fmtN(r.un || 0)} (${pc((r.un || 0) / Math.max(1, (r.un || 0) + (r.emp || 0)))})`],
-        ['Средняя зарплата', `${fmtN(r.wage || 0, 0)} кр/сут (×${fmtN(r.wg || 1, 2)} к средней)`], ['Исходный уровень зарплат', '×' + fmtN(r.wl || t0.wl || 1, 2) + ' (сходится к среднему ~1% в год)'],
-        ['Миграция в год', f0(r.mig || 0)], ['Уехало от климата всего', fmtN(r.dis || 0)],
-        ...(P.hab ? [['Инфраструктура', fmtN(r.inf, 1) + ' ед.'], ['Вместимость', fmtN(regHab(id, sel))], ['Заполнено', pc(r.n / Math.max(1, regHab(id, sel)))]] : []),
-        ['Средняя температура', `${fmtN(c.mean, 1)} °C (${f0(c.dTl)} к 2030)`], ['Минимум / максимум', `${fmtN(c.min, 0)} / ${fmtN(c.max, 0)} °C`], ['Потепление региона', `×${fmtN(t0.amp || 1, 1)} к среднему по планете`],
-        ...(c.bio ? [['Ландшафты', Object.entries(c.bio.km).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 500).map(([k, v]) => `${(BIOMES[k] || [k])[0]} ${fmtN(v / 1e3, 0)} тыс. км²`).join(', ')],
-          ['Альбедо / поглощение CO₂', `${fmtN(c.bio.alb, 3)} / ${fmtN((c.bio.U || 0) / 1e6, 1)} млн т в год`], ['Полезная биомасса / плодородные земли', `${fmtN(c.bio.bio || 0, 0)} / ${fmtN(c.bio.fert || 0, 0)} км²`],
-          ['Осадки / вода', `${fmtN(c.bc.P, 0)} мм в год / ${fmtN(c.bc.wat, 1)}%`], ['Средняя высота', `${fmtN(c.bc.h, 0)} м`], ['CO₂ / O₂ в воздухе региона', `${fmtN(c.bc.co2r * 1e4, 0)} ppm / ${fmtN(c.bc.o2, 1)}%`], ['Загрязнение', `${fmtN(c.bio.pol || 0, 2)}% (+${fmtN((c.bio.pol || 0) * .01, 3)}% смертности)`]] : []),
-        ['Непригодно для жизни', c.air ? pc(c.total) : 'вся территория (нет пригодного воздуха: только купола и подземные города)'],
-        ...(c.air && c.bio ? [['— непригодные ландшафты', pc(c.bc.bad)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
-        ...(c.air && !c.bio ? [['— пустыни', pc(c.u.desert)], ['— мерзлота и лёд', pc(c.u.cold)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
+        ['Занято', fmtN(r.emp || 0)], ['Безработных', `${fmtN(r.un || 0)} (${pc((r.un || 0) / Math.max(1, (r.un || 0) + (r.emp || 0)))})`],
+        ['Средняя зарплата', `${fmtN(r.wage || 0, 0)} кр/сут`], ['Миграция в год', f0(r.mig || 0)],
+        ['Средняя температура', `${fmtN(c.mean, 1)} °C`], ['Минимум / максимум', `${fmtN(c.min, 0)} / ${fmtN(c.max, 0)} °C`],
         ['Товары в дефиците', r.sat ? Object.keys(GOODS).filter(g => r.sat[g] < .95).sort((a, b) => r.sat[a] - r.sat[b]).map(g => `${GOODS[g].n} ${pc(r.sat[g])}`).join(', ') || 'всего хватает' : '—'],
-        ['Особенности', feat || 'нет'], ...(t0.note ? [['Заметки', esc(t0.note)]] : [])]); }
+        ['Особенности', feat || 'нет']]); }
     setHtml($('pp-reg'), h);
-    $('pp-reg').onclick = e => { const tr = e.target.closest('[data-reg]'); if (!tr) return; const i = +tr.dataset.reg; popUi.reg = popUi.reg === i ? null : i; refreshPop(); }; }
-  setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
-  setHtml($('pp-goods'), tbl(['Товар', 'Спрос/сут', 'Выпуск', 'Удовл.', 'Цена ×', 'Старых заводов', 'Заводов корпораций', 'Рабочих', 'Капитал', 'Сырьё т/сут'], Object.keys(GOODS).map(g => [GOODS[g].n + ', ' + unitOf(g), fmtN(P.dem[g]), fmtN(P.prod[g]), fmtN(P.sat[g] * 100, 1) + '%', fmtN(P.price ? P.price[g] : 1, 2) + ' кр', fmtN(P.fac[g]), fmtN((state.corps || []).reduce((a, c) => a + (c.civ && c.civ.fac[g] || 0), 0)), fmtN(P.fac[g] * FW()), fmtN(P.cap[g]) + ' кр', fmtN(P.raw && P.raw[g] ? P.raw[g].t : 0, 0) + ' (' + RES[GOODS[g].raw] + ')'])));
-  const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
-  setHtml($('pp-insp'), tbl(['', ''], [
-    ['Людей', fmtN(x.n)], ['Безработных', fmtN(x.un)], ['Учатся', fmtN(x.st)], ['Заняты', fmtN(e)],
-    ['Средний доход в сутки', fmtN(P.inc[s][a], 2)], ['Потребности в сутки', fmtN(basket(a), 2) + ' (' + Object.keys(GOODS).map(g => GOODS[g].n + ' ' + fmtN(needOf(g, a), 2)).join(', ') + ')'],
-    ['Шанс смерти в год', fmtN(mortQ(a) * (1 + 3 * (1 - P.wel[s][a])) * 100, 2) + '%'], ['Рождаемость на человека в год', a >= 20 && a < 40 ? fmtN(.056 * FERT[s] * (.6 + .4 * P.wel[s][a]) * 100, 1) + '%' : '—'], ['Довольство', fmtN(P.wel[s][a] * 100, 0) + '%']]));
-  drawPyr();
+    $('pp-reg').onclick = e => { const tr = e.target.closest('[data-reg]'); if (!tr) return; const i = +tr.dataset.reg; popUi.reg = popUi.reg === i ? null : i; refreshPop(); };
+  }
+  if (pTab === 'str') {
+    setHtml($('pp-str'), tbl(['Страта', 'Людей', 'Безработных', '%', 'Зарплата/сут', 'Доход занятого 30–50'], [0, 1, 2, 3].map(s => [`<span style="color:${STR_COL[s]}">■</span> ${STR[s]}`, fmtN(t.S[s].n), fmtN(t.S[s].un), fmtN(t.S[s].wf > 0 ? t.S[s].un / t.S[s].wf * 100 : 0, 1), fmtN(P.wage[s], 2), fmtN(P.parInc[s], 2)])));
+  }
+  if (pTab === 'goods') {
+    const satColor = (s) => s >= .95 ? 'var(--good)' : s >= .75 ? 'var(--warn)' : 'var(--bad)';
+    const satBar = (s) => { const p = Math.round(s*100); const col = satColor(s); return `<div style="display:flex;align-items:center;gap:4px"><div style="width:50px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="width:${p}%;height:100%;background:${col}"></div></div><span style="color:${col};font-family:var(--mono)">${fmtN(p,0)}%</span></div>`; };
+    let gh = `<table class="grid"><tr><th>Товар</th><th>Спрос/сут</th><th>Выпуск</th><th>Удовл.</th><th>Цена ×</th><th>Гос.заводов</th><th>Корп.</th><th>Рабочих</th><th>Сырьё т/сут</th></tr>`;
+    for (const g of Object.keys(GOODS)) {
+      const sat = P.sat[g] || 0, corpF = (state.corps||[]).reduce((a,c)=>a+(c.civ&&c.civ.fac[g]||0),0);
+      gh += `<tr><td>${GOODS[g].n}<span class="muted" style="font-size:10px"> ${unitOf(g)}</span></td><td class="n">${fmtN(P.dem[g])}</td><td class="n">${fmtN(P.prod[g])}</td><td>${satBar(sat)}</td><td class="n" style="color:${sat>=.95?'var(--good)':sat<.5?'var(--bad)':'var(--fg)'}">${fmtN(P.price?P.price[g]:1,2)} кр</td><td class="n">${fmtN(P.fac[g])}</td><td class="n">${fmtN(corpF)}</td><td class="n">${fmtN(P.fac[g]*FW())}</td><td class="n">${fmtN(P.raw&&P.raw[g]?P.raw[g].t:0,0)} <span class="muted">${RES[GOODS[g].raw]||''}</span></td></tr>`;
+    }
+    gh += '</table>';
+    setHtml($('pp-goods'), gh);
+  }
+  if (pTab === 'coh') {
+    const s = popUi.s, a = popUi.a, x = P.c[s][a], e = work(a) ? Math.max(0, x.n - x.un - x.st) : 0;
+    setHtml($('pp-insp'), tbl(['', ''], [
+      ['Людей', fmtN(x.n)], ['Безработных', fmtN(x.un)], ['Учатся', fmtN(x.st)], ['Заняты', fmtN(e)],
+      ['Средний доход в сутки', fmtN(P.inc[s][a], 2)], ['Потребности в сутки', fmtN(basket(a), 2) + ' (' + Object.keys(GOODS).map(g => GOODS[g].n + ' ' + fmtN(needOf(g, a), 2)).join(', ') + ')'],
+      ['Шанс смерти в год', fmtN(mortQ(a) * (1 + 3 * (1 - P.wel[s][a])) * 100, 2) + '%'], ['Рождаемость на человека в год', a >= 20 && a < 40 ? fmtN(.056 * FERT[s] * (.6 + .4 * P.wel[s][a]) * 100, 1) + '%' : '—'], ['Довольство', fmtN(P.wel[s][a] * 100, 0) + '%']]));
+  }
 }
 export function sumAge(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].n; return n; }
 export function sumSt(a0, a1) { let n = 0; for (let s = 0; s < 4; s++) for (let a = a0; a <= a1; a++) n += state.pop.c[s][a].st; return n; }

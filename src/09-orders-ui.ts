@@ -577,6 +577,10 @@ $('side').addEventListener('input', e => { if (e.target.dataset.c === 'fq') { ui
 document.addEventListener('pointerdown', () => { ui.down = true; }, true);
 document.addEventListener('pointerup', () => { setTimeout(() => { ui.down = false; }, 0); }, true);
 document.addEventListener('pointercancel', () => { ui.down = false; }, true);
+// не перерисовывать панель когда открыт <select> (иначе он мгновенно закрывается)
+document.addEventListener('mousedown', e => { if ((e.target as Element)?.tagName === 'SELECT') ui.down = true; }, true);
+document.addEventListener('change', e => { if ((e.target as Element)?.tagName === 'SELECT') setTimeout(() => { ui.down = false; }, 100); }, true);
+document.addEventListener('blur', e => { if ((e.target as Element)?.tagName === 'SELECT') setTimeout(() => { ui.down = false; }, 100); }, true);
 $('side').addEventListener('change', e => {
   const el = e.target, c = el.dataset.c; if (!c) return;
   if (c === 'crew') return crewChange(el);
