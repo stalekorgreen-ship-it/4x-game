@@ -36,6 +36,16 @@ const GAT_K=.0042,GAT_M=.014,ARM_E=2; // пуля 14 г, 1,65 см²; слой �
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1),w=Math.min(12,tf),
   dg=o.T&&o.rcsN>0&&o.sc&&o.sc.length?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;return Math.max(0,Math.min(1,h/(e+dg+1e-6)))}
+// тонкая сетка брони: ячейки 10×10 см, в ячейке — остаток толщины, мм (хранятся только тронутые, остальные целые).
+// Слой = 2 см стали, держит 2 МДж/см² → удар выбивает 10 мм на каждый 1 МДж/см²; не хватило энергии — остаётся вмятина, следующий удар в то же место пробьёт легче
+const CELL=.1,LAYER_MM=20,MM_E=LAYER_MM/ARM_E;
+function dig(o,z,x,y,iz,Eu,n){
+  const L=o.T.L*1000,cs=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),dx=(x-o.x)*1000,dy=(y-o.y)*1000,u=dx*cs+dy*sn,v=-dx*sn+dy*cs,w=((iz!=null?iz:o.z)-(o.z||0))*1000;
+  const NX=Math.max(1,Math.ceil(L/CELL)),W=Math.max(1,Math.ceil(Math.PI*L*.22/4/CELL)),ix0=Math.max(0,Math.min(NX-1,Math.floor((u+L/2)/CELL))),Q=Math.PI/2,qq=((Math.atan2(w,v)%Q)+Q)%Q,iy0=Math.min(W-1,Math.floor(qq/Q*W));
+  const F=z.arm*LAYER_MM,dep=Eu*MM_E,h=n>>1;if(!z.g)z.g=new Map();let took=0,left=0,rem=F;
+  for(let i=-h;i<n-h;i++)for(let j=-h;j<n-h;j++){const ix=ix0+i,iy=iy0+j;if(ix<0||ix>=NX||iy<0||iy>=W)continue;const k=ix*8192+iy,r=z.g.has(k)?z.g.get(k):F,tk=Math.min(r,dep);if(tk>0)z.g.set(k,r-tk);took+=tk;if(!i&&!j){left=dep-tk;rem=r-tk}}
+  const nc=z.nc,c=Math.max(0,Math.min(nc-1,Math.floor(ix0/NX*nc))),lay=Math.floor(rem/LAYER_MM+1e-9);if(lay<z.cols[c]){z.armN-=z.cols[c]-lay;z.cols[c]=lay} // метровая колонка (для ИИ и картинки) — по самому глубокому месту
+  stat.armMM=(stat.armMM||0)+took;return {c,took,left,rem,dep}}
 // скорость сближения, км/с (плюс — сходимся)
 function closing(s,o){const dx=o.x-s.x,dy=o.y-s.y,d=Math.hypot(dx,dy)||1,ox=o.sx!=null?o.sx:(o.vx||0),oy=o.sy!=null?o.sy:(o.vy||0);return -((ox-(s.sx||0))*dx+(oy-(s.sy||0))*dy)/d}
 // дальность огня = (скорость снаряда + скорость сближения) × 20 с жизни снаряда
@@ -571,27 +581,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   const zi=ab<0.785?0:ab>2.356?2:(a>0?1:3);let z=o.zones[zi];
   // у корабля нет хп: слои брони по колонкам, потом модули. Попадание снимает слои в случайном месте (воронка шире от тяжёлого снаряда),
   // пробитая колонка пропускает остаток урона к ближайшим модулям; после гибели модуля урон идёт к соседнему
-  if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
-    const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
-    if(z.cols[c]>0){const gl=(pr?GAT_K*vr*vr:.0015)/ARM_E,ly=Math.floor(gl)+(Math.random()<gl%1?1:0); // МДж/см² пули / порог слоя: 0,6 км/с — ~0,08%, от 22 км/с — слой
-      if(ly>0){const tk=Math.min(z.cols[c],ly);z.cols[c]-=tk;z.armN-=tk}else{ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm}return}
-    if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=.01)return;
-    const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
-    if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
-  // рельс: слоёв = k·v² / 2 МДж/см² (дробная часть — шанс ещё одного слоя)
-  let dm=kind==='torp'?1:(kind==='rail'&&pr&&pr.kk)?pr.kk*vr*vr/ARM_E:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22); dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
-  if(dm<=0){if(kind==='rail')ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
-  const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5)))),w=(kind==='rail'&&pr&&pr.kk)?Math.max(1,Math.round(PW*(pr.cal||10)/10)):Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
-  if(kind==='rail'){const oz=o.zones[(zi+2)%4],oc=Math.max(0,Math.min(oz.nc-1,Math.round((c+.5)/nc*oz.nc-.5)));
-    if(z.cols[c]<=0&&oz.cols[oc]<=0&&Math.random()<.5){fx.push({z:o.z,x,y,t0:t,d:3,r:.6});stat.through=(stat.through||0)+1;return}}
-  if(kind==='rail'&&pw&&!(pr&&pr.kk)&&Math.random()<pw){pass=dm;fx.push({z:o.z,x,y,t0:t,d:2,r:.5})}else
-  if(kind==='mis'){ // ракета: сегмент PW колонок; в центре dm слоёв, к краям спад до 1; число сегментов растёт с мощностью (3→3, 9→5, 25→7, 30→9)
-    const P0=pw||dmg,hs=Math.round(Math.sqrt(Math.max(1,P0))/1.5),W=hs*2+1,cen=Math.max(dmg*.5,.5);pass=0;
-    for(let sg=-hs;sg<=hs;sg++){let dv=Math.max(sg===0?cen:1,cen*(1-Math.abs(sg)/(hs+1)));if(sg!==0&&dmg<P0*.5)dv*=dmg/P0*2;dv=Math.floor(dv)+(Math.random()<dv%1?1:0);if(dv<=0)continue;
-      for(let q=0;q<PW;q++){const cc=c+sg*PW+q-(PW>>1);if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dv);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(sg===0&&q===(PW>>1))pass=dv-tk}}
-    dm=Math.max(dm,1)
-  }else
-  for(let j=-half;j<w-half;j++){const cc=c+j;if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dm);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(j===0)pass=dm-tk}
+  const fin=(c,nc,cut,pass)=>{ // общий конец: картинка воронки, модули за пробоиной, экипаж, пожары
   if(cut){if(kind==='rail'&&pass<=0)ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:4,r:1});if(frags.length<300&&Math.random()<.5)spawnShards(x,y,o.z,2,3);o.mor-=.002;
     if(cut>=3&&Math.random()<Math.min(.9,.15+cut*.04))spawnPlates(o,x,y,1+(cut>14?1:0)+(cut>40?1:0),false);{const rr=Math.random();addDecal(o,x,y,vx,vy,kind==='laser'?1.3:cut>20?.8:.5,kind==='laser'?(rr<.5?2:rr<.8?7:5):cut<3?(rr<.25?3:rr<.45?4:rr<.65?9:rr<.85?6:10):(rr<.3?0:rr<.5?5:rr<.65?8:rr<.8?10:rr<.9?7:6))}}
   if(imp){imp.left=z.cols[c];imp.arm=z.arm} // картинка берёт остаток слоёв из расчёта: 0 — сквозная дыра
@@ -606,6 +596,36 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   say(o.side,'hit',o);
   if(!o.core.alive){if(!o.ecore){o.ecore=1;o.core.alive=true;o.aliveN++;o.blk=t+R(40,70);o.heat=0;stat.blk++;say(o.side,'power',o);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:12,r:6})}else kill(o)}
   if(o.alive&&o.aliveN<o.total*0.22)kill(o);
+  };
+  if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
+    const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
+    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1);c=g.c; // пуля: одна ячейка, глубина по энергии
+      if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
+      if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
+    else if(z.cols[c]>0){const gl=(pr?GAT_K*vr*vr:.0015)/ARM_E,ly=Math.floor(gl)+(Math.random()<gl%1?1:0); // МДж/см² пули / порог слоя: 0,6 км/с — ~0,08%, от 22 км/с — слой
+      if(ly>0){const tk=Math.min(z.cols[c],ly);z.cols[c]-=tk;z.armN-=tk}else{ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm}return}
+    else{if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=.01)return}
+    const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
+    if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
+  if(kind==='rail'&&pr&&pr.kk){ // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
+    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10))),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
+    if(g.took<.5&&!pass){ricochet(o,x,y,vx,vy);if(imp){imp.rico=1;imp.left=z.cols[g.c];imp.arm=z.arm}return}
+    fin(g.c,z.nc,cut,pass);return}
+  // прочее (ракеты, торпеды, лазер, камни): слои по метровым колонкам
+  let dm=kind==='torp'?1:(kind==='rail'&&pr&&pr.kk)?pr.kk*vr*vr/ARM_E:dmg*(kind==='fgt'?1:kind==='laser'?.7:kind==='mis'?.5:.22); dm=Math.floor(dm)+(Math.random()<dm%1?1:0);
+  if(dm<=0){if(kind==='rail')ricochet(o,x,y,vx,vy);else fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});return}
+  const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L)),c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5)))),w=(kind==='rail'&&pr&&pr.kk)?Math.max(1,Math.round(PW*(pr.cal||10)/10)):Math.max(1,Math.round(dm*PW)),half=w>>1;let pass=dm,cut=0;
+  if(kind==='rail'){const oz=o.zones[(zi+2)%4],oc=Math.max(0,Math.min(oz.nc-1,Math.round((c+.5)/nc*oz.nc-.5)));
+    if(z.cols[c]<=0&&oz.cols[oc]<=0&&Math.random()<.5){fx.push({z:o.z,x,y,t0:t,d:3,r:.6});stat.through=(stat.through||0)+1;return}}
+  if(kind==='rail'&&pw&&!(pr&&pr.kk)&&Math.random()<pw){pass=dm;fx.push({z:o.z,x,y,t0:t,d:2,r:.5})}else
+  if(kind==='mis'){ // ракета: сегмент PW колонок; в центре dm слоёв, к краям спад до 1; число сегментов растёт с мощностью (3→3, 9→5, 25→7, 30→9)
+    const P0=pw||dmg,hs=Math.round(Math.sqrt(Math.max(1,P0))/1.5),W=hs*2+1,cen=Math.max(dmg*.5,.5);pass=0;
+    for(let sg=-hs;sg<=hs;sg++){let dv=Math.max(sg===0?cen:1,cen*(1-Math.abs(sg)/(hs+1)));if(sg!==0&&dmg<P0*.5)dv*=dmg/P0*2;dv=Math.floor(dv)+(Math.random()<dv%1?1:0);if(dv<=0)continue;
+      for(let q=0;q<PW;q++){const cc=c+sg*PW+q-(PW>>1);if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dv);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(sg===0&&q===(PW>>1))pass=dv-tk}}
+    dm=Math.max(dm,1)
+  }else
+  for(let j=-half;j<w-half;j++){const cc=c+j;if(cc<0||cc>=nc)continue;const d=z.cols[cc],tk=Math.min(d,dm);if(tk){z.cols[cc]=d-tk;z.armN-=tk;cut+=tk}if(j===0)pass=dm-tk}
+  fin(c,nc,cut,pass);
 }
 // пулемёт Гатлинга: непрерывный огонь по истребителям, ракетам и торпедам (в упор — по кораблям); нагрев снижает точность, перегрев — заклинивание или поломка
 const GV=.6; // пуля гатлинга 0,6 км/с; единицы боя — км и с (рельсотрон 2–10 км/с по калибру)
