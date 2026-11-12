@@ -10,6 +10,7 @@ import { GOODS, UT, LOG_IN, goodsOrder, prodOf, tOf, unitOf , wkOf} from './26-g
 import { KR } from './00-kr.ts';
 import { hooks } from './00-hooks.ts';
 import { regTick, addRegPeople, regsOf, regTemplate, regHab, regClim } from './30-regions.ts';
+import { BIOMES } from './37-biomes.ts';
 import { PRICE } from './06-corps.ts';
 import { laws } from './12-state.ts';
 import { LAB_SI, MINE_MIX, civJobs, goodsMarket, rawMult, settleEconomy, matDemand } from './10-civil.ts';
@@ -168,7 +169,7 @@ export function incomeOf(s, a, kind) { const w = state.pop.wage[s] * ageF(a); re
 export function stepDemog(dt) { // dt в днях (месяц)
   const P = state.pop, f = dt / 360, L = laws();
   const wel = P.wel || {}, lg = P.hab ? clampN(1 - (P.n || 0) / P.hab, 0, 1) : 1, bk = tm('birth') * (1 + .5 * L.birthSup / 100) * clampN(1 - (L.hours - 40) / 100, .3, 1.2), mk = heatDeath(ctxId()) * tm('death') * (1 - .01 * (hooks.mandOver ? hooks.mandOver('mMed') : 0)) * (1 + Math.max(0, L.hours - 40) * .01) * Math.pow(.92, colN(ctxId(), 'clinic')); const bk2 = 1 + .06 * colN(ctxId(), 'nursery');
-  let b = 0, d = 0; const medQ = 1e-4 * 100 * Math.max(0, 1 - ((P.sat && P.sat.meds != null) ? P.sat.meds : 1)); // нехватка медицины: +0,01% смертности в год за каждый недостающий процент
+  let b = 0, d = 0; const medQ = 1e-4 * 100 * Math.max(0, 1 - ((P.sat && P.sat.meds != null) ? P.sat.meds : 1)) + (hooks.polMort ? hooks.polMort(ctxId()) : 0); // + загрязнение: 0,01% за каждый 1% // нехватка медицины: +0,01% смертности в год за каждый недостающий процент
   for (let s = 0; s < 4; s++) for (let a = 0; a <= 100; a++) {
     const x = P.c[s][a]; if (x.n <= 0) continue;
     const w = (wel[s] && wel[s][a] != null) ? wel[s][a] : 1;
@@ -294,7 +295,7 @@ export function popTick(h) {
       stepDemog(dt); P.yacc += dt;
       if (P.yacc >= 360) { P.yacc -= 360; stepAge(); }
       immigrate(dt); stepEcon(dt);
-      climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * prodOf(g) * hoursK()), dt);
+      climTick(id, P, GOODS, g => (P.dem[g] || 0) * (P.sat[g] || 0) / (FW() * prodOf(g) * hoursK()), dt); if (hooks.bioTick) hooks.bioTick(id, dt / 360);
     });
   }
 }
@@ -344,8 +345,12 @@ function refreshPopI() {
         ['Миграция в год', f0(r.mig || 0)], ['Уехало от климата всего', fmtN(r.dis || 0)],
         ...(P.hab ? [['Инфраструктура', fmtN(r.inf, 1) + ' ед.'], ['Вместимость', fmtN(regHab(id, sel))], ['Заполнено', pc(r.n / Math.max(1, regHab(id, sel)))]] : []),
         ['Средняя температура', `${fmtN(c.mean, 1)} °C (${f0(c.dTl)} к 2030)`], ['Минимум / максимум', `${fmtN(c.min, 0)} / ${fmtN(c.max, 0)} °C`], ['Потепление региона', `×${fmtN(t0.amp || 1, 1)} к среднему по планете`],
+        ...(c.bio ? [['Ландшафты', Object.entries(c.bio.km).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 500).map(([k, v]) => `${(BIOMES[k] || [k])[0]} ${fmtN(v / 1e3, 0)} тыс. км²`).join(', ')],
+          ['Альбедо / поглощение CO₂', `${fmtN(c.bio.alb, 3)} / ${fmtN((c.bio.U || 0) / 1e6, 1)} млн т в год`], ['Полезная биомасса / плодородные земли', `${fmtN(c.bio.bio || 0, 0)} / ${fmtN(c.bio.fert || 0, 0)} км²`],
+          ['Осадки / вода', `${fmtN(c.bc.P, 0)} мм в год / ${fmtN(c.bc.wat, 1)}%`], ['Загрязнение', `${fmtN(c.bio.pol || 0, 2)}% (+${fmtN((c.bio.pol || 0) * .01, 3)}% смертности)`]] : []),
         ['Непригодно для жизни', c.air ? pc(c.total) : 'вся территория (нет пригодного воздуха: только купола и подземные города)'],
-        ...(c.air ? [['— пустыни', pc(c.u.desert)], ['— мерзлота и лёд', pc(c.u.cold)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
+        ...(c.air && c.bio ? [['— непригодные ландшафты', pc(c.bc.bad)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
+        ...(c.air && !c.bio ? [['— пустыни', pc(c.u.desert)], ['— мерзлота и лёд', pc(c.u.cold)], ['— жара (макс. выше 50 °C)', pc(c.u.heat)], ['— под водой', pc(c.u.flood)]] : []),
         ['Товары в дефиците', r.sat ? Object.keys(GOODS).filter(g => r.sat[g] < .95).sort((a, b) => r.sat[a] - r.sat[b]).map(g => `${GOODS[g].n} ${pc(r.sat[g])}`).join(', ') || 'всего хватает' : '—'],
         ['Особенности', feat || 'нет'], ...(t0.note ? [['Заметки', esc(t0.note)]] : [])]); }
     setHtml($('pp-reg'), h);

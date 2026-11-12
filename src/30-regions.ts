@@ -6,6 +6,7 @@ import { gd } from './00-gd.ts';
 // Несовпадение людей и мест по регионам снижает укомплектованность заводов (regK); межрегиональные перевозки удлиняют плечо логистики.
 import { BODY, state, log } from './01-data.ts';
 import { climateBase } from './14-climate.ts';
+import { hooks } from './00-hooks.ts';
 
 const ED = 12742;
 // диаметры, км
@@ -82,8 +83,11 @@ export function regClim(id, i) {
   const flG = .32 * (1 - Math.exp(-(d.sea || 0) / 25)) / .32; // доля «низких побережий», ушедших под воду
   const u = {desert: Math.min(.95, (T.desert || 0) * (1 + .05 * Math.max(0, dTl))), cold: T.t ? (T.cold || 0) * Math.max(0, 1 - dTl / 10) : clamp((-5 - mean) / 20, 0, 1),
     heat: (T.t ? (T.hot || 0) : 1) * clamp((max - 50) / 15, 0, 1), flood: clamp((T.coast || 0) * flG, 0, .9)};
-  const total = air ? Math.min(.97, 1 - (1 - u.desert) * (1 - u.cold) * (1 - u.heat) * (1 - u.flood)) : 1;
-  return {mean, min, max, dTl, air, u, total};
+  const bio = state.bio && state.bio[id] && state.bio[id].reg[i], bc = bio && hooks.regBioClim ? hooks.regBioClim(id, i) : null;
+  if (bc) { const dA = bc.mean - mean; mean = bc.mean; if (T.t) { min += dA; max += dA; } else { min = bc.min; max = bc.max; } // ландшафты: альбедо меняет температуру; размах — по суткам, наклону оси и воде
+    u.desert = 0; u.cold = 0; u.heat = clamp((max - 50) / 15, 0, 1); }
+  const total = air ? Math.min(.97, bc ? 1 - (1 - bc.bad) * (1 - u.heat) * (1 - u.flood) : 1 - (1 - u.desert) * (1 - u.cold) * (1 - u.heat) * (1 - u.flood)) : 1;
+  return {mean, min, max, dTl, air, u, total, bio, bc};
 }
 // Месячный шаг. J — рабочих мест всего, W — людей трудового возраста, dt — дни. Возвращает долю мест, которые реально можно занять.
 export function regTick(id, P, J, W, dt, t) {
