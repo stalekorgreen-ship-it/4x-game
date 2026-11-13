@@ -444,6 +444,7 @@ function steer(s,dt){
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=(s.sx-(e.vx||0))*nx+(s.sy-(e.vy||0))*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,(e.t==='wreck'?4:2)+(-vn)*(e.t==='wreck'?25:10)))}}}}
   const rcsF=s.rcs0?.15+.85*s.rcsN/s.rcs0:1,turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt*rcsF;s.trn=Math.max(-1,Math.min(1,adiff(s.hd,want)*3))*(s.rcsN>0?1:0); // без маневровых корабль почти не вертится // 1 км — около минуты на разворот, 4 км — минуты
+  {const ax=s.tur.filter(m=>m.alive&&m.cfg&&m.cfg.ax).length,all=s.tur.filter(m=>m.alive&&m.k!=='G'&&m.k!=='A').length;if(ax&&ax*2>=all&&!flee&&!s.rf&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<(s.maxR||60)*1.2)want=Math.atan2(s.tg.y-s.y,s.tg.x-s.x)} // общее правило: главный калибр осевой — нос на свою цель, когда она в дальности
   { // разворот физикой: маневровые F = 0,4 МН·∛(т/1000), плечо 0,37·L, I = M·L²/12 → α; тяжёлые корабли разворачиваются минутами
     const tons=Math.max(1,T.tons||1),Lm=Math.max(5,T.L*1000),Fr=(T.rcsMN?T.rcsMN*1e6:4e5*Math.cbrt(tons/1000))*rcsF*(s.rcsN>0?1:0),al=Fr*.37*Lm/(tons*1000*Lm*Lm/12),d=adiff(s.hd,want),wt=Math.abs(d)<.035?0:Math.sign(d)*Math.sqrt(2*al*Math.abs(d))*.9; /* мёртвая зона 2°: не дёргаем маневровые по мелочи */
     s.w=s.w||0;const dw=al*dt;if(s.fuelCap&&s.fuel<=0){s.hd+=s.w*dt;void turn}else{const dW=Math.max(-dw,Math.min(dw,wt-s.w));s.w+=dW;if(s.fuelCap&&al>0){const bt=Fr*(Math.abs(dW)/al)/(FUEL.rcsVe*1000)/1000;s.fuel=Math.max(0,s.fuel-bt);stat.rcsT=(stat.rcsT||0)+bt;stat.rcsN=(stat.rcsN||0)+1} /* маневровые тоже жгут топливо: ṁ = F/vₑ */if(Math.abs(d)<1e-3&&Math.abs(s.w)<dw)s.w=0;s.hd+=s.w*dt;void turn} }
@@ -855,7 +856,7 @@ function step(dt){
     let foes=null;const muted=s.st==='surr'||t<s.blk,slow=s.st==='panic'?.5:1;
     for(const m of s.tur){
       if(!m.alive){m.why='уничтожен';continue}if(muted){m.why=s.st==='surr'?'корабль сдался — огонь прекращён':'оглушён попаданием — расчёт приходит в себя';continue}
-      if(m.cfg&&m.cfg.ax){const o=s.tg&&s.tg.alive?s.tg:null;if(!o){m.why='осевое: нет цели';continue}let r=Math.atan2(o.y-s.y,o.x-s.x)-s.hd;r=Math.atan2(Math.sin(r),Math.cos(r));if(Math.abs(r)>.2){m.why='осевое: цель в '+Math.round(Math.abs(r)*57)+'° от носа, ждёт разворота корабля (нужно ±11°)';continue}} // осевое орудие бьёт только в конусе ±~11° перед носом
+      if(m.cfg&&m.cfg.ax){let o=s.tg&&s.tg.alive?s.tg:null;const cone=q=>{let r=Math.atan2(q.y-s.y,q.x-s.x)-s.hd;return Math.abs(Math.atan2(Math.sin(r),Math.cos(r)))};if(!o||cone(o)>.2){let b=null,bd=(m.cfg.rng||s.maxR||60);for(const q of around(1-s.side,s.x,s.y,bd)){if(!q.alive||q.st==='surr'||cone(q)>.2)continue;const d=Math.hypot(q.x-s.x,q.y-s.y);if(d<bd){bd=d;b=q}}if(b)o=b} /* своя цель не в конусе — бьём любого врага, что оказался перед носом */if(!o){m.why='осевое: нет цели';continue}m.axO=o;let r=Math.atan2(o.y-s.y,o.x-s.x)-s.hd;r=Math.atan2(Math.sin(r),Math.cos(r));if(Math.abs(r)>.2){m.why='осевое: цель в '+Math.round(Math.abs(r)*57)+'° от носа, ждёт разворота корабля (нужно ±11°)';continue}} // осевое орудие бьёт только в конусе ±~11° перед носом
       if(m.k==='G'){gatStep(s,m,dt*slow);continue}
       if(mis.length&&s.fine&&(m.k==='T'||m.k==='A')&&t>(m.pd||0)){const q=nearMis(s,m.k==='A'?m.cfg.rng:22);
         if(q){m.pd=t+(m.k==='A'?6:12)*R(.8,1.3);m.fa=Math.atan2(q.y-s.y,q.x-s.x);m.rt=performance.now();shots.push({x1:s.x,y1:s.y,x2:q.x,y2:q.y,rt:performance.now(),s:s.side,a:s,b:q});
@@ -897,7 +898,7 @@ function step(dt){
         }
         continue}
       foes=s.trk||[];
-      const VPc=C.vp||VP,fl=(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,VPc)&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<effR(s,o,VPc)); // дальность = (скорость снаряда + сближение) × 20 с
+      const VPc=C.vp||VP,fl=C.ax&&m.axO&&m.axO.alive?[m.axO]:(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,VPc)&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<effR(s,o,VPc)); // дальность = (скорость снаряда + сближение) × 20 с
       {const P0=fl.length?hitP(s,fl[0],VPc,C.sig):0;if(fl.length&&P0<PMIN){const alt=fl.slice(1).find(o=>hitP(s,o,VPc,C.sig)>=PMIN);if(alt)fl.unshift(alt);else{m.cd=1;m.why='шанс попасть '+Math.round(P0*100)+'% ниже '+Math.round(PMIN*100)+'% — ждёт сближения';continue}}}
       {const sv=s.F&&s.F.sv;m.sv=null;if(sv&&sv.o.alive&&s.tur.indexOf(m)>=0&&Math.hypot(sv.o.x-s.x,sv.o.y-s.y)<effR(s,sv.o,VPc)){const tf=Math.hypot(sv.o.x-s.x,sv.o.y-s.y,(sv.o.z||0)-(s.z||0))/VPc,fireT=sv.tA-tf;
         if(t<fireT-.3){m.cd=Math.min(2,fireT-t);m.why='залп флота: ждёт своей секунды, чтобы снаряды пришли вместе';continue}
