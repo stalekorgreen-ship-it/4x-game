@@ -16,6 +16,7 @@ const $b = id => document.getElementById(id);
 // FI/BO — истребитель/бомбардировщик; TORP — торпеда; FLAK — зенитный разрыв; RCT — время перезарядки по калибру; EW — помехи РЭБ; RADAR — дальность радара; MARN — морпехи)
 const dryM=s=>Math.max(s.T.tons*.2,s.T.tons-(s.fuelCap||0)); // сухая масса: корабль без топлива
 const PLAN_T=8; // ИИ пересматривает желаемую скорость раз в 8 с (импульсами), а не каждый шаг — меньше дёрганья и расхода топлива
+const LEAD=gd('battle','lead',{acc:.5,bracket:.8}); // упреждение: доля ускорения цели; вилка — доля возможного уклонения (0 — выкл)
 const PASS=gd('battle','pass',{max:2,mm:300}); // после пробития снаряд выбивает 1 модуль + ещё 1 на каждые 300 мм остатка, не больше 2
 const ARMZ=gd('battle','armor',{nose:35,side:2,rear:2}); // слоёв по 2 см стали: нос 70 см, борта и корма 4 см
 const FUEL=gd('battle','fuel',{ve:9,rcsVe:3,cap:.6,keep:.12}); // топливо в бою: vₑ главных двигателей и маневровых (км/с), бак по умолчанию — доля массы
@@ -714,10 +715,10 @@ function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.
 function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
   const VPc=C.vp,rsz=(o.vz||0)-(s.vz||0),rsx=o.sx-(s.sx||0),rsy=o.sy-(s.sy||0);let oz=o.z||0;let T=Math.hypot(o.x-s.x,o.y-s.y,oz-s.z)/VPc; // упреждение в системе стрелка
-  const oax=(o.aex||0)*.5,oay=(o.aey||0)*.5; /* ускорение берём вполовину: тяга импульсами и может прекратиться */ // упреждение с ускорением цели: x + v·T + ½·a·T²
+  const oax=(o.aex||0)*LEAD.acc,oay=(o.aey||0)*LEAD.acc; /* ускорение берём вполовину: тяга импульсами и может прекратиться */ // упреждение с ускорением цели: x + v·T + ½·a·T²
   for(let i=0;i<4;i++){const px=o.x+rsx*T+.5*oax*T*T,py=o.y+rsy*T+.5*oay*T*T,pz=(o.z||0)+rsz*T;T=Math.hypot(px-s.x,py-s.y,pz-s.z)/VPc}oz=(o.z||0)+rsz*T;
   // вилка на уклонение: цель за время полёта может сместиться маневровыми на ½·a·t² вбок — часть снарядов бьёт туда, куда она увернётся
-  let bkx=0,bky=0;{const dodge=o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4);if(dodge){const w=Math.min(12,T),D=.5*(o.acc||5)*.12/1000*w*w,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1,r=Math.random(),sg=r<.34?0:r<.67?1:-1;bkx=-ly/ll*D*.8*sg;bky=lx/ll*D*.8*sg}}
+  let bkx=0,bky=0;{const dodge=o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4);if(dodge){const w=Math.min(12,T),D=.5*(o.acc||5)*.12/1000*w*w,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1,r=Math.random(),sg=r<.34?0:r<.67?1:-1;bkx=-ly/ll*D*LEAD.bracket*sg;bky=lx/ll*D*LEAD.bracket*sg}}
   const px=o.x+rsx*T+.5*oax*T*T+bkx,py=o.y+rsy*T+.5*oay*T*T+bky,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=DISP*d*ek,kq=1,e=e0,ev=e0; // разброс ствола; цель не «угадывается» — промахи от её настоящего уклонения маневровыми // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,az=oz+gauss()*ev-s.z,l=Math.hypot(ax,ay,az)||1e-6;let vx=ax/l*VPc,vy=ay/l*VPc,vz=az/l*VPc;
   // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
@@ -878,7 +879,7 @@ function step(dt){
       for(const c of fly[1-p.side]){if(c.state!=='fly'||c.x<mnx||c.x>mxx||c.y<mny||c.y>mxy)continue;let u=((c.x-p.x)*dx+(c.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));if(Math.hypot(p.x+dx*u-c.x,p.y+dy*u-c.y)<.04&&u<bu){bu=u;hc=c}}
       if(hc){endTr(p,hc.x,hc.y);hc.hp-=p.cd;fx.push({x:hc.x,y:hc.y,t0:t,d:3,r:0.5});if(hc.hp<=0){killCraft(hc,'rail');stat.flakKill[p.side]++}proj[i]=proj[proj.length-1];proj.pop();continue}}
     hit=scan(GR[1-p.side],null);if(!hit&&p.src&&p.src.T&&p.dist>p.src.T.L*.6){hit=scan(GR[p.side],p.src);fr=!!hit}
-    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else stat.hits[p.side]++;{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.g||(p.m&&p.m.k==='G');hitShip(hit,p.k||'rail',p.vx,p.vy,ix,iy,gt?0:p.dmg,gt?0:p.ap,p.z+(p.vz||0)*dt*iu,p.vz||0,gt,p)}proj[i]=proj[proj.length-1];proj.pop();continue}
+    if(hit){endTr(p,hit.x,hit.y);if(fr)stat.ff=(stat.ff||0)+1;else if(p.kk)stat.hits[p.side]++; /* попадания считаем только у рельсов — выстрелы тоже только их */{const iu=eu,ix=p.x+dx*iu,iy=p.y+dy*iu,gt=p.g||(p.m&&p.m.k==='G');hitShip(hit,p.k||'rail',p.vx,p.vy,ix,iy,gt?0:p.dmg,gt?0:p.ap,p.z+(p.vz||0)*dt*iu,p.vz||0,gt,p)}proj[i]=proj[proj.length-1];proj.pop();continue}
     p.x=nx;p.y=ny;p.z+=p.vz*dt;p.dist+=Math.hypot(p.vx,p.vy)*dt;
     if(p.dist>=p.max){endTr(p,p.x,p.y);proj[i]=proj[proj.length-1];proj.pop()}
   }
@@ -1326,7 +1327,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+return {tickFixed:n=>{for(let i=0;i<n&&active&&!done;i++)tick(2)},setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
 }
 export const mainBattle = makeBattle();
 let curB = mainBattle;

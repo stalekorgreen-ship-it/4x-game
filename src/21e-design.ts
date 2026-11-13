@@ -19,6 +19,7 @@ function geo(d) {
   cache.set(d.name, g); return g;
 }
 // лоды: кластеризация вершин по сетке (L/300, L/120, L/50, L/20); треугольники, схлопнувшиеся в линию/точку, выбрасываются
+const glowTex = (() => { let t = null; return () => { if (t) return t; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.18, 'rgba(255,255,255,.8)'); gr.addColorStop(.45, 'rgba(255,255,255,.15)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return t = new THREE.CanvasTexture(c); }; })();
 const LODK = [0, 1 / 300, 1 / 120, 1 / 50, 1 / 20], LODD = [0, 1.5, 4, 10, 25];
 function geoLod(d, lv) {
   if (!lv) return geo(d); const key = d.name + '#' + lv; if (cache.has(key)) return cache.get(key);
@@ -72,14 +73,27 @@ function mkDmg(g, body, T) {
     const pi = slot(P); if (pi >= 0) P.g.forEach((d, key) => { if (d < .005) return; const [a, b] = key.split(',').map(Number), x = a + MS / 2, y = b + MS / 2; if (x < 0 || x >= MS || y < 0 || y >= MS) return; mA[(pi * MS + y) * MS + x] = 255; }); mTex.needsUpdate = true;
   }
   // сажа и содранная краска вокруг попаданий (в т.ч. рикошетов): тёмные пятна поверх корпуса, радиус в разы больше воронки
-  const SOOT = 1024, soot = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 10), new THREE.MeshBasicMaterial({ color: 0x0c0a08, transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), SOOT);
-  soot.count = 0; soot.frustumCulled = false; g.add(soot); let sootI = 0; const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
-  const addSoot = (p, n, r) => { _q.setFromUnitVectors(_z, n); _s.set(r, r, r); _m4.compose(p.clone().addScaledVector(n, .03), _q, _s); soot.setMatrixAt(sootI % SOOT, _m4); sootI++; soot.count = Math.min(SOOT, sootI); soot.instanceMatrix.needsUpdate = true; };
+  // сажа и содранная краска: рваное тёмное пятно (текстура с шумом), вытянуто вдоль выстрела; свежее попадание светится и остывает
+  const SOOT = 1024, sootT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), im = x.createImageData(128, 128);
+    for (let y = 0; y < 128; y++) for (let xx = 0; xx < 128; xx++) { const dx = (xx - 64) / 64, dy = (y - 64) / 64, a = Math.atan2(dy, dx), r = Math.hypot(dx, dy), edge = .8 + .1 * Math.sin(a * 5 + 1) + .06 * Math.sin(a * 9 + 2) + .03 * Math.sin(a * 17);
+      const k = Math.max(0, 1 - r / edge), ring = Math.exp(-((r - edge * .55) ** 2) / .02) * .35, o = (y * 128 + xx) * 4, inner = r < .22 ? .25 : 1;
+      im.data[o] = 30 + 90 * ring; im.data[o + 1] = 24 + 70 * ring; im.data[o + 2] = 18 + 50 * ring; im.data[o + 3] = Math.min(255, 255 * (Math.pow(k, 1.4) * .9 * inner + ring * k * .6)); }
+    x.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const soot = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: sootT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), SOOT);
+  soot.count = 0; soot.frustumCulled = false; g.add(soot); let sootI = 0;
+  const GLW = 64, glow = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), GLW);
+  glow.count = 0; glow.frustumCulled = false; glow.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(GLW * 3), 3); g.add(glow); let glowI = 0; const glowT = new Float32Array(GLW).fill(-1e9), glowS = new Float32Array(GLW);
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _s = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
+  const addSoot = (p, n, r, along) => { _q.setFromUnitVectors(_z, n); _q2.setFromAxisAngle(_z, along != null ? along : Math.random() * 6.283); _q.multiply(_q2); const el = along != null ? 2.2 : 1 + Math.random() * .4; _s.set(r * el, r, 1);
+    _m4.compose(p.clone().addScaledVector(n, .03), _q, _s); soot.setMatrixAt(sootI % SOOT, _m4); sootI++; soot.count = Math.min(SOOT, sootI); soot.instanceMatrix.needsUpdate = true; };
+  const addGlow = (p, n, r) => { _q.setFromUnitVectors(_z, n); _s.set(r, r, 1); _m4.compose(p.clone().addScaledVector(n, .05), _q, _s); const k = glowI % GLW; glow.setMatrixAt(k, _m4); glowT[k] = performance.now(); glowS[k] = 1; glowI++; glow.count = Math.min(GLW, glowI); glow.instanceMatrix.needsUpdate = true; };
+  D.cool = () => { const now = performance.now(); let ch = false; for (let k = 0; k < glow.count; k++) { const a = (now - glowT[k]) / 1000, v = a < 0 ? 0 : Math.max(0, 1 - a / 25); const h = v * v; glow.instanceColor.setXYZ(k, 1.6 * h, .55 * h * h + .1 * h, .12 * h * h); ch = true; } if (ch) glow.instanceColor.needsUpdate = true; };
   const RC = new THREE.Raycaster();
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
     const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
     const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = eJ / KST * cs, Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
-    D.n++; addSoot(lp, n, Math.max(.8, R * (scr ? 3 : 7)) * (.7 + Math.random() * .6));
+    D.n++; { const dp = dl.clone().addScaledVector(n, -dl.dot(n)), t0b = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), ub = new THREE.Vector3().crossVectors(n, t0b).normalize(), vb = new THREE.Vector3().crossVectors(n, ub), ang = dp.lengthSq() > 1e-6 ? Math.atan2(dp.dot(vb), dp.dot(ub)) : null;
+      addSoot(lp, n, Math.max(.5, R * (scr ? 2.5 : 3.5)) * (.7 + Math.random() * .6), scr ? ang : null); if (!scr) addGlow(lp, n, Math.max(.35, R * 1.4)); }
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
     if (!P) { const t0 = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), u = new THREE.Vector3().crossVectors(n, t0).normalize(), v = new THREE.Vector3().crossVectors(n, u);
       P = { p3: lp.clone(), p: lp.toArray(), n, u: u.toArray(), v: v.toArray(), nA: n.toArray(), T: Tt, g: new Map(), h: new Map(), R: 0 }; P.n = n; D.P.push(P); if (D.awake) D.npU.value = Math.min(NP, D.P.length); }
@@ -88,7 +102,7 @@ function mkDmg(g, body, T) {
     if (scr) { const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a), Ls = Math.min(4, R * 8), w = Math.max(.05, R * .35), dep = d * .5 + .02; for (let t = 0; t <= Ls; t += C * .5) { const f = t / Ls, dv0 = dep * Math.sin(Math.PI * Math.min(1, f * 1.3)), ww = w * (1 - f * .6); for (let o = -ww; o <= ww; o += C * .5) { const dv = dv0 * (1 - (o / ww) ** 2); if (dv > 0) set(ci2 + Math.round((ca * t - sa * o) / C), cj + Math.round((sa * t + ca * o) / C), dv * .5); } } }
     else { const N = Math.ceil(R / C); for (let i = -N; i <= N; i++) for (let j = -N; j <= N; j++) { const rr = Math.hypot(i * C, j * C); if (rr <= R) set(ci2 + i, cj + j, d * (1 - (rr / R) ** 2)); } }
     P.dirty = true; return d >= Tt - 1e-4; };
-  D.release = () => {}; D.step = () => { if (D.awake) { let k = 0; for (const P of D.P) if (P.dirty && k < 4) { P.dirty = false; rebuild(P); k++; } } const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
+  D.release = () => {}; D.step = () => { if (D.cool) D.cool(); if (D.awake) { let k = 0; for (const P of D.P) if (P.dirty && k < 4) { P.dirty = false; rebuild(P); k++; } } const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
   return D;
 }
 export function pickDesign(tons, spec) { const l = list(); if (!l.length) return null; const nm = spec && spec.name, ds = nm && state.designs && state.designs.find(x => x.name === nm), want = (spec && spec.hull) || (ds && ds.hull) || nm; if (want) { const e = l.find(d => d.name === want); if (e) return e; } let b = l[0]; for (const d of l) if (Math.abs(Math.log(d.M / tons)) < Math.abs(Math.log(b.M / tons))) b = d; return b; }
