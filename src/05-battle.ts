@@ -39,7 +39,10 @@ function accOf(sp,T){const tons=Math.max(1,T.tons||1);let a=sp.pow>0?sp.pow*120/
 // снаряд рельсотрона по калибру (см): масса кг = 3·(cal/5)³, сечение см² = π·(cal/2)²; k — МДж/см² на (км/с)²
 const RAIL_K=cal=>{const c=cal||10,m=3*Math.pow(c/5,3),S=Math.PI*(c/2)*(c/2);return .5*m/S},RAIL_M=cal=>3*Math.pow((cal||10)/5,3);
 const GATP=gd('battle','gatling',{v:2,m:.4,area:7}); // гатлинг 30 мм: снаряд 0,4 кг, сечение 7 см², 2 км/с (лёгкогазовый/электротермический заряд)
-const GAT_K=.5*GATP.m/GATP.area,GAT_M=GATP.m,ARM_E=BT.ARM_E!=null?BT.ARM_E:.3; // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
+const GAT_K=.5*GATP.m/GATP.area,GAT_M=GATP.m,PEN=gd('battle','pen',{Rt:5.5,rhoT:7.8,rhoP:7.8}),ARM_E=PEN.Rt*2/1000;
+// реальная физика пробития: (1) энергия на см² / сопротивление стали Rt (≈5,5 ГПа = 5,5 кДж/см³) — слой 2 см держит 0,011 МДж/см²;
+// (2) на гиперзвуке глубже длины снаряда × √(ρснаряда/ρброни) не пробить (гидродинамический предел), сколько энергии ни дай
+const penCap=(m,A)=>{const len=m*1000/(PEN.rhoP*A);return len*Math.sqrt(PEN.rhoP/PEN.rhoT)/2*ARM_E}; // МДж/см², эквивалентные предельной глубине // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 // дальность, на которой шанс попасть ещё ≥ p (бисекция по той же формуле, что hitP)
 function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/2,tf=d/Math.max(.1,V),e=DISP*d*2,w=Math.min(12,tf),dg=o.T&&o.rcsN>0?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;if(h/(e+dg+1e-6)>=p)lo=d;else hi=d}return lo}
@@ -644,7 +647,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   };
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
-    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1,{k:'гатлинг 30 мм',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
+    if(pr){const g=dig(o,z,x,y,iz,Math.min(GAT_K*vr*vr,penCap(GATP.m,GATP.area)),1,{k:'гатлинг 30 мм',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
       if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
       if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
     else if(z.cols[c]>0){const gl=(pr?GAT_K*vr*vr:.0015)/ARM_E,ly=Math.floor(gl)+(Math.random()<gl%1?1:0); // МДж/см² пули / порог слоя: 0,6 км/с — ~0,08%, от 22 км/с — слой
@@ -653,7 +656,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
     const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
     if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
   if(kind==='rail'&&pr&&pr.kk){ // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
-    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.min(PASS.max,1+Math.floor(g.left/PASS.mm)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
+    const g=dig(o,z,x,y,iz,Math.min(pr.kk*vr*vr,penCap(RAIL_M(pr.cal||10),Math.PI*((pr.cal||10)/2)**2)),Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.min(PASS.max,1+Math.floor(g.left/PASS.mm)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
     if(g.took<.5&&!pass){ricochet(o,x,y,vx,vy);if(imp){imp.rico=1;imp.left=z.cols[g.c];imp.arm=z.arm}return}
     fin(g.c,z.nc,cut,pass);return}
   if(kind==='laser'||kind==='torp'||kind==='rock'){ // лазер — пятно 10 см, торпеда — 30 см, камень — 50 см; удельная энергия = прежние «слои» × 2 МДж/см² (торпеда — 30 МДж/см²)

@@ -35,7 +35,7 @@ function geoLod(d, lv) {
 const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .5, flatShading: true, side: THREE.DoubleSide });
 export function lodInfo(d) { return LODK.map((_, i) => geoLod(d, i).attributes.position.count / 3 | 0); }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
-const KST = 15000, C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
+const KST = 5500, /* сопротивление стали Rt ≈ 5,5 кДж/см³, как в бою */ C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
 function mkMat(D) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .5, flatShading: true, side: THREE.DoubleSide });
   m.onBeforeCompile = sh => {
@@ -91,7 +91,7 @@ function mkDmg(g, body, T) {
   const RC = new THREE.Raycaster();
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
     const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
-    if (q && q.k === 'gat') kind = 'gat'; const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = q && q.gE ? q.gE : pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = eJ / KST * cs, Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
+    if (q && q.k === 'gat') kind = 'gat'; const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = q && q.gE ? q.gE : pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = Math.min(eJ / KST, (kind === 'gat' ? 400 : 3 * (cal / 5) ** 3 * 1000) / (7.8 * Math.PI * (cal / 2) ** 2)) * cs, /* не глубже длины снаряда */ Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
     D.n++; { const dp = dl.clone().addScaledVector(n, -dl.dot(n)), t0b = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), ub = new THREE.Vector3().crossVectors(n, t0b).normalize(), vb = new THREE.Vector3().crossVectors(n, ub), ang = dp.lengthSq() > 1e-6 ? Math.atan2(dp.dot(vb), dp.dot(ub)) : null;
       addSoot(lp, n, Math.max(.5, R * (scr ? 2.5 : 3.5)) * (.7 + Math.random() * .6), scr ? ang : null); if (!scr) addGlow(lp, n, Math.max(.35, R * 1.4)); }
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
