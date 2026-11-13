@@ -484,15 +484,16 @@ if (wrap && bgo) {
   function spineVis(s: any, g: THREE.Group, lv: number, det: boolean, shl: boolean) {
     const u = g.userData; if (frameNo !== spFrame) { spFrame = frameNo; spBuilds = 0 }
     const stn = s.T.role === 'station' || (s.spec && s.spec.role === 'station'); let on = !!u.spOn && !stn;
-    if (!stn) { if (!on && lv >= 7 && det) on = true; else if (on && (lv < 6 || !shl)) on = false }
+    if (u.hasD == null) u.hasD = !stn && !!pickDesign(s.T.tons || s.T.L * TON_L, s.spec || {}); // корабли из редактора: своя модель на любой дистанции, 5 лодов внутри
+    if (u.hasD) on = true; else if (!stn) { if (!on && lv >= 7 && det) on = true; else if (on && (lv < 6 || !shl)) on = false }
     if (on && !u.sp) { if (spBuilds >= 1) on = false; else { spBuilds++; const tons = s.T.tons || s.T.L * TON_L, spc = s.spec || {}, lu = u.L * 1000 / 1.5, m = lu < 46 ? 1 : lu < 63 ? 2 : lu < 76 ? 3 : lu < 89 ? 4 : lu < 111 ? 5 : Math.max(6, Math.min(45, 6 + Math.round((lu - 128) / 18)));
       const mp: any = massParts(spc.rails != null || spc.real ? spc : { rails: 10, flak: 2, tons }), pr = mp.parts || {}, ef = (pr.eng || 0) / Math.max(1, mp.T || tons), tf = (pr.tank || 0) / Math.max(1, mp.T || tons), rc = spc.railCfg || [], tl: number[] = [], rn = spc.rails || 0, gn = spc.gat || 0, fn = spc.flak || 0;
       const axc = (l: any[] | undefined) => (l || []).filter((c: any) => c && c.ax).length, axN = spc.real ? axc(spc.railCfg) + axc(spc.gatCfg) + axc(spc.laserCfg) + axc(spc.flakCfg) + axc(spc.missCfg) : Math.max(2, Math.min(4, Math.round(rn / 3) || 2));
       const kin: number[][] = [[], [], []]; for (let i = 0; i < rn; i++) { const c = +((rc[i] || {}).cal) || 10; kin[0].push(c <= 10 ? 0 : c <= 15 ? 1 : c <= 20 ? 3 : 5) } for (let i = 0; i < gn; i++) kin[1].push(2); for (let i = 0; i < fn + (spc.lasers || 0); i++) kin[2].push(4);
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
       const dsg = pickDesign(tons, spc); const sp = dsg ? buildDesign(dsg, { arm: s.T.arm }) : buildSpine(m, { arm: s.T.arm, tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
-      const k = u.L / (sp.userData.L + (sp.userData.design ? 0 : 16)); sp.scale.setScalar(k); u.spK = k; u.sp = sp; g.add(sp) } }
-    u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake) on ? Dm.wake() : Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
+      const k = u.L / (sp.userData.L + (sp.userData.design ? 0 : 16)); sp.scale.setScalar(k); if (sp.userData.setLodScale) sp.userData.setLodScale(k); u.spK = k; u.sp = sp; g.add(sp) } }
+    u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake && !on) Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель

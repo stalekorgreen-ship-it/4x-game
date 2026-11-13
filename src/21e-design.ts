@@ -18,6 +18,21 @@ function geo(d) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.computeVertexNormals();
   cache.set(d.name, g); return g;
 }
+// лоды: кластеризация вершин по сетке (L/300, L/120, L/50, L/20); треугольники, схлопнувшиеся в линию/точку, выбрасываются
+const LODK = [0, 1 / 300, 1 / 120, 1 / 50, 1 / 20], LODD = [0, 1.5, 4, 10, 25];
+function geoLod(d, lv) {
+  if (!lv) return geo(d); const key = d.name + '#' + lv; if (cache.has(key)) return cache.get(key);
+  const b = geo(d), P = b.attributes.position.array, Cc = b.attributes.color.array, h = d.L * LODK[lv], q = v => Math.round(v / h) * h, op = [], oc = [];
+  const sum = new Map(), kf = (x, y, z) => Math.round(x / h) + ',' + Math.round(y / h) + ',' + Math.round(z / h);
+  for (let i = 0; i < P.length; i += 3) { const k = kf(P[i], P[i + 1], P[i + 2]); let s = sum.get(k); if (!s) sum.set(k, s = [0, 0, 0, 0]); s[0] += P[i]; s[1] += P[i + 1]; s[2] += P[i + 2]; s[3]++; }
+  const seen = new Set();
+  for (let t = 0; t < P.length; t += 9) { const ks = [0, 3, 6].map(o => kf(P[t + o], P[t + o + 1], P[t + o + 2])); if (ks[0] === ks[1] || ks[1] === ks[2] || ks[0] === ks[2]) continue; const tk = ks.join('|'); if (seen.has(tk)) continue; seen.add(tk);
+    for (let o = 0; o < 3; o++) { const s = sum.get(ks[o]); op.push(s[0] / s[3], s[1] / s[3], s[2] / s[3]); oc.push(Cc[t + o * 3], Cc[t + o * 3 + 1], Cc[t + o * 3 + 2]); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(op, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(oc, 3)); g.computeVertexNormals(); void q;
+  cache.set(key, g); return g;
+}
+const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true });
+export function lodInfo(d) { return LODK.map((_, i) => geoLod(d, i).attributes.position.count / 3 | 0); }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
 const KST = 15000, C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
 function mkMat(D) {
@@ -45,7 +60,7 @@ function mkDmg(g, body, T) {
   function rebuild(P) {
     upPD(P); if (!D.awake) return;
     const pos = [], col = [], c = C, Tt = P.T, dp = k => { const d = P.g.get(k) || 0; return d >= Tt - 1e-6 ? Tt : Math.floor(d / c + 1e-6) * c; };
-    const Pt = (i, j, dd) => [0, 1, 2].map(k => P.p[k] + P.u[k] * i * c + P.v[k] * j * c - P.n[k] * dd);
+    const Pt = (i, j, dd) => [0, 1, 2].map(k => P.p[k] + P.u[k] * i * c + P.v[k] * j * c - P.nA[k] * dd);
     const quad = (a, b, cc, d, rgb) => { for (const q of [a, b, cc, a, cc, d]) { pos.push(...q); col.push(...rgb); } };
     P.g.forEach((rw, key) => { const [i, j] = key.split(',').map(Number); let d0 = dp(key); const fr = (rw - d0) / c, thr = d0 >= Tt - 1e-4, age = D.n - (P.h.get(key) || 0), hot = Math.max(0, 1 - age / 60); if (thr) return; if (d0 <= 0) d0 = .01 * fr;
       let rgb = steel(Math.min(1, d0 / Math.max(.3, Tt * .4))); if (d0 < .05) rgb = [.55 - fr * .15, .53 - fr * .15, .5 - fr * .15]; else if (hot > .05 && d0 > .15) { const b = hot * Math.min(1, d0 / .6); rgb = [(70 + 110 * b) / 255, (45 + 35 * b * b) / 255, (35 + 5 * b) / 255]; }
@@ -69,16 +84,16 @@ function mkDmg(g, body, T) {
     if (scr) { const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a), Ls = Math.min(4, R * 8), w = Math.max(.05, R * .35), dep = d * .5 + .02; for (let t = 0; t <= Ls; t += C * .5) { const f = t / Ls, dv0 = dep * Math.sin(Math.PI * Math.min(1, f * 1.3)), ww = w * (1 - f * .6); for (let o = -ww; o <= ww; o += C * .5) { const dv = dv0 * (1 - (o / ww) ** 2); if (dv > 0) set(ci2 + Math.round((ca * t - sa * o) / C), cj + Math.round((sa * t + ca * o) / C), dv * .5); } } }
     else { const N = Math.ceil(R / C); for (let i = -N; i <= N; i++) for (let j = -N; j <= N; j++) { const rr = Math.hypot(i * C, j * C); if (rr <= R) set(ci2 + i, cj + j, d * (1 - (rr / R) ** 2)); } }
     rebuild(P); return d >= Tt - 1e-4; };
-  D.release = () => {}; D.step = () => {};
+  D.release = () => {}; D.step = () => { const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
   return D;
 }
 export function pickDesign(tons, spec) { const l = list(); if (!l.length) return null; const nm = spec && spec.name, ds = nm && state.designs && state.designs.find(x => x.name === nm), want = (spec && spec.hull) || (ds && ds.hull) || nm; if (want) { const e = l.find(d => d.name === want); if (e) return e; } let b = l[0]; for (const d of l) if (Math.abs(Math.log(d.M / tons)) < Math.abs(Math.log(b.M / tons))) b = d; return b; }
 export function buildDesign(d, opt) {
-  const g = new THREE.Group(), body0 = new THREE.Mesh(geo(d)); const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(geo(d), mkMat(D)); g.add(body); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
+  const g = new THREE.Group(), body0 = new THREE.Mesh(geo(d)); const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(geo(d), mkMat(D)); const lod = new THREE.LOD(); lod.addLevel(body, 0); for (let i = 1; i < LODK.length; i++) lod.addLevel(new THREE.Mesh(geoLod(d, i), lodMat), 1e9); g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
   const turs = [];
   for (const t of d.turs) { const tu = new THREE.Group(), n = new THREE.Vector3(t.n[0], t.n[1], t.n[2]); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }
   const inner = new THREE.Group(); inner.visible = false; g.add(inner);
-  g.userData = { L: d.L, turs, inner, hu: { sh: { value: new THREE.Matrix4() } }, design: d.name, dmg: D };
+  g.userData = { lod, setLodScale: (k) => { const Lw = d.L * k; lod.levels.forEach((l, i) => l.distance = Lw * LODD[i]); }, L: d.L, turs, inner, hu: { sh: { value: new THREE.Matrix4() } }, design: d.name, dmg: D };
   return g;
 }
