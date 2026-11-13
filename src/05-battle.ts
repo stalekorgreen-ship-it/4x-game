@@ -385,7 +385,9 @@ function steer(s,dt){
     if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:5,r:1.2});boost=1}}
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
   if(tg&&!flee&&!T.role){ // тактики строя на уровне корабля
-    if(F.stance==='wall'||F.stance==='wedge'||F.stance==='echelon'||F.stance==='cover')want=Math.atan2(uy,ux); // нос (70 см брони) строго к врагу
+    const ddx=vx-s.sx,ddy=vy-s.sy,ddl=Math.hypot(ddx,ddy),far=td>(s.effR||40)*1.3,mv=F.stance!=='drift'&&F.stance!=='pass';
+    if(far&&ddl>.05&&mv)want=Math.atan2(ddy,ddx); /* далеко и нужен разгон/торможение — разворот к нужному импульсу и тяга главным */
+    else if(F.stance!=='retreat'&&F.stance!=='drift'&&F.stance!=='pass'&&F.stance!=='kite')want=Math.atan2(uy,ux); // нос (70 см брони) строго к врагу — во всех боевых тактиках, без разворота бортом ради башен
     else if(F.stance==='drift'){vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05);want=Math.atan2(uy,ux)} // по инерции: двигатели молчат, только поворот носом
     else if(F.stance==='pass'&&F.tgx!=null){const px=F.tgx-s.x,py=F.tgy-s.y,pl=Math.hypot(px,py)||1;vx=px/pl*vm*1.3;vy=py/pl*vm*1.3;want=Math.atan2(uy,ux)}}
   // экономия топлива: скорость не выше четверти оставшегося запаса Δv (чтобы хватило затормозить и маневрировать), форсаж — только при полбака и больше
