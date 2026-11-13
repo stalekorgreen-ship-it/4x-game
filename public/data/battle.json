@@ -3,7 +3,8 @@
  "fuel": {
   "ve": 9,
   "rcsVe": 3,
-  "cap": 0.3
+  "cap": 0.3,
+  "keep": 0.12
  },
  "battle": {
   "DOPT": {"hc": 20, "dd": 20, "fr": 35, "cv": 100},
