@@ -628,7 +628,7 @@ function podStep(dt){
     if(dead){fx.push({x:l.x,y:l.y,z:l.z,t0:t,d:3,r:1.1});spawnShards(l.x,l.y,l.z,4,5);SFX.boom(4);stat.landLost=(stat.landLost||0)+1;lands.splice(i,1);continue}
     if(d<o.T.L*.5+.8){lands.splice(i,1);resolveBoard(l)}}
 }
-function kill(o,why){if(!o.alive)return;o.alive=false;o.why=why||'другое';(stat.kc=stat.kc||{})[o.why]=(stat.kc[o.why]||0)+1;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(4,o.T.L*7)});SFX.boom(26);stat.lost[o.side]++;
+function kill(o,why){if(!o.alive)return;o.alive=false;if(o.lastBy){const k=o.lastBy;k.kills=(k.kills||0)+1;const g=(k.T.n||'').replace(/ №\d+$/,'');(stat.killBy=stat.killBy||{})[g]=(stat.killBy[g]||0)+1}o.why=why||'другое';(stat.kc=stat.kc||{})[o.why]=(stat.kc[o.why]||0)+1;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(4,o.T.L*7)});SFX.boom(26);stat.lost[o.side]++;
   {const L=o.T.L;spawnFrags(o.x,o.y,o.z,6+Math.floor(L*6),1.2,L,o);
    let ammo=(o.pool&&(o.pool.torp||0)+(o.pool.ammo||0)/10)||0;for(const m of o.tur)if(m.k==='M'&&m.alive)ammo+=m.ammo||0;
    if(ammo>0)pyro.push({x:o.x,y:o.y,z:o.z,hd:o.hd,L,vx:o.sx*.3,vy:o.sy*.3,n:4+Math.min(14,Math.round(L*3+ammo/3)),next:t+.3,t0:t,side:o.side});
@@ -658,7 +658,7 @@ function ricochet(o,x,y,vx,vy){
   frags.push({x,y,z:o.z,vx:rx*sp,vy:ry*sp,rot:Math.atan2(ry,rx),vr:0,sz:1.1,t0:t,d:R(.25,.45),side:0,ln:1,hot:1,ric:1});
   for(let i=0;i<2;i++){const a=Math.atan2(ry,rx)+R(-.9,.9),v=R(2,5);frags.push({x,y,z:o.z,vx:Math.cos(a)*v,vy:Math.sin(a)*v,rot:a,vr:0,sz:.5,t0:t,d:R(.15,.3),side:0,ln:1,hot:1,ric:1})}
 }
-function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
+function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;if(pr&&pr.src&&pr.src.T)o.lastBy=pr.src;let imp=null;
   const vr=pr?Math.hypot(pr.vx-(o.sx||0),pr.vy-(o.sy||0),pr.vz||0):0; // относительная скорость удара, км/с: от неё энергия и пробитие
   if(!o.alive)return;o.hitT=t;
   {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy,vz||0)||1;impacts.push(imp={id:++impN,x,y,z:iz!=null?iz:o.z,nx:-vx/dd,ny:-vy/dd,nz:-(vz||0)/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:gat?'gat':kind,gE:gat?.5*GATP.m*(GATP.v*1000)**2:0,s:o});if(impacts.length>300)impacts.splice(0,100)}{const c=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),dx=x-o.x,dy=y-o.y;(o.h3=o.h3||[]).push({q:imp,lx:dx*c+dy*sn,ly:-dx*sn+dy*c,lz:imp.z-(o.z||0),nx:imp.nx*c+imp.ny*sn,ny:-imp.nx*sn+imp.ny*c});if(o.h3.length>6000)o.h3.splice(0,1000),o.h3b=(o.h3b||0)+1000} // журнал попаданий в координатах корабля — 3D рисует и те, что были вне кадра
