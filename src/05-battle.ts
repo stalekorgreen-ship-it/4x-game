@@ -17,6 +17,7 @@ const $b = id => document.getElementById(id);
 const dryM=s=>Math.max(s.T.tons*.2,s.T.tons-(s.fuelCap||0)); // сухая масса: корабль без топлива
 const PLAN_T=8; // ИИ пересматривает желаемую скорость раз в 8 с (импульсами), а не каждый шаг — меньше дёрганья и расхода топлива
 const LEAD=gd('battle','lead',{acc:.5,bracket:.8}); // упреждение: доля ускорения цели; вилка — доля возможного уклонения (0 — выкл)
+const SALVO=gd('battle','salvo',{on:1,prep:6,fill:.9}); // залп флота: prep — с на подготовку, fill — доля радиуса уклонения, которую засеваем
 const PASS=gd('battle','pass',{max:2,mm:300}); // после пробития снаряд выбивает 1 модуль + ещё 1 на каждые 300 мм остатка, не больше 2
 const ARMZ=gd('battle','armor',{nose:35,side:5,rear:2}); // слоёв по 2 см стали: нос 70 см, борта 10 см, корма 4 см
 const FUEL=gd('battle','fuel',{ve:9,rcsVe:3,cap:.6,keep:.12}); // топливо в бою: vₑ главных двигателей и маневровых (км/с), бак по умолчанию — доля массы
@@ -222,7 +223,9 @@ function fleetsUpdate(){
       F.formed=t>(F.brk||0)}
     // общий фокус огня: самая ценная и повреждённая цель в зоне
     const cand=around(1-F.side,F.cx+(bf.cx-F.cx)*.3,F.cy+(bf.cy-F.cy)*.3,110);let fb=null,fs=0;
-    for(const o of cand){const sc=val(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;if(F.side===0&&ORD.focus&&ORD.focus.alive)F.focus=ORD.focus;
+    for(const o of cand){const sc=val(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;
+    if(SALVO.on&&(!F.sv||t>F.sv.tA+4||!F.sv.o.alive)){const o=F.focus;F.sv=null;if(o&&o.alive){let mx=0,N=0;for(const q of F.ships){if(!q.alive)continue;const nr=q.tur.filter(m=>m.alive&&m.k==='T').length;if(!nr)continue;const d=Math.hypot(o.x-q.x,o.y-q.y,(o.z||0)-(q.z||0)),v=(q.tur.find(m=>m.k==='T').cfg.vp||VP);if(d>effR(q,o,v))continue;mx=Math.max(mx,d/v);N+=nr*8}
+      if(N>=4)F.sv={o,tA:t+mx+SALVO.prep,N,k:0}}} // залп флота: все снаряды приходят в одну секунду, каждый в свою точку круга, куда цель может увернутьсяif(F.side===0&&ORD.focus&&ORD.focus.alive)F.focus=ORD.focus;
     // точка сбора флота и направление строя
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
     if(F.stance==='flank'){const a=F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
@@ -722,7 +725,8 @@ function fireShell(s,m,o0,C,lag){
   const oax=(o.aex||0)*LEAD.acc,oay=(o.aey||0)*LEAD.acc; /* ускорение берём вполовину: тяга импульсами и может прекратиться */ // упреждение с ускорением цели: x + v·T + ½·a·T²
   for(let i=0;i<4;i++){const px=o.x+rsx*T+.5*oax*T*T,py=o.y+rsy*T+.5*oay*T*T,pz=(o.z||0)+rsz*T;T=Math.hypot(px-s.x,py-s.y,pz-s.z)/VPc}oz=(o.z||0)+rsz*T;
   // вилка на уклонение: цель за время полёта может сместиться маневровыми на ½·a·t² вбок — часть снарядов бьёт туда, куда она увернётся
-  let bkx=0,bky=0;{const dodge=o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4);if(dodge){const w=Math.min(12,T),D=.5*(o.acc||5)*.12/1000*w*w,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1,r=Math.random(),sg=r<.34?0:r<.67?1:-1;bkx=-ly/ll*D*LEAD.bracket*sg;bky=lx/ll*D*LEAD.bracket*sg}}
+  let bkx=0,bky=0;if(m.sv&&m.sv.o===o){ /* залп: точка k из N — «подсолнух» по кругу ½·a·t², вбок и по высоте */const sv=m.sv,k=sv.k++,w=Math.min(12,T),D=(o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4))?Math.max(0,.5*(o.acc||5)*.12/1000*w*w-o.T.L*.11)*SALVO.fill:0, /* засеваем только то, куда цель уйдёт дальше своего размера */r=D*Math.sqrt(((k%sv.N)+.5)/sv.N),th=k*2.39996,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1;bkx=-ly/ll*r*Math.cos(th);bky=lx/ll*r*Math.cos(th);oz+=r*Math.sin(th);stat.salvo=(stat.salvo||0)+1}
+  else{const dodge=o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4);if(dodge){const w=Math.min(12,T),D=.5*(o.acc||5)*.12/1000*w*w,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1,r=Math.random(),sg=r<.34?0:r<.67?1:-1;bkx=-ly/ll*D*LEAD.bracket*sg;bky=lx/ll*D*LEAD.bracket*sg}}
   const px=o.x+rsx*T+.5*oax*T*T+bkx,py=o.y+rsy*T+.5*oay*T*T+bky,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=DISP*d*ek,kq=1,e=e0,ev=e0; // разброс ствола; цель не «угадывается» — промахи от её настоящего уклонения маневровыми // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,az=oz+gauss()*ev-s.z,l=Math.hypot(ax,ay,az)||1e-6;let vx=ax/l*VPc,vy=ay/l*VPc,vz=az/l*VPc;
   // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
@@ -843,6 +847,9 @@ function step(dt){
       foes=s.trk||[];
       const VPc=C.vp||VP,fl=(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,VPc)&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<effR(s,o,VPc)); // дальность = (скорость снаряда + сближение) × 20 с
       {const P0=fl.length?hitP(s,fl[0],VPc,C.sig):0;if(fl.length&&P0<PMIN){const alt=fl.slice(1).find(o=>hitP(s,o,VPc,C.sig)>=PMIN);if(alt)fl.unshift(alt);else{m.cd=1;m.why='шанс попасть '+Math.round(P0*100)+'% ниже '+Math.round(PMIN*100)+'% — ждёт сближения';continue}}}
+      {const sv=s.F&&s.F.sv;m.sv=null;if(sv&&sv.o.alive&&s.tur.indexOf(m)>=0&&Math.hypot(sv.o.x-s.x,sv.o.y-s.y)<effR(s,sv.o,VPc)){const tf=Math.hypot(sv.o.x-s.x,sv.o.y-s.y,(sv.o.z||0)-(s.z||0))/VPc,fireT=sv.tA-tf;
+        if(t<fireT-.3){m.cd=Math.min(2,fireT-t);m.why='залп флота: ждёт своей секунды, чтобы снаряды пришли вместе';continue}
+        if(t<fireT+3){fl.length=0;fl.push(sv.o);m.sv=sv}}}
       if(!fl.length){m.cd=2;m.why='нет цели в дальности: (скорость снаряда '+VPc+' км/с + сближение) × 20 с';continue}
       if(!bears(s,m,fl[0])){m.cd=.7+Math.random();m.why='цель '+(fl[0].T?fl[0].T.n:'цель')+' вне сектора обстрела этого борта';continue} // цель вне полусферы обстрела этой башни
       // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся

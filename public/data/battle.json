@@ -4,6 +4,11 @@
   "acc": 0.5,
   "bracket": 0.8
  },
+ "salvo": {
+  "on": 1,
+  "prep": 6,
+  "fill": 0.9
+ },
  "pass": {
   "max": 2,
   "mm": 300
