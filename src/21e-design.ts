@@ -43,7 +43,7 @@ function mkMat(D) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;uniform sampler2D pd;uniform sampler2D pm;uniform int np;')
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
 for(int i=0;i<${NP};i++){if(i>=np)break;float u=(float(i)+.5)/${NP}.;vec4 cp=texture2D(pd,vec2(u,.25));vec3 dd=vOP-cp.xyz;if(dot(dd,dd)>cp.w*cp.w)continue;vec3 cn=texture2D(pd,vec2(u,.75)).xyz;float h=dot(dd,cn);
-if(h>-.03&&h<.4){vec3 cu=normalize(cross(cn,abs(cn.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 cv=cross(cn,cu);float a=dot(dd,cu)/${C}+${MS / 2}.5,b=dot(dd,cv)/${C}+${MS / 2}.5;if(a>0.&&a<${MS}.&&b>0.&&b<${MS}.){if(texture2D(pm,vec2(a/${MS}.,(floor(b)+.5+float(i)*${MS}.)/${NP * MS}.)).r>.5)discard;}}}`);
+if(h>-.12&&h<.9){vec3 cu=normalize(cross(cn,abs(cn.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 cv=cross(cn,cu);float a=dot(dd,cu)/${C}+${MS / 2}.5,b=dot(dd,cv)/${C}+${MS / 2}.5;if(a>0.&&a<${MS}.&&b>0.&&b<${MS}.){if(texture2D(pm,vec2(a/${MS}.,(floor(b)+.5+float(i)*${MS}.)/${NP * MS}.)).r>.5)discard;}}}`);
   };
   return m;
 }
@@ -73,7 +73,7 @@ function mkDmg(g, body, T) {
   }
   const RC = new THREE.Raycaster();
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
-    const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(), cs = Math.max(.05, -dl.dot(n));
+    const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
     const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = eJ / KST * cs, Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
     D.n++;
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
@@ -83,8 +83,8 @@ function mkDmg(g, body, T) {
     const set = (ii, jj, add) => { const k = ii + ',' + jj, old = P.g.get(k) || 0; P.g.set(k, Math.min(P.T, old + add)); P.h.set(k, D.n); P.R = Math.max(P.R, Math.hypot(ii, jj) * C + C); };
     if (scr) { const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a), Ls = Math.min(4, R * 8), w = Math.max(.05, R * .35), dep = d * .5 + .02; for (let t = 0; t <= Ls; t += C * .5) { const f = t / Ls, dv0 = dep * Math.sin(Math.PI * Math.min(1, f * 1.3)), ww = w * (1 - f * .6); for (let o = -ww; o <= ww; o += C * .5) { const dv = dv0 * (1 - (o / ww) ** 2); if (dv > 0) set(ci2 + Math.round((ca * t - sa * o) / C), cj + Math.round((sa * t + ca * o) / C), dv * .5); } } }
     else { const N = Math.ceil(R / C); for (let i = -N; i <= N; i++) for (let j = -N; j <= N; j++) { const rr = Math.hypot(i * C, j * C); if (rr <= R) set(ci2 + i, cj + j, d * (1 - (rr / R) ** 2)); } }
-    rebuild(P); return d >= Tt - 1e-4; };
-  D.release = () => {}; D.step = () => { const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
+    P.dirty = true; return d >= Tt - 1e-4; };
+  D.release = () => {}; D.step = () => { if (D.awake) { let k = 0; for (const P of D.P) if (P.dirty && k < 4) { P.dirty = false; rebuild(P); k++; } } const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
   return D;
 }
 export function pickDesign(tons, spec) { const l = list(); if (!l.length) return null; const nm = spec && spec.name, ds = nm && state.designs && state.designs.find(x => x.name === nm), want = (spec && spec.hull) || (ds && ds.hull) || nm; if (want) { const e = l.find(d => d.name === want); if (e) return e; } let b = l[0]; for (const d of l) if (Math.abs(Math.log(d.M / tons)) < Math.abs(Math.log(b.M / tons))) b = d; return b; }
