@@ -128,11 +128,11 @@ function reset(cfg){
 }
 /* ===== ИИ ФЛОТОВ: ===== */
 const CS=16,VMK=2.4,VAL={cv:3,hc:2.5,dd:1.2,fr:1};
-let GR=[new Map(),new Map()],FL=new Map();
+let GR=[new Map(),new Map()],GF=[new Map(),new Map()],GL=[[],[]],FL=new Map();const CSF=1.5;
 const ckey=(cx,cy)=>cx*8192+cy;
 function buildGrids(){
-  GR=[new Map(),new Map()];
-  for(const s of ships){if(!s.alive)continue;const k=ckey(Math.floor(s.x/CS),Math.floor(s.y/CS)),g=GR[s.side];let a=g.get(k);if(!a)g.set(k,a=[]);a.push(s)}
+  GR=[new Map(),new Map()];GF=[new Map(),new Map()];GL=[[],[]]; // GF — мелкая сетка 4 км для расталкивания: в плотном строю 300 кораблей не лезут в одну клетку
+  for(const s of ships){if(!s.alive)continue;const k=ckey(Math.floor(s.x/CS),Math.floor(s.y/CS)),g=GR[s.side];let a=g.get(k);if(!a)g.set(k,a=[]);a.push(s);GL[s.side].push(s);const k2=ckey(Math.floor(s.x/CSF),Math.floor(s.y/CSF)),g2=GF[s.side];let b=g2.get(k2);if(!b)g2.set(k2,b=[]);b.push(s)}
 }
 // ближайший корабль стороны side (поиск по кольцам ячеек)
 let nsT=-1,nsC=new Map();
@@ -149,9 +149,11 @@ function nearestShip0(x,y,side){
   if(!b){for(const o of ships){if(!o.alive||o.side!==side)continue;const d=(o.x-x)*(o.x-x)+(o.y-y)*(o.y-y);if(d<bd){bd=d;b=o}}}
   return b?{s:b,d:Math.sqrt(bd)}:null;
 }
-function around(side,x,y,rad){ // корабли стороны в радиусе
-  const g=GR[side],out=[],n=Math.ceil(rad/CS),cx=Math.floor(x/CS),cy=Math.floor(y/CS),r2=rad*rad;
-  for(let i=-n;i<=n;i++)for(let j=-n;j<=n;j++){const a=g.get(ckey(cx+i,cy+j));if(!a)continue;for(const o of a)if((o.x-x)*(o.x-x)+(o.y-y)*(o.y-y)<=r2)out.push(o)}
+function around(side,x,y,rad,max=1e9){ // корабли стороны в радиусе (малый радиус — по мелкой сетке); max — не больше стольких ближайших (клетки по кольцам от центра)
+  const F=rad<=8,cs=F?CSF:CS,g=F?GF[side]:GR[side],out=[],n=Math.ceil(rad/cs),cx=Math.floor(x/cs),cy=Math.floor(y/cs),r2=rad*rad;
+  if(max>=1e9&&(2*n+1)*(2*n+1)>GL[side].length*.5){const L=GL[side];for(let i=0;i<L.length;i++){const o=L[i];if((o.x-x)*(o.x-x)+(o.y-y)*(o.y-y)<=r2)out.push(o)}return out} // большой радиус: дешевле пройти список стороны, чем сотни пустых клеток
+  const cell=(i,j)=>{const a=g.get(ckey(cx+i,cy+j));if(!a)return;for(const o of a)if((o.x-x)*(o.x-x)+(o.y-y)*(o.y-y)<=r2)out.push(o)};
+  for(let r=0;r<=n&&out.length<max;r++){if(!r){cell(0,0);continue}for(let i=-r;i<=r;i++){cell(i,-r);cell(i,r)}for(let j=-r+1;j<r;j++){cell(-r,j);cell(r,j)}}
   return out;
 }
 const hpf=s=>s.aliveN/s.total,PW=12; // PW: ширина воронки в колонках на единицу урона
@@ -332,10 +334,10 @@ function steer(s,dt){
     }else{vx=fvx;vy=fvy;if(retreating&&sp>.02)want=Math.atan2(vy,vx);else if(tg)want=Math.atan2(uy,ux);else if(sp>.02&&ed>6)want=Math.atan2(vy,vx);else if(F.dx!=null&&(F.dx||F.dy))want=Math.atan2(F.dy,F.dx);
       if(F.stance==='assault'&&tg)boost=Math.max(boost,1.5)}
   }
-  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+T.L*.25+8;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
+  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+T.L*.25+8;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
     if(d<e.r+T.L*.2&&t>(s.rockT||0)){s.rockT=t+4;s.sx*=.4;s.sy*=.4;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,5);say(s.side,'rock',s)}}}
   // разлёт: не стоять друг за другом на линии огня и не кучковаться
-  for(const o of around(s.side,s.x,s.y,6)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,dz=s.z-o.z,d0=Math.hypot(dx,dy)||1e-6,sr=Math.max(.9,(s.T.L+o.T.L)*1.1),d=Math.hypot(d0,dz*1.5);
+  for(const o of around(s.side,s.x,s.y,6,20)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,dz=s.z-o.z,d0=Math.hypot(dx,dy)||1e-6,sr=Math.max(.9,(s.T.L+o.T.L)*1.1),d=Math.hypot(d0,dz*1.5);
     if(d<sr){const f=.2*(sr-d)/sr/d;vx+=dx*f;vy+=dy*f;s.zpush=(s.zpush||0)+(dz>=0?1:-1)*(sr-d)/sr*(1+Math.abs(dz)*0)}
     if(Math.abs(dz)>sr*.8)continue;
     if(tg&&!formed){const al=(-dx)*ux+(-dy)*uy,pp=(-dx)*(-uy)+(-dy)*ux; // o перед нами на линии на врага
@@ -361,7 +363,7 @@ function steer(s,dt){
     df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt));if(s.dg&&t<s.dgT){const lt2=-s.dg.x*sh+s.dg.y*ch,fw2=s.dg.x*ch+s.dg.y*sh;dlt=lf*(lt2>=0?1:-1);if(Math.abs(fw2)>.6)df=fw2>0?a:-a*.35}}
     s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.sx*=1-.0006*dt;s.sy*=1-.0006*dt;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;s.fuel=Math.max(0,s.fuel-(s.frate||0)*lv*lv*dt*BAT_FUEL_T)}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
-  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+s.T.L*.3;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
+  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
   const rcsF=s.rcs0?.15+.85*s.rcsN/s.rcs0:1,turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt*rcsF;s.trn=Math.max(-1,Math.min(1,adiff(s.hd,want)*3))*(s.rcsN>0?1:0); // без маневровых корабль почти не вертится // 1 км — около минуты на разворот, 4 км — минуты
   { // разворот физикой: маневровые F = 0,4 МН·∛(т/1000), плечо 0,37·L, I = M·L²/12 → α; тяжёлые корабли разворачиваются минутами

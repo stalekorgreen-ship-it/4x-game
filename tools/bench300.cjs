@@ -1,0 +1,8 @@
+// 300 на 300: замер FPS и времени кадра. node tools/bench300.cjs [секунд]
+const {chromium}=require('playwright');(async()=>{const T=+(process.argv[2]||40);const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));await p.goto('http://127.0.0.1:5200/');await p.waitForTimeout(2500);
+await p.evaluate(()=>{window.__game.startDemo('line',4)});await p.waitForTimeout(1000);await p.getByRole('button',{name:'3D'}).first().click();await p.waitForTimeout(500);
+await p.keyboard.press('F3');
+console.log('ff',await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);const B=await import(U('05-battle.ts'));const t0=performance.now();let i=0;for(;i<20000&&B.Battle.proj().length<50;i++)B.Battle.tickN(1);return [i,B.Battle.ships().length,((performance.now()-t0)/Math.max(1,i)).toFixed(2)+' мс/тик']}));
+for(let t=0;t<T;t+=10){await p.waitForTimeout(10000);const r=await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);const B=await import(U('05-battle.ts'));const sh=B.Battle.ships();const ov=[...document.querySelectorAll('div')].find(d=>d.textContent.startsWith('FPS'));return {alive:sh.filter(s=>s.alive).length,all:sh.length,proj:B.Battle.proj().length,ov:ov&&ov.textContent.replace(/\n/g,' | ')}});console.log(t+10+'s',JSON.stringify(r))}
+await p.screenshot({path:'/tmp/sh/b300.png'});console.log('errs',errs.slice(0,3));await b.close()})();
