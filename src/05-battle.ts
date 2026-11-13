@@ -809,7 +809,7 @@ function lasStep(dt){
 }
 // снабжение: транспорты держатся в хвосте и шаттлами возят боеприпасы кораблям, у которых погреб опустел меньше чем наполовину
 const SHUT_SPD=9,SHUT_T=40; // км/с, тонн за рейс
-const REF=gd('battle','refuel',{go:.45,full:.95,dist:2,dv:.3,rate:6,keep:.15,back:150}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
+const REF=gd('battle','refuel',{go:.45,full:.95,dist:2,dv:.3,rate:6,keep:.15,back:100}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
 function tankerFor(s){if(s.rf&&s.rf.alive&&s.rf.fuel>s.rf.fuelCap*REF.keep)return s.rf;let b=null,bd=1e9;for(const o of ships){if(!o.alive||o.side!==s.side||!o.tnk||o===s||o.fuel<=o.fuelCap*REF.keep)continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d<bd){bd=d;b=o}}if(!b)s.rf=null;return b}
 let _sc=[null,null],_scT=-1;function sideC(sd){if(_scT!==t){_scT=t;_sc=[0,1].map(q=>{let x=0,y=0,n=0;for(const o of ships)if(o.alive&&o.side===q&&!o.tnk){x+=o.x;y+=o.y;n++}return n?{x:x/n,y:y/n}:{x:0,y:0}})}return _sc[sd]}
 function tankCall(k){let b=null,bs=1e9;for(const o of ships){if(o.rf!==k||!o.alive||o.rfOn)continue;const d=Math.hypot(o.x-k.x,o.y-k.y),sc=d*(.3+o.fuel/o.fuelCap);if(d>2&&sc<bs){bs=sc;b=o}}return b}
