@@ -31,12 +31,12 @@ function geoLod(d, lv) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(op, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(oc, 3)); g.computeVertexNormals(); void q;
   cache.set(key, g); return g;
 }
-const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true, side: THREE.DoubleSide });
+const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .5, flatShading: true, side: THREE.DoubleSide });
 export function lodInfo(d) { return LODK.map((_, i) => geoLod(d, i).attributes.position.count / 3 | 0); }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
 const KST = 15000, C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
 function mkMat(D) {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true, side: THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .5, flatShading: true, side: THREE.DoubleSide });
   m.onBeforeCompile = sh => {
     sh.uniforms.pd = { value: D.pdTex }; sh.uniforms.pm = { value: D.mTex }; sh.uniforms.np = D.npU;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP=position;');
@@ -71,11 +71,15 @@ function mkDmg(g, body, T) {
     const gm = P.mesh.geometry; gm.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gm.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); gm.computeVertexNormals(); gm.computeBoundingSphere();
     const pi = slot(P); if (pi >= 0) P.g.forEach((d, key) => { if (d < .005) return; const [a, b] = key.split(',').map(Number), x = a + MS / 2, y = b + MS / 2; if (x < 0 || x >= MS || y < 0 || y >= MS) return; mA[(pi * MS + y) * MS + x] = 255; }); mTex.needsUpdate = true;
   }
+  // сажа и содранная краска вокруг попаданий (в т.ч. рикошетов): тёмные пятна поверх корпуса, радиус в разы больше воронки
+  const SOOT = 1024, soot = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 10), new THREE.MeshBasicMaterial({ color: 0x0c0a08, transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), SOOT);
+  soot.count = 0; soot.frustumCulled = false; g.add(soot); let sootI = 0; const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
+  const addSoot = (p, n, r) => { _q.setFromUnitVectors(_z, n); _s.set(r, r, r); _m4.compose(p.clone().addScaledVector(n, .03), _q, _s); soot.setMatrixAt(sootI % SOOT, _m4); sootI++; soot.count = Math.min(SOOT, sootI); soot.instanceMatrix.needsUpdate = true; };
   const RC = new THREE.Raycaster();
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
     const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
     const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = eJ / KST * cs, Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
-    D.n++;
+    D.n++; addSoot(lp, n, Math.max(.8, R * (scr ? 3 : 7)) * (.7 + Math.random() * .6));
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
     if (!P) { const t0 = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), u = new THREE.Vector3().crossVectors(n, t0).normalize(), v = new THREE.Vector3().crossVectors(n, u);
       P = { p3: lp.clone(), p: lp.toArray(), n, u: u.toArray(), v: v.toArray(), nA: n.toArray(), T: Tt, g: new Map(), h: new Map(), R: 0 }; P.n = n; D.P.push(P); if (D.awake) D.npU.value = Math.min(NP, D.P.length); }
@@ -93,6 +97,14 @@ export function buildDesign(d, opt) {
   const turs = [];
   for (const t of d.turs) { const tu = new THREE.Group(), n = new THREE.Vector3(t.n[0], t.n[1], t.n[2]); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }
+  // огни и факелы двигателей из редактора: аддитивные спрайты (огни мигают) и конусы пламени
+  const glowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const lights = [];
+  for (const o of d.gl || []) { const col = new THREE.Color(o.c || '#7fd3ff');
+    if (o.t === 'lt') { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); sp.position.set(o.p[0], o.p[1], o.p[2]); sp.scale.setScalar(o.r * 2.2); sp.userData.ph = Math.random() * 6; g.add(sp); lights.push(sp); }
+    else { const len = o.len || o.r * 5, cg = new THREE.ConeGeometry(o.r, len, 12, 1, true); cg.rotateZ(Math.PI / 2); cg.translate(-len / 2, 0, 0);
+      const pl = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: col, blending: THREE.AdditiveBlending, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide })); pl.position.set(o.p[0], o.p[1], o.p[2]); g.add(pl);
+      const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); hs.position.copy(pl.position); hs.scale.setScalar(o.r * 4); g.add(hs); } }
   const inner = new THREE.Group(); inner.visible = false; g.add(inner);
   g.userData = { lod, setLodScale: (k) => { const Lw = d.L * k; lod.levels.forEach((l, i) => l.distance = Lw * LODD[i]); }, L: d.L, turs, inner, hu: { sh: { value: new THREE.Matrix4() } }, design: d.name, dmg: D };
   return g;

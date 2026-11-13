@@ -516,7 +516,7 @@ if (wrap && bgo) {
     const u = g.userData, sp = u.sp as THREE.Group, now = performance.now(), dt = Math.min(.05, (now - (u.spT0 || now)) / 1000); u.spT0 = now; g.updateMatrixWorld(true);
     const D = sp.userData.dmg; sp.userData.hu.sh.value.copy(sp.matrixWorld).invert();
     if (spDmgFrame !== frameNo) { spDmgFrame = frameNo; spBud = 3 } // все попадания рисуются: очередь разбирается по 3 за кадр на все корабли
-    while (u.spQ.length && spBud > 0) { spBud--; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
+    let bud = D.awake ? 12 : 0; while (u.spQ.length && bud > 0) { bud--; const h = u.spQ.shift(), R = u.L * .7, a = (Math.random() - .5) * u.L * .6, v = (Math.random() - .5) * u.L * .06;
       const oL = (h.pL ? _rc.copy(h.pL) : _rc.set(a, v, 0)).addScaledVector(h.dL, h.pL ? u.L * .12 : R).clone(), ow = g.localToWorld(oL), dw = h.dL.clone().applyQuaternion(g.quaternion).negate();
       if (D.hit(ow, dw, h.kind, h.r * (sp.userData.L / 84), h)) sp.userData.inner.visible = true }
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
@@ -868,7 +868,7 @@ if (wrap && bgo) {
       alive.add(s);
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
       g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
-      { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; const tg = s.tg && s.tg.alive ? s.tg : null, ap = tg ? Math.atan2((tg.z || 0) - (s.z || 0), Math.max(1e-3, Math.hypot(tg.x - s.x, tg.y - s.y))) : 0; ud.pt += (Math.max(-.45, Math.min(.45, (s.pz || 0) * 2.5 + ap * .8)) - ud.pt) * .015 } // нос наклоняется к цели по высоте // сглаживание курса и тангажа
+      { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; const tg = s.tg && s.tg.alive ? s.tg : null, ap = tg ? Math.atan2((tg.z || 0) - (s.z || 0), Math.max(1e-3, Math.hypot(tg.x - s.x, tg.y - s.y))) : 0; ud.pt += (0 * ap - ud.pt) * .015 } // нос наклоняется к цели по высоте // сглаживание курса и тангажа
       if (ud.rl == null) ud.rl = s.roll || 0; ud.rl += ((s.roll || 0) - ud.rl) * .2; g.rotation.y = -ud.hd; g.rotation.z = ud.pt; g.rotation.x = ud.rl;
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
       if (!_fr.intersectsSphere(_sph.set(g.position, L * sc * 1.1 + dd * .02))) { g.visible = false; continue }
