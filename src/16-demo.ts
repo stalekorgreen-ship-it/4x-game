@@ -117,7 +117,7 @@ function fleet(n, mixOrDoc, fid, speed, W) {
 }
 const fleetW = specs => specs.reduce((a, sp) => a + W3(sp), 0);
 // сколько кораблей: размер 1 — от 4 до 10, 2 — до 40, 3 — до 200 на сторону
-const total = size => size === 1 ? RI(4, 10) : size === 2 ? RI(12, 40) : size === 4 ? 300 : RI(70, 200);
+const total = size => size === 5 ? 50 : size === 1 ? RI(4, 10) : size === 2 ? RI(12, 40) : size === 4 ? 300 : RI(70, 200);
 const split = (n, parts) => { const w = Array.from({length: parts}, () => R(.5, 1.5)), s = w.reduce((a, b) => a + b, 0), r = w.map(x => Math.max(1, Math.round(n * x / s))); return r; };
 export const warFleet = (n, fid, speed) => fleet(n, BYSIZE(n), fid, speed);
 export const warStrength = specs => fleetW(specs);
@@ -144,7 +144,10 @@ export function makeScenario(kind, size) {
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
   const mixFor = BYSIZE;
   let title = SCENARIOS[kind].split(':')[0];
-  if (kind === 'line') {
+  if (size === 5) { // зеркальный бой: одинаковые флоты по 50 кораблей, одинаковое время прибытия
+    const fa = fleet(50, mixFor(50), 0, 1), fb = JSON.parse(JSON.stringify(fa)).map(sp => ({...sp, fid: 1}));
+    for (const sp of fa) late.push({t: 0, side: 0, spec: sp, edge: E, ang: ang0}); for (const sp of fb) late.push({t: 0, side: 1, spec: sp, edge: E, ang: ang0 + Math.PI}); title = 'Зеркальный бой';
+  } else if (kind === 'line') {
     const n = total(size), fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = size === 4 ? n : Math.max(4, Math.round(n * 1.2)); place(0, fa, ang0, E, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
   } else if (kind === 'pincer') {
     const nA = total(size), mA = mixFor(nA); place(0, fleet(nA, mA, 0, 1), ang0, E, 0);
@@ -175,7 +178,7 @@ export function refreshDemo() {
     p._built = true;
     p.innerHTML = `<div class="box"><h2>Бой-демо</h2><div class="help">Запускает случайное сражение у Земли, не влияющее на игру: можно посмотреть, как выглядят корабли, турели, повреждения и дым. Флоты подходят с разных сторон.</div>
       <div class="row"><label>Сценарий <select id="dm-kind"><option value="random">Случайный</option>${Object.entries(SCENARIOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label></div>
-      <div class="row"><label>Размер <select id="dm-size"><option value="1">Небольшой (4–10 кораблей на сторону)</option><option value="2" selected>Средний (12–40)</option><option value="3">Огромный (70–200)</option><option value="4">300 на 300 (проверка производительности, F3 — замер)</option></select></label></div>
+      <div class="row"><label>Размер <select id="dm-size"><option value="1">Небольшой (4–10 кораблей на сторону)</option><option value="2" selected>Средний (12–40)</option><option value="3">Огромный (70–200)</option><option value="5">50 на 50, одинаковые флоты</option><option value="4">300 на 300 (проверка производительности, F3 — замер)</option></select></label></div>
       <div class="row"><button class="btn on" id="dm-go">Посмотреть бой</button><button class="btn" id="dm-war">Глобальная война (3–5 флотов у каждой стороны)</button></div><div class="help">Кнопки «К бою» и «Закончить» появятся в окне боя внизу. Скорость времени регулируется обычными кнопками сверху.</div></div>`;
     p.insertAdjacentHTML('beforeend', `<div class="box"><h2>Зрелая система</h2><div class="help">Заселяет 11 планет, спутников и астероидов (всего около 100 млрд человек) и запускает по 100 кораблей у каждой из 20 корпораций (≈2000 штук). Нужно, чтобы посмотреть, как выглядит и как тянет большая система. Текущая игра изменится: после просмотра нажмите «Новая игра».</div><div class="row"><button class="btn" id="dm-mature">Создать зрелую систему</button></div><div class="help" id="dm-msg"></div></div>`);
     p.addEventListener('click', e => { if (e.target.id === 'dm-mature') { $('dm-msg').textContent = 'Считаю, подождите несколько секунд…'; setTimeout(() => { const r = matureSystem(); $('dm-msg').textContent = `Готово: тел ${r.cols}, кораблей ${r.ships}. Нажмите «Пуск».`; ui.sel = {kind: 'body', id: 'earth'}; }, 30); } });

@@ -125,7 +125,7 @@ function launchBay(s){ // выпуск одного корабля из анга
   const a=s.hd+(Math.random()<.5?1:-1)*Math.PI/2,off=s.T.L*.6+.05,c=mkShip(s.side,cs,s.x+Math.cos(a)*off,s.y+Math.sin(a)*off);
   c.hd=s.hd;c.sx=s.sx+Math.cos(a)*.02;c.sy=s.sy+Math.sin(a)*.02;c.z=s.z;c.zset=1;c.bayOf=s;c.F=s.F;c.slotBack=s.slotBack||0;c.slotLat=s.slotLat||0;ships.push(c);s.bayT=t+3;stat.launch=(stat.launch||0)+1}
 function reset(cfg){
-  tracers.length=0;shuttles=[];lasBeams=[];hadContact=false;hitLog=[];impacts=[];sepT=0;lastDmgT=0;lastNa=0;lastNaT=0;frags=[];pyro=[];pods=[];lands=[];ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];
+  tracers.length=0;shuttles=[];lasBeams=[];hadContact=false;hitLog=[];impacts=[];sepT=0;lastDmgT=0;lastNa=0;lastNaT=0;frags=[];pyro=[];pods=[];lands=[];ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];CMDS=[{},{}];
   if(cfg.envList)for(const e of cfg.envList)env.push(Object.assign({vx:0,vy:0,ttl:1e9},e));
   if(!cfg.envList&&cfg.env!==false&&(cfg.env||Math.random()<.55)){const cl=1+((Math.random()*2)|0);for(let c=0;c<cl;c++){const cx0=R(-220,220),cy0=R(-200,200),n=4+((Math.random()*8)|0);for(let i=0;i<n;i++)env.push({t:'rock',x:cx0+R(-70,70),y:cy0+R(-60,60),r:R(.6,3),vx:0,vy:0,ttl:1e9})}
     if(Math.random()<.35)env.push({t:'planet',x:R(-120,120),y:(Math.random()<.5?-1:1)*R(120,230),r:R(10,22),vx:0,vy:0,ttl:1e9})}
@@ -172,6 +172,29 @@ function around(side,x,y,rad,max=1e9){ // корабли стороны в ра�
 }
 const hpf=s=>s.aliveN/s.total,PW=12; // PW: ширина воронки в колонках на единицу урона
 const val=s=>s.T.role==='freight'||s.T.role==='supply'?.6:(VAL[s.cls]||1);
+// ===== командир стороны: раз в CMD.period с решает план — собраться в кулак, охватить врага 2–5 группами, отойти =====
+const CMD=gd('battle','command',{period:30,minGroup:6});let CMDS=[{},{}];
+function command(sd,all){const C=CMDS[sd],my=ships.filter(o=>o.alive&&o.side===sd&&!o.esc),en=ships.filter(o=>o.alive&&o.side!==sd&&!o.esc);if(!my.length||!en.length)return;
+  const cx=my.reduce((a,o)=>a+o.x,0)/my.length,cy=my.reduce((a,o)=>a+o.y,0)/my.length,ex=en.reduce((a,o)=>a+o.x,0)/en.length,ey=en.reduce((a,o)=>a+o.y,0)/en.length,dist=Math.hypot(ex-cx,ey-cy);
+  const str=a=>a.reduce((x,o)=>x+o.aliveN*(1+val(o)),0),ratio=str(my)/Math.max(1,str(en)),fuel=my.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/my.length;
+  const lost=stat.lost[sd],dl=lost-(C.lost0==null?lost:C.lost0);C.lost0=lost; // потери за прошлый период
+  const enSalvo=all.some(F=>F.side!==sd&&F.sv&&F.sv.o&&F.sv.o.side===sd),rng=my.reduce((a,o)=>a+(o.maxR||60),0)/my.length; /* дальность орудий */
+  let plan=C.plan||'fist';
+  if(ratio<.45&&fuel>.1)plan='retreat';
+  else if(fuel<.15)plan='fist';
+  else if(dist>rng*1.8)plan=C.plan==="envelop"&&dist<rng*2.5?"envelop":"fist";                      // далеко — идём кулаком, раньше времени не делимся
+  else if(enSalvo&&(dl>0||plan==='fist')&&my.length>=CMD.minGroup*2)plan='envelop';                // по нам бьют залпами — рассыпаемся и охватываем
+  else if(ratio>1.4&&my.length>=CMD.minGroup*2)plan='envelop';                                     // нас заметно больше — окружаем
+  else if(plan==='envelop'&&!enSalvo&&ratio<.9)plan='fist';                                        // охват не удался — собираемся
+  const k=plan==='envelop'?Math.max(2,Math.min(5,Math.floor(my.length/CMD.minGroup))):1;
+  if(plan===C.plan&&k===C.k)return; C.plan=plan;C.k=k;C.at=t;
+  // раздача групп: по углу вокруг своего центра, поперёк направления на врага (левые — в левую группу и т.д.)
+  const ux=(ex-cx)/(dist||1),uy=(ey-cy)/(dist||1),srt=my.map(o=>[(o.x-cx)*-uy+(o.y-cy)*ux,o]).sort((a,b)=>a[0]-b[0]);
+  C.plans={};for(let g=0;g<k;g++){const fid=100+g,off=k===1?0:(g-(k-1)/2)/((k-1)/2); // −1…+1: крайние группы уходят дальше в обход
+    C.plans[fid]=plan==='retreat'?{stance:'retreat'}:k===1?{stance:'wall'}:Math.abs(off)<.34?{stance:'wall',fire:''}:{stance:'flank',flank:off*1.4,env:1,fire:'eng'}}
+  srt.forEach(([,o],i)=>{o.fid=100+Math.min(k-1,Math.floor(i*k/srt.length))});
+  stat.plan=stat.plan||['',''];stat.plan[sd]=plan==='envelop'?'охват '+k+' группами':plan==='retreat'?'отход':'единый кулак';
+  if(typeof log==='function'&&!(cfgNow&&cfgNow.bg))try{log(['Синие','Красные'][sd]+': '+stat.plan[sd]+'.')}catch(e){}}
 function fleetsUpdate(){
   for(const F of FL.values()){F.ships=[];F.lrp=0;F.srp=0;F.lrR=0;F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
   for(const s of ships){if(!s.alive)continue;const key=s.side*1000+s.fid;let F=FL.get(key);
@@ -179,6 +202,7 @@ function fleetsUpdate(){
     F.ships.push(s);F.lrp+=s.lrp*hpf(s);F.srp+=s.srp*hpf(s);F.lrR=Math.max(F.lrR,s.lrR);F.n++;F.cx+=s.x;F.cy+=s.y;F.str+=s.aliveN*(1+val(s));if(s.T.role==='freight'||s.T.role==='supply')F.fr++;s.F=F}
   for(const [k,F] of FL){if(!F.n){FL.delete(k);continue}F.cx/=F.n;F.cy/=F.n;F.convoy=F.fr>=F.n*.5}
   const all=[...FL.values()];
+  for(const sd of [0,1])if(t>=(CMDS[sd].next||0)){CMDS[sd].next=t+CMD.period;command(sd,all)}
   for(const F of all){
     if(t<F.next)continue;F.next=t+R(1.5,3);
     // цель-флот: ближайший вражеский, слабым отдаём предпочтение
@@ -211,9 +235,10 @@ function fleetsUpdate(){
           else if(st==='engage')st=['wall','wedge','echelon'][F.fid%3]; // обычный бой — строй носом к врагу
         }
         if(st==='retreat'&&!F.until)F.until=t+40}
+      {const P=CMDS[F.side].plans&&CMDS[F.side].plans[F.fid];if(P&&st!=='wait'){st=P.stance;if(P.flank!=null)F.flank=P.flank;F.env=!!P.env;F.planFire=P.fire}}
       F.stance=st}
     F.ratio=ratio;
-    F.fire=F.side===0?ORD.fire||'':(F.ratio>1.3?'weak':F.ratio<.8?'eng':'');
+    F.fire=(F.side===0&&ORD.fire)||F.planFire||(F.ratio>1.3?'weak':F.ratio<.8?'eng':'');
     if(F.side===0&&ORD.st&&!F.convoy){F.stance=ORD.st;if(ORD.st==='kite')F.hold=Math.max(60,F.lrR*.8,80);if(ORD.st==='retreat')F.until=t+6}
     // строй держится, пока флот не окружён и враг не вклинился внутрь
     {const dirs=[];let inside=0;for(const E of all){if(E.side===F.side)continue;if(Math.hypot(E.cx-F.cx,E.cy-F.cy)<280)dirs.push(Math.atan2(E.cy-F.cy,E.cx-F.cx))}
@@ -228,7 +253,7 @@ function fleetsUpdate(){
       if(N>=4)F.sv={o,tA:t+mx+SALVO.prep,N,k:0}}} // залп флота: все снаряды приходят в одну секунду, каждый в свою точку круга, куда цель может увернутьсяif(F.side===0&&ORD.focus&&ORD.focus.alive)F.focus=ORD.focus;
     // точка сбора флота и направление строя
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
-    if(F.stance==='flank'){const a=F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
+    if(F.stance==='flank'){const a=F.env?F.flank:F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
     {const shp=F.stance==='wedge'?'wedge':F.stance==='echelon'?'echelon':'line';if(F.shape!==shp){F.shape=shp;F.nSlots=-1}}
     if(F.stance==='pass'){ // проход насквозь: цель — точка за строем врага; пролетели — разворот и новый заход
       const ex=bf.cx-F.cx,ey=bf.cy-F.cy;if(!F.pd||Math.hypot(ex,ey)>F.rng*3)F.pd={x:dx,y:dy};F.tgx=bf.cx+F.pd.x*80;F.tgy=bf.cy+F.pd.y*80;if(ex*F.pd.x+ey*F.pd.y<-20)F.pd=null}
@@ -1272,7 +1297,7 @@ function hud(){
     const F=air.filter(c=>c.side===s&&c.type==='F'&&c.state!=='dead').length,Bm=air.filter(c=>c.side===s&&c.type==='B'&&c.state!=='dead').length;
     const acc=stat.shots[s]?(100*stat.hits[s]/stat.shots[s]).toFixed(1)+'%':'—';
     const sh=['cv','hc','dd','fr'].map(ty=>SHORT[ty]+' '+ships.filter(o=>o.side===s&&o.cls===ty&&o.alive).length).join(' · ');
-    h+=`<span class="c${'ab'[s]}"><b>${(cfgNow&&cfgNow.names||['Ваш флот','Налётчики'])[s]}</b>${sh} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]} · лазеры ${stat.las[s]} · ракеты ${stat.mis[s]}→${stat.misHit[s]} (сбито ${stat.misShot[1-s]}) · сломано двиг. ${stat.bfail[s]}</span>`;
+    h+=`<span class="c${'ab'[s]}"><b>${(cfgNow&&cfgNow.names||['Ваш флот','Налётчики'])[s]}</b>${sh}${stat.plan&&stat.plan[s]?' · план: <b>'+stat.plan[s]+'</b>':''} · рельсы ${stat.shots[s]}/${stat.hits[s]} (${acc}) · истр. ${F} (−${stat.lostF[s]}) · бомб. ${Bm} (−${stat.lostB[s]}) · торп. ${stat.torp[s]}→${stat.torpHit[s]} · ПВО ${stat.flak[s]} · лазеры ${stat.las[s]} · ракеты ${stat.mis[s]}→${stat.misHit[s]} (сбито ${stat.misShot[1-s]}) · сломано двиг. ${stat.bfail[s]}</span>`;
   }
   if(done)h+=`<span class="${al[0]?'ca':'cb'}"><b>Итог</b>${!al[1]&&al[0]?'победа':!al[0]&&al[1]?'поражение':!al[0]?'взаимное уничтожение':'враг отступил'}</span>`;
   $b('bstats').innerHTML=h;
