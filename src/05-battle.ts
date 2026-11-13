@@ -15,6 +15,7 @@ const $b = id => document.getElementById(id);
 // RC0 — рельсотрон по умолчанию: dmg урон, rng дальность, sig множитель разброса, cal калибр; FC0 — зенитка; GC0 — гатлинг; LC0 — боевой лазер; MC0 — ракета;
 // FI/BO — истребитель/бомбардировщик; TORP — торпеда; FLAK — зенитный разрыв; RCT — время перезарядки по калибру; EW — помехи РЭБ; RADAR — дальность радара; MARN — морпехи)
 const dryM=s=>Math.max(s.T.tons*.2,s.T.tons-(s.fuelCap||0)); // сухая масса: корабль без топлива
+const ARMZ=gd('battle','armor',{nose:35,side:2,rear:2}); // слоёв по 2 см стали: нос 70 см, борта и корма 4 см
 const FUEL=gd('battle','fuel',{ve:9,rcsVe:3,cap:.3,keep:.12}); // топливо в бою: vₑ главных двигателей и маневровых (км/с), бак по умолчанию — доля массы
 const BT=gd('battle','battle',{DOPT:{hc:20,dd:20,fr:35,cv:100},JINK:0.0015,VP:6,LIFE:10,SIGMA:0.026,LAUNCH:450,SUB:0.25,REL:60,FI:{vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO:{vmax:0.8,a:0.05,fuel:2200,hp:4},TORP:{sp:2.5,pd:0.02,pdr:35,launch:120,mod:2},FLAK:{range:60,blast:1.2},RC0:{dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0:{blast:1.2,rng:60,rel:1,fail:0},GC0:{tw:0,rpm:6000,heat:.4,cool:.2,pen:.02,rng:15,ammoH:5,mass:25},LC0:{dmg:4,rng:250,chg:.08},MC0:{hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83},BURST:{5:1,10:1,15:1,20:1,25:1,30:1},RCT:{5:6,10:16,15:28,20:45,25:60,30:80},EW:{fr:.12,cv:.05,dd:.02,hc:.02},RADAR:{cv:420,hc:320,dd:260,fr:360},MARN:{cv:20,hc:10,dd:8,fr:4}});
 const PMIN=BT.PMIN!=null?BT.PMIN:.15,DISP=BT.DISP!=null?BT.DISP:.0003,GDISP=BT.GDISP!=null?BT.GDISP:.002,DOPT=BT.DOPT,JINK=BT.JINK,VP=BT.VP,LIFE=BT.LIFE,RANGE=VP*LIFE,SIGMA=BT.SIGMA,LAUNCH=BT.LAUNCH,SUB=BT.SUB,REL=BT.REL;
@@ -64,7 +65,7 @@ function mkShip(side,sp,x,y){
   sp={...sp,F0:sp.F||0,lasers:0,laserCfg:null,F:0,B:0,miss:0,missCfg:null}; // ракеты временно отключены (будут переделаны) // лазеры отключены; старые «звенья» истребителей заменены кораблями из ангара (join)
   const T={tons:sp.tons||specTons(sp),role:sp.role,n:sp.name,defl:sp.defl||0,arm:sp.arm,eng:Math.max(1,sp.eng||3),spd:sp.spd||1,L:Math.max(0.06,sp.L),dopt:sp.dopt};
   const nc=Math.max(2,Math.round(T.L*1000/4)); // броня: по одной ячейке на метр длины в каждом слое (4 сектора по L/4 колонок)
-  const zones=ZN.map(()=>({arm:T.arm,nc,cols:new Uint8Array(nc).fill(Math.min(255,T.arm)),armN:nc*Math.min(255,T.arm),mods:[]}));
+  const zones=ZN.map((_,zi)=>{const a=Math.min(255,ARMZ[zi===0?'nose':zi===2?'rear':'side']);return {arm:a,nc,cols:new Uint8Array(nc).fill(a),armN:nc*a,mods:[]}}); // броня по зонам: нос толстый (70 см), борта и корма тонкие
   const add=(k,z)=>{const m={k,alive:true,sk:(k==='T'||k==='A'||k==='G')?Math.max(1,Math.min(10,Math.round((sp.sk||5.5)+gauss()*2))):0,cd:R(0,REL),z};zones[z].mods.push(m);return m};
   const tur=[];for(let i=0;i<sp.rails;i++){const m=add('T',i%4);m.cfg=(sp.railCfg&&sp.railCfg[i])||RC0;tur.push(m)}for(let i=0;i<sp.flak;i++){const m=add('A',(i+2)%4);m.cfg=(sp.flakCfg&&sp.flakCfg[i])||FC0;tur.push(m)}
   for(let i=0;i<(sp.gat||0);i++){const m=add('G',(i+1)%4);m.cfg=(sp.gatCfg&&sp.gatCfg[i])||GC0;m.heat=0;m.lock=false;m.acc=0;tur.push(m)}
@@ -72,7 +73,7 @@ function mkShip(side,sp,x,y){
   for(let i=0;i<(sp.miss||0);i++){const m=add('M',(i+3)%4);m.cfg=(sp.missCfg&&sp.missCfg[i])||MC0;m.ammo=m.cfg.ammo;tur.push(m)}
   for(let i=0;i<T.eng;i++)add('E',2);
   const nR=Math.max(4,Math.min(8,2+Math.round(T.L*4))),nD=T.L>.9?2:1;for(let i=0;i<nR;i++)add('R',i%2?0:2);for(let i=0;i<nD;i++)add('D',i?3:1);
-  const core=add('C',(Math.random()*4)|0),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
+  const core=add('C',2),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
   const sh={acc:0,spin:0,trail:sp.trail||null,hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
   sh.acc=accOf(sp,T);sh.raider=sh.acc>=20&&T.tons<=3000&&!sp.role; // лёгкий и резвый — перехватчик: кавалерийские наскоки
@@ -86,7 +87,7 @@ function mkShip(side,sp,x,y){
     if(zi===0){m.u=.2+.07*(nr-1-row)+.04*(col%2);m.v=(col-(cc-1)/2)*Math.min(.12,.7/cc)}
     else if(zi===2){m.u=-.42+.07*row;m.v=(col-(cc-1)/2)*Math.min(.12,.7/cc)}
     else{m.u=-.3+.6*(col+.5)/cc;m.v=(zi===1?1:-1)*(.1+.08*row)}});});
-  core.u=.02;core.v=0;
+  core.u=-.36;core.v=0; // реактор глубоко в корме, у двигателей
   {let ci=0;for(const z of zones)for(const m of z.mods)if(m.k==='T'||m.k==='A'||m.k==='G'||m.k==='L'||m.k==='M')m.face=[0,0,1,3,0,2,1,3,0,2][ci++%10]} // стороны башен: верх/правый/низ/левый
   sh.roll=0;sh.rollT=0;sh.pOff=0;sh.pNext=0;sh.uid=uidN++;sh.rcs0=sh.rcsN=nR;sh.rad0=sh.radN=nD;sh.trn=0;
   {const ar=Math.min(3,Math.floor(T.arm/3));for(const z of zones)for(const m of z.mods){if('TALMRDG'.includes(m.k))m.ar=ar;if(m.k==='T')m.am=70;else if(m.k==='A')m.am=50}} // у внешних модулей своя броня, у орудий — боезапас
@@ -600,7 +601,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   if(imp){imp.left=z.cols[c];imp.arm=z.arm} // картинка берёт остаток слоёв из расчёта: 0 — сквозная дыра
   if(pass<=0)return;
   const k=kind==='torp'?TORP.mod:pass,f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;
-  for(let i=0;i<k;i++){let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
+  for(let i=0;i<k;i++){let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv+(q.k==='C'?.04:0); /* реактор за другими модулями: до него доходит, когда соседи выбиты */if(d<bd){bd=d;m=q}}
     if(!m)break;if(m.ar>0&&m.k!=='C'){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.7});continue}mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}
   const tk=(kind==='laser'&&pw&&pw<1)?pw:1; // такт лазера (0,1 с): побочные эффекты проникновения редкие, иначе корабль горит непрерывно
   if(tk===1||Math.random()<tk*.5){fx.push({z:o.z,x,y,t0:t,d:10,r:3});SFX.boom(3);spawnPlates(o,x,y,2+Math.min(3,k),true);addDecal(o,x,y,vx,vy,1.2,1)}
