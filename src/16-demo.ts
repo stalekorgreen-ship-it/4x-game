@@ -10,7 +10,7 @@ import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.t
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
 import { botSpec, previewSpec } from './16b-botdesign.ts';
-import { designStats, CAV_PARTS, TANK_PARTS } from './01-data.ts';
+import { designStats, CAV_PARTS, TANK_PARTS, AX30_PARTS } from './01-data.ts';
 const realSp = (parts, extra) => { const o = previewSpec(parts) || {rails: 0, flak: 0, L: .1}; o.spd = 1; return Object.assign(o, extra); };
 
 const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
@@ -42,6 +42,7 @@ const TYPES = {
   tanker: n => realSp(TANK_PARTS(), {role: 'supply', name: 'Боевой танкер'}),
   // перехватчик-кавалерист (470 т, 20 м/с², штанга дозаправки) после наскоков уходит к танкеру
   cavalry: n => realSp(CAV_PARTS(), {name: 'Перехватчик-кавалерист'}),
+  ax30: n => realSp(AX30_PARTS(), {name: 'Осевой рельсотронщик 30 см'}),
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
@@ -156,6 +157,11 @@ export function makeScenario(kind, size) {
   if (size === 5) { // зеркальный бой: одинаковые флоты по 50 кораблей, одинаковое время прибытия
     const fa = fleet(50, mixFor(50), 0, 1), fb = JSON.parse(JSON.stringify(fa)).map(sp => ({...sp, fid: 1}));
     for (const sp of fa) late.push({t: 0, side: 0, spec: sp, edge: E, ang: ang0}); for (const sp of fb) late.push({t: 0, side: 1, spec: sp, edge: E, ang: ang0 + Math.PI}); title = 'Зеркальный бой';
+    // добавка к зеркальному бою: каждой стороне 3 танкера, 30 кавалеристов, 10 осевых 30 см — каждая группа со своим генералом (свой fid)
+    const grp = (k, n, fid) => Array.from({length: n}, (_, i) => { const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = 6; return sp; });
+    const extra = [...grp('tanker', 3, 2), ...grp('cavalry', 30, 3), ...grp('ax30', 10, 4)];
+    for (const side of [0, 1]) for (const sp of extra) late.push({t: 0, side, spec: JSON.parse(JSON.stringify(sp)), edge: E + (sp.tanker ? 120 : 0), ang: ang0 + side * Math.PI});
+    title = 'Зеркальный бой + кавалерия';
   } else if (kind === 'line') {
     const n = total(size), fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = size === 4 ? n : Math.max(4, Math.round(n * 1.2)); place(0, fa, ang0, E, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
   } else if (kind === 'pincer') {

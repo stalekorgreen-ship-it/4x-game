@@ -383,7 +383,7 @@ function steer(s,dt){
     const er=Math.max(s.maxR,F.stance==='kite'?F.hold:0);let dopt=t<s.bdo?5:F.stance==='kite'?F.hold:F.stance==='assault'?14:T.dopt;
     if(tg&&tg.maxR&&tg.maxR>s.maxR*1.05&&F.stance!=='kite')dopt=Math.min(dopt,Math.max(8,s.maxR*.4));if(tg&&F.stance!=='kite'){const vp=(s.tur.find(m=>m.alive&&m.k==='T')||{cfg:{}}).cfg.vp||VP;dopt=Math.min(dopt,Math.max(1.5,rangeP(s,tg,vp,PMIN*2)*.85))} // идём на дистанцию, где орудия реально попадают (шанс ≥ 2×порога) // враг бьёт дальше — сближаемся, а не пятимся
     let tk0=null;if(s.probe&&s.fuelCap&&(s.rf||s.fuel/s.fuelCap<REF.go)&&(tk0=tankerFor(s))){s.rf=tk0;const dx=tk0.x-s.x,dy=tk0.y-s.y,d=Math.hypot(dx,dy)||1,ap=Math.min(vm*3,Math.max(0,d-REF.dist*.5)*.08);vx=(tk0.sx||0)+dx/d*ap;vy=(tk0.sy||0)+dy/d*ap;want=Math.atan2(dy,dx)} // на заправку: к танкеру, сравнять скорость и встать рядом
-    else if(s.tnk&&(tk0=tankCall(s))){const dx=tk0.x-s.x,dy=tk0.y-s.y,d=Math.hypot(dx,dy)||1,ap=Math.min(vm*.5,Math.max(0,d-REF.dist*.5)*.03);vx=dx/d*ap;vy=(tk0.sy||0)*.5+dy/d*ap;want=Math.atan2(dy,dx)} // танкер сам идёт навстречу тем, кто просит топливо
+    else if(s.tnk){const c=sideC(s.side),e=sideC(1-s.side);let dx=c.x-e.x,dy=c.y-e.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;const bx=c.x+dx*REF.back,by=c.y+dy*REF.back,ex2=bx-s.x,ey2=by-s.y,ed2=Math.hypot(ex2,ey2)||1,v2=Math.min(sp,ed2*.05);vx=ex2/ed2*v2;vy=ey2/ed2*v2;if(ed2>5)want=Math.atan2(ey2,ex2)} // танкер держится далеко за своими, на линии от противника
     else if(T.role==='supply'||s.tnk){const n=Math.max(1,F.n),cx=F.gx,cy=F.gy;let dx=F.dx||0,dy=F.dy||0;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;const bx=cx-dx*(60+n*3),by=cy-dy*(60+n*3),ex2=bx-s.x,ey2=by-s.y,ed2=Math.hypot(ex2,ey2)||1,v2=Math.min(sp,ed2*.1);vx=ex2/ed2*v2;vy=ey2/ed2*v2}
     else if(T.role==='freight'||F.stance==='convoy'&&T.role){vx=fvx;vy=fvy}
     else if(tg&&s.raider&&(!s.fuelCap||s.fuel/s.fuelCap>(s.probe?REF.go:.6))&&td<Math.max(er*3,150)){ // перехватчик: разгон мимо цели на сближении (дальность и пробитие растут с относительной скоростью), проскок, отход, разворот
@@ -809,8 +809,9 @@ function lasStep(dt){
 }
 // снабжение: транспорты держатся в хвосте и шаттлами возят боеприпасы кораблям, у которых погреб опустел меньше чем наполовину
 const SHUT_SPD=9,SHUT_T=40; // км/с, тонн за рейс
-const REF=gd('battle','refuel',{go:.45,full:.95,dist:2,dv:.3,rate:6,keep:.15}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
+const REF=gd('battle','refuel',{go:.45,full:.95,dist:2,dv:.3,rate:6,keep:.15,back:150}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
 function tankerFor(s){if(s.rf&&s.rf.alive&&s.rf.fuel>s.rf.fuelCap*REF.keep)return s.rf;let b=null,bd=1e9;for(const o of ships){if(!o.alive||o.side!==s.side||!o.tnk||o===s||o.fuel<=o.fuelCap*REF.keep)continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d<bd){bd=d;b=o}}if(!b)s.rf=null;return b}
+let _sc=[null,null],_scT=-1;function sideC(sd){if(_scT!==t){_scT=t;_sc=[0,1].map(q=>{let x=0,y=0,n=0;for(const o of ships)if(o.alive&&o.side===q&&!o.tnk){x+=o.x;y+=o.y;n++}return n?{x:x/n,y:y/n}:{x:0,y:0}})}return _sc[sd]}
 function tankCall(k){let b=null,bs=1e9;for(const o of ships){if(o.rf!==k||!o.alive||o.rfOn)continue;const d=Math.hypot(o.x-k.x,o.y-k.y),sc=d*(.3+o.fuel/o.fuelCap);if(d>2&&sc<bs){bs=sc;b=o}}return b}
 function refuelStep(dt){for(const s of ships){const k=s.rf;if(!k)continue;if(!s.alive||!k.alive||s.fuel>=s.fuelCap*REF.full){s.rf=null;s.rfOn=0;continue}
   const d=Math.hypot(k.x-s.x,k.y-s.y),dv=Math.hypot((k.sx||0)-(s.sx||0),(k.sy||0)-(s.sy||0));s.rfOn=d<REF.dist+k.T.L&&dv<REF.dv?1:0;

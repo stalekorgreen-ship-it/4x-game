@@ -763,6 +763,7 @@ export function newGame() {
   D2('Авианосец А1', {[IX]: 70, [TX]: 3, hangar_f: 3, hangar_b: 1, [R10]: 6, [AM(100)]: 1, armor: 3, radar: 1, fcs: 2, cabin: 3, life: 2});
   D('Перехватчик-кавалерист', CAV_PARTS());
   D('Боевой танкер', TANK_PARTS());
+  D('Осевой рельсотронщик 30 см', AX30_PARTS());
   D('Станция «Опора»', {cargo: 3, [T100]: 2, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1});
   for (let i = 0; i < 12; i++) genOfficer();
   const g = newGroup('Добытчики');
@@ -807,6 +808,8 @@ export const programOf = s => groupOf(s) || s.own;
 // перехватчик-кавалерист: 470 т с топливом, 20 м/с², 2 рельсотрона 10 см, штанга дозаправки; боевой танкер: 6 000 т топлива на передачу
 export const CAV_PARTS = () => ({[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 4, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {tv: '25'})]: 3, [mkKey('ammo', {t: '5'})]: 1, [mkKey('rail', {cal: '10', bar: '1', ld: 'a', cap: 'a', saf: '0', mnt: 'a'})]: 2, probe: 1, fcs: 1, [mkKey('cabin', {cv: '5'})]: 3, life: 2, armor: 1});
 export const TANK_PARTS = () => ({[mkKey('ion', {pw: '500'})]: 4, [mkKey('reactor', {p: '1000'})]: 1, [mkKey('tank', {tv: '2000'})]: 3, xfer: 1, gat: 2, [mkKey('ammo', {t: '25'})]: 1, fcs: 1, armor: 1, [mkKey('cabin', {cv: '25'})]: 2, life: 4});
+// осевой рельсотронщик: ~1 300 т, один осевой рельсотрон 30 см (перезарядка медленная — реактор 300 МВт)
+export const AX30_PARTS = () => ({[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 10, [mkKey('reactor', {p: '300'})]: 1, [mkKey('tank', {tv: '100'})]: 1, [mkKey('ammo', {t: '25'})]: 1, [mkKey('rail', {cal: '30', bar: '1', ld: 'a', cap: 'a', saf: '0', mnt: 'a'})]: 1, fcs: 1, armor: 2, [mkKey('cabin', {cv: '25'})]: 1, life: 3});
 /* ===== ИСТРЕБИТЕЛИ КАК НАСТОЯЩИЕ КОРАБЛИ ===== */
 export const FGT_MAX = 500;
 export const CR_PRE = {
