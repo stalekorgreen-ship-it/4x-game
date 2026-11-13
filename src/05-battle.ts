@@ -556,7 +556,7 @@ function podStep(dt){
     if(dead){fx.push({x:l.x,y:l.y,z:l.z,t0:t,d:3,r:1.1});spawnShards(l.x,l.y,l.z,4,5);SFX.boom(4);stat.landLost=(stat.landLost||0)+1;lands.splice(i,1);continue}
     if(d<o.T.L*.5+.8){lands.splice(i,1);resolveBoard(l)}}
 }
-function kill(o){if(!o.alive)return;o.alive=false;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(4,o.T.L*7)});SFX.boom(26);stat.lost[o.side]++;
+function kill(o,why){if(!o.alive)return;o.alive=false;o.why=why||'другое';(stat.kc=stat.kc||{})[o.why]=(stat.kc[o.why]||0)+1;if(o.crew>.04)launchPods(o,.5);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:14,r:Math.max(4,o.T.L*7)});SFX.boom(26);stat.lost[o.side]++;
   {const L=o.T.L;spawnFrags(o.x,o.y,o.z,6+Math.floor(L*6),1.2,L,o);
    let ammo=(o.pool&&(o.pool.torp||0)+(o.pool.ammo||0)/10)||0;for(const m of o.tur)if(m.k==='M'&&m.alive)ammo+=m.ammo||0;
    if(ammo>0)pyro.push({x:o.x,y:o.y,z:o.z,hd:o.hd,L,vx:o.sx*.3,vy:o.sy*.3,n:4+Math.min(14,Math.round(L*3+ammo/3)),next:t+.3,t0:t,side:o.side});
@@ -576,7 +576,7 @@ function fighterHit(o,dmg,x,y,vx,vy){
   for(let i=0;i<h&&ex.length;i++){let tw=0;for(const q of ex)tw+=wt(q);let r=Math.random()*tw,j=0;for(;j<ex.length-1;j++){r-=wt(ex[j]);if(r<=0)break}const m=ex[j];
     if(m.ar>0&&Math.random()<.75){m.ar--;fx.push({z:o.z,x,y,t0:t,d:3,r:.6});continue}
     mdead(o,m);ex.splice(j,1);o.crew=Math.max(0,o.crew-.006);o.mor-=.01;stat.fmod=(stat.fmod||0)+1;fx.push({z:o.z,x,y,t0:t,d:8,r:1.8});say(o.side,'mod',o)}
-  addDecal(o,x,y,vx,vy,.4,3);if(o.alive&&o.aliveN<o.total*.22)kill(o)}
+  addDecal(o,x,y,vx,vy,.4,3);if(o.alive&&o.aliveN<o.total*.22)kill(o,'броня пробита: модули выбиты')}
 // пуля не пробила броню: без вспышки — отскакивает от обшивки и улетает по отражённой траектории, пара искр
 function ricochet(o,x,y,vx,vy){
   if(frags.length>520)return;let nx=x-o.x,ny=y-o.y;const nl=Math.hypot(nx,ny)||1;nx/=nl;ny/=nl;const vl=Math.hypot(vx,vy)||1,ux=vx/vl,uy=vy/vl,dn=ux*nx+uy*ny;
@@ -611,8 +611,8 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   o.crew=Math.max(0,o.crew-(.012*k+.004)*tk);o.mor-=(.012+.01*k)*tk;
   if(Math.random()<(.07+.04*k)*tk*(tk<1?.5:1)){const zi2=o.zones.indexOf(z);if(zi2>=0){o.fire[zi2]=Math.min(3,o.fire[zi2]+1);stat.fires++;say(o.side,'fire_',o)}}
   say(o.side,'hit',o);
-  if(!o.core.alive){if(!o.ecore){o.ecore=1;o.core.alive=true;o.aliveN++;o.blk=t+R(40,70);o.heat=0;stat.blk++;say(o.side,'power',o);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:12,r:6})}else kill(o)}
-  if(o.alive&&o.aliveN<o.total*0.22)kill(o);
+  if(!o.core.alive){if(!o.ecore){o.ecore=1;o.core.alive=true;o.aliveN++;o.blk=t+R(40,70);o.heat=0;stat.blk++;say(o.side,'power',o);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:12,r:6})}else kill(o,'реактор: второе отключение')}
+  if(o.alive&&o.aliveN<o.total*0.22)kill(o,'модули выбиты попаданиями');
   };
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
@@ -684,7 +684,7 @@ function flakBurst(s,m){
   return true;
 }
 // осечка: орудие клинит на 4 минуты, иногда взрывается
-function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3)kill(s)}}
+function jamChk(s,m,C){if(!C.fail||Math.random()>=C.fail)return;stat.jams=(stat.jams||0)+1;m.cd=240;fx.push({x:s.x,y:s.y,t0:t,d:6,r:1.5});if(Math.random()<0.15){m.alive=false;s.aliveN--;stat.boom=(stat.boom||0)+1;if(!s.core.alive||s.aliveN<s.total*0.3)kill(s,'взрыв своего орудия')}}
 function fireShell(s,m,o0,C,lag){
   let o=o0&&o0.alive?o0:(s.tg&&s.tg.alive?s.tg:null);if(!o)return;
   const VPc=C.vp,oz=o.z||0,rsx=o.sx-(s.sx||0),rsy=o.sy-(s.sy||0);let T=Math.hypot(o.x-s.x,o.y-s.y,oz-s.z)/VPc; // упреждение в системе стрелка
@@ -951,7 +951,7 @@ function crewStep(dc){
     // пожары и аварийная команда
     const dcp=.05*(.4+.6*s.crew)*sk/6*(s.spec.dcon!=null?.4+.9*Math.min(4,s.spec.dcon):1)*(s.side===0?1+ta('dcx'):1);
     for(let zi=0;zi<4;zi++){const f=s.fire[zi];if(!f)continue;
-      if(Math.random()<.5*f*dc/12){const al=s.zones[zi].mods.filter(m=>m.alive&&m.k!=='C');if(al.length){const m=al[(Math.random()*al.length)|0];mdead(s,m);fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:5,r:1.6});if(s.aliveN<s.total*.22)kill(s)}}
+      if(Math.random()<.5*f*dc/12){const al=s.zones[zi].mods.filter(m=>m.alive&&m.k!=='C');if(al.length){const m=al[(Math.random()*al.length)|0];mdead(s,m);fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:5,r:1.6});if(s.aliveN<s.total*.22)kill(s,'пожар')}}
       if(s.alive&&Math.random()<dcp*dc)s.fire[zi]--}
     if(!s.alive)continue;
     // ремонт модулей, когда не под огнём
