@@ -34,7 +34,7 @@ const adiff=(a,b)=>{let d=b-a;while(d>Math.PI)d-=6.283;while(d<-Math.PI)d+=6.283
 function accOf(sp,T){const tons=Math.max(1,T.tons||1);let a=sp.pow>0?sp.pow*120/tons:6*(T.spd||1)*Math.sqrt(.3/Math.max(.05,T.L));return Math.max(1,Math.min(40,a))}
 // снаряд рельсотрона по калибру (см): масса кг = 3·(cal/5)³, сечение см² = π·(cal/2)²; k — МДж/см² на (км/с)²
 const RAIL_K=cal=>{const c=cal||10,m=3*Math.pow(c/5,3),S=Math.PI*(c/2)*(c/2);return .5*m/S},RAIL_M=cal=>3*Math.pow((cal||10)/5,3);
-const GAT_K=.0042,GAT_M=.014,ARM_E=2; // пуля 14 г, 1,65 см²; слой стали держит 2 МДж/см²
+const GAT_K=.0042,GAT_M=.014,ARM_E=BT.ARM_E!=null?BT.ARM_E:.3; // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1),w=Math.min(12,tf),
   dg=o.T&&o.rcsN>0&&o.sc&&o.sc.length?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;return Math.max(0,Math.min(1,h/(e+dg+1e-6)))}
