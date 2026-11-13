@@ -9,6 +9,9 @@
   "prep": 6,
   "fill": 0.9
  },
+ "ammo": {
+  "hours": 2
+ },
  "pass": {
   "max": 2,
   "mm": 300
