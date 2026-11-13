@@ -93,6 +93,8 @@ function pickType(mix, tot, keys) { let r = Math.random() * tot, k = keys[0]; fo
 // флот по числу кораблей или (если задан вес W) по весу
 // демо-корабли не тяжелее MAXT т: длина и число орудий/двигателей ужимаются пропорционально
 const MAXT = 2000;
+// осевые орудия легче и дешевле: ИИ ставит ~60% рельсотронов осевыми (бой ведётся носом к врагу)
+function axify(sp) { if (sp.railCfg && sp.railCfg.length) { const n = Math.ceil(sp.railCfg.length * .6); sp.railCfg = sp.railCfg.map((c, i) => i < n ? {...c, ax: 1} : c); } return sp; }
 function capTons(sp) { const t = sp.tons || specTons(sp); if (t <= MAXT) return sp; const k = MAXT / t, cut = (n, a) => { const m = Math.max(n > 0 ? 1 : 0, Math.round(n * k)); return [m, a ? a.slice(0, m) : a]; };
   sp.tons = MAXT; sp.L = Math.max(.02, sp.L * Math.cbrt(k)); [sp.rails, sp.railCfg] = cut(sp.rails || 0, sp.railCfg); [sp.gat, sp.gatCfg] = cut(sp.gat || 0, sp.gatCfg); [sp.flak, sp.flakCfg] = cut(sp.flak || 0, sp.flakCfg); sp.eng = Math.max(1, Math.round((sp.eng || 3) * Math.cbrt(k)));
   if (sp.fuelCap) { sp.fuelCap *= k; if (sp.fuel != null) sp.fuel *= k; } if (sp.ammoCap) sp.ammoCap = Math.round(sp.ammoCap * k); return sp; }
@@ -113,7 +115,7 @@ function fleet(n, mixOrDoc, fid, speed, W) {
     ls.slice(cap).forEach(sp => { sp.lasers = 0; sp.laserCfg = []; sp.name = sp.name.replace('Лазерный линкор', 'Линкор').replace('Лазерный крейсер', 'Крейсер'); });
   }
   for (const sp of out) sp.spdMul = speed;
-  return outfit(out).map(botSpec).map(capTons); // все корабли — из настоящих деталей: бот проектирует и пробует варианты
+  return outfit(out).map(botSpec).map(capTons).map(axify); // все корабли — из настоящих деталей: бот проектирует и пробует варианты
 }
 const fleetW = specs => specs.reduce((a, sp) => a + W3(sp), 0);
 // сколько кораблей: размер 1 — от 4 до 10, 2 — до 40, 3 — до 200 на сторону

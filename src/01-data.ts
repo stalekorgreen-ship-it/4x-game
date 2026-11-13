@@ -574,13 +574,13 @@ export function massParts(sp) {
   const L = T / TON_L, armor = Math.min(M * HULLK * .7, ARM_K * (sp.arm || 0) * L * L);
   return {T, parts: o, smalls: sm, armor};
 }
-// --- осевое крепление: орудие вварено в нос лицом вперёд (±10°), вес в 3 раза меньше, остальные параметры те же ---
+// --- осевое крепление: орудие вварено в нос лицом вперёд (±10°), вес в 4,5 раза меньше, цена в 1,5 раза ниже, остальные параметры те же ---
 for (const b of ['rail', 'gat', 'flak', 'lgun', 'missile']) {
-  COMP[b].opts.push(O('mnt', 'Крепление', 't', [['t', 'турель'], ['a', 'осевое (вес ÷3, только вперёд ±10°)']]));
+  COMP[b].opts.push(O('mnt', 'Крепление', 't', [['t', 'турель'], ['a', 'осевое (вес ÷4,5, цена ÷1,5, только вперёд ±10°)']]));
   const ap0 = COMP[b].ap;
-  COMP[b].ap = (c, s) => { ap0(c, s); if (s.mnt && s.mnt.v === 'a') { c.mass = Math.max(.1, Math.round(c.mass / 3 * 10) / 10); c.ax = 1;
+  COMP[b].ap = (c, s) => { ap0(c, s); if (s.mnt && s.mnt.v === 'a') { c.mass = Math.max(.1, Math.round(c.mass / 4.5 * 10) / 10); mulCost(c, 1 / 1.5); c.ax = 1;
     for (const k of ['rcfg', 'fcfg', 'gcfg', 'lcfg', 'mcfg']) if (c[k]) { c[k] = {...c[k], ax: 1}; if (c[k].mass != null) c[k].mass = c.mass; }
-    c.name += ' · осевое'; c.desc = 'ОСЕВОЕ (в носу, ±10°, вес ÷3): ' + c.desc; } };
+    c.name += ' · осевое'; c.desc = 'ОСЕВОЕ (в носу, ±10°, вес ÷4,5, цена ÷1,5): ' + c.desc; } };
 }
 // размер 0.01–50 для лёгких модулей: масса и цена растут как размер^0.8, дальность/каналы — медленнее
 for (const b of ['radar', 'irs', 'ems', 'fcs', 'ew', 'dcon']) {
