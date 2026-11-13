@@ -77,6 +77,13 @@
   "minGroup": 6,
   "fleetMax": 10
  },
+ "missile": {
+  "dvK": 1.5,
+  "acc": 0.5,
+  "N": 3,
+  "boost": 0.85,
+  "cal": 1
+ },
  "cavalry": {
   "arc": 0.35
  },

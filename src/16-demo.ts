@@ -47,7 +47,7 @@ const TYPES = {
 };
 // доли состава флота (раскладка по размеру)
 // лазеры и истребители временно убраны из игры (механика будет переделана): их типы заменены пушечными
-const OFF_T = {carrier: 'cruiser', swarmcarrier: 'destroyer', bomber: 'frigate', laserCruiser: 'cruiser', laserBattleship: 'battleship', missileFrigate: 'frigate', missileCruiser: 'cruiser'}; // ракеты тоже убраны
+const OFF_T = {carrier: 'cruiser', swarmcarrier: 'destroyer', bomber: 'frigate', laserCruiser: 'cruiser', laserBattleship: 'battleship'};
 for (const k in OFF_T) TYPES[k] = TYPES[OFF_T[k]];
 const MIXES = {
   light: {corvette: 5, destroyer: 3, frigate: 1, gunboat: 2},

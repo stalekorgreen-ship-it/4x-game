@@ -76,7 +76,7 @@ function recoil(s,m,mkg,vkms,dx,dy){if(!s.T||!s.alive)return;const dl=Math.hypot
   s.spin=(s.spin||0)+(rx*py-ry*px)/I}
 const classify=sp=>(sp.flak>=sp.rails&&sp.flak>0)?'fr':((sp.L0!=null?sp.L0>=1.6:specTons(sp)>=50000)||sp.rails>=40)?'hc':'dd';
 function mkShip(side,sp,x,y){
-  sp={...sp,F0:sp.F||0,lasers:0,laserCfg:null,F:0,B:0,miss:0,missCfg:null}; // ракеты временно отключены (будут переделаны) // лазеры отключены; старые «звенья» истребителей заменены кораблями из ангара (join)
+  sp={...sp,F0:sp.F||0,lasers:0,laserCfg:null,F:0,B:0}; // ракеты вернулись: полёт с бюджетом Δv (misFly) // лазеры отключены; старые «звенья» истребителей заменены кораблями из ангара (join)
   const T={tons:sp.tons||specTons(sp),role:sp.role,n:sp.name,defl:sp.defl||0,arm:sp.arm,eng:Math.max(1,sp.eng||3),spd:sp.spd||1,L:Math.max(0.06,sp.L),dopt:sp.dopt};
   const nc=Math.max(2,Math.round(T.L*1000/4)); // броня: по одной ячейке на метр длины в каждом слое (4 сектора по L/4 колонок)
   const zones=ZN.map((_,zi)=>{const a=Math.min(255,ARMZ[zi===0?'nose':zi===2?'rear':'side']);return {arm:a,nc,cols:new Uint8Array(nc).fill(a),armN:nc*a,mods:[]}}); // броня по зонам: нос толстый (70 см), борта и корма тонкие
@@ -731,7 +731,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;if(pr&&pr.src&
 const GV=GATP.v; // пуля гатлинга 0,6 км/с; единицы боя — км и с (рельсотрон 2–10 км/с по калибру)
 function gatStep(s,m,dt){
   const C=m.cfg;let e=null,kind=0,bd=Math.min(C.rng,GV*20)**2;
-  if(!m.lock&&s.fine){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}
+  if(!m.lock){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}
     if(!e)for(const p of mis){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=2}}
     if(!e)for(const p of torps){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=3}}}
   if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,GV)&&hitP(s,s.tg,GV,1)>=PMIN){e=s.tg;kind=4} // дальше 12 км пуля всё равно угаснет — не стреляем
@@ -784,6 +784,18 @@ function fireShell(s,m,o0,C,lag){
   if(fx.length<300)fx.push({x:s.x+ax/l*s.T.L*.45,y:s.y+ay/l*s.T.L*.45,z:s.z,t0:t,d:.3,r:.5,muz:1,side:s.side});
 }
 // взрыв ракеты: бьёт всех рядом, в том числе своих
+// ракеты: полёт с бюджетом Δv. Разгон к точке перехвата, потом наведение: гасим боковой промах (пропорциональная навигация) остатком Δv
+const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
+function misFly(p,tg,dt,guide){const rx=tg.x-p.x,ry=tg.y-p.y,d=Math.hypot(rx,ry)||1e-6,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,cl=-(rx*rvx+ry*rvy)/d,tgo=d/Math.max(.2,cl);
+  let ax=0,ay=0;if(p.dv>0&&guide){const ux=rx/d,uy=ry/d;
+    const zx=rx+rvx*tgo,zy=ry+rvy*tgo,zl=zx*ux+zy*uy,lx=zx-ux*zl,ly=zy-uy*zl; // промах без управления, его боковая часть
+    ax=MIS.N*lx/(tgo*tgo);ay=MIS.N*ly/(tgo*tgo);
+    if(p.ph==='boost'){ax+=ux*p.acc;ay+=uy*p.acc;if(p.dv<=p.dv0*(1-MIS.boost))p.ph='coast'} // разгон по линии визирования
+    const al=Math.hypot(ax,ay),mx=Math.min(p.acc,p.dv/Math.max(dt,1e-6));if(al>mx){ax*=mx/al;ay*=mx/al}p.dv=Math.max(0,p.dv-Math.hypot(ax,ay)*dt)}
+  p.vx+=ax*dt;p.vy+=ay*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.h=Math.atan2(p.vy,p.vx);p.burn=Math.hypot(ax,ay)>1e-4?1:0}
+// попадание кинетической ракеты: удар как у снаряда — масса и относительная скорость, калибр по массе (сталь: 3·(кал/5)³ кг)
+function misHit(p,o){const cal=5*Math.cbrt(p.kg/3)*MIS.cal,vr=Math.hypot(p.vx-(o.sx||0),p.vy-(o.sy||0));stat.misHit[p.side]++;(stat.misV=stat.misV||[]).push(Math.round(vr*10)/10);
+  fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:5,r:1.2});SFX.boom(4);hitShip(o,'rail',p.vx,p.vy,p.x,p.y,0,0,p.z,0,false,{kk:RAIL_K(cal),cal,vx:p.vx,vy:p.vy,vz:0,src:p.src})}
 function boom(p,direct){
   fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:6,r:p.blast*1.3});SFX.boom(p.blast);
   if(direct)stat.misHit[p.side]++;
@@ -897,7 +909,7 @@ function step(dt){
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           {const lv=C.sl||null,mx=lv?Math.max(lv.em,lv.ir,lv.ac):3,dumb=!!C.fl&&(C.hm===false||mx===0);let T0=Math.hypot(o.x-s.x,o.y-s.y)/C.spd;for(let k=0;k<3;k++){T0=Math.hypot(o.x+o.sx*T0-s.x,o.y+o.sy*T0-s.y)/C.spd}
           const lh=C.fl?Math.atan2(o.y+o.sy*T0-s.y,o.x+o.sx*T0-s.x):s.hd;
-          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:0,vy:0,src:s})}
+          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:s.sx||0,vy:s.sy||0,dv:C.dv||C.spd*MIS.dvK,acc:C.acc||MIS.acc,kg:Math.max(20,(C.tons||.5)*1000),ph:'boost',src:s});mis[mis.length-1].dv0=mis[mis.length-1].dv}
           s.flash=t;SFX.shot('missile');m.last=m.why='пуск ракеты по '+(o.T?o.T.n:'цели');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=Math.min(2400,43*Math.pow(C.dmg,1.15))*R(.8,1.25)*(1.3-.06*m.sk);
         }
         continue}
@@ -962,18 +974,17 @@ function step(dt){
     if(!tg){ // цель потеряна: летит прямо, медленно ищет новую впереди (узкий конус), топливо тает
       if(t>=(p.rl||0)){let b=null,bd=1e9;for(const o of around(1-p.side,p.x,p.y,90)){const a=Math.abs(adiff(p.h,Math.atan2(o.y-p.y,o.x-p.x)));if(a>1.1)continue;const dd=Math.hypot(o.x-p.x,o.y-p.y)*(1+a);if(dd<bd){bd=dd;b=o}}
         if(b){tg=p.tgt=b;p.pd=null}else p.rl=t+1.5}
-      if(!tg){p.x+=Math.cos(p.h)*p.spd*dt;p.y+=Math.sin(p.h)*p.spd*dt;p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>12)p.tr.splice(0,3)}
+      if(!tg){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>12)p.tr.splice(0,3)}
         if(p.life<=0){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:.8});mis.splice(i,1)}continue}}
-    const d=Math.hypot(tg.x-p.x,tg.y-p.y),T0=d/p.spd;
+    const d=Math.hypot(tg.x-p.x,tg.y-p.y);
     if(p.pd!=null&&d>p.pd&&p.pd<25){p.tgt=null;p.rl=t+3;p.pd=null;continue} // проскочила мимо
     p.pd=d;
-    const ax=tg.x+tg.sx*T0-p.x,ay=tg.y+tg.sy*T0-p.y;
     if(d<45&&tg.jam>0&&t>=(p.blind||0)&&Math.random()<tg.jam*dt*.3*(p.jf||1)){p.blind=t+4;stat.decoy++;fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:1});say(tg.side,'jam',tg)}
-    const TR=Math.min(1.2,3.2/p.spd)*(p.gq!=null?.5+.5*p.gq:1);if(t>=(p.blind||0)&&(!p.sr||d<p.sr))p.h+=Math.max(-TR*dt,Math.min(TR*dt,adiff(p.h,Math.atan2(ay,ax))));
-    p.vx=Math.cos(p.h)*p.spd;p.vy=Math.sin(p.h)*p.spd;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
+    misFly(p,tg,dt,t>=(p.blind||0)&&(!p.sr||d<p.sr)); // настоящая физика: скорость, ускорение, остаток Δvp.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
     if(env.length&&los(p.x-p.vx*dt,p.y-p.vy*dt,p.x,p.y)){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:4,r:1.5});mis.splice(i,1);continue}
     p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>12)p.tr.splice(0,3)}
-    if(t>=(p.blind||0)&&Math.hypot(tg.x-p.x,tg.y-p.y)<Math.max(.3,tg.T.L*.8)+p.blast*.25){boom(p,tg);mis.splice(i,1);continue}
+    {const hr=Math.max(.05,tg.T.L*.5),rx=tg.x-p.x,ry=tg.y-p.y,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,vv=rvx*rvx+rvy*rvy,tc=vv>1e-9?Math.max(0,Math.min(dt,-(rx*rvx+ry*rvy)/vv)):0,mx=rx+rvx*tc,my=ry+rvy*tc; /* ближайшее сближение за шаг: на 15 км/с ракета проходит десятки км за тик */
+      if(Math.hypot(mx,my)<hr+(p.w==='k'?0:p.blast*.05)){p.x+=p.vx*tc;p.y+=p.vy*tc;misHit(p,tg);mis.splice(i,1);continue}}
     if(p.life<=0)mis.splice(i,1);
   }
   for(let i=frags.length-1;i>=0;i--){const f=frags[i];if(t-f.t0>f.d){frags[i]=frags[frags.length-1];frags.pop();continue}f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.vz)f.z+=f.vz*dt;if(f.plate){f.rx+=f.vrx*dt;f.ry+=f.vry*dt}f.rot+=f.vr*dt;if(f.ln)f.vx*=1-.4*dt,f.vy*=1-.4*dt}
