@@ -249,7 +249,7 @@ function fleetsUpdate(){
       if(dist>F.rng*1.6)for(const A of all){if(A.side!==F.side||A===F||A.convoy||A.n<1)continue;
         const dA=Math.hypot(A.cx-bf.cx,A.cy-bf.cy);
         if(dA<1000&&dA>F.rng*2&&dA>dist+20&&dist<700&&A.born<=t){waiting=true;break}}
-      if(waiting){if(F.wait0<0)F.wait0=t;if(t-F.wait0<260)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
+      if(waiting&&!(CMDS[F.side]&&CMDS[F.side].plans)){if(F.wait0<0)F.wait0=t;if(t-F.wait0<260)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
       { // тактика ИИ по обстановке: топливо, численность, повреждения
         const fq=a=>a.ships.length?a.ships.reduce((x,o)=>x+(o.fuelCap?o.fuel/o.fuelCap:1),0)/a.ships.length:1,Ff=fq(F),Ef=fq(E),dmg=F.ships.filter(o=>hpf(o)<.45).length/Math.max(1,F.n);
         if(st!=='wait'&&st!=='kite'){
@@ -289,7 +289,7 @@ function fleetsUpdate(){
     else if(F.stance==='drift'){F.tgx=F.gx;F.tgy=F.gy}
     else if(F.stance==='retreat'||F.stance==='convoy'){F.tgx=F.cx-dx*160;F.tgy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.tgx=F.cx-(ne.cx-F.cx)/dl*200;F.tgy=F.cy-(ne.cy-F.cy)/dl*200}}
     else if(F.stance==='wait'){F.tgx=F.cx;F.tgy=F.cy}
-    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?Math.min(14,F.rng):Math.max(3,Math.max(3,F.rng*(F.stance==='kite'||F.stance==='flank'?1.3:.9))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
+    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?Math.min(14,F.rng):Math.max(3,Math.max(3,F.rng*(F.stance==='kite'?1.3:.55))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
     // ручной приказ: идти в точку (игрок, сторона 0)
     if(F.side===0&&F.mv){const md=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy);if(md>6){F.tgx=F.mv.x;F.tgy=F.mv.y;if(F.stance!=='retreat'&&F.stance!=='convoy'){const l=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy)||1;dx=(F.mv.x-F.cx)/l;dy=(F.mv.y-F.cy)/l}}else F.mv=null}
     // слои по высоте: в бою флоты сближаются по вертикали
@@ -343,7 +343,7 @@ function retarget(s){
   s.nt=t+R(1.2,2.4);{const e=s.tg&&s.tg.alive?s.tg:nearestShip(s.x,s.y,1-s.side)?.s;if(e){const vp=(s.tur.find(m=>m.alive&&m.k==='T')||{cfg:{}}).cfg.vp||VP;s.effR=Math.max(1.5,rangeP(s,e,vp,PMIN*2)*.85)}} /* дистанция, где реально попадаем, — по ней держится и строй */const C=s.F,maxR=s.maxR||60;
   s.near=around(1-s.side,s.x,s.y,maxR*2).filter(o=>o.lock[s.side]>t-5&&o.st!=='surr');
   let best=null,bs=-1e9;const big=s.spec.rails>=14;
-  const vpx=Math.max(GV,...s.tur.filter(m=>m.alive&&m.k==='T').map(m=>m.cfg.vp||VP));for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=60*hitP(s,o,vpx,1)-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);if(C.fire==='weak')sc+=(1-hpf(o))*80;else if(C.fire==='eng'){const hx=Math.cos(o.hd||0),hy=Math.sin(o.hd||0),bx=s.x-o.x,by=s.y-o.y,bl=Math.hypot(bx,by)||1;sc+=Math.max(0,-(hx*bx+hy*by)/bl)*60} /* по слабым — добиваем; по двигателям — кто к нам кормой */if(sc>bs){bs=sc;best=o}}
+  const vpx=Math.max(GV,...s.tur.filter(m=>m.alive&&m.k==='T').map(m=>m.cfg.vp||VP));for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=60*hitP(s,o,vpx,1)-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);{let r=Math.atan2(o.y-s.y,o.x-s.x)-s.hd;r=Math.atan2(Math.sin(r),Math.cos(r));sc+=Math.cos(r)*35+(o===s.tg?25:0)} /* цель у носа и прежняя — дороже: осевым не нужно ждать разворота */if(C.fire==='weak')sc+=(1-hpf(o))*80;else if(C.fire==='eng'){const hx=Math.cos(o.hd||0),hy=Math.sin(o.hd||0),bx=s.x-o.x,by=s.y-o.y,bl=Math.hypot(bx,by)||1;sc+=Math.max(0,-(hx*bx+hy*by)/bl)*60} /* по слабым — добиваем; по двигателям — кто к нам кормой */if(sc>bs){bs=sc;best=o}}
   if(!best&&t<s.bdo&&s.tg&&s.tg.alive)best=s.tg;
   s.tg=best||null;posture(s);
   // СУО: столько целей, сколько каналов
@@ -377,7 +377,7 @@ function steer(s,dt){
     if(!hold&&(ord==='cover'||ord==='auto')&&tg&&s.T.L<1.4){
       if(t>=(s.cvN||0)){s.cvN=t+R(3,5);let rdy=0,tot=0,cdm=1e9;for(const m of s.tur)if(m.alive&&(m.k==='T'||m.k==='L')){tot++;if(m.cd<=1)rdy++;cdm=Math.min(cdm,m.cd)}
         if(!(s.cp&&t<s.cp.until)){s.cp=null;
-          const fq=s.fuelCap?s.fuel/s.fuelCap:1,reload=tot>0&&rdy/tot<.3&&cdm>15&&fq>.3; /* перезарядка долгая — спрятаться за камень, пока заряжаемся */
+          const fq=s.fuelCap?s.fuel/s.fuelCap:1,reload=tot>0&&rdy/tot<.3&&cdm>20&&fq>.3&&tg&&Math.hypot(tg.x-s.x,tg.y-s.y)<(s.maxR||60)&&t-(s.hitT||-99)<40; /* прятаться — только если враг в дальности и по нам уже бьют */ /* перезарядка долгая — спрятаться за камень, пока заряжаемся */
           if(tot>0&&(reload||(rdy/tot<.2&&t-s.hitT<15)||(ord==='cover'&&rdy/tot<.5)||hp<.5&&t-s.hitT<10)){
             let best=null,bd=1e9;
             for(const e of env){const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<(reload?Math.min(80,cdm*Math.max(.05,Math.hypot(s.sx,s.sy)+.1)):170)&&d<bd&&e.r>=s.T.L*.3){bd=d;best={x:e.x,y:e.y,r:e.r+s.T.L*.55+1.5}}}
@@ -656,7 +656,7 @@ function kill(o,why){if(!o.alive)return;o.alive=false;o.why=why||'другое';
      for(const q of ships){if(q===o||!q.alive)continue;const d=Math.hypot(q.x-o.x,q.y-o.y);if(d<R0*1.2)hitShip(q,'mis',q.x-o.x,q.y-o.y,o.x,o.y,Math.max(1,L*5*(1-d/(R0*1.2))))}}}
   { // обломки корабля остаются висеть: 3 куска летят дальше с его скоростью — смертельное поле для пролетающих
     const L=o.T.L,c=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),nW=env.filter(e=>e.t==='wreck').length;if(nW>240)env.splice(env.findIndex(e=>e.t==='wreck'),3);
-    for(let i=-1;i<=1;i++){const a=R(0,6.283),sp=R(.002,.012);env.push({t:'wreck',x:o.x+c*L*.33*i,y:o.y+sn*L*.33*i,r:Math.max(.05,L*.2),vx:(o.sx||0)+Math.cos(a)*sp,vy:(o.sy||0)+Math.sin(a)*sp,ttl:1e9,id:o.uid*10+i+1})}}
+    for(let i=-1;i<=1;i++){const a=R(0,6.283),sp=R(.002,.012);env.push({t:'wreck',x:o.x+c*L*.33*i,y:o.y+sn*L*.33*i,r:Math.max(.05,L*.2),vx:(o.sx||0)+Math.cos(a)*sp,vy:(o.sy||0)+Math.sin(a)*sp,ttl:1e9,m:Math.max(5,o.T.tons/3),id:o.uid*10+i+1})}}
   for(const q of ships){if(!q.alive||Math.hypot(q.x-o.x,q.y-o.y)>45)continue;q.mor+=q.side===o.side?-(o.cls==='cv'?.14:.07):.03}
   say(o.side,'lost',o);say(1-o.side,'kill',o)}
 function segHit(x1,y1,x2,y2,e,pad){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1e-9;let u=((e.x-x1)*dx+(e.y-y1)*dy)/l2;u=u<0?0:u>1?1:u;return Math.hypot(x1+dx*u-e.x,y1+dy*u-e.y)<e.r+(pad||0)}
@@ -944,7 +944,7 @@ function step(dt){
         for(let gy=y0+1;gy<=y1-1;gy++){const ya=Math.max(lo,gy*CS),yb=Math.min(hi,(gy+1)*CS);if(yb<ya)continue;const xa=p.x+dx*((ya-p.y)/(dy||1e-9)),xb=p.x+dx*((yb-p.y)/(dy||1e-9));const g0=Math.floor(Math.min(xa,xb)/CS)-1,g1=Math.floor(Math.max(xa,xb)/CS)+1;for(let gx=g0;gx<=g1;gx++)chk(gx,gy)}}
       return best};
     if(env.length){let ee=null;for(const e of env)if(Math.abs(e.x-p.x)<e.r+14&&Math.abs(e.y-p.y)<e.r+14&&segHit(p.x,p.y,nx,ny,e)){ee=e;break}
-      if(ee){endTr(p,nx,ny);fx.push({x:nx,y:ny,z:p.z,t0:t,d:3,r:.6});if(ee.t==='debris')ee.ttl-=4;if(Math.random()<.02)say(p.side,'rock',p.src);proj[i]=proj[proj.length-1];proj.pop();continue}}
+      if(ee){endTr(p,nx,ny);if(ee.t==='wreck'){const mw=ee.m||500,mp=p.kk?RAIL_M(p.cal||10):GATP.m;ee.vx+=p.vx*mp/(mw*1000);ee.vy+=p.vy*mp/(mw*1000);ee.hitN=(ee.hitN||0)+1} /* обломок получает импульс снаряда: p·v/m — толкает по физике */fx.push({x:nx,y:ny,z:p.z,t0:t,d:3,r:.6});if(ee.t==='debris')ee.ttl-=4;if(Math.random()<.02)say(p.side,'rock',p.src);proj[i]=proj[proj.length-1];proj.pop();continue}}
     if(p.cd&&fly[1-p.side].length){let hc=null,bu=2;const mnx=Math.min(p.x,nx)-.12,mxx=Math.max(p.x,nx)+.12,mny=Math.min(p.y,ny)-.12,mxy=Math.max(p.y,ny)+.12;
       for(const c of fly[1-p.side]){if(c.state!=='fly'||c.x<mnx||c.x>mxx||c.y<mny||c.y>mxy)continue;let u=((c.x-p.x)*dx+(c.y-p.y)*dy)/l2;u=Math.max(0,Math.min(1,u));if(Math.hypot(p.x+dx*u-c.x,p.y+dy*u-c.y)<.04&&u<bu){bu=u;hc=c}}
       if(hc){endTr(p,hc.x,hc.y);hc.hp-=p.cd;fx.push({x:hc.x,y:hc.y,t0:t,d:3,r:0.5});if(hc.hp<=0){killCraft(hc,'rail');stat.flakKill[p.side]++}proj[i]=proj[proj.length-1];proj.pop();continue}}
