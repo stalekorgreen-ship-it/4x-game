@@ -37,6 +37,7 @@ function geoLod(d, lv) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(op, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(oc, 3)); g.computeVertexNormals(); void q;
   cache.set(key, g); return g;
 }
+const innerMat = new THREE.MeshStandardMaterial({ color: 0x2b2824, metalness: .25, roughness: .9, flatShading: true, side: THREE.DoubleSide }), bulkGeo = new THREE.BoxGeometry(1, 1, 1), bulkMat = new THREE.MeshStandardMaterial({ color: 0x3a3631, metalness: .4, roughness: .8 }), deckMat = new THREE.MeshStandardMaterial({ color: 0x4a443c, metalness: .3, roughness: .85 });
 const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .5, flatShading: true, side: THREE.DoubleSide });
 export function lodInfo(d) { return LODK.map((_, i) => geoLod(d, i).attributes.position.count / 3 | 0); }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
@@ -131,7 +132,10 @@ function mkDmg(g, body, T) {
 }
 export function pickDesign(tons, spec) { const l = list(); if (!l.length) return null; const nm = spec && spec.name, ds = nm && state.designs && state.designs.find(x => x.name === nm), want = (spec && spec.hull) || (ds && ds.hull) || nm; if (want) { const e = l.find(d => d.name === want); if (e) return e; } let b = l[0]; for (const d of l) if (Math.abs(Math.log(d.M / tons)) < Math.abs(Math.log(b.M / tons))) b = d; return b; }
 export function buildDesign(d, opt) {
-  const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); const lod = new THREE.LOD(); lod.addLevel(body, 0); D.extraG = []; for (let i = 1; i < LODK.length; i++) { const gl = i <= 2 ? geoLod(d, i).clone() : geoLod(d, i); if (i <= 2) D.extraG.push(gl); lod.addLevel(new THREE.Mesh(gl, lodMat), 1e9); } /* ближние лоды — свои копии: откол виден и на них */ g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
+  const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); { // нутро: тёмный внутренний корпус (меньше на 10–20%) и переборки — в пробоине видно конструкцию, а не пустоту насквозь
+    gB.computeBoundingBox(); const bb = gB.boundingBox, c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3()), inner = new THREE.Group(); inner.position.copy(c); inner.scale.set(.9, .78, .78);
+    const im = new THREE.Mesh(geo(d), innerMat); im.position.copy(c).negate(); inner.add(im);
+    body.add(inner); body.updateMatrix(); } const lod = new THREE.LOD(); lod.addLevel(body, 0); D.extraG = []; for (let i = 1; i < LODK.length; i++) { const gl = i <= 2 ? geoLod(d, i).clone() : geoLod(d, i); if (i <= 2) D.extraG.push(gl); lod.addLevel(new THREE.Mesh(gl, lodMat), 1e9); } /* ближние лоды — свои копии: откол виден и на них */ g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
   const turs = [];
   for (const t of d.turs) { const tu = new THREE.Group(), n = new THREE.Vector3(t.n[0], t.n[1], t.n[2]); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }

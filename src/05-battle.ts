@@ -22,7 +22,7 @@ const PASS=gd('battle','pass',{max:2,mm:300}); // после пробития с
 const ARMZ=gd('battle','armor',{nose:35,side:5,rear:2}); // слоёв по 2 см стали: нос 70 см, борта 10 см, корма 4 см
 const FUEL=gd('battle','fuel',{ve:9,rcsVe:3,cap:.6,keep:.12}); // топливо в бою: vₑ главных двигателей и маневровых (км/с), бак по умолчанию — доля массы
 const BT=gd('battle','battle',{DOPT:{hc:20,dd:20,fr:35,cv:100},JINK:0.0015,VP:6,LIFE:10,SIGMA:0.026,LAUNCH:450,SUB:0.25,REL:60,FI:{vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO:{vmax:0.8,a:0.05,fuel:2200,hp:4},TORP:{sp:2.5,pd:0.02,pdr:35,launch:120,mod:2},FLAK:{range:60,blast:1.2},RC0:{dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0:{blast:1.2,rng:60,rel:1,fail:0},GC0:{tw:0,rpm:6000,heat:.4,cool:.2,pen:.02,rng:15,ammoH:5,mass:25},LC0:{dmg:4,rng:250,chg:.08},MC0:{hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83},BURST:{5:1,10:1,15:1,20:1,25:1,30:1},RCT:{5:6,10:16,15:28,20:45,25:60,30:80},EW:{fr:.12,cv:.05,dd:.02,hc:.02},RADAR:{cv:420,hc:320,dd:260,fr:360},MARN:{cv:20,hc:10,dd:8,fr:4}});
-const PMIN=BT.PMIN!=null?BT.PMIN:.15,DISP=BT.DISP!=null?BT.DISP:.0003,GDISP=BT.GDISP!=null?BT.GDISP:.002,DOPT=BT.DOPT,JINK=BT.JINK,VP=BT.VP,LIFE=BT.LIFE,RANGE=VP*LIFE,SIGMA=BT.SIGMA,LAUNCH=BT.LAUNCH,SUB=BT.SUB,REL=BT.REL;
+const PMIN=BT.PMIN!=null?BT.PMIN:.08,DISP=BT.DISP!=null?BT.DISP:.0003,GDISP=BT.GDISP!=null?BT.GDISP:.002,DOPT=BT.DOPT,JINK=BT.JINK,VP=BT.VP,LIFE=BT.LIFE,RANGE=VP*LIFE,SIGMA=BT.SIGMA,LAUNCH=BT.LAUNCH,SUB=BT.SUB,REL=BT.REL;
 const FI=BT.FI,BO=BT.BO,TORP=BT.TORP,FLAK=BT.FLAK,RC0=BT.RC0,FC0=BT.FC0,GC0=BT.GC0,LC0=BT.LC0,MC0=BT.MC0,BURST=BT.BURST,RCT=BT.RCT;
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
@@ -413,7 +413,7 @@ function steer(s,dt){
       else{const sp=Math.hypot(s.sx,s.sy)||1;vx=(s.sx/sp-ux*.3)*vm*3;vy=(s.sy/sp-uy*.3)*vm*3;want=Math.atan2(vy,vx)}
       boost=1.4;s.raidV=1}
     else if(tg&&(td<er*1.5||t<s.bdo)){s.br='combat';
-      const dd=td-dopt,bnd=Math.max(10,dopt*.5),k=(Math.abs(dd)<bnd?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*bnd)/20)))*Math.min(1,Math.abs(dd)/Math.max(1e-3,vm*240)), /* в полосе дистанции не дёргаемся; к цели — со скоростью, чтобы дойти за ~4 мин, а не на форсаже */lat=0,w=F.n>=2&&F.stance!=='assault'?.97:formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25; /* в группе дистанцию держит вся группа, а не каждый корабль сам — без рывков между целями */
+      const dd=td-dopt,bnd=Math.max(10,dopt*.5),k=(Math.abs(dd)<bnd?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*bnd)/20)))*Math.min(1,Math.abs(dd)/Math.max(1e-3,vm*240)), /* в полосе дистанции не дёргаемся; к цели — со скоростью, чтобы дойти за ~4 мин, а не на форсаже */lat=0,w=F.n>=2&&F.stance!=='assault'?.75:formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25; /* в группе дистанцию держит вся группа, а не каждый корабль сам — без рывков между целями */
       let rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;want=Math.atan2(uy,ux)+(td<er*.9?(s.pOff||0):0);
       
       vx=w*fvx+(1-w)*rx;vy=w*fvy+(1-w)*ry;if(retreating)want=Math.atan2(vy,vx);
@@ -1064,9 +1064,9 @@ function crewStep(dc){
     if(s.F&&s.F.ratio!=null&&s.F.ratio<.7)dm-=.007*(.7-s.F.ratio)*dc;
     if(s.crew<.25)dm-=.003*dc;
     s.mor=Math.max(0,Math.min(1,s.mor+dm));
-    if(s.st==='ok'&&s.mor<.3&&!s.T.role){s.st='panic';say(s.side,'flee',s)}
+    if(false&&s.st==='ok'&&s.mor<.3&&!s.T.role){s.st='panic'; /* паника и сдача отключены */say(s.side,'flee',s)}
     else if(s.st==='panic'&&s.mor>.5)s.st='ok';
-    if((s.st==='panic'||s.st==='ok')&&s.mor<.12&&hp<.6&&!s.T.role&&Math.random()<.2*dc){s.st='surr';stat.surr[s.side]++;say(s.side,'surr',s)}
+    if(false&&(s.st==='panic'||s.st==='ok')&&s.mor<.12&&hp<.6&&!s.T.role&&Math.random()<.2*dc){s.st='surr';stat.surr[s.side]++;say(s.side,'surr',s)}
     // эвакуация экипажа: корабль гибнет, горит или остался без жизни
     {const hz=s.aliveN/s.total,fs=s.fire[0]+s.fire[1]+s.fire[2]+s.fire[3];
      if(!s.evac&&s.crew>.1&&(hz<.34||(s.ecore&&hz<.5)||fs>=7||s.heat>1.5)&&Math.random()<(.5+.5*(1-s.mor))*dc*.35){s.evac=t;s.abd=1;s.st='surr';s.tg=null;stat.abd=(stat.abd||0)+1;say(s.side,'evac',s)}
