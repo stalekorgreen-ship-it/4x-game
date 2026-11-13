@@ -46,6 +46,11 @@
   "GDISP": 0.002,
   "PMIN": 0.15
  },
+ "gatling": {
+  "v": 2,
+  "m": 0.4,
+  "area": 7
+ },
  "doctrines": [
   {"name": "Сторож ПВО", "k": 0, "tons": 1257, "gat": 6, "rad": 1, "ir": 1, "em": 1, "fine": 1, "fcs": 2, "arm": 2, "spd": 1.2},
   {"name": "Наводчик", "k": 1, "tons": 598, "gat": 2, "rad": 2, "ir": 1, "em": 1, "fine": 1, "ew": 1, "fcs": 2, "arm": 1, "spd": 1.4},

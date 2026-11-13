@@ -38,7 +38,8 @@ const adiff=(a,b)=>{let d=b-a;while(d>Math.PI)d-=6.283;while(d<-Math.PI)d+=6.283
 function accOf(sp,T){const tons=Math.max(1,T.tons||1);let a=sp.pow>0?sp.pow*120/tons:6*(T.spd||1)*Math.sqrt(.3/Math.max(.05,T.L));return Math.max(1,Math.min(40,a))}
 // снаряд рельсотрона по калибру (см): масса кг = 3·(cal/5)³, сечение см² = π·(cal/2)²; k — МДж/см² на (км/с)²
 const RAIL_K=cal=>{const c=cal||10,m=3*Math.pow(c/5,3),S=Math.PI*(c/2)*(c/2);return .5*m/S},RAIL_M=cal=>3*Math.pow((cal||10)/5,3);
-const GAT_K=.0042,GAT_M=.014,ARM_E=BT.ARM_E!=null?BT.ARM_E:.3; // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
+const GATP=gd('battle','gatling',{v:2,m:.4,area:7}); // гатлинг 30 мм: снаряд 0,4 кг, сечение 7 см², 2 км/с (лёгкогазовый/электротермический заряд)
+const GAT_K=.5*GATP.m/GATP.area,GAT_M=GATP.m,ARM_E=BT.ARM_E!=null?BT.ARM_E:.3; // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 // дальность, на которой шанс попасть ещё ≥ p (бисекция по той же формуле, что hitP)
 function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/2,tf=d/Math.max(.1,V),e=DISP*d*2,w=Math.min(12,tf),dg=o.T&&o.rcsN>0?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;if(h/(e+dg+1e-6)>=p)lo=d;else hi=d}return lo}
@@ -614,7 +615,7 @@ function ricochet(o,x,y,vx,vy){
 function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   const vr=pr?Math.hypot(pr.vx-(o.sx||0),pr.vy-(o.sy||0),pr.vz||0):0; // относительная скорость удара, км/с: от неё энергия и пробитие
   if(!o.alive)return;o.hitT=t;
-  {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy,vz||0)||1;impacts.push(imp={id:++impN,x,y,z:iz!=null?iz:o.z,nx:-vx/dd,ny:-vy/dd,nz:-(vz||0)/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:kind,s:o});if(impacts.length>300)impacts.splice(0,100)}
+  {hitLog.push(t);if(hitLog.length>200)hitLog.shift();const dd=Math.hypot(vx,vy,vz||0)||1;impacts.push(imp={id:++impN,x,y,z:iz!=null?iz:o.z,nx:-vx/dd,ny:-vy/dd,nz:-(vz||0)/dd,pw:Math.min(12,Math.max(.5,dmg||1)),k:gat?'gat':kind,gE:gat?.5*GATP.m*(GATP.v*1000)**2:0,s:o});if(impacts.length>300)impacts.splice(0,100)}
   if(o.T.defl&&Math.random()<o.T.defl){fx.push({z:o.z,x,y,t0:t,d:3,r:0.8});return}
   if(kind==='fgt'){fighterHit(o,dmg,x,y,vx,vy);return}
   const a=adiff(o.hd,Math.atan2(-vy,-vx))+R(-0.35,0.35),ab=Math.abs(a);
@@ -643,7 +644,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   };
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
-    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1,{k:'пуля 14 г',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
+    if(pr){const g=dig(o,z,x,y,iz,GAT_K*vr*vr,1,{k:'гатлинг 30 мм',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
       if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
       if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
     else if(z.cols[c]>0){const gl=(pr?GAT_K*vr*vr:.0015)/ARM_E,ly=Math.floor(gl)+(Math.random()<gl%1?1:0); // МДж/см² пули / порог слоя: 0,6 км/с — ~0,08%, от 22 км/с — слой
@@ -676,7 +677,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
   fin(c,nc,cut,pass);
 }
 // пулемёт Гатлинга: непрерывный огонь по истребителям, ракетам и торпедам (в упор — по кораблям); нагрев снижает точность, перегрев — заклинивание или поломка
-const GV=.6; // пуля гатлинга 0,6 км/с; единицы боя — км и с (рельсотрон 2–10 км/с по калибру)
+const GV=GATP.v; // пуля гатлинга 0,6 км/с; единицы боя — км и с (рельсотрон 2–10 км/с по калибру)
 function gatStep(s,m,dt){
   const C=m.cfg;let e=null,kind=0,bd=Math.min(C.rng,GV*20)**2;
   if(!m.lock&&s.fine){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}

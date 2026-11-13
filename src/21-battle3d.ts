@@ -500,7 +500,7 @@ if (wrap && bgo) {
     const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 20000) u.spQ.splice(0, 1000); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 } if (q.rico) { kind = 'g'; r = 3 }
-    const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)), left: q.left, arm: q.arm });
+    const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)), left: q.left, arm: q.arm, k: q.k, gE: q.gE, pw: q.pw });
   }
   const _sq = new THREE.Quaternion(), _rc = new THREE.Vector3(), _X1 = new THREE.Vector3(1, 0, 0);
   { const dl = new THREE.Vector3(), wq = new THREE.Quaternion(), tq = new THREE.Quaternion(), tw = new THREE.Vector3(), X1 = new THREE.Vector3(1, 0, 0), hq = new THREE.Quaternion();
