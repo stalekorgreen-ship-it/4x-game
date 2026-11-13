@@ -390,7 +390,7 @@ function steer(s,dt){
       const cl=closing(s,tg);if(!s.rd)s.rd='in';
       if(s.rd==='in'&&cl<0&&td>Math.max(3,tg.T.L*3))s.rd='out';
       else if(s.rd==='out'&&td>Math.max(40,s.maxR*.8))s.rd='in';
-      if(s.rd==='in'){const sd=s.uid%2?1:-1,off=Math.max(1.5,tg.T.L*2),ax=tg.x-uy*off*sd-s.x,ay=tg.y+ux*off*sd-s.y,al=Math.hypot(ax,ay)||1;vx=ax/al*vm*3;vy=ay/al*vm*3;want=Math.atan2(tg.y-s.y,tg.x-s.x)} /* нос на цель: осевые орудия смотрят туда же */
+      if(s.rd==='in'){const sd=s.uid%2?1:-1,off=Math.max(1.5,tg.T.L*2)+td*CAV.arc,ax=tg.x-uy*off*sd-s.x,ay=tg.y+ux*off*sd-s.y,al=Math.hypot(ax,ay)||1;vx=ax/al*vm*3;vy=ay/al*vm*3;want=Math.atan2(tg.y-s.y,tg.x-s.x)} /* нос на цель: осевые орудия смотрят туда же */
       else{vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05);want=Math.atan2(tg.y-s.y,tg.x-s.x)} // отход по инерции, нос держит цель
       boost=1.4;s.raidV=1}
     else if(tg&&(td<er*1.5||t<s.bdo)){s.br='combat';
@@ -811,6 +811,7 @@ function lasStep(dt){
 }
 // снабжение: транспорты держатся в хвосте и шаттлами возят боеприпасы кораблям, у которых погреб опустел меньше чем наполовину
 const SHUT_SPD=9,SHUT_T=40; // км/с, тонн за рейс
+const CAV=gd('battle','cavalry',{arc:.35}); // наскок по дуге: боковое смещение точки прицеливания = arc × дальность (сходится к проскоку) — траектория кривая, снаряды мажут
 const REF=gd('battle','refuel',{full:.95,dist:2,dv:.3,rate:6,keep:.15,back:100,mar:2,min:.2,dodge:.3}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
 // общий бюджет Δv для любого корабля: запас = погасить скорость относительно танкера (или до нуля) + долететь и затормозить у него, × mar
 function budget(s){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),tk=s.probe?tankerFor(s):null;let need;

@@ -69,6 +69,9 @@
   "minGroup": 6,
   "fleetMax": 10
  },
+ "cavalry": {
+  "arc": 0.35
+ },
  "refuel": {
   "full": 0.95,
   "dist": 2,
