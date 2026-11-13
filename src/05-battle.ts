@@ -207,7 +207,10 @@ function command(sd,all){const C=CMDS[sd],my=ships.filter(o=>o.alive&&o.side===s
     fall:[ratio<.8&&fuel>.25&&near?1.8:0,[W('kite')]],                                         // отойти на дальнюю дистанцию и перестроиться
   };
   // оценка: база + шум, держимся за текущий план (смена — только если новый заметно лучше и прошло ≥60 с)
-  const sc={};for(const k in P)sc[k]=P[k][0]>0?P[k][0]*(.85+Math.random()*.3):0;if(C.plan&&sc[C.plan]>0&&t-(C.at||0)<60)sc[C.plan]+=10;else if(C.plan&&sc[C.plan]>0)sc[C.plan]*=1.25;
+  { // память командира: план, при котором мы теряли больше врага, на 3 минуты «плохой»
+    const eL=stat.lost[1-sd],my0=C.myL0==null?stat.lost[sd]:C.myL0,en0=C.enL0==null?eL:C.enL0,dm=stat.lost[sd]-my0,de=eL-en0;C.myL0=stat.lost[sd];C.enL0=eL;C.bad=C.bad||{};
+    if(C.plan&&t-(C.at||0)>=55&&dm>0&&dm>=de)C.bad[C.plan]=t+180; C.lastScore=[dm,de]}
+  const sc={};for(const k in P)sc[k]=P[k][0]>0?P[k][0]*(.85+Math.random()*.3)*((C.bad&&C.bad[k]>t)?.25:1):0;if(C.plan&&sc[C.plan]>0&&t-(C.at||0)<60&&!(C.bad&&C.bad[C.plan]>t))sc[C.plan]+=10;else if(C.plan&&sc[C.plan]>0)sc[C.plan]*=1.25;
   let plan='fist';for(const k in sc)if(sc[k]>sc[plan])plan=k;
   const kk=plan==='envelop'?Math.max(2,Math.min(5,Math.floor(n/CMD.minGroup))):0,G=plan==='envelop'?Array.from({length:kk},(_,g)=>{const off=(g-(kk-1)/2)/((kk-1)/2);return Math.abs(off)<.34?W('wall',{fire:''}):Fk(off*1.4)}):P[plan][1];
   let groups=G.filter((_,g)=>true);while(groups.length>1&&n/groups.length<CMD.minGroup/2)groups=[W('wall')]; // мало кораблей — не делимся
@@ -259,6 +262,9 @@ function fleetsUpdate(){
         }
         if(st==='retreat'&&!F.until)F.until=t+40}
       {const P=CMDS[F.side].plans&&CMDS[F.side].plans[F.fid];if(P&&st!=='wait'){st=P.stance;if(st==='kite')F.hold=Math.max(60,F.lrR*.8,F.rng*1.3);if(P.flank!=null)F.flank=P.flank;F.env=!!P.env;F.planFire=P.fire}}
+      { // крейсерская скорость: дойти за разумное время, не дороже, чем позволяет бак (каждый км/с — дважды: разгон и торможение)
+        const TT={pass:400,assault:500,flank:800,wall:900,wedge:800,echelon:900,cover:600,retreat:500,kite:900,drift:3600,wait:3600,engage:900}[st]||900,ff=F.ships.reduce((a,o)=>Math.min(a,o.fuelCap?FUEL.ve*Math.log((dryM(o)+o.fuel)/dryM(o)):99),99);
+        F.cruise=Math.max(.02,Math.min(F.minSpd||.45,Math.max(0,dist-F.rng)/TT,ff*.12))}
       F.stance=st}
     F.ratio=ratio;
     F.fire=(F.side===0&&ORD.fire)||F.planFire||(F.ratio>1.3?'weak':F.ratio<.8?'eng':'');
@@ -293,7 +299,7 @@ function fleetsUpdate(){
     if(t-F.born<20)for(const q of F.ships)if(!q.placed&&q.slotBack!=null){q.placed=1;const px=-F.dy,py=F.dx;q.x=F.gx-F.dx*q.slotBack+px*q.slotLat;q.y=F.gy-F.dy*q.slotBack+py*q.slotLat;q.sx=q.sy=0;q.hd=Math.atan2(F.dy,F.dx)}
   }
   for(const F of all){const dtf=Math.min(5,Math.max(0,t-(F.pt==null?t:F.pt)));F.pt=t;if(F.tgx==null){F.tgx=F.gx;F.tgy=F.gy;F.tdx=F.dx;F.tdy=F.dy}
-    const k=1-Math.exp(-dtf/5),gdx=F.tgx-F.gx,gdy=F.tgy-F.gy,gd=Math.hypot(gdx,gdy)||1,stp=Math.min(gd*k,(F.minSpd||.45)*1.05*dtf);F.gx+=gdx/gd*stp;F.gy+=gdy/gd*stp;F.vgx=gdx/gd*stp/Math.max(dtf,1e-6);F.vgy=gdy/gd*stp/Math.max(dtf,1e-6);F.dx+=(F.tdx-F.dx)*k*.7;F.dy+=(F.tdy-F.dy)*k*.7;const l=Math.hypot(F.dx,F.dy)||1;F.dx/=l;F.dy/=l}
+    const k=1-Math.exp(-dtf/5),gdx=F.tgx-F.gx,gdy=F.tgy-F.gy,gd=Math.hypot(gdx,gdy)||1,stp=Math.min(gd*k,Math.min(F.minSpd||.45,F.cruise||9)*1.05*dtf);F.gx+=gdx/gd*stp;F.gy+=gdy/gd*stp;F.vgx=gdx/gd*stp/Math.max(dtf,1e-6);F.vgy=gdy/gd*stp/Math.max(dtf,1e-6);F.dx+=(F.tdx-F.dx)*k*.7;F.dy+=(F.tdy-F.dy)*k*.7;const l=Math.hypot(F.dx,F.dy)||1;F.dx/=l;F.dy/=l}
 }
 function assignSlots(F){ // строй: впереди крепкие, за ними основные стрелки, в хвосте авианосцы, транспорты и ПВО
   const r0=[],r1=[],r2=[],fight=[];
@@ -379,18 +385,18 @@ function steer(s,dt){
       if(s.cp&&t<s.cp.until)hold={x:s.cp.x,y:s.cp.y,face:Math.atan2(uy,ux),spd:.9,cover:1}}
   }
   if(tg)s.lastTg=t;else if(s.lastTg==null)s.lastTg=t;
-  if(!hold&&!tg&&!flee&&!T.role&&s.T.eng>0&&t-s.lastTg>40){ // потеряли врага из виду и стоим: идём к ближайшему вражескому кораблю, а не ждём на месте
+  if(!hold&&!tg&&!flee&&!T.role&&s.T.eng>0&&t-s.lastTg>40&&F.n<2){ /* одиночка без цели сам ищет врага; в группе ведёт строй — без рывков туда-обратно */ // потеряли врага из виду и стоим: идём к ближайшему вражескому кораблю, а не ждём на месте
     const nn=nearestShip(s.x,s.y,1-s.side);if(nn&&nn.s&&nn.s.alive&&nn.d>6)hold={x:nn.s.x,y:nn.s.y,face:null,spd:.9}}
   s.holdK=hold&&(hold.cover?'cover':hold.escort?'escort':'');
-  if(flee&&tg&&!hold){vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
-  else if(hold){const ex=hold.x-s.x,ey=hold.y-s.y,ed=Math.hypot(ex,ey)||1,sp=Math.min(vm*hold.spd,ed*.25+.005);vx=ex/ed*sp+(hold.vx0||0);vy=ey/ed*sp+(hold.vy0||0);want=hold.face!=null?hold.face:ed>6?Math.atan2(vy,vx):(tg?Math.atan2(uy,ux):Math.atan2(F.dy,F.dx));if(ed>60)boost=Math.max(boost,Math.min(1.6,1+(ed-60)/150))}
+  if(flee&&tg&&!hold){s.br='flee';vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
+  else if(hold){s.br='hold:'+(s.holdK||'');const ex=hold.x-s.x,ey=hold.y-s.y,ed=Math.hypot(ex,ey)||1,sp=Math.min(vm*hold.spd,ed*.25+.005);vx=ex/ed*sp+(hold.vx0||0);vy=ey/ed*sp+(hold.vy0||0);want=hold.face!=null?hold.face:ed>6?Math.atan2(vy,vx):(tg?Math.atan2(uy,ux):Math.atan2(F.dy,F.dx));if(ed>60)boost=Math.max(boost,Math.min(1.6,1+(ed-60)/150))}
   else{
     // формация
     const fx=F.dx,fy=F.dy,px=-fy,py=fx,Px=F.gx-fx*(s.slotBack||0)+px*(s.slotLat||0),Py=F.gy-fy*(s.slotBack||0)+py*(s.slotLat||0);
     let ex=Px-s.x,ey=Py-s.y;const ed=Math.hypot(ex,ey)||1;
     if(F.n<2||!F.minSpd)F.minSpd=F.minSpd||vm;
     if(!F.spdAt||t-F.spdAt>5){F.spdAt=t;F.minSpd=.2*VMK*Math.min(...F.ships.slice(0,40).map(o=>o.T.spd))}
-    const fvm=Math.min(vm,F.minSpd*1.15),sp=ed>40?vm:Math.min(fvm,ed*.2+.01);
+    const fvm=Math.min(vm,Math.min(F.minSpd,F.cruise||9)*1.15),tol=Math.max(1.5,s.T.L*15),sp=ed>40?vm:ed<tol?0:Math.min(fvm,(ed-tol)*.04+.004); /* в пределах допуска места в строю — просто идём со скоростью флота; дальше — мягко, без раскачки */
     // экстренное ускорение: догнать строй / вовремя встать на место
     if(ed>70)boost=Math.min(2,1+(ed-70)/120);
     let fvx=ex/ed*sp+(F.vgx||0),fvy=ey/ed*sp+(F.vgy||0); // к месту в строю + скорость самого строя: корабли идут вместе, а не догоняют рывками
@@ -405,14 +411,14 @@ function steer(s,dt){
       if(s.rd==='in'){const sd=s.uid%2?1:-1,off=Math.max(1.5,tg.T.L*2),ax=tg.x-uy*off*sd-s.x,ay=tg.y+ux*off*sd-s.y,al=Math.hypot(ax,ay)||1;vx=ax/al*vm*3;vy=ay/al*vm*3;want=Math.atan2(ay,ax)}
       else{const sp=Math.hypot(s.sx,s.sy)||1;vx=(s.sx/sp-ux*.3)*vm*3;vy=(s.sy/sp-uy*.3)*vm*3;want=Math.atan2(vy,vx)}
       boost=1.4;s.raidV=1}
-    else if(tg&&(td<er*1.5||t<s.bdo)){
-      const dd=td-dopt,bnd=Math.max(10,dopt*.5),k=(Math.abs(dd)<bnd?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*bnd)/20)))*Math.min(1,Math.abs(dd)/Math.max(1e-3,vm*240)), /* в полосе дистанции не дёргаемся; к цели — со скоростью, чтобы дойти за ~4 мин, а не на форсаже */lat=0,w=formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25;
+    else if(tg&&(td<er*1.5||t<s.bdo)){s.br='combat';
+      const dd=td-dopt,bnd=Math.max(10,dopt*.5),k=(Math.abs(dd)<bnd?0:Math.max(-1,Math.min(1,(dd-Math.sign(dd)*bnd)/20)))*Math.min(1,Math.abs(dd)/Math.max(1e-3,vm*240)), /* в полосе дистанции не дёргаемся; к цели — со скоростью, чтобы дойти за ~4 мин, а не на форсаже */lat=0,w=F.n>=2&&F.stance!=='assault'?.97:formed?.93:F.stance==='kite'?.15:s.cls==='hc'||s.cls==='cv'?.55:.25; /* в группе дистанцию держит вся группа, а не каждый корабль сам — без рывков между целями */
       let rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;want=Math.atan2(uy,ux)+(td<er*.9?(s.pOff||0):0);
       
       vx=w*fvx+(1-w)*rx;vy=w*fvy+(1-w)*ry;if(retreating)want=Math.atan2(vy,vx);
       if(F.stance==='assault'&&td>s.maxR*.7)boost=Math.max(boost,1.7);
       else if(F.stance==='kite'&&td<F.hold*.6)boost=Math.max(boost,1.4);
-    }else{vx=fvx;vy=fvy;if(retreating&&sp>.02)want=Math.atan2(vy,vx);else if(tg)want=Math.atan2(uy,ux);else if(sp>.02&&ed>6)want=Math.atan2(vy,vx);else if(F.dx!=null&&(F.dx||F.dy))want=Math.atan2(F.dy,F.dx);
+    }else{s.br='form';vx=fvx;vy=fvy;if(retreating&&sp>.02)want=Math.atan2(vy,vx);else if(tg)want=Math.atan2(uy,ux);else if(sp>.02&&ed>6)want=Math.atan2(vy,vx);else if(F.dx!=null&&(F.dx||F.dy))want=Math.atan2(F.dy,F.dx);
       if(F.stance==='assault'&&tg)boost=Math.max(boost,1.5)}
   }
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+T.L*.25+8;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
@@ -445,12 +451,12 @@ function steer(s,dt){
   const a=(s.fuelCap&&s.fuel<=0?0:1)*s.acc/1000*eng*dt*(1+(boost-1)*.5),_pl=(t>=(s.vPT||0)||s.dg&&t<s.dgT||flee)?(s.vPT=t+PLAN_T,s.vTx=vx,s.vTy=vy,1):0,dvx0=s.vTx*eng-s.sx,dvy0=s.vTy*eng-s.sy,dl0=Math.hypot(dvx0,dvy0),fq=s.fuelCap?s.fuel/s.fuelCap:1,db=fq<.25?.1:.05,coast=dl0<Math.hypot(s.sx,s.sy)*.2&&(dvx0*s.sx+dvy0*s.sy)<=0===false&&Math.hypot(vx*eng,vy*eng)>Math.hypot(s.sx,s.sy)*.8&&Math.hypot(vx*eng,vy*eng)<Math.hypot(s.sx,s.sy)*1.25&&(vx*s.sx+vy*s.sy)>.97*Math.hypot(vx,vy)*Math.hypot(s.sx,s.sy),dvx=dl0<db||coast?0:dvx0,dvy=dl0<db||coast?0:dvy0,dl=dl0<db||coast?0:dl0; /* coast — идём почти куда надо и почти с нужной скоростью: летим по инерции */ /* мёртвая зона по скорости: мелкие поправки не стоят топлива; при пустеющем баке — шире */
   if(t>=(s.dgN||0)){s.dgN=t+1;if(!(s.dg&&t<s.dgT))s.dg=null;if(s.rcsN>0&&s.sc&&s.sc.length&&(!s.fuelCap||s.fuel/s.fuelCap>.4)){ /* уклоняемся, только пока в баке больше 40% */let best=1e9; // уклонение: снаряд, который через ≤12 с пройдёт через корабль, — маневровыми вбок от его пути
       const hr=s.T.L*.6+.05;for(const p of proj){if(p.side===s.side||p.g)continue;const rx=s.x-p.x,ry=s.y-p.y;if(rx*rx+ry*ry>3600)continue;const wx=p.vx-s.sx,wy=p.vy-s.sy,w2=wx*wx+wy*wy||1e-9,tc=(rx*wx+ry*wy)/w2;if(tc<0||tc>12||tc>=best)continue;
-        const mx=rx-wx*tc,my=ry-wy*tc,md=Math.hypot(mx,my);if(md>hr)continue;best=tc;const wl=Math.sqrt(w2);s.dg=md>1e-4?{x:mx/md,y:my/md}:{x:-wy/wl,y:wx/wl};s.dgT=t+Math.min(4,tc+1)}
+        const mx=rx-wx*tc,my=ry-wy*tc,md=Math.hypot(mx,my);if(md>hr)continue;best=tc;const wl=Math.sqrt(w2);s.dg=md>1e-4?{x:mx/md,y:my/md}:{x:-wy/wl,y:wx/wl};s.dgU=0;s.dgT=t+Math.min(4,tc+1);s.dgV=Math.max(0,hr*1.3-md)/Math.max(1,tc)} /* ровно столько боковой скорости, чтобы снаряд прошёл мимо */
       if(best<1e9)stat.dodge=(stat.dodge||0)+1}}
   { // тяга только по оси корабля: вперёд — полная, назад — 35%, боком — 12% (маневровые); скорость сохраняется по инерции
     const ch=Math.cos(s.hd),sh=Math.sin(s.hd);let df=dvx*ch+dvy*sh,dlt=-dvx*sh+dvy*ch;
-    {const dl2=Math.hypot(df,dlt);if(dl2>1e-9&&Math.abs(df/dl2)<.7&&!(s.dg&&t<s.dgT))df=0;} /* главный двигатель включается, только если нужный импульс почти вдоль оси (±45°): иначе тяга уходит вбок впустую */df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt));if(s.dg&&t<s.dgT){const lt2=-s.dg.x*sh+s.dg.y*ch,fw2=s.dg.x*ch+s.dg.y*sh;dlt=lf*(lt2>=0?1:-1);if(Math.abs(fw2)>.6)df=fw2>0?a:-a*.35}}
-    {const ax0=(df*ch-dlt*sh)/Math.max(dt,1e-3),ay0=(df*sh+dlt*ch)/Math.max(dt,1e-3);s.aex=(s.aex||0)*.7+ax0*.3;s.aey=(s.aey||0)*.7+ay0*.3}s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);{const kk=s.holdK||(flee?'бегство':s.tg?'бой':'строй');(stat.dvK=stat.dvK||{})[kk]=(stat.dvK[kk]||0)+Math.hypot(df,dlt)}if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;{const bt=(dryM(s)+s.fuel)*Math.hypot(df,dlt)/FUEL.ve;s.fuel=Math.max(0,s.fuel-bt);stat.mainT=(stat.mainT||0)+bt}void lv /* ракетное уравнение: каждый км/с изменения скорости сжигает топливо, m·Δv/vₑ */}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
+    {const dl2=Math.hypot(df,dlt);if(dl2>1e-9&&Math.abs(df/dl2)<.97&&!(s.dg&&t<s.dgT))df=0;} /* главный двигатель включается, только если нужный импульс почти вдоль оси (±45°): иначе тяга уходит вбок впустую */df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt));if(s.dg&&t<s.dgT&&(s.dgU||0)<(s.dgV||0)){const lt2=-s.dg.x*sh+s.dg.y*ch,need=(s.dgV||0)-(s.dgU||0),dd=Math.min(lf,need);dlt=dd*(lt2>=0?1:-1);s.dgU=(s.dgU||0)+dd} /* уклонение — только маневровыми и только на нужную величину */}
+    {const ax0=(df*ch-dlt*sh)/Math.max(dt,1e-3),ay0=(df*sh+dlt*ch)/Math.max(dt,1e-3);s.aex=(s.aex||0)*.7+ax0*.3;s.aey=(s.aey||0)*.7+ay0*.3}s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);s.dvF=(s.dvF||0)+Math.abs(df);s.dvL=(s.dvL||0)+Math.abs(dlt);{const kk=s.holdK||(flee?'бегство':s.tg?'бой':'строй');(stat.dvK=stat.dvK||{})[kk]=(stat.dvK[kk]||0)+Math.hypot(df,dlt)}if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;{const bt=(dryM(s)+s.fuel)*Math.hypot(df,dlt)/FUEL.ve;s.fuel=Math.max(0,s.fuel-bt);stat.mainT=(stat.mainT||0)+bt}void lv /* ракетное уравнение: каждый км/с изменения скорости сжигает топливо, m·Δv/vₑ */}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
