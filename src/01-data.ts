@@ -32,6 +32,7 @@ export const COMP = gd('modules', 'modules', {
   cabin: {name:'Каюты экипажа', desc:'5 мест', crew:5, mass:4, cost:{fe:6, c:6}},
   life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, si:4, fe: 6}},
   xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{si:6, ti:4, fe: 8}, tech:'xfer'},
+  probe: {name:'Штанга дозаправки', desc:'Приёмник топлива: в бою корабль сам подлетает к танкеру (корабль с системой передачи топлива) и заправляется', probe:1, mass:1, cost:{fe:2, ti:1}},
   repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:45, si:10, pt:1}},
   spares:{name:'Склад тех. изделий', desc:'Хранит 100 тех. изделий', spares:100, mass:6, cost:{fe:10, ti:4}},
   lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, ree:2, fe: 8}},
@@ -610,7 +611,7 @@ COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «$
 const IDLE_MW = {radar: 5, irs: .1, ems: .1, fcs: .5, ew: 2, hangar_f: 1, hangar_b: 1};
 export function designStats(parts, flags) {
   flags = flags || {};
-  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
+  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, probe:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
     cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, gat:0, hangF:0, hangB:0, hangars:0, hangList:[], engines:0};
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
@@ -643,7 +644,7 @@ export function designStats(parts, flags) {
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
     if (c.bq) for (const k of CR_KEYS) r.bqS[k] = (r.bqS[k] || 0) + c.bq[k] * c.hangB * n;
-    r.xfer += (c.xfer || 0) * n;
+    r.xfer += (c.xfer || 0) * n; r.probe += (c.probe || 0) * n;
     r.armor += (c.armor || 0) * n; r.rail += (c.rail || 0) * n; r.flak += (c.flak || 0) * n; r.gat += (c.gat || 0) * n;
     if (c.hangD) r.hangList.push({ds: c.hangD, n: (c.hangN || 1) * n});
     r.hangF += (c.hangF || 0) * n; r.hangB += (c.hangB || 0) * n; r.hangars += (c.hangars || 0) * n; if (c.power) r.engines += n;
@@ -760,6 +761,8 @@ export function newGame() {
   D2('Рельсотронщик', {[CH]: 2, [TX]: 2, [mkKey('rail', {cal: '15', bar: '1', cap: 'a'})]: 4, gat: 2, radar: 1, irs: 1, fcs: 2, dcon: 1, [RE(300)]: 2, [AM(100)]: 1, armor: 4, cabin: 1, life: 1});
   D2('Крейсер К1', {[IX]: 160, [TX]: 5, [R20]: 24, flak: 10, [RE(5000)]: 4, [AM(500)]: 1, armor: 5, radar: 1, fcs: 3, cabin: 3, life: 2});
   D2('Авианосец А1', {[IX]: 70, [TX]: 3, hangar_f: 3, hangar_b: 1, [R10]: 6, [AM(100)]: 1, armor: 3, radar: 1, fcs: 2, cabin: 3, life: 2});
+  D('Перехватчик-кавалерист', CAV_PARTS());
+  D('Боевой танкер', TANK_PARTS());
   D('Станция «Опора»', {cargo: 3, [T100]: 2, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1});
   for (let i = 0; i < 12; i++) genOfficer();
   const g = newGroup('Добытчики');
@@ -801,6 +804,9 @@ export function createStation(job, crew) {
 export const groupOf = s => state.groups.find(g => g.id === s.groupId) || null;
 export const programOf = s => groupOf(s) || s.own;
 
+// перехватчик-кавалерист: 470 т с топливом, 20 м/с², 2 рельсотрона 10 см, штанга дозаправки; боевой танкер: 6 000 т топлива на передачу
+export const CAV_PARTS = () => ({[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 4, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {tv: '25'})]: 3, [mkKey('ammo', {t: '5'})]: 1, [mkKey('rail', {cal: '10', bar: '1', ld: 'a', cap: 'a', saf: '0', mnt: 'a'})]: 2, probe: 1, fcs: 1, [mkKey('cabin', {cv: '5'})]: 3, life: 2, armor: 1});
+export const TANK_PARTS = () => ({[mkKey('ion', {pw: '500'})]: 4, [mkKey('reactor', {p: '1000'})]: 1, [mkKey('tank', {tv: '2000'})]: 3, xfer: 1, gat: 2, [mkKey('ammo', {t: '25'})]: 1, fcs: 1, armor: 1, [mkKey('cabin', {cv: '25'})]: 2, life: 4});
 /* ===== ИСТРЕБИТЕЛИ КАК НАСТОЯЩИЕ КОРАБЛИ ===== */
 export const FGT_MAX = 500;
 export const CR_PRE = {

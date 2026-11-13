@@ -10,7 +10,8 @@ import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.t
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
 import { botSpec, previewSpec } from './16b-botdesign.ts';
-import { designStats } from './01-data.ts';
+import { designStats, CAV_PARTS, TANK_PARTS } from './01-data.ts';
+const realSp = (parts, extra) => { const o = previewSpec(parts) || {rails: 0, flak: 0, L: .1}; o.spd = 1; return Object.assign(o, extra); };
 
 const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
 const R = (a, b) => a + Math.random() * (b - a), RI = (a, b) => Math.floor(R(a, b + 1)), TAU = Math.PI * 2;
@@ -38,6 +39,9 @@ const TYPES = {
   missileFrigate: n => { const k = RI(2, 4); return {name: 'Ракетный фрегат', ...gun(2, 10), flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 4), eng: 3, L: R(.9, 1.1), arm: 2, spd: 1.1}; },
   missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; },
   supply: n => ({role: 'supply', name: 'Транспорт снабжения', rails: 0, flak: 2, ...GAT(2), eng: 3, L: R(.8, 1.1), arm: 1, spd: .85}),
+  tanker: n => realSp(TANK_PARTS(), {role: 'supply', name: 'Боевой танкер'}),
+  // перехватчик-кавалерист (470 т, 20 м/с², штанга дозаправки) после наскоков уходит к танкеру
+  cavalry: n => realSp(CAV_PARTS(), {name: 'Перехватчик-кавалерист'}),
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
@@ -54,6 +58,7 @@ const MIXES = {
   strike: {bomber: 3, swarmcarrier: 2, frigate: 3, corvette: 3},
   lasers: {supply: 1, laserCruiser: 1, destroyer: 5, frigate: 2, brawler: 2, cruiser: 2, laserBattleship: 1},
   missiles: {supply: 1, missileFrigate: 5, missileCruiser: 3, frigate: 2},
+  cavalry: {tanker: 1, cavalry: 8, destroyer: 2, frigate: 1},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
@@ -61,6 +66,7 @@ const MIXES = {
 const W3 = sp => Math.min(2000, specTons(fitSpec(sp))) / TON_L; // вес в строю — уже с потолком 2000 т, иначе флоты выходят неравными
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
+  cavalry: {n: 'кавалерия перехватчиков с танкером', mix: 'cavalry', mod: sp => {}},
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .95); sp.spd = (sp.spd || 1) * .92; }},
   armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, 1.6); sp.defl = (sp.defl || 0) + .05; sp.spd = (sp.spd || 1) * 1.0; }},
   guns: {n: 'ставка на число орудий', mix: 'line', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 2); setRails(sp, 1.7); sp.spd = (sp.spd || 1) * 1.05; }},
@@ -109,6 +115,7 @@ function fleet(n, mixOrDoc, fid, speed, W) {
   let w = 0;
   for (let i = 0; W ? (w < W && i < Math.max(8, n * 4)) : i < n; i++) { const k = pickType(mix2, tot, keys), sp = TYPES[k](i); if (doc && doc.mod) doc.mod(sp); const ws = W3(sp); if (W && w > 0 && w + ws > W * 1.25) { if (w >= W * .85) break; continue; } w += ws; sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); }
   if (!W && n >= 25) { const nl = n >= 60 ? 2 : (Math.random() < .6 ? 1 : 0); for (let q = 0; q < nl; q++) { const sp = TYPES[Math.random() < .6 ? 'laserCruiser' : 'laserBattleship'](q); sp.name += ' №' + (n + q + 1); sp.fid = fid; sp.sk = sk; sp.spd = (sp.spd || 1) * speed; out.push(sp); } }
+  if (mix.tanker && out.some(sp => sp.probe) && !out.some(sp => sp.tanker)) { const sp = TYPES.tanker(0); sp.name += ' №' + (out.length + 1); sp.fid = fid; sp.sk = sk; out.push(sp); } // кавалерии без танкера не бывает
   if (!out.length) { const sp = TYPES[keys[0]](0); if (doc && doc.mod) doc.mod(sp); sp.name += ' №1'; sp.fid = fid; sp.sk = sk; out.push(sp); }
   { // лазеры — редкая сверхпушка: не больше одного корабля на 10 и не больше 8 на флот
     const cap = Math.min(8, Math.floor(out.length / 10)), ls = out.filter(sp => sp.lasers > 0);
