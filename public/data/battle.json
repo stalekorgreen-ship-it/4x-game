@@ -8,7 +8,7 @@
  "fuel": {
   "ve": 9,
   "rcsVe": 3,
-  "cap": 0.3,
+  "cap": 0.6,
   "keep": 0.12
  },
  "battle": {

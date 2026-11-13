@@ -58,7 +58,7 @@ const MIXES = {
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
 // вес флота — по тоннажу: корпус 50 000 т на км длины + истребители по 350 т, торпедоносцы по 400 т
-const W3 = sp => specTons(fitSpec(sp)) / TON_L;
+const W3 = sp => Math.min(2000, specTons(fitSpec(sp))) / TON_L; // вес в строю — уже с потолком 2000 т, иначе флоты выходят неравными
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .95); sp.spd = (sp.spd || 1) * .92; }},
