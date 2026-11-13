@@ -10,6 +10,7 @@ import { refreshDemo } from './16-demo.ts';
 import { RARITY, techById, ensureOffers, reroll } from './15-techs.ts';
 import { rentN, buildUnits, buildSlots, HIRE_PRICE, BW, bldWage, bldWorkers, BLD, TECH, academyClass, academyInterval, bldCanAdd, bldCost, bldGate, techOn, techSet, yardSlots, yardSpeed, yards, yardRate, yardUpSB, bldSB, queueBld, unitSB, pctSum, effPct, CF_SB, matOf, matTxt, CORP } from './03-build.ts';
 import { advance, loadGame, saveGame } from './04-engine.ts';
+import { designNames } from './21e-design.ts';
 import { Battle } from './05-battle.ts';
 import { refreshCorp } from './06-corps.ts';
 import { rpPrice, labRP, sciPol } from './10-civil.ts';
@@ -282,7 +283,7 @@ export function renderDesigner(full) {
   syncCraftOpts();
   $('dlist').innerHTML = state.designs.map(x => `<div class="item${x.id === d.id ? ' sel' : ''}" data-d="${x.id}">${esc(x.name)}<span class="muted">${designTag(x)}</span></div>`).join('');
   if (full) $('dname').value = d.name;
-  $('dflags').innerHTML = prioHtml(d) + `<label class="row"><input type="checkbox" data-craft="1" ${d.craft ? 'checked' : ''}> Истребитель <span class="muted">(собирается как корабль, но до ${FGT_MAX} т; потом выбирается в «Ангаре истребителей»)</span></label>`; if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
+  $('dflags').innerHTML = prioHtml(d) + `<label class="row">Корпус в бою: <select data-hull="1"><option value="">авто (ближайший по массе)</option>${designNames().map(n => `<option${d.hull === n ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select> <span class="muted">(модели из редактора корпусов, data/ships.json)</span></label><label class="row"><input type="checkbox" data-craft="1" ${d.craft ? 'checked' : ''}> Истребитель <span class="muted">(собирается как корабль, но до ${FGT_MAX} т; потом выбирается в «Ангаре истребителей»)</span></label>`; if (0) `<label><input type="checkbox" data-flag="station" ${d.station ? 'checked' : ''}> Станция <span class="muted">(не летает сама, принимает грузы, везёт тягач)</span></label>
     <label><input type="checkbox" data-flag="tanker" ${d.tanker ? 'checked' : ''}> Танкер <span class="muted">(передаёт топливо станциям и кораблям)</span></label>`;
   const ctl = (k, n) => `<span class="ct">${[-25, -5, -1].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Меньше">${v < -1 ? '−' + -v : '−'}</button>`).join('')}<b>${n}</b>${[1, 5, 25].map(v => `<button class="btn sm" data-dp="${k}" data-dd="${v}" aria-label="Больше">${v > 1 ? '+' + v : '+'}</button>`).join('')}</span>`;
   const used = b => Object.keys(d.parts).filter(k => d.parts[k] > 0 && baseOf(k) === b);
@@ -335,6 +336,7 @@ export function renderDesigner(full) {
     (ui.dopt[s.dataset.op] = ui.dopt[s.dataset.op] || {})[s.dataset.oi] = s.value; renderDesigner(false);
   });
   $('dflags').addEventListener('change', e => {
+    if (e.target.dataset.hull) { curDesign().hull = e.target.value || undefined; renderDesigner(false); return; }
     if (e.target.dataset.craft) { curDesign().craft = e.target.checked; renderDesigner(false); return; }
     const r = e.target.dataset.prio; if (!r) return;
     curDesign().prio[r] = +e.target.value; renderDesigner(false);

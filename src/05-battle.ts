@@ -364,7 +364,9 @@ function steer(s,dt){
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,d=Math.hypot(dx,dy)||1,rr=e.r+s.T.L*.3;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
   const rcsF=s.rcs0?.15+.85*s.rcsN/s.rcs0:1,turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt*rcsF;s.trn=Math.max(-1,Math.min(1,adiff(s.hd,want)*3))*(s.rcsN>0?1:0); // без маневровых корабль почти не вертится // 1 км — около минуты на разворот, 4 км — минуты
-  s.hd+=Math.max(-turn,Math.min(turn,adiff(s.hd,want)));
+  { // разворот физикой: маневровые F = 0,4 МН·∛(т/1000), плечо 0,37·L, I = M·L²/12 → α; тяжёлые корабли разворачиваются минутами
+    const tons=Math.max(1,T.tons||1),Lm=Math.max(5,T.L*1000),Fr=(T.rcsMN?T.rcsMN*1e6:4e5*Math.cbrt(tons/1000))*rcsF*(s.rcsN>0?1:0),al=Fr*.37*Lm/(tons*1000*Lm*Lm/12),d=adiff(s.hd,want),wt=Math.sign(d)*Math.sqrt(2*al*Math.abs(d))*.9;
+    s.w=s.w||0;const dw=al*dt;s.w+=Math.max(-dw,Math.min(dw,wt-s.w));if(Math.abs(d)<1e-3&&Math.abs(s.w)<dw)s.w=0;s.hd+=s.w*dt;void turn }
   if(s.spin){s.hd+=s.spin*dt;const L=Math.max(10,s.T.L*1000),dry=s.fuelCap&&s.fuel<=0,al=s.rcsN>0&&!dry?.72*s.acc/L*(s.rcs0?s.rcsN/s.rcs0:1)*(s.dg&&t<s.dgT?.5:1):0,dd=al*dt; // маневровые гасят вращение: α = 6·F·(L/2)/(M·L²/12), F = 12% тяги
     const f=al>0?Math.min(1,Math.abs(s.spin)/dd):0;s.spin=Math.abs(s.spin)<=dd?0:s.spin-Math.sign(s.spin)*dd;if(s.fuelCap&&f)s.fuel=Math.max(0,s.fuel-(s.frate||0)*(.12*f)*(.12*f)*dt*BAT_FUEL_T)}
   s.vx=s.sx;s.vy=s.sy;
