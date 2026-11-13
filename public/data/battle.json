@@ -83,7 +83,9 @@
   "N": 3,
   "boost": 0.85,
   "cal": 1,
-  "pdR": 120
+  "pdR": 120,
+  "relK": 30,
+  "relP": 0.66
  },
  "cavalry": {
   "arc": 0.35
