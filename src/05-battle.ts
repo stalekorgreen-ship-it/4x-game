@@ -179,21 +179,44 @@ function command(sd,all){const C=CMDS[sd],my=ships.filter(o=>o.alive&&o.side===s
   const str=a=>a.reduce((x,o)=>x+o.aliveN*(1+val(o)),0),ratio=str(my)/Math.max(1,str(en)),fuel=my.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/my.length;
   const lost=stat.lost[sd],dl=lost-(C.lost0==null?lost:C.lost0);C.lost0=lost; // потери за прошлый период
   const enSalvo=all.some(F=>F.side!==sd&&F.sv&&F.sv.o&&F.sv.o.side===sd),rng=my.reduce((a,o)=>a+(o.maxR||60),0)/my.length; /* дальность орудий */
-  let plan=C.plan||'fist';
-  if(ratio<.45&&fuel>.1)plan='retreat';
-  else if(fuel<.15)plan='fist';
-  else if(dist>rng*1.8)plan=C.plan==="envelop"&&dist<rng*2.5?"envelop":"fist";                      // далеко — идём кулаком, раньше времени не делимся
-  else if(enSalvo&&(dl>0||plan==='fist')&&my.length>=CMD.minGroup*2)plan='envelop';                // по нам бьют залпами — рассыпаемся и охватываем
-  else if(ratio>1.4&&my.length>=CMD.minGroup*2)plan='envelop';                                     // нас заметно больше — окружаем
-  else if(plan==='envelop'&&!enSalvo&&ratio<.9)plan='fist';                                        // охват не удался — собираемся
-  const k=plan==='envelop'?Math.max(2,Math.min(5,Math.floor(my.length/CMD.minGroup))):1;
-  if(plan===C.plan&&k===C.k)return; C.plan=plan;C.k=k;C.at=t;
-  // раздача групп: по углу вокруг своего центра, поперёк направления на врага (левые — в левую группу и т.д.)
-  const ux=(ex-cx)/(dist||1),uy=(ey-cy)/(dist||1),srt=my.map(o=>[(o.x-cx)*-uy+(o.y-cy)*ux,o]).sort((a,b)=>a[0]-b[0]);
-  C.plans={};for(let g=0;g<k;g++){const fid=100+g,off=k===1?0:(g-(k-1)/2)/((k-1)/2); // −1…+1: крайние группы уходят дальше в обход
-    C.plans[fid]=plan==='retreat'?{stance:'retreat'}:k===1?{stance:'wall'}:Math.abs(off)<.34?{stance:'wall',fire:''}:{stance:'flank',flank:off*1.4,env:1,fire:'eng'}}
-  srt.forEach(([,o],i)=>{o.fid=100+Math.min(k-1,Math.floor(i*k/srt.length))});
-  stat.plan=stat.plan||['',''];stat.plan[sd]=plan==='envelop'?'охват '+k+' группами':plan==='retreat'?'отход':'единый кулак';
+  // ~20 планов: у каждого — оценка по обстановке и раскладка групп (доля кораблей, тактика, угол обхода, огонь). Слева направо по строю.
+  const W=(st,o={})=>({sh:1,stance:st,...o}),Fk=(a,o={})=>({sh:1,stance:'flank',flank:a,env:1,fire:'eng',...o}),n=my.length,big=n>=CMD.minGroup*2,huge=n>=CMD.minGroup*4,far=dist>rng*1.8,near=dist<rng*.9;
+  const enFuel=en.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/en.length,longer=my.reduce((a,o)=>a+(o.maxR||60),0)/n>en.reduce((a,o)=>a+(o.maxR||60),0)/en.length*1.2,flankOK=fuel>.35,hurt=my.filter(o=>hpf(o)<.45).length/n;
+  const P={
+    fist:[far?3:1,[W('wall')]],                                                             // единый кулак
+    wedge:[!far&&ratio>1.1?1.5:.5,[W('wedge')]],                                            // клин — прорыв
+    echelon:[!far?1.2:.3,[W('echelon')]],                                                   // ступени — все орудия в деле
+    envelop:[big&&flankOK&&!far?(enSalvo?3:ratio>1.3?2.4:1):0,null],                        // охват k группами
+    pincer:[big&&flankOK&&!far&&ratio>1.1?2.2:0,[Fk(-1.2),Fk(1.2)]],                         // клещи
+    anvil:[big&&flankOK&&!far?1.8:0,[W('wait',{sh:2}),Fk(1.4)]],                            // молот и наковальня: держим фронт, крыло бьёт сбоку
+    pass:[big&&fuel>.45&&!far?1.5:0,[W('wall',{sh:2}),W('pass',{fire:'eng'})]],             // проход насквозь отдельной группой
+    dpass:[big&&fuel>.55&&ratio>1.2&&!far?1.3:0,[W('pass',{fire:'eng'}),W('pass',{fire:'eng'})]], // двойной проход
+    ambush:[enFuel<fuel*.6?3:0,[W('drift')]],                                               // засада-дрейф: пусть враг жжёт топливо
+    stall:[enFuel<fuel*.8&&ratio<1?1.6:0,[W('drift',{fire:'weak'})]],                       // тянуть время
+    retreat:[ratio<.45&&fuel>.1?5:0,[W('retreat')]],                                        // отход
+    cover:[hurt>.3?3.5:0,[W('cover')]],                                                      // отход с прикрытием
+    kite:[longer&&fuel>.3?2.6:0,[W('kite')]],                                                // держать дистанцию, раз бьём дальше
+    storm:[!longer&&ratio>1.2&&!far?1.6:0,[W('assault')]],                                   // штурм — сблизиться и задавить
+    bait:[big&&!far&&ratio>.8?1:0,[W('assault',{sh:.25}),W('wait',{sh:1})]],                 // приманка: малая группа лезет вперёд, основная ждёт
+    weak:[!far&&ratio>1?1.4:.4,[W('wall',{fire:'weak'})]],                                    // охота на повреждённых
+    engines:[big&&flankOK&&!far?1.4:0,[Fk(-.9,{sh:1}),W('wall',{sh:1}),Fk(.9,{sh:1})]],       // охота на двигатели: крылья заходят к корме
+    scatter:[enSalvo&&big?2.8:0,[Fk(-.45,{fire:''}),W('wall'),Fk(.45,{fire:''})]],           // рассыпной строй: залп накрывает меньше
+    depth:[big&&!far?1:0,[W('wall'),W('wait',{sh:.7})]],                                       // эшелон в глубину: второй ряд в резерве
+    rear:[big&&flankOK&&!far&&ratio>1?1.6:0,[W('wall',{sh:2}),Fk(2.6,{sh:1})]],              // удар в тыл
+    ring:[huge&&flankOK&&!far&&ratio>1.5?2.6:0,[Fk(-1.6),Fk(-.8),W('wall'),Fk(.8),Fk(1.6)]], // окружение кольцом
+    fall:[ratio<.8&&fuel>.25&&near?1.8:0,[W('kite')]],                                         // отойти на дальнюю дистанцию и перестроиться
+  };
+  // оценка: база + шум, держимся за текущий план (смена — только если новый заметно лучше и прошло ≥60 с)
+  const sc={};for(const k in P)sc[k]=P[k][0]>0?P[k][0]*(.85+Math.random()*.3):0;if(C.plan&&sc[C.plan]>0&&t-(C.at||0)<60)sc[C.plan]+=10;else if(C.plan&&sc[C.plan]>0)sc[C.plan]*=1.25;
+  let plan='fist';for(const k in sc)if(sc[k]>sc[plan])plan=k;
+  const kk=plan==='envelop'?Math.max(2,Math.min(5,Math.floor(n/CMD.minGroup))):0,G=plan==='envelop'?Array.from({length:kk},(_,g)=>{const off=(g-(kk-1)/2)/((kk-1)/2);return Math.abs(off)<.34?W('wall',{fire:''}):Fk(off*1.4)}):P[plan][1];
+  let groups=G.filter((_,g)=>true);while(groups.length>1&&n/groups.length<CMD.minGroup/2)groups=[W('wall')]; // мало кораблей — не делимся
+  const sig=plan+':'+groups.length;if(sig===C.sig)return;C.sig=sig;C.plan=plan;C.at=t;
+  const ux=(ex-cx)/(dist||1),uy=(ey-cy)/(dist||1),srt=my.map(o=>[(o.x-cx)*-uy+(o.y-cy)*ux,o]).sort((a,b)=>a[0]-b[0]),tot=groups.reduce((a,g)=>a+g.sh,0);
+  C.plans={};let acc=0;const edges=groups.map(g=>(acc+=g.sh)/tot);groups.forEach((g,i)=>{C.plans[100+i]=g});
+  srt.forEach(([,o],i)=>{const f=(i+.5)/srt.length;let g=0;while(g<edges.length-1&&f>edges[g])g++;o.fid=100+g});
+  const NM={fist:'единый кулак',wedge:'клин',echelon:'ступени',envelop:'охват '+groups.length+' группами',pincer:'клещи',anvil:'молот и наковальня',pass:'проход насквозь',dpass:'двойной проход',ambush:'засада в дрейфе',stall:'тянуть время',retreat:'отход',cover:'отход с прикрытием',kite:'держать дистанцию',storm:'штурм',bait:'приманка',weak:'охота на повреждённых',engines:'охота на двигатели',scatter:'рассыпной строй',depth:'эшелон в глубину',rear:'удар в тыл',ring:'окружение кольцом',fall:'отойти и перестроиться'};
+  stat.plan=stat.plan||['',''];stat.plan[sd]=NM[plan]+(groups.length>1&&plan!=='envelop'?' ('+groups.length+' гр.)':'');
   if(typeof log==='function'&&!(cfgNow&&cfgNow.bg))try{log(['Синие','Красные'][sd]+': '+stat.plan[sd]+'.')}catch(e){}}
 function fleetsUpdate(){
   for(const F of FL.values()){F.ships=[];F.lrp=0;F.srp=0;F.lrR=0;F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
@@ -235,7 +258,7 @@ function fleetsUpdate(){
           else if(st==='engage')st=['wall','wedge','echelon'][F.fid%3]; // обычный бой — строй носом к врагу
         }
         if(st==='retreat'&&!F.until)F.until=t+40}
-      {const P=CMDS[F.side].plans&&CMDS[F.side].plans[F.fid];if(P&&st!=='wait'){st=P.stance;if(P.flank!=null)F.flank=P.flank;F.env=!!P.env;F.planFire=P.fire}}
+      {const P=CMDS[F.side].plans&&CMDS[F.side].plans[F.fid];if(P&&st!=='wait'){st=P.stance;if(st==='kite')F.hold=Math.max(60,F.lrR*.8,F.rng*1.3);if(P.flank!=null)F.flank=P.flank;F.env=!!P.env;F.planFire=P.fire}}
       F.stance=st}
     F.ratio=ratio;
     F.fire=(F.side===0&&ORD.fire)||F.planFire||(F.ratio>1.3?'weak':F.ratio<.8?'eng':'');
