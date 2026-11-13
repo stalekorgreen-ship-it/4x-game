@@ -23,6 +23,7 @@ const plumeTex = (() => { let t = null; return () => { if (t) return t; const c 
   for (let j = 0; j < 32; j++) for (let i = 0; i < 128; i++) { const u = (127 - i) / 127, v = Math.abs(j - 15.5) / 16, core = Math.exp(-(v * v) / (.02 + .1 * u)), fall = Math.pow(1 - u, 1.6), hot = Math.exp(-u * 8), o = (j * 128 + i) * 4, a = core * fall;
     im.data[o] = 255; im.data[o + 1] = 255 * (.75 + .25 * hot); im.data[o + 2] = 255 * (.55 + .45 * hot); im.data[o + 3] = Math.min(255, 255 * a); }
   x.putImageData(im, 0, 0); return t = new THREE.CanvasTexture(c); }; })(); // u=0 у сопла (вершина плоскости в 0) → разворачиваем: плоскость идёт от 0 к −len, u=0 справа
+export const stat3 = { chunks: 0 }; const BREAK = { k: .5, r: 2.2 }; // откол: доля энергии «прорезать» участок радиуса r насквозь
 const glowTex = (() => { let t = null; return () => { if (t) return t; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.18, 'rgba(255,255,255,.8)'); gr.addColorStop(.45, 'rgba(255,255,255,.15)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return t = new THREE.CanvasTexture(c); }; })();
 const LODK = [0, 1 / 300, 1 / 120, 1 / 50, 1 / 20], LODD = [0, 1.5, 4, 10, 25];
 function geoLod(d, lv) {
@@ -95,12 +96,15 @@ function mkDmg(g, body, T) {
   const RC = new THREE.Raycaster();
   // выбитый модуль: луч снаружи к корпусу в координатах корабля → пятно сажи и тлеющий огонь, который не гаснет
   D.mark = (o, d, r) => { const mw = body.matrixWorld.clone(); body.matrixWorld.identity(); RC.set(o, d); const hs = RC.intersectObject(body, false); body.matrixWorld.copy(mw); if (!hs.length) return false;
-    const n = hs[0].face.normal.clone().normalize(); if (n.dot(d) > 0) n.negate(); addSoot(hs[0].point, n, r * 1.6); addGlow(hs[0].point, n, r * .7, true); return true; };
-  D.markAt = (p, n, r) => { addSoot(p, n, r * 1.6); addGlow(p, n, r * .7, true); };
+    const n = hs[0].face.normal.clone().normalize(); if (n.dot(d) > 0) n.negate(); D.chunk(hs[0].point, n, r); addSoot(hs[0].point, n, r * 1.6); addGlow(hs[0].point, n, r * .7, true); return true; };
+  D.markAt = (p, n, r) => { D.chunk(p, n, r * 1.6); addSoot(p, n, r * 1.6); addGlow(p, n, r * .7, true); }; /* внешний модуль: его геометрия отрывается и улетает */
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
     const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
     if (q && q.k === 'gat') kind = 'gat'; const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = q && q.gE ? q.gE : pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = Math.min(eJ / KST, (kind === 'gat' ? 400 : 3 * (cal / 5) ** 3 * 1000) / (7.8 * Math.PI * (cal / 2) ** 2)) * cs, /* не глубже длины снаряда */ Tt = (T && T.nose) ? (n.x > .7 ? T.nose : n.x < -.7 ? T.rear : T.side) : Math.max(.05, (T || 2) * .5) /* броня по зонам, м: нос/борт/корма */, d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
-    D.n++; { const dp = dl.clone().addScaledVector(n, -dl.dot(n)), t0b = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), ub = new THREE.Vector3().crossVectors(n, t0b).normalize(), vb = new THREE.Vector3().crossVectors(n, ub), ang = dp.lengthSq() > 1e-6 ? Math.atan2(dp.dot(vb), dp.dot(ub)) : null;
+    D.n++; { // накопление энергии по участкам 2 м: хватило — кусок корпуса откалывается и улетает
+      const ck = Math.floor(lp.x / 2) + ',' + Math.floor(lp.y / 2) + ',' + Math.floor(lp.z / 2), eAcc = (D.eg = D.eg || new Map()), e1 = (eAcc.get(ck) || 0) + E; eAcc.set(ck, e1);
+      if (e1 > BREAK.k * 5.5e9 * Math.max(.04, Tt) * Math.PI * BREAK.r * BREAK.r) { eAcc.set(ck, 0); D.chunk(lp, n, BREAK.r * (.8 + Math.random() * .5)); } }
+    { const dp = dl.clone().addScaledVector(n, -dl.dot(n)), t0b = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), ub = new THREE.Vector3().crossVectors(n, t0b).normalize(), vb = new THREE.Vector3().crossVectors(n, ub), ang = dp.lengthSq() > 1e-6 ? Math.atan2(dp.dot(vb), dp.dot(ub)) : null;
       addSoot(lp, n, Math.max(.5, R * (scr ? 2.5 : 3.5)) * (.7 + Math.random() * .6), scr ? ang : null); if (!scr) addGlow(lp, n, Math.max(.35, R * 1.4)); }
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
     if (!P) { const t0 = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), u = new THREE.Vector3().crossVectors(n, t0).normalize(), v = new THREE.Vector3().crossVectors(n, u);
@@ -110,12 +114,23 @@ function mkDmg(g, body, T) {
     if (scr) { const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a), Ls = Math.min(4, R * 8), w = Math.max(.05, R * .35), dep = d * .5 + .02; for (let t = 0; t <= Ls; t += C * .5) { const f = t / Ls, dv0 = dep * Math.sin(Math.PI * Math.min(1, f * 1.3)), ww = w * (1 - f * .6); for (let o = -ww; o <= ww; o += C * .5) { const dv = dv0 * (1 - (o / ww) ** 2); if (dv > 0) set(ci2 + Math.round((ca * t - sa * o) / C), cj + Math.round((sa * t + ca * o) / C), dv * .5); } } }
     else { const N = Math.ceil(R / C); for (let i = -N; i <= N; i++) for (let j = -N; j <= N; j++) { const rr = Math.hypot(i * C, j * C); if (rr <= R) set(ci2 + i, cj + j, d * (1 - (rr / R) ** 2)); } }
     P.dirty = true; return d >= Tt - 1e-4; };
-  D.release = () => {}; D.step = () => { if (D.cool) D.cool(); if (D.awake) { let k = 0; for (const P of D.P) if (P.dirty && k < 4) { P.dirty = false; rebuild(P); k++; } } const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
+  // откол: треугольники корпуса с центром в радиусе r вырезаются (схлопываются) и становятся обломком, который летит прочь и крутится
+  const deb = [];
+  D.chunk = (p, n, r) => { const pa = body.geometry.attributes.position, ca = body.geometry.attributes.color, A = pa.array, C = ca.array, out = [], oc = [], r2 = r * r;
+    for (let i = 0; i < A.length; i += 9) { const cx = (A[i] + A[i + 3] + A[i + 6]) / 3 - p.x, cy = (A[i + 1] + A[i + 4] + A[i + 7]) / 3 - p.y, cz = (A[i + 2] + A[i + 5] + A[i + 8]) / 3 - p.z; if (cx * cx + cy * cy + cz * cz > r2) continue;
+      for (let k = 0; k < 9; k += 3) { out.push(A[i + k] - p.x, A[i + k + 1] - p.y, A[i + k + 2] - p.z); oc.push(C[i + k] * .8, C[i + k + 1] * .75, C[i + k + 2] * .7); A[i + k] = A[i]; A[i + k + 1] = A[i + 1]; A[i + k + 2] = A[i + 2]; } }
+    if (!out.length) return; pa.needsUpdate = true; body.geometry.computeBoundingSphere();
+    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); dg.setAttribute('color', new THREE.Float32BufferAttribute(oc, 3)); dg.computeVertexNormals();
+    const m = new THREE.Mesh(dg, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .6, flatShading: true, side: THREE.DoubleSide })); m.position.copy(p); g.add(m);
+    deb.push({ m, v: n.clone().multiplyScalar(3 + Math.random() * 6).add(new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(2)), w: new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(1.5), t0: performance.now() });
+    addSoot(p, n, r * 1.4); addGlow(p, n, r * .8, true); stat3.chunks++; };
+  let lastT = performance.now();
+  D.release = () => {}; D.step = () => { { const now = performance.now(), dt = Math.min(.1, (now - lastT) / 1000); lastT = now; for (let i = deb.length - 1; i >= 0; i--) { const o = deb[i]; o.m.position.addScaledVector(o.v, dt); o.m.rotation.x += o.w.x * dt; o.m.rotation.y += o.w.y * dt; o.m.rotation.z += o.w.z * dt; if (now - o.t0 > 40000) { g.remove(o.m); o.m.geometry.dispose(); deb.splice(i, 1); } } } if (D.cool) D.cool(); if (D.awake) { let k = 0; for (const P of D.P) if (P.dirty && k < 4) { P.dirty = false; rebuild(P); k++; } } const lo = g.userData.lod; if (!lo) return; const far = lo.getCurrentLevel() > 1; if (far) D.sleep(); else D.wake(); for (const t of g.userData.turs) t.visible = lo.getCurrentLevel() < 4; };
   return D;
 }
 export function pickDesign(tons, spec) { const l = list(); if (!l.length) return null; const nm = spec && spec.name, ds = nm && state.designs && state.designs.find(x => x.name === nm), want = (spec && spec.hull) || (ds && ds.hull) || nm; if (want) { const e = l.find(d => d.name === want); if (e) return e; } let b = l[0]; for (const d of l) if (Math.abs(Math.log(d.M / tons)) < Math.abs(Math.log(b.M / tons))) b = d; return b; }
 export function buildDesign(d, opt) {
-  const g = new THREE.Group(), body0 = new THREE.Mesh(geo(d)); const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(geo(d), mkMat(D)); const lod = new THREE.LOD(); lod.addLevel(body, 0); for (let i = 1; i < LODK.length; i++) lod.addLevel(new THREE.Mesh(geoLod(d, i), lodMat), 1e9); g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
+  const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); const lod = new THREE.LOD(); lod.addLevel(body, 0); for (let i = 1; i < LODK.length; i++) lod.addLevel(new THREE.Mesh(geoLod(d, i), lodMat), 1e9); g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
   const turs = [];
   for (const t of d.turs) { const tu = new THREE.Group(), n = new THREE.Vector3(t.n[0], t.n[1], t.n[2]); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }
