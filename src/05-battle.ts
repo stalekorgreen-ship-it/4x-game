@@ -48,7 +48,10 @@ const penCap=(m,A)=>{const len=m*1000/(PEN.rhoP*A);return len*Math.sqrt(PEN.rhoP
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 // дальность, на которой шанс попасть ещё ≥ p (бисекция по той же формуле, что hitP)
 function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/2,tf=d/Math.max(.1,V),e=DISP*d*2,w=Math.min(12,tf),dg=o.T&&o.rcsN>0?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;if(h/(e+dg+1e-6)>=p)lo=d;else hi=d}return lo}
-function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1),w=Math.min(12,tf),
+// качество сопровождения цели кораблём: свой захват радаром — 1, захват союзника (данные по сети) — ally, видна только ИК/ЭМ — seen, не видна — none; помехи цели снижают
+const TRK=gd('battle','track',{ally:.75,seen:.5,none:.25,jam:.6,ttl:6,near:1});
+function tq(s,o){if(!o||!o.rl)return 1;const side=s.side;let q=o.byL&&t-(o.byL.get(s)??-99)<TRK.ttl?1:t-o.rl[side]<TRK.ttl?TRK.ally:t-o.rs[side]<TRK.ttl?TRK.seen:TRK.none;return Math.max(.1,q*(1-(o.jam||0)*TRK.jam))}
+function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1)/(d<TRK.near?1:tq(s,o)),w=Math.min(12,tf),
   dg=o.T&&o.rcsN>0&&o.sc&&o.sc.length?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;return Math.max(0,Math.min(1,h/(e+dg+1e-6)))}
 // тонкая сетка брони: ячейки 10×10 см, в ячейке — остаток толщины, мм (хранятся только тронутые, остальные целые).
 // Слой = 2 см стали, держит 2 МДж/см² → удар выбивает 10 мм на каждый 1 МДж/см²; не хватило энергии — остаётся вмятина, следующий удар в то же место пробьёт легче
@@ -769,7 +772,7 @@ function fireShell(s,m,o0,C,lag){
   // вилка на уклонение: цель за время полёта может сместиться маневровыми на ½·a·t² вбок — часть снарядов бьёт туда, куда она увернётся
   let bkx=0,bky=0;if(m.sv&&m.sv.o===o){ /* залп: точка k из N — «подсолнух» по кругу ½·a·t², вбок и по высоте */const sv=m.sv,k=sv.k++,w=Math.min(12,T),D=(o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4))?Math.max(0,.5*(o.acc||5)*.12/1000*w*w-o.T.L*.11)*SALVO.fill:0, /* засеваем только то, куда цель уйдёт дальше своего размера */r=D*Math.sqrt(((k%sv.N)+.5)/sv.N),th=k*2.39996,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1;bkx=-ly/ll*r*Math.cos(th);bky=lx/ll*r*Math.cos(th);oz+=r*Math.sin(th);stat.salvo=(stat.salvo||0)+1}
   else{const dodge=o.T&&o.rcsN>0&&(!o.fuelCap||o.fuel/o.fuelCap>.4);if(dodge){const w=Math.min(12,T),D=.5*(o.acc||5)*.12/1000*w*w,lx=o.x-s.x,ly=o.y-s.y,ll=Math.hypot(lx,ly)||1,r=Math.random(),sg=r<.34?0:r<.67?1:-1;bkx=-ly/ll*D*LEAD.bracket*sg;bky=lx/ll*D*LEAD.bracket*sg}}
-  const px=o.x+rsx*T+.5*oax*T*T+bkx,py=o.y+rsy*T+.5*oay*T*T+bky,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig,e0=DISP*d*ek,kq=1,e=e0,ev=e0; // разброс ствола; цель не «угадывается» — промахи от её настоящего уклонения маневровыми // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
+  const px=o.x+rsx*T+.5*oax*T*T+bkx,py=o.y+rsy*T+.5*oay*T*T+bky,d=Math.hypot(px-s.x,py-s.y,oz-s.z),ek=2*(1.4-0.08*m.sk)*C.sig/(d<TRK.near?1:tq(s,o)),e0=DISP*d*ek,kq=1,e=e0,ev=e0; // разброс ствола; цель не «угадывается» — промахи от её настоящего уклонения маневровыми // разброс общий по обеим осям; сужен так, чтобы шанс попасть в 3D ≈ прежнему // по высоте — только рассеяние ствола: цель уклоняется в плоскости
   const ax=px+gauss()*e-s.x,ay=py+gauss()*e-s.y,az=oz+gauss()*ev-s.z,l=Math.hypot(ax,ay,az)||1e-6;let vx=ax/l*VPc,vy=ay/l*VPc,vz=az/l*VPc;
   // башня наводится по вектору полёта снаряда, снаряд выходит из конца её ствола
   const mo=MUZ?MUZ(s,m,vx,vy,vz):null,X0=s.x+(mo?mo.x:0),Y0=s.y+(mo?mo.y:0),Z0=s.z+(mo?mo.z:0),k0=VPc*lag+(mo?0:s.T.L*.4);if(mo){const bx=s.x+ax-X0,by=s.y+ay-Y0,bz=s.z+az-Z0,l2=Math.hypot(bx,by,bz)||1;vx=bx/l2*VPc;vy=by/l2*VPc;vz=bz/l2*VPc}
@@ -1027,7 +1030,8 @@ function updVis(){
         if(q.k==='rad'){if(!s.rdOn)continue;const er=q.rng*(s.side===0?rr:1)*Math.sqrt(1+o.T.L)*(1-o.jam)*(s.rad0?.55+.45*s.radN/s.rad0:1);if(d<er){det=true;if(q.fine||!small)lk=true}}
         else{const er=q.rng*(s.side===0?rr:1)*Math.sqrt(q.k==='ir'?sg[0]:sg[1])*(small&&q.res<.66?.25:1);if(d<er)det=true}}
       if(det){if(o.seen[s.side]<0)say(s.side,'contact',s);o.seen[s.side]=t}
-      if(lk)o.lock[s.side]=t}}
+      if(lk){o.lock[s.side]=t;(o.byL||(o.byL=new Map())).set(s,t)}}}
+  for(const o of ships)if(o.alive){o.rl=[o.lock[0],o.lock[1]];o.rs=[o.seen[0],o.seen[1]]} // настоящее сопровождение (до упрощения ниже): от него зависит точность — tq()
   for(const sd of [0,1])if(SB[sd].length)for(const o of SB[1-sd]){o.lock[sd]=t;o.seen[sd]=t} // радары пока не нужны: на дистанциях боя все видят всех
   for(const c of air){if(c.state!=='fly')continue;for(const o of around(1-c.side,c.x,c.y,70)){o.seen[c.side]=t;o.lock[c.side]=t}}
 }

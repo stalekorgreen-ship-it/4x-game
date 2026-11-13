@@ -64,6 +64,14 @@
   "rhoT": 7.8,
   "rhoP": 7.8
  },
+ "track": {
+  "ally": 0.75,
+  "seen": 0.5,
+  "none": 0.25,
+  "jam": 0.6,
+  "ttl": 6,
+  "near": 1
+ },
  "command": {
   "period": 30,
   "minGroup": 6,
