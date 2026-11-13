@@ -121,7 +121,7 @@ COMP.tank.ap = (c, s) => { const T = TANKS[s.tv.v] || TANKS[25], a = +s.ta.v; c.
 const _tankOld = (c, s) => { if (s.dn.v === 'c') { c.fuel *= 1.3; c.mass = Math.round(c.mass * 1.15 * 10) / 10; addCost(c, 'ti', 3); } scl(c, SZK[s.sz.v]); c.desc = `${c.fuel} т топлива`; };
 COMP.cargo.opts = [SZ, O('cn', 'Конструкция', 'n', [['l', 'лёгкая'], ['n', 'стандартная'], ['h', 'усиленная']])];
 COMP.cargo.ap = (c, s) => { if (s.cn.v === 'l') { c.cargo = 160; c.mass *= 0.6; } else if (s.cn.v === 'h') { c.cargo = 260; c.mass *= 1.4; addCost(c, 'ti', 6); } scl(c, SZK[s.sz.v]); c.desc = `${c.cargo} т груза`; };
-for (const k of ['lgun', 'hangar_f', 'hangar_b', 'missile']) COMP[k].off = true; // временно отключены
+for (const k of ['lgun', 'hangar_f', 'hangar_b', 'missile', 'radar']) if (COMP[k]) COMP[k].off = true; // временно отключены
 // каждый модуль открывается своей технологией (решено с владельцем): на старте ни одной нет
 for (const k in COMP) if (!COMP[k].tech) COMP[k].tech = 'm_' + k;
 addModuleTechs(COMP);

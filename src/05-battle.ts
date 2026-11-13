@@ -193,8 +193,20 @@ function fleetsUpdate(){
         const dA=Math.hypot(A.cx-bf.cx,A.cy-bf.cy);
         if(dA<1000&&dA>F.rng*2&&dA>dist+20&&dist<700&&A.born<=t){waiting=true;break}}
       if(waiting){if(F.wait0<0)F.wait0=t;if(t-F.wait0<260)st='wait'}else if(dist>420||st!=='wait')F.wait0=-1;
+      { // тактика ИИ по обстановке: топливо, численность, повреждения
+        const fq=a=>a.ships.length?a.ships.reduce((x,o)=>x+(o.fuelCap?o.fuel/o.fuelCap:1),0)/a.ships.length:1,Ff=fq(F),Ef=fq(E),dmg=F.ships.filter(o=>hpf(o)<.45).length/Math.max(1,F.n);
+        if(st!=='wait'&&st!=='kite'){
+          if(Ff<.18&&Ef>Ff*1.5)st='retreat';                         // топлива меньше, чем у врага, — уходим, пока можем затормозить (ничья)
+          else if(dmg>.3)st='cover';                                // много побитых — прикрываем их отход
+          else if(Ef<Ff*.6&&dist>F.rng*1.3)st='drift';              // у врага бак пустее — ждём по инерции, пусть жжёт
+          else if(ratio>1.6)st=(F.fid%2?'flank':'pass');            // нас больше — обход или проход насквозь
+          else if(ratio<.8)st='wall';                               // нас меньше — стена носом
+          else if(st==='engage')st=['wall','wedge','echelon'][F.fid%3]; // обычный бой — строй носом к врагу
+        }
+        if(st==='retreat'&&!F.until)F.until=t+40}
       F.stance=st}
     F.ratio=ratio;
+    F.fire=F.side===0?ORD.fire||'':(F.ratio>1.3?'weak':F.ratio<.8?'eng':'');
     if(F.side===0&&ORD.st&&!F.convoy){F.stance=ORD.st;if(ORD.st==='kite')F.hold=Math.max(60,F.lrR*.8,80);if(ORD.st==='retreat')F.until=t+6}
     // строй держится, пока флот не окружён и враг не вклинился внутрь
     {const dirs=[];let inside=0;for(const E of all){if(E.side===F.side)continue;if(Math.hypot(E.cx-F.cx,E.cy-F.cy)<280)dirs.push(Math.atan2(E.cy-F.cy,E.cx-F.cx))}
@@ -208,9 +220,13 @@ function fleetsUpdate(){
     // точка сбора флота и направление строя
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
     if(F.stance==='flank'){const a=F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
-    if(F.stance==='retreat'||F.stance==='convoy'){F.tgx=F.cx-dx*160;F.tgy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.tgx=F.cx-(ne.cx-F.cx)/dl*200;F.tgy=F.cy-(ne.cy-F.cy)/dl*200}}
+    {const shp=F.stance==='wedge'?'wedge':F.stance==='echelon'?'echelon':'line';if(F.shape!==shp){F.shape=shp;F.nSlots=-1}}
+    if(F.stance==='pass'){ // проход насквозь: цель — точка за строем врага; пролетели — разворот и новый заход
+      const ex=bf.cx-F.cx,ey=bf.cy-F.cy;if(!F.pd||Math.hypot(ex,ey)>F.rng*3)F.pd={x:dx,y:dy};F.tgx=bf.cx+F.pd.x*80;F.tgy=bf.cy+F.pd.y*80;if(ex*F.pd.x+ey*F.pd.y<-20)F.pd=null}
+    else if(F.stance==='drift'){F.tgx=F.gx;F.tgy=F.gy}
+    else if(F.stance==='retreat'||F.stance==='convoy'){F.tgx=F.cx-dx*160;F.tgy=F.cy-dy*160;if(F.stance==='convoy'){const ne=bf;F.tgx=F.cx-(ne.cx-F.cx)/dl*200;F.tgy=F.cy-(ne.cy-F.cy)/dl*200}}
     else if(F.stance==='wait'){F.tgx=F.cx;F.tgy=F.cy}
-    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?Math.min(14,F.rng):Math.max(3,Math.max(3,F.rng*(F.stance==='engage'?.9:1.3))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
+    else{const hold=F.stance==='kite'?F.hold:F.stance==='assault'?Math.min(14,F.rng):Math.max(3,Math.max(3,F.rng*(F.stance==='kite'||F.stance==='flank'?1.3:.9))*Math.max(.3,1-Math.max(0,t-lastDmgT-60)/240));F.tgx=bf.cx-dx*hold;F.tgy=bf.cy-dy*hold}
     // ручной приказ: идти в точку (игрок, сторона 0)
     if(F.side===0&&F.mv){const md=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy);if(md>6){F.tgx=F.mv.x;F.tgy=F.mv.y;if(F.stance!=='retreat'&&F.stance!=='convoy'){const l=Math.hypot(F.mv.x-F.cx,F.mv.y-F.cy)||1;dx=(F.mv.x-F.cx)/l;dy=(F.mv.y-F.cy)/l}}else F.mv=null}
     // слои по высоте: в бою флоты сближаются по вертикали
@@ -237,7 +253,8 @@ function assignSlots(F){ // строй: впереди крепкие, за ни
     else if(ri===1){const rd=row.reduce((a,o)=>a+o.T.dopt,0)/row.length;back=Math.max(back,rd-frontD)}
     row.sort((a,b)=>b.T.L-a.T.L);const per=Math.min(16,Math.max(4,Math.ceil(Math.sqrt(row.length*2.4)))),lines=Math.ceil(row.length/per);
     row.forEach((s,i)=>{const line=Math.floor(i/per),col=i%per,n=Math.min(per,row.length-line*per),sp=Math.max(.5,s.T.L*2.6+.35);
-      s.slotLat=(col-(n-1)/2)*sp+(ri===1||line%2?sp*.5:0);s.slotBack=back+line*1.6;s.row=ri});
+      s.slotLat=(col-(n-1)/2)*sp+(ri===1||line%2?sp*.5:0);s.slotBack=back+line*1.6;s.row=ri;
+      if(F.shape==='wedge')s.slotBack+=Math.abs(s.slotLat)*.7;else if(F.shape==='echelon')s.slotBack+=s.slotLat*.5+ri*1.5}); // клин — острием вперёд; ступени — диагональ, задние стреляют мимо передних
     back+=lines*1.6+(ri===0?3:3.5)});
 }
 // может ли башня m корабля s (с креном roll, курсом hd+off) бить цель в направлении (ux,uy,vz): полусфера вокруг нормали площадки
@@ -263,7 +280,7 @@ function retarget(s){
   s.nt=t+R(1.2,2.4);{const e=s.tg&&s.tg.alive?s.tg:nearestShip(s.x,s.y,1-s.side)?.s;if(e){const vp=(s.tur.find(m=>m.alive&&m.k==='T')||{cfg:{}}).cfg.vp||VP;s.effR=Math.max(1.5,rangeP(s,e,vp,PMIN*2)*.85)}} /* дистанция, где реально попадаем, — по ней держится и строй */const C=s.F,maxR=s.maxR||60;
   s.near=around(1-s.side,s.x,s.y,maxR*2).filter(o=>o.lock[s.side]>t-5&&o.st!=='surr');
   let best=null,bs=-1e9;const big=s.spec.rails>=14;
-  const vpx=Math.max(GV,...s.tur.filter(m=>m.alive&&m.k==='T').map(m=>m.cfg.vp||VP));for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=60*hitP(s,o,vpx,1)-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);if(sc>bs){bs=sc;best=o}}
+  const vpx=Math.max(GV,...s.tur.filter(m=>m.alive&&m.k==='T').map(m=>m.cfg.vp||VP));for(const o of s.near){const d=Math.hypot(o.x-s.x,o.y-s.y);let sc=60*hitP(s,o,vpx,1)-d*.5+(big?val(o)*25:val(o)*8)+(1-hpf(o))*20+(o===C.focus?30*(s.focusW||.5):0);if(C.fire==='weak')sc+=(1-hpf(o))*80;else if(C.fire==='eng'){const hx=Math.cos(o.hd||0),hy=Math.sin(o.hd||0),bx=s.x-o.x,by=s.y-o.y,bl=Math.hypot(bx,by)||1;sc+=Math.max(0,-(hx*bx+hy*by)/bl)*60} /* по слабым — добиваем; по двигателям — кто к нам кормой */if(sc>bs){bs=sc;best=o}}
   if(!best&&t<s.bdo&&s.tg&&s.tg.alive)best=s.tg;
   s.tg=best||null;posture(s);
   // СУО: столько целей, сколько каналов
@@ -284,7 +301,7 @@ function steer(s,dt){
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
   if(t>=s.next){s.next=t+R(6,14);s.sdir=Math.random()<.5?1:-1}
   const tg=s.tg;let vx=0,vy=0,want=s.hd;
-  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(hp<.35&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
+  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(hp<.35&&!T.role)||(F.stance==='cover'&&hp<.45&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
   s.flee=flee;
   // приказы отдельным кораблям: охранять крупного, прятаться за укрытием, отход
   const ord=s.ord||'auto'; /* сопровождение только по приказу: само по себе оно гоняло фрегаты за кораблём и сжигало топливо */let hold=null;
@@ -358,6 +375,10 @@ function steer(s,dt){
     const em=[];for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive)em.push(m);
     if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:5,r:1.2});boost=1}}
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
+  if(tg&&!flee&&!T.role){ // тактики строя на уровне корабля
+    if(F.stance==='wall'||F.stance==='wedge'||F.stance==='echelon'||F.stance==='cover')want=Math.atan2(uy,ux); // нос (70 см брони) строго к врагу
+    else if(F.stance==='drift'){vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05);want=Math.atan2(uy,ux)} // по инерции: двигатели молчат, только поворот носом
+    else if(F.stance==='pass'&&F.tgx!=null){const px=F.tgx-s.x,py=F.tgy-s.y,pl=Math.hypot(px,py)||1;vx=px/pl*vm*1.3;vy=py/pl*vm*1.3;want=Math.atan2(uy,ux)}}
   // экономия топлива: скорость не выше четверти оставшегося запаса Δv (чтобы хватило затормозить и маневрировать), форсаж — только при полбака и больше
   if(s.fuelCap){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),fq=s.fuel/s.fuelCap;if(fq<.5){boost=Math.min(boost,1);s.bst=Math.min(s.bst,1)}vm=Math.min(vm,Math.max(.02,dvr*FUEL.keep))}
   vm*=boost*(s.raidV?2.5:1);if(s.fuelCap){const m0=dryM(s);vm=Math.min(vm,Math.max(.02,FUEL.ve*Math.log((m0+s.fuel)/m0)*FUEL.keep*1.5))}const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
@@ -937,6 +958,7 @@ function updVis(){
         else{const er=q.rng*(s.side===0?rr:1)*Math.sqrt(q.k==='ir'?sg[0]:sg[1])*(small&&q.res<.66?.25:1);if(d<er)det=true}}
       if(det){if(o.seen[s.side]<0)say(s.side,'contact',s);o.seen[s.side]=t}
       if(lk)o.lock[s.side]=t}}
+  for(const sd of [0,1])if(SB[sd].length)for(const o of SB[1-sd]){o.lock[sd]=t;o.seen[sd]=t} // радары пока не нужны: на дистанциях боя все видят всех
   for(const c of air){if(c.state!=='fly')continue;for(const o of around(1-c.side,c.x,c.y,70)){o.seen[c.side]=t;o.lock[c.side]=t}}
 }
 function crewStep(dc){
@@ -1283,6 +1305,7 @@ function bind(){
   $b('bord').onclick=e=>{const o=e.target.dataset&&e.target.dataset.o;if(o===undefined)return;
     if(o==='focus'){ORD.focus=sel&&sel.alive&&sel.side===1?sel:null;e.target.classList.toggle('on',!!ORD.focus);return}
     ORD.st=o||null;for(const b of $b('bord').querySelectorAll('[data-o]'))if(b.dataset.o!=='focus')b.classList.toggle('on',b.dataset.o===o)};
+  $b('bfire').onclick=e=>{const o=e.target.dataset&&e.target.dataset.f;if(o===undefined)return;ORD.fire=o||null;for(const b of $b('bfire').querySelectorAll('[data-f]'))b.classList.toggle('on',b.dataset.f===o)};
   $b('bsens').onclick=e=>{const o=e.target.dataset&&e.target.dataset.s;if(o===undefined)return;ORD.sens=o||null;for(const b of $b('bsens').querySelectorAll('[data-s]'))b.classList.toggle('on',b.dataset.s===o)};
   $b('bmove').onclick=e=>{if(!sel||sel.side!==0){e.target.textContent='Сначала выберите свой корабль';return}moveMode=!moveMode;e.target.classList.toggle('on',moveMode);e.target.textContent=moveMode?'Кликните точку на карте':'Флот: идти в точку'};
   $b('bhold').onclick=()=>{if(sel&&sel.side===0)sel.F.mv=null};
