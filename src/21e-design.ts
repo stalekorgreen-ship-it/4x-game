@@ -19,7 +19,7 @@ function geo(d) {
   cache.set(d.name, g); return g;
 }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
-const KST = 15000, C = .1, NP = 64, MS = 128;
+const KST = 15000, C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
 function mkMat(D) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true });
   m.onBeforeCompile = sh => {
@@ -27,18 +27,23 @@ function mkMat(D) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP=position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;uniform sampler2D pd;uniform sampler2D pm;uniform int np;')
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-for(int i=0;i<${NP};i++){if(i>=np)break;float u=(float(i)+.5)/${NP}.;vec3 cp=texture2D(pd,vec2(u,.125)).xyz;vec3 cn=texture2D(pd,vec2(u,.375)).xyz;vec3 cu=texture2D(pd,vec2(u,.625)).xyz;vec3 cv=texture2D(pd,vec2(u,.875)).xyz;vec3 dd=vOP-cp;float h=dot(dd,cn);
-if(h>-.03&&h<.4){float a=dot(dd,cu)/${C}+${MS / 2}.5,b=dot(dd,cv)/${C}+${MS / 2}.5;if(a>0.&&a<${MS}.&&b>0.&&b<${MS}.){if(texture2D(pm,vec2(a/${MS}.,(floor(b)+.5+float(i)*${MS}.)/${NP * MS}.)).r>.5)discard;}}}`);
+for(int i=0;i<${NP};i++){if(i>=np)break;float u=(float(i)+.5)/${NP}.;vec4 cp=texture2D(pd,vec2(u,.25));vec3 dd=vOP-cp.xyz;if(dot(dd,dd)>cp.w*cp.w)continue;vec3 cn=texture2D(pd,vec2(u,.75)).xyz;float h=dot(dd,cn);
+if(h>-.03&&h<.4){vec3 cu=normalize(cross(cn,abs(cn.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 cv=cross(cn,cu);float a=dot(dd,cu)/${C}+${MS / 2}.5,b=dot(dd,cv)/${C}+${MS / 2}.5;if(a>0.&&a<${MS}.&&b>0.&&b<${MS}.){if(texture2D(pm,vec2(a/${MS}.,(floor(b)+.5+float(i)*${MS}.)/${NP * MS}.)).r>.5)discard;}}}`);
   };
   return m;
 }
 function mkDmg(g, body, T) {
-  const pdA = new Float32Array(NP * 4 * 4), mA = new Uint8Array(MS * NP * MS * 4);
-  const pdTex = new THREE.DataTexture(pdA, NP, 4, THREE.RGBAFormat, THREE.FloatType), mTex = new THREE.DataTexture(mA, MS, NP * MS, THREE.RGBAFormat);
+  const pdA = new Float32Array(NP * 2 * 4); let mA = new Uint8Array(1);
+  const pdTex = new THREE.DataTexture(pdA, NP, 2, THREE.RGBAFormat, THREE.FloatType), mTex = new THREE.DataTexture(mA, 1, 1, THREE.RedFormat, THREE.UnsignedByteType);
   [pdTex, mTex].forEach(t => { t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; });
-  const D = { pdTex, mTex, npU: { value: 0 }, P: [], n: 0 };
+  const D: any = { pdTex, mTex, npU: { value: 0 }, P: [], n: 0, awake: false };
+  const slot = P => { const i = D.P.indexOf(P); return i < NP ? i : -1; };
+  function upPD(P) { const i = slot(P); if (i < 0) return; pdA.set([...P.p, P.R + .5], i * 4); pdA.set([...P.nA, 0], (NP + i) * 4); pdTex.needsUpdate = true; }
+  D.wake = () => { if (D.awake) return; D.awake = true; mA = new Uint8Array(MS * NP * MS); mTex.image = { data: mA, width: MS, height: NP * MS } as any; mTex.dispose(); for (const P of D.P) rebuild(P); D.npU.value = Math.min(NP, D.P.length); mTex.needsUpdate = true; };
+  D.sleep = () => { if (!D.awake) return; D.awake = false; mA = new Uint8Array(1); mTex.image = { data: mA, width: 1, height: 1 } as any; mTex.dispose(); mTex.needsUpdate = true; D.npU.value = 0; for (const P of D.P) if (P.mesh) { g.remove(P.mesh); P.mesh.geometry.dispose(); P.mesh = null; } };
   const steel = t => { const q = Math.max(.22, .6 - t * .32); return [q, q * .97, q * .92]; };
   function rebuild(P) {
+    upPD(P); if (!D.awake) return;
     const pos = [], col = [], c = C, Tt = P.T, dp = k => { const d = P.g.get(k) || 0; return d >= Tt - 1e-6 ? Tt : Math.floor(d / c + 1e-6) * c; };
     const Pt = (i, j, dd) => [0, 1, 2].map(k => P.p[k] + P.u[k] * i * c + P.v[k] * j * c - P.n[k] * dd);
     const quad = (a, b, cc, d, rgb) => { for (const q of [a, b, cc, a, cc, d]) { pos.push(...q); col.push(...rgb); } };
@@ -49,7 +54,7 @@ function mkDmg(g, body, T) {
         quad(Pt(e0[0] - o[0], e0[1] - o[1], d1), Pt(e0[0] + o[0], e0[1] + o[1], d1), Pt(e0[0] + o[0], e0[1] + o[1], d0), Pt(e0[0] - o[0], e0[1] - o[1], d0), steel(Math.min(1, (d0 + d1) / 2 / Math.max(.3, Tt * .4)))); } });
     if (!P.mesh) { P.mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .8, flatShading: true, side: THREE.DoubleSide })); g.add(P.mesh); }
     const gm = P.mesh.geometry; gm.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gm.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); gm.computeVertexNormals(); gm.computeBoundingSphere();
-    const pi = D.P.indexOf(P); P.g.forEach((d, key) => { if (d < .005) return; const [a, b] = key.split(',').map(Number), x = a + MS / 2, y = b + MS / 2; if (x < 0 || x >= MS || y < 0 || y >= MS) return; const o = ((pi * MS + y) * MS + x) * 4; mA[o] = 255; mA[o + 3] = 255; }); mTex.needsUpdate = true;
+    const pi = slot(P); if (pi >= 0) P.g.forEach((d, key) => { if (d < .005) return; const [a, b] = key.split(',').map(Number), x = a + MS / 2, y = b + MS / 2; if (x < 0 || x >= MS || y < 0 || y >= MS) return; mA[(pi * MS + y) * MS + x] = 255; }); mTex.needsUpdate = true;
   }
   const RC = new THREE.Raycaster();
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
@@ -57,9 +62,8 @@ function mkDmg(g, body, T) {
     const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = eJ / KST * cs, Tt = Math.max(.05, (T || 2) * .5), d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
     D.n++;
     let P = D.P.find(o => o.n.dot(n) > .995 && Math.abs(lp.clone().sub(o.p3).dot(o.n)) < .15 && lp.distanceTo(o.p3) < o.R + R + 1);
-    if (!P) { if (D.P.length >= NP) return false; const t0 = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), u = new THREE.Vector3().crossVectors(n, t0).normalize(), v = new THREE.Vector3().crossVectors(n, u);
-      P = { p3: lp.clone(), p: lp.toArray(), n, u: u.toArray(), v: v.toArray(), nA: n.toArray(), T: Tt, g: new Map(), h: new Map(), R: 0 }; P.n = n; D.P.push(P); const i = D.P.length - 1;
-      pdA.set([...P.p, 0], i * 4); pdA.set([...P.nA, 0], (NP + i) * 4); pdA.set([...P.u, 0], (2 * NP + i) * 4); pdA.set([...P.v, 0], (3 * NP + i) * 4); pdTex.needsUpdate = true; D.npU.value = D.P.length; }
+    if (!P) { const t0 = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), u = new THREE.Vector3().crossVectors(n, t0).normalize(), v = new THREE.Vector3().crossVectors(n, u);
+      P = { p3: lp.clone(), p: lp.toArray(), n, u: u.toArray(), v: v.toArray(), nA: n.toArray(), T: Tt, g: new Map(), h: new Map(), R: 0 }; P.n = n; D.P.push(P); if (D.awake) D.npU.value = Math.min(NP, D.P.length); }
     const dd = lp.clone().sub(P.p3), ci = Math.round(dd.x * P.u[0] + dd.y * P.u[1] + dd.z * P.u[2]) / C | 0, cj = Math.round((dd.x * P.v[0] + dd.y * P.v[1] + dd.z * P.v[2]) / C), ci2 = Math.round((dd.x * P.u[0] + dd.y * P.u[1] + dd.z * P.u[2]) / C);
     const set = (ii, jj, add) => { const k = ii + ',' + jj, old = P.g.get(k) || 0; P.g.set(k, Math.min(P.T, old + add)); P.h.set(k, D.n); P.R = Math.max(P.R, Math.hypot(ii, jj) * C + C); };
     if (scr) { const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a), Ls = Math.min(4, R * 8), w = Math.max(.05, R * .35), dep = d * .5 + .02; for (let t = 0; t <= Ls; t += C * .5) { const f = t / Ls, dv0 = dep * Math.sin(Math.PI * Math.min(1, f * 1.3)), ww = w * (1 - f * .6); for (let o = -ww; o <= ww; o += C * .5) { const dv = dv0 * (1 - (o / ww) ** 2); if (dv > 0) set(ci2 + Math.round((ca * t - sa * o) / C), cj + Math.round((sa * t + ca * o) / C), dv * .5); } } }

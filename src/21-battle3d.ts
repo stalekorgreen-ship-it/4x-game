@@ -492,11 +492,11 @@ if (wrap && bgo) {
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
       const dsg = pickDesign(tons, spc); const sp = dsg ? buildDesign(dsg, { arm: s.T.arm }) : buildSpine(m, { arm: s.T.arm, tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
       const k = u.L / (sp.userData.L + (sp.userData.design ? 0 : 16)); sp.scale.setScalar(k); u.spK = k; u.sp = sp; g.add(sp) } }
-    u.spOn = on; if (u.sp) u.sp.visible = on; u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
+    u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake) on ? Dm.wake() : Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
-    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 800) u.spQ.splice(0, 100); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 20000) u.spQ.splice(0, 1000); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 } if (q.rico) { kind = 'g'; r = 3 }
     const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)), left: q.left, arm: q.arm });
