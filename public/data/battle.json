@@ -63,7 +63,8 @@
  },
  "command": {
   "period": 30,
-  "minGroup": 6
+  "minGroup": 6,
+  "fleetMax": 10
  },
  "doctrines": [
   {"name": "Сторож ПВО", "k": 0, "tons": 1257, "gat": 6, "rad": 1, "ir": 1, "em": 1, "fine": 1, "fcs": 2, "arm": 2, "spd": 1.2},

@@ -84,7 +84,7 @@ function mkShip(side,sp,x,y){
   for(let i=0;i<T.eng;i++)add('E',2);
   const nR=Math.max(4,Math.min(8,2+Math.round(T.L*4))),nD=T.L>.9?2:1;for(let i=0;i<nR;i++)add('R',i%2?0:2);for(let i=0;i<nD;i++)add('D',i?3:1);
   const core=add('C',2),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
-  const sh={acc:0,spin:0,trail:sp.trail||null,hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:sp.fid||0,side,cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
+  const sh={acc:0,spin:0,trail:sp.trail||null,hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:(()=>{const k=side*1e5+(sp.fid||0),n=FCNT.get(k)||0;FCNT.set(k,n+1);return (sp.fid||0)*100+Math.floor(n/FLEET_MAX)})(),side, /* флоты не больше FLEET_MAX кораблей: каждый десяток — свой флот со своим капитаном */cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
   sh.acc=accOf(sp,T);sh.raider=sh.acc>=20&&T.tons<=500&&!sp.role; // лёгкий и резвый — перехватчик: кавалерийские наскоки
   {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;if(sp.fuel!=null&&sp.fuelCap>0){sh.fuel=sp.fuel;sh.fuelCap=sp.fuelCap;sh.fpa=sp.fpa||T.tons;sh.frate=sp.frate!=null?sp.frate:sp.fuelCap*4.2e-9}else{sh.fuelCap=Math.round(T.tons*FUEL.cap);sh.fuel=sh.fuelCap;sh.fpa=T.tons;sh.frate=sh.fuelCap*4.2e-9} // у налётчиков бак по умолчанию
@@ -125,7 +125,7 @@ function launchBay(s){ // выпуск одного корабля из анга
   const a=s.hd+(Math.random()<.5?1:-1)*Math.PI/2,off=s.T.L*.6+.05,c=mkShip(s.side,cs,s.x+Math.cos(a)*off,s.y+Math.sin(a)*off);
   c.hd=s.hd;c.sx=s.sx+Math.cos(a)*.02;c.sy=s.sy+Math.sin(a)*.02;c.z=s.z;c.zset=1;c.bayOf=s;c.F=s.F;c.slotBack=s.slotBack||0;c.slotLat=s.slotLat||0;ships.push(c);s.bayT=t+3;stat.launch=(stat.launch||0)+1}
 function reset(cfg){
-  tracers.length=0;shuttles=[];lasBeams=[];hadContact=false;hitLog=[];impacts=[];sepT=0;lastDmgT=0;lastNa=0;lastNaT=0;frags=[];pyro=[];pods=[];lands=[];ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];CMDS=[{},{}];
+  tracers.length=0;shuttles=[];lasBeams=[];hadContact=false;hitLog=[];impacts=[];sepT=0;lastDmgT=0;lastNa=0;lastNaT=0;frags=[];pyro=[];pods=[];lands=[];ships=[];FL=new Map();GR=[new Map(),new Map()];smoke=[];proj=[];mis=[];beams=[];bursts=[];fx=[];flights=[];air=[];torps=[];shots=[];fly=[[],[]];t=0;lastEng=-99;nextVis=0;nextCrew=0;lastCrewT=0;endSaid=false;ORD={st:null,focus:null};env=[];CMDS=[{},{}];FCNT=new Map();
   if(cfg.envList)for(const e of cfg.envList)env.push(Object.assign({vx:0,vy:0,ttl:1e9},e));
   if(!cfg.envList&&cfg.env!==false&&(cfg.env||Math.random()<.55)){const cl=1+((Math.random()*2)|0);for(let c=0;c<cl;c++){const cx0=R(-220,220),cy0=R(-200,200),n=4+((Math.random()*8)|0);for(let i=0;i<n;i++)env.push({t:'rock',x:cx0+R(-70,70),y:cy0+R(-60,60),r:R(.6,3),vx:0,vy:0,ttl:1e9})}
     if(Math.random()<.35)env.push({t:'planet',x:R(-120,120),y:(Math.random()<.5?-1:1)*R(120,230),r:R(10,22),vx:0,vy:0,ttl:1e9})}
@@ -173,54 +173,32 @@ function around(side,x,y,rad,max=1e9){ // корабли стороны в ра�
 const hpf=s=>s.aliveN/s.total,PW=12; // PW: ширина воронки в колонках на единицу урона
 const val=s=>s.T.role==='freight'||s.T.role==='supply'?.6:(VAL[s.cls]||1);
 // ===== командир стороны: раз в CMD.period с решает план — собраться в кулак, охватить врага 2–5 группами, отойти =====
-const CMD=gd('battle','command',{period:30,minGroup:6});let CMDS=[{},{}];
-function command(sd,all){const C=CMDS[sd],my=ships.filter(o=>o.alive&&o.side===sd&&!o.esc),en=ships.filter(o=>o.alive&&o.side!==sd&&!o.esc);if(!my.length||!en.length)return;
-  const cx=my.reduce((a,o)=>a+o.x,0)/my.length,cy=my.reduce((a,o)=>a+o.y,0)/my.length,ex=en.reduce((a,o)=>a+o.x,0)/en.length,ey=en.reduce((a,o)=>a+o.y,0)/en.length,dist=Math.hypot(ex-cx,ey-cy);
-  const str=a=>a.reduce((x,o)=>x+o.aliveN*(1+val(o)),0),ratio=str(my)/Math.max(1,str(en)),fuel=my.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/my.length;
-  const lost=stat.lost[sd],dl=lost-(C.lost0==null?lost:C.lost0);C.lost0=lost; // потери за прошлый период
-  const enSalvo=all.some(F=>F.side!==sd&&F.sv&&F.sv.o&&F.sv.o.side===sd),rng=my.reduce((a,o)=>a+(o.maxR||60),0)/my.length; /* дальность орудий */
-  // ~20 планов: у каждого — оценка по обстановке и раскладка групп (доля кораблей, тактика, угол обхода, огонь). Слева направо по строю.
-  const W=(st,o={})=>({sh:1,stance:st,...o}),Fk=(a,o={})=>({sh:1,stance:'flank',flank:a,env:1,fire:'eng',...o}),n=my.length,big=n>=CMD.minGroup*2,huge=n>=CMD.minGroup*4,far=dist>rng*1.8,near=dist<rng*.9;
-  const enFuel=en.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/en.length,longer=my.reduce((a,o)=>a+(o.maxR||60),0)/n>en.reduce((a,o)=>a+(o.maxR||60),0)/en.length*1.2,flankOK=fuel>.35,hurt=my.filter(o=>hpf(o)<.45).length/n;
-  const P={
-    fist:[far?3:1,[W('wall')]],                                                             // единый кулак
-    wedge:[!far&&ratio>1.1?1.5:.5,[W('wedge')]],                                            // клин — прорыв
-    echelon:[!far?1.2:.3,[W('echelon')]],                                                   // ступени — все орудия в деле
-    envelop:[big&&flankOK&&!far?(enSalvo?3:ratio>1.3?2.4:1):0,null],                        // охват k группами
-    pincer:[big&&flankOK&&!far&&ratio>1.1?2.2:0,[Fk(-1.2),Fk(1.2)]],                         // клещи
-    anvil:[big&&flankOK&&!far?1.8:0,[W('wait',{sh:2}),Fk(1.4)]],                            // молот и наковальня: держим фронт, крыло бьёт сбоку
-    pass:[big&&fuel>.45&&!far?1.5:0,[W('wall',{sh:2}),W('pass',{fire:'eng'})]],             // проход насквозь отдельной группой
-    dpass:[big&&fuel>.55&&ratio>1.2&&!far?1.3:0,[W('pass',{fire:'eng'}),W('pass',{fire:'eng'})]], // двойной проход
-    ambush:[enFuel<fuel*.6?3:0,[W('drift')]],                                               // засада-дрейф: пусть враг жжёт топливо
-    stall:[enFuel<fuel*.8&&ratio<1?1.6:0,[W('drift',{fire:'weak'})]],                       // тянуть время
-    retreat:[ratio<.45&&fuel>.1?5:0,[W('retreat')]],                                        // отход
-    cover:[hurt>.3?3.5:0,[W('cover')]],                                                      // отход с прикрытием
-    kite:[longer&&fuel>.3?2.6:0,[W('kite')]],                                                // держать дистанцию, раз бьём дальше
-    storm:[!longer&&ratio>1.2&&!far?1.6:0,[W('assault')]],                                   // штурм — сблизиться и задавить
-    bait:[big&&!far&&ratio>.8?1:0,[W('assault',{sh:.25}),W('wait',{sh:1})]],                 // приманка: малая группа лезет вперёд, основная ждёт
-    weak:[!far&&ratio>1?1.4:.4,[W('wall',{fire:'weak'})]],                                    // охота на повреждённых
-    engines:[big&&flankOK&&!far?1.4:0,[Fk(-.9,{sh:1}),W('wall',{sh:1}),Fk(.9,{sh:1})]],       // охота на двигатели: крылья заходят к корме
-    scatter:[enSalvo&&big?2.8:0,[Fk(-.45,{fire:''}),W('wall'),Fk(.45,{fire:''})]],           // рассыпной строй: залп накрывает меньше
-    depth:[big&&!far?1:0,[W('wall'),W('wait',{sh:.7})]],                                       // эшелон в глубину: второй ряд в резерве
-    rear:[big&&flankOK&&!far&&ratio>1?1.6:0,[W('wall',{sh:2}),Fk(2.6,{sh:1})]],              // удар в тыл
-    ring:[huge&&flankOK&&!far&&ratio>1.5?2.6:0,[Fk(-1.6),Fk(-.8),W('wall'),Fk(.8),Fk(1.6)]], // окружение кольцом
-    fall:[ratio<.8&&fuel>.25&&near?1.8:0,[W('kite')]],                                         // отойти на дальнюю дистанцию и перестроиться
-  };
-  // оценка: база + шум, держимся за текущий план (смена — только если новый заметно лучше и прошло ≥60 с)
-  { // память командира: план, при котором мы теряли больше врага, на 3 минуты «плохой»
-    const eL=stat.lost[1-sd],my0=C.myL0==null?stat.lost[sd]:C.myL0,en0=C.enL0==null?eL:C.enL0,dm=stat.lost[sd]-my0,de=eL-en0;C.myL0=stat.lost[sd];C.enL0=eL;C.bad=C.bad||{};
-    if(C.plan&&t-(C.at||0)>=55&&dm>0&&dm>=de)C.bad[C.plan]=t+180; C.lastScore=[dm,de]}
-  const sc={};for(const k in P)sc[k]=P[k][0]>0?P[k][0]*(.85+Math.random()*.3)*((C.bad&&C.bad[k]>t)?.25:1):0;if(C.plan&&sc[C.plan]>0&&t-(C.at||0)<60&&!(C.bad&&C.bad[C.plan]>t))sc[C.plan]+=10;else if(C.plan&&sc[C.plan]>0)sc[C.plan]*=1.25;
-  let plan='fist';for(const k in sc)if(sc[k]>sc[plan])plan=k;
-  const kk=plan==='envelop'?Math.max(2,Math.min(5,Math.floor(n/CMD.minGroup))):0,G=plan==='envelop'?Array.from({length:kk},(_,g)=>{const off=(g-(kk-1)/2)/((kk-1)/2);return Math.abs(off)<.34?W('wall',{fire:''}):Fk(off*1.4)}):P[plan][1];
-  let groups=G.filter((_,g)=>true);while(groups.length>1&&n/groups.length<CMD.minGroup/2)groups=[W('wall')]; // мало кораблей — не делимся
-  const sig=plan+':'+groups.length;if(sig===C.sig)return;C.sig=sig;C.plan=plan;C.at=t;
-  const ux=(ex-cx)/(dist||1),uy=(ey-cy)/(dist||1),srt=my.map(o=>[(o.x-cx)*-uy+(o.y-cy)*ux,o]).sort((a,b)=>a[0]-b[0]),tot=groups.reduce((a,g)=>a+g.sh,0);
-  C.plans={};let acc=0;const edges=groups.map(g=>(acc+=g.sh)/tot);groups.forEach((g,i)=>{C.plans[100+i]=g});
-  srt.forEach(([,o],i)=>{const f=(i+.5)/srt.length;let g=0;while(g<edges.length-1&&f>edges[g])g++;o.fid=100+g});
-  const NM={fist:'единый кулак',wedge:'клин',echelon:'ступени',envelop:'охват '+groups.length+' группами',pincer:'клещи',anvil:'молот и наковальня',pass:'проход насквозь',dpass:'двойной проход',ambush:'засада в дрейфе',stall:'тянуть время',retreat:'отход',cover:'отход с прикрытием',kite:'держать дистанцию',storm:'штурм',bait:'приманка',weak:'охота на повреждённых',engines:'охота на двигатели',scatter:'рассыпной строй',depth:'эшелон в глубину',rear:'удар в тыл',ring:'окружение кольцом',fall:'отойти и перестроиться'};
-  stat.plan=stat.plan||['',''];stat.plan[sd]=NM[plan]+(groups.length>1&&plan!=='envelop'?' ('+groups.length+' гр.)':'');
-  if(typeof log==='function'&&!(cfgNow&&cfgNow.bg))try{log(['Синие','Красные'][sd]+': '+stat.plan[sd]+'.')}catch(e){}}
+const CMD=gd('battle','command',{period:30,minGroup:6,fleetMax:10});let CMDS=[{},{}],FCNT=new Map();const FLEET_MAX=CMD.fleetMax;
+function command(sd,all){ // у каждого флота (до 10 кораблей) свой капитан: смотрит на своего противника и на союзников, раз в CMD.period с меняет план
+  const C=CMDS[sd];C.plans=C.plans||{};C.bad=C.bad||{};const mine=all.filter(F=>F.side===sd&&F.n>0),foes=all.filter(F=>F.side!==sd&&F.n>0);if(!mine.length||!foes.length)return;
+  const ex=foes.reduce((a,F)=>a+F.cx*F.n,0)/foes.reduce((a,F)=>a+F.n,0),ey=foes.reduce((a,F)=>a+F.cy*F.n,0)/foes.reduce((a,F)=>a+F.n,0),mx=mine.reduce((a,F)=>a+F.cx*F.n,0)/mine.reduce((a,F)=>a+F.n,0),my=mine.reduce((a,F)=>a+F.cy*F.n,0)/mine.reduce((a,F)=>a+F.n,0);
+  const dd=Math.hypot(ex-mx,ey-my)||1,ux=(ex-mx)/dd,uy=(ey-my)/dd,sideStr=mine.reduce((a,F)=>a+F.str,0)/Math.max(1,foes.reduce((a,F)=>a+F.str,0)),enSalvo=foes.some(F=>F.sv&&F.sv.o&&F.sv.o.side===sd);
+  // союзники по фронту слева направо: крайние берут фланги, средние держат центр — так капитаны сами складывают охват
+  const ord=mine.map(F=>[(F.cx-mx)*-uy+(F.cy-my)*ux,F]).sort((a,b)=>a[0]-b[0]).map(q=>q[1]),N=ord.length;
+  const NM={wall:'стена',wedge:'клин',echelon:'ступени',flank:'обход',pass:'проход насквозь',drift:'засада в дрейфе',retreat:'отход',cover:'прикрытие отхода',kite:'держать дистанцию',assault:'штурм'};const sum={};
+  ord.forEach((F,idx)=>{const fid=F.fid,lost=stat.lost[sd];
+    let E=null,bd=1e18;for(const G of foes){const d=Math.hypot(G.cx-F.cx,G.cy-F.cy);if(d<bd){bd=d;E=G}} // свой противник — ближайший вражеский флот
+    let loc=0,eloc=0;for(const G of all)if(Math.hypot(G.cx-F.cx,G.cy-F.cy)<180){if(G.side===sd)loc+=G.str;else eloc+=G.str} // силы рядом: свои и чужие
+    const ratio=loc/Math.max(1,eloc),fuel=F.ships.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/F.n,efuel=E.ships.reduce((a,o)=>a+(o.fuelCap?o.fuel/o.fuelCap:1),0)/E.n,hurt=F.ships.filter(o=>hpf(o)<.45).length/F.n;
+    const rng=F.ships.reduce((a,o)=>a+(o.maxR||60),0)/F.n,erng=E.ships.reduce((a,o)=>a+(o.maxR||60),0)/E.n,far=bd>rng*1.8,edge=N>1?(idx/(N-1))*2-1:0; // edge: −1 левый край … +1 правый
+    const P0=C.plans[fid]||{},memo=C.mem=C.mem||{},m=memo[fid]=memo[fid]||{};const dm=F.ships.length-(m.n0==null?F.ships.length:m.n0);m.n0=F.ships.length;
+    if(P0.k&&t-(m.at||0)>=55&&dm<0)(C.bad[fid]=C.bad[fid]||{})[P0.k]=t+180; // план, при котором флот терял корабли, — 3 минуты «плохой»
+    const bad=k=>(C.bad[fid]&&C.bad[fid][k]>t)?.25:1,S={};
+    S.wall=(far?2:1.6)*bad('wall');S.wedge=(!far&&ratio>1.1?1.6:.5)*bad('wedge');S.echelon=(!far?1.3:.4)*bad('echelon');
+    S.flank=(Math.abs(edge)>.4&&fuel>.35&&!far?(enSalvo?2.8:sideStr>1.2?2.4:1.4)*Math.abs(edge):0)*bad('flank');      // крайние флоты — в обход
+    S.pass=(fuel>.5&&!far&&ratio>1.2&&Math.abs(edge)<.5?1.4:0)*bad('pass');
+    S.drift=(efuel<fuel*.6?3:0)*bad('drift');S.retreat=(ratio<.45&&fuel>.1?5:0);S.cover=(hurt>.3?3.5:0);
+    S.kite=(rng>erng*1.2&&fuel>.3?2.6:0)*bad('kite');S.assault=(rng<erng*.85&&ratio>1.1&&!far?2:0)*bad('assault');
+    for(const k in S)S[k]*=.85+Math.random()*.3;if(P0.k&&S[P0.k]>0&&t-(m.at||0)<60&&!(C.bad[fid]&&C.bad[fid][P0.k]>t))S[P0.k]+=10;else if(P0.k&&S[P0.k])S[P0.k]*=1.25;
+    let k='wall';for(const q in S)if(S[q]>S[k])k=q;
+    const fire=k==='flank'||k==='pass'?'eng':ratio>1.3?'weak':'',plan={k,stance:k,fire,...(k==='flank'?{flank:Math.sign(edge||1)*(1+Math.abs(edge)*.6),env:1}:{})};
+    if(P0.k!==k){m.at=t}C.plans[fid]=plan;sum[NM[k]]=(sum[NM[k]]||0)+1});
+  stat.plan=stat.plan||['',''];const txt=Object.entries(sum).map(([a,b])=>b>1?a+' ×'+b:a).join(', ');if(txt!==stat.plan[sd]){stat.plan[sd]=txt;if(typeof log==='function'&&!(cfgNow&&cfgNow.bg))try{log(['Синие','Красные'][sd]+': '+txt+'.')}catch(e){}}}
 function fleetsUpdate(){
   for(const F of FL.values()){F.ships=[];F.lrp=0;F.srp=0;F.lrR=0;F.n=0;F.cx=0;F.cy=0;F.str=0;F.fr=0}
   for(const s of ships){if(!s.alive)continue;const key=s.side*1000+s.fid;let F=FL.get(key);
