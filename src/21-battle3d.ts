@@ -496,6 +496,7 @@ if (wrap && bgo) {
     u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake && !on) Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
+  const u0 = (ud: any) => ud.h3i || 0;
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
     const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 20000) u.spQ.splice(0, 1000); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
@@ -507,7 +508,7 @@ if (wrap && bgo) {
     (Battle as any).setMuzzle((s: any, m: any, dx: number, dy: number, dz: number) => { // орудие стреляет из реального ствола наведённой башни
       dbg.mc = (dbg.mc || 0) + 1; const g = models.get(s); if (!g || !g.visible) return null; const u = g.userData; dbg.mv = (dbg.mv || 0) + 1; if (u.sp) dbg.mu = (dbg.mu || 0) + 1; if (u.spOn) dbg.mo = (dbg.mo || 0) + 1; if (!u.sp || !u.spOn) return null; dbg.mp = (dbg.mp || 0) + 1; const sp = u.sp as THREE.Group, turs = sp.userData.turs as THREE.Group[]; dbg.mtn = turs && turs.length; if (!turs || !turs.length) { dbg.mt = (dbg.mt || 0) + 1; return null }
       sp.getWorldQuaternion(wq); dl.set(dx, dz, dy).normalize().applyQuaternion(wq.invert());
-      let tu: any = null; { const nw0 = performance.now(); let best = 1e18; for (const c of turs as any[]) { if (c.parent !== sp || c.userData.n.dot(dl) < .05) continue; const lf = c.userData.lf || 0; if (lf < best) { best = lf; tu = c } } if (tu) tu.userData.lf = nw0 } // стреляет та из повернутых к цели башен, что дольше всех молчала — огонь идёт со всех башен по очереди
+      let tu: any = null; { const nw0 = performance.now(); let best = 1e18; for (const c of turs as any[]) { if (c.parent !== sp || c.userData.dead || c.userData.n.dot(dl) < .05) continue; const lf = c.userData.lf || 0; if (lf < best) { best = lf; tu = c } } if (tu) tu.userData.lf = nw0 } // стреляет та из повернутых к цели башен, что дольше всех молчала — огонь идёт со всех башен по очереди
       if (!tu) { dbg.mzn = (dbg.mzn || 0) + 1; return null } dbg.mz = (dbg.mz || 0) + 1; const hd = tu.userData.head; tq.copy(tu.quaternion).invert(); const d2 = dl.clone().applyQuaternion(tq); if (d2.y < .02) { d2.y = .02; d2.normalize() }
       hq.setFromUnitVectors(X1, d2); hd.quaternion.copy(hq); tw.set(tu.userData.tipX, 0, 0).applyQuaternion(hq).add(hd.position).applyMatrix4(tu.matrix).applyMatrix4(sp.matrixWorld);
       if (flashes.length < MAXFL - 30 && cam.position.distanceToSquared(tw) < 4e6) flashes.push({ p: tw.clone(), t0: performance.now(), life: 70, sz: Math.max(.25, u.L * .004) });
@@ -524,6 +525,14 @@ if (wrap && bgo) {
         const tw2 = new THREE.Vector3(tg.x, tg.z || 0, tg.y), iq = sp.getWorldQuaternion(new THREE.Quaternion()).invert(), sw = sp.getWorldPosition(new THREE.Vector3()), dl2 = tw2.sub(sw).applyQuaternion(iq).normalize(), hq2 = new THREE.Quaternion(), tq2 = new THREE.Quaternion();
         for (const tu of turs) { if (tu.parent !== sp || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
     D.step(dt);
+    if (sp.userData.design && D.mark) { const sh = u.s, md: Set<any> = u.mdS || (u.mdS = new Set()); // выбитые модули видны на корпусе
+      for (const z of sh.zones) for (const m of z.mods) { if (m.alive || md.has(m)) continue; md.add(m);
+        const ti = sh.tur.indexOf(m), T3 = sp.userData.turs;
+        if (ti >= 0 && T3[ti]) { const tu = T3[ti]; D.markAt(tu.position.clone().addScaledVector(tu.userData.n, .3), tu.userData.n, 1.4); tu.userData.dead = 1 } // башня: сажа, тлеет, больше не стреляет
+        else if (m.k === 'E') { const P = sp.userData.plumes.filter((p: any) => p.visible); if (P.length) P[(Math.random() * P.length) | 0].visible = false } // двигатель: его факел гаснет
+        else { const Ld = sp.userData.L, x = Math.max(-.48, Math.min(.48, m.u || 0)) * Ld, sd = (m.v || 0) > .02 ? 1 : (m.v || 0) < -.02 ? -1 : (Math.random() < .5 ? 1 : -1);
+          D.mark(new THREE.Vector3(x, (Math.random() - .5) * Ld * .05, sd * Ld), new THREE.Vector3(0, 0, -sd), 1.8) } } // внутренний модуль: пробоина с огнём на борту против него
+      const thr = Math.min(1, Math.hypot(sh.aex || 0, sh.aey || 0) / Math.max(1e-6, (sh.acc || 5) / 1000)); for (const p of sp.userData.plumes) p.scale.set(.25 + .75 * thr, .6 + .4 * thr, .6 + .4 * thr); } // длина факела по тяге
   }
   let frameNo = 0, spFrame = -1, spDmgFrame = -1, spBud = 0;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)
@@ -878,6 +887,8 @@ if (wrap && bgo) {
       const spOn = spineVis(s, g, lv, detOK.has(s), shellOK.has(s));
       setLod(s, g, spOn ? 1 : lv >= 6 ? 2 : lv >= 3 ? 1 : 0);
       { const l2 = !spOn && g.userData.lod === 2; detail(s, g, l2 && lv >= 7 && detOK.has(s)); shell(s, g, l2 && shellOK.has(s)); ultra(s, g, l2 && app > .22 && dd < 400 && detOK.has(s)) }
+      { const L3 = s.h3; if (L3 && L3.length) { const base = s.h3b || 0; let i = Math.max(u0(ud), base); const c = Math.cos(s.hd || 0), sn = Math.sin(s.hd || 0); // попадания из журнала корабля, даже если были вне кадра
+          for (; i < base + L3.length; i++) { const e = L3[i - base], q = e.q; spineHit({ ...q, x: s.x + e.lx * c - e.ly * sn, y: s.y + e.lx * sn + e.ly * c, z: (s.z || 0) + e.lz, nx: e.nx * c - e.ny * sn, ny: e.nx * sn + e.ny * c, s }) } ud.h3i = i } }
       if (spOn) spineUpdate(g, lv);
       if (g.userData.det) { updateTiles(s, g); const tg: THREE.Group = g.userData.tur, np = performance.now(); g.updateMatrixWorld(true); const inv = new THREE.Quaternion().copy(g.quaternion).invert(), tgt0 = s.tg && s.tg.alive ? s.tg : null;
         tg.children.forEach((t: any) => { const m = t.userData.m; t.visible = m.alive; if (!m.alive) return;
@@ -971,7 +982,7 @@ if (wrap && bgo) {
     }
     updateEnv(); stepWrecks(performance.now());
     { let ek = 0; const nE = performance.now(), st = new THREE.Vector3(), rt = new THREE.Vector3();
-      for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); if ((u.lv | 0) < 3) { h.length = 0; continue } g.updateMatrixWorld(true); const sc = g.scale.x;
+      for (const [sh, g] of models) { if (!sh.alive || !g.parent || !g.visible) continue; const u = g.userData, L = u.L, sp = Math.hypot(sh.vx, sh.vy), h: any[] = u.eh || (u.eh = []); if ((u.lv | 0) < 3 || (u.sp && u.spOn && u.sp.userData.design)) { h.length = 0; continue } /* у кораблей из редактора — свои факелы, без «блинов» дыма */ g.updateMatrixWorld(true); const sc = g.scale.x;
         const nz0 = u.full && (u.full as any).userData.nozz ? (u.full as any).userData.nozz : [{ z: 0, y: 0, r: L * .04 }], nz = (u.lv | 0) < 6 ? nz0.slice(0, 1) : nz0; // далеко — одна общая струя
         if (sp > .02) { st.set(-L * .67, 0, 0); g.localToWorld(st); const last = h[h.length - 1]; if (!last || last.c.distanceTo(st) > L * sc * .02) { h.push({ c: st.clone(), ps: nz.map((n: any) => { const q = new THREE.Vector3(-L * .67, n.y || 0, n.z); g.localToWorld(q); return q }), t: nE }); if (h.length > 18) h.shift() } }
         while (h.length && nE - h[0].t > 2200) h.shift(); if (!h.length) continue; const base = sh.side ? [1, .45, .16] : [.3, .7, 1];
@@ -994,7 +1005,7 @@ if (wrap && bgo) {
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const imp = Battle.impacts() as any[], nw = performance.now();
-      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; spineHit(q); let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
+      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
         const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         flashes.push({ p: pos, t0: nw, life: 140 + q.pw * 25, sz: Math.min(34, 14 + q.pw * 3) });
         const n = Math.min(26, 8 + Math.round(q.pw * 3)), nrm = hit ? hit.nrm.clone().add(new THREE.Vector3(q.nx * .4, 0, q.ny * .4)).normalize() : new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();

@@ -19,6 +19,10 @@ function geo(d) {
   cache.set(d.name, g); return g;
 }
 // лоды: кластеризация вершин по сетке (L/300, L/120, L/50, L/20); треугольники, схлопнувшиеся в линию/точку, выбрасываются
+const plumeTex = (() => { let t = null; return () => { if (t) return t; const c = document.createElement('canvas'); c.width = 128; c.height = 32; const x = c.getContext('2d'), im = x.createImageData(128, 32);
+  for (let j = 0; j < 32; j++) for (let i = 0; i < 128; i++) { const u = (127 - i) / 127, v = Math.abs(j - 15.5) / 16, core = Math.exp(-(v * v) / (.02 + .1 * u)), fall = Math.pow(1 - u, 1.6), hot = Math.exp(-u * 8), o = (j * 128 + i) * 4, a = core * fall;
+    im.data[o] = 255; im.data[o + 1] = 255 * (.75 + .25 * hot); im.data[o + 2] = 255 * (.55 + .45 * hot); im.data[o + 3] = Math.min(255, 255 * a); }
+  x.putImageData(im, 0, 0); return t = new THREE.CanvasTexture(c); }; })(); // u=0 у сопла (вершина плоскости в 0) → разворачиваем: плоскость идёт от 0 к −len, u=0 справа
 const glowTex = (() => { let t = null; return () => { if (t) return t; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.18, 'rgba(255,255,255,.8)'); gr.addColorStop(.45, 'rgba(255,255,255,.15)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return t = new THREE.CanvasTexture(c); }; })();
 const LODK = [0, 1 / 300, 1 / 120, 1 / 50, 1 / 20], LODD = [0, 1.5, 4, 10, 25];
 function geoLod(d, lv) {
@@ -86,9 +90,13 @@ function mkDmg(g, body, T) {
   const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _s = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1);
   const addSoot = (p, n, r, along) => { _q.setFromUnitVectors(_z, n); _q2.setFromAxisAngle(_z, along != null ? along : Math.random() * 6.283); _q.multiply(_q2); const el = along != null ? 2.2 : 1 + Math.random() * .4; _s.set(r * el, r, 1);
     _m4.compose(p.clone().addScaledVector(n, .03), _q, _s); soot.setMatrixAt(sootI % SOOT, _m4); sootI++; soot.count = Math.min(SOOT, sootI); soot.instanceMatrix.needsUpdate = true; };
-  const addGlow = (p, n, r) => { _q.setFromUnitVectors(_z, n); _s.set(r, r, 1); _m4.compose(p.clone().addScaledVector(n, .05), _q, _s); const k = glowI % GLW; glow.setMatrixAt(k, _m4); glowT[k] = performance.now(); glowS[k] = 1; glowI++; glow.count = Math.min(GLW, glowI); glow.instanceMatrix.needsUpdate = true; };
-  D.cool = () => { const now = performance.now(); let ch = false; for (let k = 0; k < glow.count; k++) { const a = (now - glowT[k]) / 1000, v = a < 0 ? 0 : Math.max(0, 1 - a / 25); const h = v * v; glow.instanceColor.setXYZ(k, 1.6 * h, .55 * h * h + .1 * h, .12 * h * h); ch = true; } if (ch) glow.instanceColor.needsUpdate = true; };
+  const addGlow = (p, n, r, keep) => { _q.setFromUnitVectors(_z, n); _s.set(r, r, 1); _m4.compose(p.clone().addScaledVector(n, .05), _q, _s); const k = glowI % GLW; glow.setMatrixAt(k, _m4); glowT[k] = performance.now(); glowS[k] = keep ? 2 : 1; glowI++; glow.count = Math.min(GLW, glowI); glow.instanceMatrix.needsUpdate = true; };
+  D.cool = () => { const now = performance.now(); let ch = false; for (let k = 0; k < glow.count; k++) { const a = (now - glowT[k]) / 1000, v = glowS[k] === 2 ? .45 + .15 * Math.sin(now / 170 + k * 1.7) + .08 * Math.sin(now / 53 + k) : a < 0 ? 0 : Math.max(0, 1 - a / 25); const h = v * v; glow.instanceColor.setXYZ(k, 1.6 * h, .55 * h * h + .1 * h, .12 * h * h); ch = true; } if (ch) glow.instanceColor.needsUpdate = true; };
   const RC = new THREE.Raycaster();
+  // выбитый модуль: луч снаружи к корпусу в координатах корабля → пятно сажи и тлеющий огонь, который не гаснет
+  D.mark = (o, d, r) => { const mw = body.matrixWorld.clone(); body.matrixWorld.identity(); RC.set(o, d); const hs = RC.intersectObject(body, false); body.matrixWorld.copy(mw); if (!hs.length) return false;
+    const n = hs[0].face.normal.clone().normalize(); if (n.dot(d) > 0) n.negate(); addSoot(hs[0].point, n, r * 1.6); addGlow(hs[0].point, n, r * .7, true); return true; };
+  D.markAt = (p, n, r) => { addSoot(p, n, r * 1.6); addGlow(p, n, r * .7, true); };
   D.hit = (ow, dw, kind, r, q) => { g.updateMatrixWorld(true); RC.set(ow, dw.clone().normalize()); const hs = RC.intersectObject(body, false); if (!hs.length) return false;
     const h = hs[0], lp = g.worldToLocal(h.point.clone()), n = h.face.normal.clone().normalize(), dl = dw.clone().transformDirection(new THREE.Matrix4().copy(g.matrixWorld).invert()).normalize(); if (n.dot(dl) > 0) n.negate(); const cs = Math.max(.05, -dl.dot(n));
     if (q && q.k === 'gat') kind = 'gat'; const pw = (q && q.pw) || r || 1, cal = kind === 'gat' ? 3 : kind === 'rail' ? (pw > 6 ? 30 : 15) : 10, E = q && q.gE ? q.gE : pw * (kind === 'gat' ? .15 : 15) * 1e6, eJ = E / (Math.PI * (cal / 2) ** 2) * (.85 + Math.random() * .3), dcm = Math.min(eJ / KST, (kind === 'gat' ? 400 : 3 * (cal / 5) ** 3 * 1000) / (7.8 * Math.PI * (cal / 2) ** 2)) * cs, /* не глубже длины снаряда */ Tt = (T && T.nose) ? (n.x > .7 ? T.nose : n.x < -.7 ? T.rear : T.side) : Math.max(.05, (T || 2) * .5) /* броня по зонам, м: нос/борт/корма */, d = Math.min(Tt, dcm / 100), R = (cal * .6 + Math.min(dcm, Tt * 100) * .35) / 100, scr = cs < .35;
@@ -113,13 +121,15 @@ export function buildDesign(d, opt) {
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }
   // огни и факелы двигателей из редактора: аддитивные спрайты (огни мигают) и конусы пламени
   const glowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-  const lights = [];
+  const lights = [], plumes = [];
   for (const o of d.gl || []) { const col = new THREE.Color(o.c || '#7fd3ff');
     if (o.t === 'lt') { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); sp.position.set(o.p[0], o.p[1], o.p[2]); sp.scale.setScalar(o.r * 2.2); sp.userData.ph = Math.random() * 6; g.add(sp); lights.push(sp); }
-    else { const len = o.len || o.r * 5, cg = new THREE.ConeGeometry(o.r, len, 12, 1, true); cg.rotateZ(Math.PI / 2); cg.translate(-len / 2, 0, 0);
-      const pl = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: col, blending: THREE.AdditiveBlending, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide })); pl.position.set(o.p[0], o.p[1], o.p[2]); g.add(pl);
-      const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); hs.position.copy(pl.position); hs.scale.setScalar(o.r * 4); g.add(hs); } }
+    else { // факел: два скрещённых узких луча, яркое ядро у сопла гаснет к концу (как трассер), плюс горячая точка в сопле
+      const len = (o.len || o.r * 5) * 1.4, w = o.r * .9, pl = new THREE.Group(); pl.position.set(o.p[0], o.p[1], o.p[2]);
+      for (const rx of [0, Math.PI / 2]) { const pg = new THREE.PlaneGeometry(len, w * 2); pg.translate(-len / 2, 0, 0); pg.rotateX(rx); pl.add(new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: plumeTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); }
+      const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); hs.scale.setScalar(o.r * 2.2); pl.add(hs);
+      g.add(pl); plumes.push(pl); } }
   const inner = new THREE.Group(); inner.visible = false; g.add(inner);
-  g.userData = { lod, setLodScale: (k) => { const Lw = d.L * k; lod.levels.forEach((l, i) => l.distance = Lw * LODD[i]); }, L: d.L, turs, inner, hu: { sh: { value: new THREE.Matrix4() } }, design: d.name, dmg: D };
+  g.userData = { plumes, lod, setLodScale: (k) => { const Lw = d.L * k; lod.levels.forEach((l, i) => l.distance = Lw * LODD[i]); }, L: d.L, turs, inner, hu: { sh: { value: new THREE.Matrix4() } }, design: d.name, dmg: D };
   return g;
 }
