@@ -466,8 +466,8 @@ if (wrap && bgo) {
   function stepWrecks(nw: number) {
     dbg.wr = wrecks.length; const dt = Math.min(.1, wLast ? (nw - wLast) / 1000 : .016); wLast = nw; const v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
     for (let i = wrecks.length - 1; i >= 0; i--) { const w = wrecks[i], age = (nw - w.t0) / 1000, c = w.g;
-      if (age > 14) { scene.remove(c); c.traverse((o: any) => { if (o.isMesh && o.material && o.material.clippingPlanes) { const mm = Array.isArray(o.material) ? o.material : [o.material]; mm.forEach((m: any) => m.dispose && m.dispose()) } }); wrecks.splice(i, 1); continue }
-      c.position.addScaledVector(w.v, dt); c.rotateOnAxis(w.ax, w.w * dt); c.scale.setScalar(w.sc * (age > 11 ? Math.max(.01, 1 - (age - 11) / 3) : 1)); c.visible = true; c.updateMatrixWorld(true);
+      if (wrecks.length > 150 && i === 0) { /* обломки висят до конца боя (храним не больше 150 кусков) */ scene.remove(c); c.traverse((o: any) => { if (o.isMesh && o.material && o.material.clippingPlanes) { const mm = Array.isArray(o.material) ? o.material : [o.material]; mm.forEach((m: any) => m.dispose && m.dispose()) } }); wrecks.splice(i, 1); continue }
+      c.position.addScaledVector(w.v, dt); c.rotateOnAxis(w.ax, w.w * dt); c.scale.setScalar(w.sc); c.visible = true; c.updateMatrixWorld(true);
       v1.set(1, 0, 0).applyQuaternion(c.quaternion); v2.set(w.lo, 0, 0); c.localToWorld(v2); w.pa.setFromNormalAndCoplanarPoint(v1, v2); v2.set(w.hi, 0, 0); c.localToWorld(v2); w.pb.setFromNormalAndCoplanarPoint(v1.clone().negate(), v2);
       if (age < 9 && nw - w.nf > 160) { w.nf = nw; const lp = new THREE.Vector3((Math.random() - .5) * w.L * .3 + (w.lo > -5 ? (w.lo + (w.hi > 5 ? .3 * w.L : w.hi)) / 2 : (w.hi - .3 * w.L)), 0, (Math.random() - .5) * w.L * .08); c.localToWorld(lp); flashes.push({ p: lp, t0: nw, life: 260, sz: 10 + Math.random() * 14 }); sparks.push({ p: lp.clone(), v: new THREE.Vector3().randomDirection().multiplyScalar(cam.position.distanceTo(lp) * .03), t0: nw, life: 600, h: Math.random() }) } }
   }

@@ -2,7 +2,7 @@
 /* ===== ЗВУК БОЯ: синтез выстрелов/взрывов и радиопереговоры пилотов ===== */
 export const Sfx = (() => {
   let ac = null, rev = null, revSend = null, master = null, on = true, vol = .5, noiseBuf = null, lastV = 0, speaking = false, lastLine = {};
-  const lim = {}; // ограничение частоты по типам звуков
+  const lim = {}; let act = 0; const MAXV = 40; // ограничение частоты по типам звуков; act — сколько звуковых узлов играет сейчас (больше MAXV — новые не создаём, иначе звук захлёбывается и пропадает)
   const ctx = () => {
     if (ac) return ac;
     try {
@@ -25,22 +25,22 @@ export const Sfx = (() => {
     if (wet > 0 && revSend) { const w = a.createGain(); w.gain.value = wet; n.connect(w); w.connect(revSend) }
   };
   const noise = (dur, f0, f1, g0, type = 'bandpass', q = 1, wet = .15, delay = 0) => {
-    const a = ctx(); if (!a || !on) return;
-    const t0 = a.currentTime + delay, s = a.createBufferSource(); s.buffer = noiseBuf; s.loop = true; s.loopStart = Math.random() * .5;
+    const a = ctx(); if (!a || !on || act >= MAXV) return; if (a.state === 'suspended' || a.state === 'interrupted') a.resume().catch(() => {});
+    const t0 = a.currentTime + delay, s = a.createBufferSource(); act++; s.onended = () => { act--; try { s.disconnect() } catch (e) {} }; s.buffer = noiseBuf; s.loop = true; s.loopStart = Math.random() * .5;
     const f = a.createBiquadFilter(); f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t0); f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t0 + dur);
     const g = a.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + Math.min(.006, dur * .2)); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
     s.connect(f); f.connect(g); route(g, wet); s.start(t0, Math.random() * .5); s.stop(t0 + dur + .05);
   };
   const tone = (dur, f0, f1, g0, type = 'sine', wet = .1, delay = 0, drive = 0) => {
-    const a = ctx(); if (!a || !on) return;
-    const t0 = a.currentTime + delay, o = a.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+    const a = ctx(); if (!a || !on || act >= MAXV) return;
+    const t0 = a.currentTime + delay, o = a.createOscillator(); act++; o.onended = () => { act--; try { o.disconnect() } catch (e) {} }; o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
     const g = a.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + .004); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
     let n = o;
     if (drive) { const ws = a.createWaveShaper(), c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * drive) } ws.curve = c; o.connect(ws); n = ws }
     n.connect(g); route(g, wet); o.start(t0); o.stop(t0 + dur + .05);
   };
   const shot = kind => {
-    if (!on || !ok('s' + kind, kind === 'rail' ? 80 : kind === 'gat' ? 100 : 160)) return;
+    if (!on || !ok('s' + kind, kind === 'rail' ? 90 : kind === 'gat' ? 140 : 160)) return;
     const v = 1 + (Math.random() - .5) * .18;
     if (kind === 'rail') { // выстрел рельсотрона: сухой щелчок → резкий хлопок → гулкое тело → хвост эха
       noise(.012, 7000, 3500, .28, 'highpass', .7, 0);
@@ -49,7 +49,7 @@ export const Sfx = (() => {
       noise(.2, 420, 60, .24, 'lowpass', .7, .35);
       noise(.65, 1000, 140, .06, 'lowpass', .5, .7, .03);
     } else if (kind === 'gat') { // Гатлинг: быстрая очередь коротких сухих выстрелов
-      for (let i = 0; i < 4; i++) { const d = i * .026 + Math.random() * .008, w = 1 + (Math.random() - .5) * .25;
+      for (let i = 0; i < 2; i++) { const d = i * .03 + Math.random() * .008, w = 1 + (Math.random() - .5) * .25;
         noise(.008, 6500, 3000, .14, 'highpass', .7, 0, d); noise(.055, 2400 * w, 380, .15, 'bandpass', 1.1, .18, d); tone(.05, 190 * w, 70, .13, 'square', .1, d, 1.5) }
     } else if (kind === 'laser') { // лазер: нарастающий визг зарядки и звонкий «зап» с затухающим кольцом
       tone(.32, 380, 1700, .06, 'sawtooth', .2);

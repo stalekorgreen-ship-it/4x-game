@@ -375,13 +375,14 @@ function steer(s,dt){
       if(big){if(!s.escF||t>s.escFN){s.escFN=t+20;s.escF=nearestShip(big.x,big.y,1-s.side)}const fo=s.escF&&s.escF.s.alive?s.escF:null,ax=fo?fo.s.x-big.x:F.dx,ay=fo?fo.s.y-big.y:F.dy,al=Math.hypot(ax,ay)||1,off=big.T.L*.55+s.T.L*1.3+1.2,sd=((s.uid%3)-1)*(s.T.L+.8);
         hold={x:big.x+ax/al*off-ay/al*sd,y:big.y+ay/al*off+ax/al*sd,face:fo?Math.atan2(ay,ax):null,spd:1,escort:1,vx0:big.sx||0,vy0:big.sy||0}}} /* сопровождение: точка у корабля держится 20 с, к скорости — скорость охраняемого */
     if(!hold&&(ord==='cover'||ord==='auto')&&tg&&s.T.L<1.4){
-      if(t>=(s.cvN||0)){s.cvN=t+R(3,5);let rdy=0,tot=0;for(const m of s.tur)if(m.alive&&(m.k==='T'||m.k==='L')){tot++;if(m.cd<=1)rdy++}
+      if(t>=(s.cvN||0)){s.cvN=t+R(3,5);let rdy=0,tot=0,cdm=1e9;for(const m of s.tur)if(m.alive&&(m.k==='T'||m.k==='L')){tot++;if(m.cd<=1)rdy++;cdm=Math.min(cdm,m.cd)}
         if(!(s.cp&&t<s.cp.until)){s.cp=null;
-          if(tot>0&&((rdy/tot<.2&&t-s.hitT<15)||(ord==='cover'&&rdy/tot<.5)||hp<.5&&t-s.hitT<10)){
+          const fq=s.fuelCap?s.fuel/s.fuelCap:1,reload=tot>0&&rdy/tot<.3&&cdm>15&&fq>.3; /* перезарядка долгая — спрятаться за камень, пока заряжаемся */
+          if(tot>0&&(reload||(rdy/tot<.2&&t-s.hitT<15)||(ord==='cover'&&rdy/tot<.5)||hp<.5&&t-s.hitT<10)){
             let best=null,bd=1e9;
-            for(const e of env){const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<170&&d<bd&&e.r>=s.T.L*.3){bd=d;best={x:e.x,y:e.y,r:e.r+s.T.L*.55+1.5}}}
+            for(const e of env){const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<(reload?Math.min(80,cdm*Math.max(.05,Math.hypot(s.sx,s.sy)+.1)):170)&&d<bd&&e.r>=s.T.L*.3){bd=d;best={x:e.x,y:e.y,r:e.r+s.T.L*.55+1.5}}}
             for(const o of around(s.side,s.x,s.y,120)){if(o===s||!o.alive||o.T.L<s.T.L*1.4)continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d<bd){bd=d;best={x:o.x,y:o.y,r:o.T.L*.5+s.T.L*.55+1}}}
-            if(best){const ax=best.x-tg.x,ay=best.y-tg.y,al=Math.hypot(ax,ay)||1;s.cp={x:best.x+ax/al*best.r,y:best.y+ay/al*best.r,until:t+R(25,45)};stat.cover=(stat.cover||0)+1}}}}
+            if(best){const ax=best.x-tg.x,ay=best.y-tg.y,al=Math.hypot(ax,ay)||1;s.cp={x:best.x+ax/al*best.r,y:best.y+ay/al*best.r,until:t+(reload?Math.max(10,cdm-5):R(25,45))};stat.cover=(stat.cover||0)+1}}}}
       if(s.cp&&t<s.cp.until)hold={x:s.cp.x,y:s.cp.y,face:Math.atan2(uy,ux),spd:.9,cover:1}}
   }
   if(tg)s.lastTg=t;else if(s.lastTg==null)s.lastTg=t;
@@ -421,7 +422,7 @@ function steer(s,dt){
     }else{s.br='form';vx=fvx;vy=fvy;if(retreating&&sp>.02)want=Math.atan2(vy,vx);else if(tg)want=Math.atan2(uy,ux);else if(sp>.02&&ed>6)want=Math.atan2(vy,vx);else if(F.dx!=null&&(F.dx||F.dy))want=Math.atan2(F.dy,F.dx);
       if(F.stance==='assault'&&tg)boost=Math.max(boost,1.5)}
   }
-  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+T.L*.25+8;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
+  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+T.L*.25+(e.t==='wreck'?1:8); /* обломки мелкие — их замечают поздно */if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const f=Math.max(vm,.1)*(1-d/rr)*1.6;vx+=dx/d*f;vy+=dy/d*f;
     if(d<e.r+T.L*.2&&t>(s.rockT||0)){s.rockT=t+4;s.sx*=.4;s.sy*=.4;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,5);say(s.side,'rock',s)}}}
   // разлёт: не стоять друг за другом на линии огня и не кучковаться
   for(const o of around(s.side,s.x,s.y,6,20)){if(o===s)continue;const dx=s.x-o.x,dy=s.y-o.y,dz=s.z-o.z,d0=Math.hypot(dx,dy)||1e-6,sr=Math.max(.9,(s.T.L+o.T.L)*1.1),d=Math.hypot(d0,dz*1.5);
@@ -458,8 +459,8 @@ function steer(s,dt){
     {const dl2=Math.hypot(df,dlt);if(dl2>1e-9&&Math.abs(df/dl2)<.97&&!(s.dg&&t<s.dgT))df=0;} /* главный двигатель включается, только если нужный импульс почти вдоль оси (±45°): иначе тяга уходит вбок впустую */df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt));if(s.dg&&t<s.dgT&&(s.dgU||0)<(s.dgV||0)){const lt2=-s.dg.x*sh+s.dg.y*ch,need=(s.dgV||0)-(s.dgU||0),dd=Math.min(lf,need);dlt=dd*(lt2>=0?1:-1);s.dgU=(s.dgU||0)+dd} /* уклонение — только маневровыми и только на нужную величину */}
     {const ax0=(df*ch-dlt*sh)/Math.max(dt,1e-3),ay0=(df*sh+dlt*ch)/Math.max(dt,1e-3);s.aex=(s.aex||0)*.7+ax0*.3;s.aey=(s.aey||0)*.7+ay0*.3}s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);s.dvF=(s.dvF||0)+Math.abs(df);s.dvL=(s.dvL||0)+Math.abs(dlt);{const kk=s.holdK||(flee?'бегство':s.tg?'бой':'строй');(stat.dvK=stat.dvK||{})[kk]=(stat.dvK[kk]||0)+Math.hypot(df,dlt)}if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;{const bt=(dryM(s)+s.fuel)*Math.hypot(df,dlt)/FUEL.ve;s.fuel=Math.max(0,s.fuel-bt);stat.mainT=(stat.mainT||0)+bt}void lv /* ракетное уравнение: каждый км/с изменения скорости сжигает топливо, m·Δv/vₑ */}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
-  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=s.sx*nx+s.sy*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
-    if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,2+(-vn)*10))}}}}
+  if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=(s.sx-(e.vx||0))*nx+(s.sy-(e.vy||0))*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
+    if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,(e.t==='wreck'?4:2)+(-vn)*(e.t==='wreck'?25:10)))}}}}
   const rcsF=s.rcs0?.15+.85*s.rcsN/s.rcs0:1,turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt*rcsF;s.trn=Math.max(-1,Math.min(1,adiff(s.hd,want)*3))*(s.rcsN>0?1:0); // без маневровых корабль почти не вертится // 1 км — около минуты на разворот, 4 км — минуты
   { // разворот физикой: маневровые F = 0,4 МН·∛(т/1000), плечо 0,37·L, I = M·L²/12 → α; тяжёлые корабли разворачиваются минутами
     const tons=Math.max(1,T.tons||1),Lm=Math.max(5,T.L*1000),Fr=(T.rcsMN?T.rcsMN*1e6:4e5*Math.cbrt(tons/1000))*rcsF*(s.rcsN>0?1:0),al=Fr*.37*Lm/(tons*1000*Lm*Lm/12),d=adiff(s.hd,want),wt=Math.abs(d)<.035?0:Math.sign(d)*Math.sqrt(2*al*Math.abs(d))*.9; /* мёртвая зона 2°: не дёргаем маневровые по мелочи */
@@ -653,7 +654,9 @@ function kill(o,why){if(!o.alive)return;o.alive=false;o.why=why||'другое';
    if(Math.random()<Math.min(.3,.08+.05*L)){stat.reactor=(stat.reactor||0)+1;const R0=7+L*10;
      fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:9,r:R0,ring:1,big:1});fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:5,r:R0*.7});spawnShards(o.x,o.y,o.z,26,12);spawnFrags(o.x,o.y,o.z,10,5,L,o);SFX.boom(40);
      for(const q of ships){if(q===o||!q.alive)continue;const d=Math.hypot(q.x-o.x,q.y-o.y);if(d<R0*1.2)hitShip(q,'mis',q.x-o.x,q.y-o.y,o.x,o.y,Math.max(1,L*5*(1-d/(R0*1.2))))}}}
-  if(env.length<90)env.push({t:'debris',x:o.x,y:o.y,r:Math.max(.25,o.T.L*.3),vx:o.sx*.3,vy:o.sy*.3,ttl:t+240});
+  { // обломки корабля остаются висеть: 3 куска летят дальше с его скоростью — смертельное поле для пролетающих
+    const L=o.T.L,c=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),nW=env.filter(e=>e.t==='wreck').length;if(nW>240)env.splice(env.findIndex(e=>e.t==='wreck'),3);
+    for(let i=-1;i<=1;i++){const a=R(0,6.283),sp=R(.002,.012);env.push({t:'wreck',x:o.x+c*L*.33*i,y:o.y+sn*L*.33*i,r:Math.max(.05,L*.2),vx:(o.sx||0)+Math.cos(a)*sp,vy:(o.sy||0)+Math.sin(a)*sp,ttl:1e9,id:o.uid*10+i+1})}}
   for(const q of ships){if(!q.alive||Math.hypot(q.x-o.x,q.y-o.y)>45)continue;q.mor+=q.side===o.side?-(o.cls==='cv'?.14:.07):.03}
   say(o.side,'lost',o);say(1-o.side,'kill',o)}
 function segHit(x1,y1,x2,y2,e,pad){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1e-9;let u=((e.x-x1)*dx+(e.y-y1)*dy)/l2;u=u<0?0:u>1?1:u;return Math.hypot(x1+dx*u-e.x,y1+dy*u-e.y)<e.r+(pad||0)}
