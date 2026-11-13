@@ -59,7 +59,7 @@ function recoil(s,m,mkg,vkms,dx,dy){if(!s.T||!s.alive)return;const dl=Math.hypot
   s.spin=(s.spin||0)+(rx*py-ry*px)/I}
 const classify=sp=>(sp.flak>=sp.rails&&sp.flak>0)?'fr':((sp.L0!=null?sp.L0>=1.6:specTons(sp)>=50000)||sp.rails>=40)?'hc':'dd';
 function mkShip(side,sp,x,y){
-  sp={...sp,F0:sp.F||0,lasers:0,laserCfg:null,F:0,B:0}; // лазеры отключены; старые «звенья» истребителей заменены кораблями из ангара (join)
+  sp={...sp,F0:sp.F||0,lasers:0,laserCfg:null,F:0,B:0,miss:0,missCfg:null}; // ракеты временно отключены (будут переделаны) // лазеры отключены; старые «звенья» истребителей заменены кораблями из ангара (join)
   const T={tons:sp.tons||specTons(sp),role:sp.role,n:sp.name,defl:sp.defl||0,arm:sp.arm,eng:Math.max(1,sp.eng||3),spd:sp.spd||1,L:Math.max(0.06,sp.L),dopt:sp.dopt};
   const nc=Math.max(2,Math.round(T.L*1000/4)); // броня: по одной ячейке на метр длины в каждом слое (4 сектора по L/4 колонок)
   const zones=ZN.map(()=>({arm:T.arm,nc,cols:new Uint8Array(nc).fill(Math.min(255,T.arm)),armN:nc*Math.min(255,T.arm),mods:[]}));

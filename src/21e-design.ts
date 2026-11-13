@@ -31,12 +31,12 @@ function geoLod(d, lv) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(op, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(oc, 3)); g.computeVertexNormals(); void q;
   cache.set(key, g); return g;
 }
-const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true });
+const lodMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true, side: THREE.DoubleSide });
 export function lodInfo(d) { return LODK.map((_, i) => geoLod(d, i).attributes.position.count / 3 | 0); }
 // новая модель повреждений: участки брони — сетки кубов 10 см; попадания копят глубину; обшивка вырезается шейдером по маске
 const KST = 15000, C = .1, NP = 128, MS = 128; // все попадания хранятся данными без лимита; на экране — до 128 участков у ближних кораблей
 function mkMat(D) {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true });
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .55, roughness: .45, flatShading: true, side: THREE.DoubleSide });
   m.onBeforeCompile = sh => {
     sh.uniforms.pd = { value: D.pdTex }; sh.uniforms.pm = { value: D.mTex }; sh.uniforms.np = D.npU;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP=position;');
