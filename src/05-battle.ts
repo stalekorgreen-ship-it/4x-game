@@ -454,13 +454,13 @@ let MUZ=null;const tracers=[];let trId=0;
 function endTr(p,x,y){if(!p.o0)return;tracers.push({id:++trId,x1:p.o0.x,y1:p.o0.y,z1:p.o0.z,x2:x,y2:y,z2:p.z,side:p.side,src:p.src,m:p.m});if(tracers.length>700)tracers.shift()}
 function fireAt(sx,sy,sz,src,m,side,e,V,p,cd,max,dmg){
   // V — скорость пули относительно ствола; к ней прибавляется скорость стрелка (Галилей): упреждение считаем в системе стрелка
-  const svx=src?(src.vx!=null?src.vx:(src.sx||0)):0,svy=src?(src.vy!=null?src.vy:(src.sy||0)):0;
-  const evx=(e.vx!=null?e.vx:(e.sx||0))-svx,evy=(e.vy!=null?e.vy:(e.sy||0))-svy,ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy,ez-sz)/V;
-  for(let i=0;i<3;i++){const px=e.x+evx*T,py=e.y+evy*T;T=Math.hypot(px-sx,py-sy,ez-sz)/V}
-  const px=e.x+evx*T,py=e.y+evy*T,d=Math.max(.3,Math.hypot(px-sx,py-sy,ez-sz)),sig=(V<2?GDISP:DISP)*(1+2*Math.max(0,.6-p)); // разброс ствола (нагрев и навык через p)
-  const sg2=sig,dh=Math.hypot(px-sx,py-sy),an=Math.atan2(py-sy,px-sx)+gauss()*sg2,el=Math.atan2(ez-sz,dh)+gauss()*sg2,vx=Math.cos(an)*Math.cos(el)*V,vy=Math.sin(an)*Math.cos(el)*V,vz=Math.sin(el)*V;
+  const vOf=o=>o?(o.T?[o.sx||0,o.sy||0,o.vz||0]:[o.vx!=null?o.vx:(o.sx||0),o.vy!=null?o.vy:(o.sy||0),0]):[0,0,0]; // у корабля vx/vy — желаемая скорость ИИ, настоящая — sx/sy (+ вертикальная vz)
+  const [svx,svy,svz]=vOf(src),[ex0,ey0,ez0]=vOf(e),evx=ex0-svx,evy=ey0-svy,evz=ez0-svz,ez=e.z||0;let T=Math.hypot(e.x-sx,e.y-sy,ez-sz)/V;
+  for(let i=0;i<4;i++){const px=e.x+evx*T,py=e.y+evy*T,pz=ez+evz*T;T=Math.hypot(px-sx,py-sy,pz-sz)/V}
+  const px=e.x+evx*T,py=e.y+evy*T,pzL=ez+evz*T,d=Math.max(.3,Math.hypot(px-sx,py-sy,pzL-sz)),sig=(V<2?GDISP:DISP)*(1+2*Math.max(0,.6-p)); // разброс ствола (нагрев и навык через p)
+  const sg2=sig,dh=Math.hypot(px-sx,py-sy),an=Math.atan2(py-sy,px-sx)+gauss()*sg2,el=Math.atan2(pzL-sz,dh)+gauss()*sg2,vx=Math.cos(an)*Math.cos(el)*V,vy=Math.sin(an)*Math.cos(el)*V,vz=Math.sin(el)*V;
   let VX=vx,VY=vy,VZ=vz;{const mo=MUZ&&src&&src.T?MUZ(src,m,vx,vy,vz):null;if(mo){const T2=d/V,ax=sx+vx*T2-(sx+mo.x),ay=sy+vy*T2-(sy+mo.y),az=sz+vz*T2-(sz+mo.z),l=Math.hypot(ax,ay,az)||1;VX=ax/l*V;VY=ay/l*V;VZ=az/l*V;sx+=mo.x;sy+=mo.y;sz+=mo.z}} // из ствола в ту же точку упреждения
-  VX+=svx;VY+=svy;const VA=Math.hypot(VX,VY,VZ);
+  VX+=svx;VY+=svy;VZ+=svz;const VA=Math.hypot(VX,VY,VZ);
   proj.push({x:sx,y:sy,z:sz,vz:VZ,vx:VX,vy:VY,side,dist:0,dmg:dmg!=null?dmg:.02*cd,cd,max:Math.hypot(VX,VY)*20,src,m,ev:Math.random(),o0:{x:sx,y:sy,z:sz}}); // живёт 20 с
   if(src){src.rt=performance.now()}}
 function shoot(c,e,p,dm){fireAt(c.x,c.y,c.z||0,c,null,c.side,e,GV,p,dm||1,600);proj[proj.length-1].g=1} // у истребителя тот же миниган, что у кораблей
