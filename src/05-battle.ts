@@ -16,6 +16,7 @@ const $b = id => document.getElementById(id);
 // FI/BO — истребитель/бомбардировщик; TORP — торпеда; FLAK — зенитный разрыв; RCT — время перезарядки по калибру; EW — помехи РЭБ; RADAR — дальность радара; MARN — морпехи)
 const dryM=s=>Math.max(s.T.tons*.2,s.T.tons-(s.fuelCap||0)); // сухая масса: корабль без топлива
 const PLAN_T=8; // ИИ пересматривает желаемую скорость раз в 8 с (импульсами), а не каждый шаг — меньше дёрганья и расхода топлива
+const PASS=gd('battle','pass',{max:2,mm:300}); // после пробития снаряд выбивает 1 модуль + ещё 1 на каждые 300 мм остатка, не больше 2
 const ARMZ=gd('battle','armor',{nose:35,side:2,rear:2}); // слоёв по 2 см стали: нос 70 см, борта и корма 4 см
 const FUEL=gd('battle','fuel',{ve:9,rcsVe:3,cap:.6,keep:.12}); // топливо в бою: vₑ главных двигателей и маневровых (км/с), бак по умолчанию — доля массы
 const BT=gd('battle','battle',{DOPT:{hc:20,dd:20,fr:35,cv:100},JINK:0.0015,VP:6,LIFE:10,SIGMA:0.026,LAUNCH:450,SUB:0.25,REL:60,FI:{vmax:2,a:0.25,fuel:1500,ammo:60,hp:8,gun:4},BO:{vmax:0.8,a:0.05,fuel:2200,hp:4},TORP:{sp:2.5,pd:0.02,pdr:35,launch:120,mod:2},FLAK:{range:60,blast:1.2},RC0:{dmg:1,vp:6,rng:60,shells:1,rel:1,fail:0,sig:1,cal:10},FC0:{blast:1.2,rng:60,rel:1,fail:0},GC0:{tw:0,rpm:6000,heat:.4,cool:.2,pen:.02,rng:15,ammoH:5,mass:25},LC0:{dmg:4,rng:250,chg:.08},MC0:{hp:2,spd:8,dmg:4,blast:6,ammo:4,rng:220,rel:.83},BURST:{5:1,10:1,15:1,20:1,25:1,30:1},RCT:{5:6,10:16,15:28,20:45,25:60,30:80},EW:{fr:.12,cv:.05,dd:.02,hc:.02},RADAR:{cv:420,hc:320,dd:260,fr:360},MARN:{cv:20,hc:10,dd:8,fr:4}});
@@ -650,11 +651,11 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;let imp=null;
     const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
     if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
   if(kind==='rail'&&pr&&pr.kk){ // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
-    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
+    const g=dig(o,z,x,y,iz,pr.kk*vr*vr,Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.min(PASS.max,1+Math.floor(g.left/PASS.mm)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
     if(g.took<.5&&!pass){ricochet(o,x,y,vx,vy);if(imp){imp.rico=1;imp.left=z.cols[g.c];imp.arm=z.arm}return}
     fin(g.c,z.nc,cut,pass);return}
   if(kind==='laser'||kind==='torp'||kind==='rock'){ // лазер — пятно 10 см, торпеда — 30 см, камень — 50 см; удельная энергия = прежние «слои» × 2 МДж/см² (торпеда — 30 МДж/см²)
-    const Eu=kind==='torp'?30:Math.max(0,dmg*(kind==='laser'?.7:.22))*ARM_E,g=dig(o,z,x,y,iz,Eu,kind==='torp'?3:kind==='rock'?5:1,{k:kind==='laser'?'лазер':kind==='torp'?'торпеда':'камень',v:Math.hypot(vx,vy,vz||0)}),cut=g.took/LAYER_MM,pass=g.left>0?Math.max(1,Math.round(g.left/LAYER_MM)):0;
+    const Eu=kind==='torp'?30:Math.max(0,dmg*(kind==='laser'?.7:.22))*ARM_E,g=dig(o,z,x,y,iz,Eu,kind==='torp'?3:kind==='rock'?5:1,{k:kind==='laser'?'лазер':kind==='torp'?'торпеда':'камень',v:Math.hypot(vx,vy,vz||0)}),cut=g.took/LAYER_MM,pass=g.left>0?Math.min(PASS.max,1+Math.floor(g.left/PASS.mm)):0;
     if(imp){imp.mm=g.rem;imp.dep=g.dep}if(g.took<.5&&!pass){fx.push({z:o.z,x,y,t0:t,d:2,r:0.5});if(imp){imp.left=z.cols[g.c];imp.arm=z.arm}return}
     fin(g.c,z.nc,cut,pass);return}
   // ракеты: слои по метровым колонкам (переделаем отдельно)
