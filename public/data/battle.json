@@ -70,13 +70,16 @@
   "fleetMax": 10
  },
  "refuel": {
-  "go": 0.45,
   "full": 0.95,
   "dist": 2,
   "dv": 0.3,
   "rate": 6,
   "keep": 0.15,
-  "back": 150
+  "back": 150,
+  "mar": 2,
+  "min": 0.2,
+  "dodge": 0.3,
+  "go": 0.45
  },
  "doctrines": [
   {"name": "Сторож ПВО", "k": 0, "tons": 1257, "gat": 6, "rad": 1, "ir": 1, "em": 1, "fine": 1, "fcs": 2, "arm": 2, "spd": 1.2},
