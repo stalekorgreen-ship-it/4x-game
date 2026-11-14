@@ -34,6 +34,7 @@ export const COMP = gd('modules', 'modules', {
   xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{si:6, ti:4, fe: 8}, tech:'xfer'},
   probe: {name:'Штанга дозаправки', desc:'Приёмник топлива: в бою корабль сам подлетает к танкеру (корабль с системой передачи топлива) и заправляется', probe:1, mass:1, cost:{fe:2, ti:1}},
   decoy: {name:'Ловушки против ракет', desc:'20 отстреливаемых ловушек: тепловые уводят ИК-головки, комбинированные обманывает реже, активный радар не обманывают', dec:20, mass:4, cost:{fe:2, co:1}} /* таблица: 3 т + 0,05 т на ловушку */,
+  evap:  {name:'Испаритель (аварийный сброс тепла)', desc:'Испаряет воду за борт: 2,5 ГДж тепла на тонну, до 0,5 т/с. Облако пара ярко светит в ИК', mass:5, cost:{fe:3, ti:2}},
   repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:45, si:10, pt:1}},
   spares:{name:'Склад тех. изделий', desc:'Хранит 100 тех. изделий', spares:100, mass:6, cost:{fe:10, ti:4}},
   lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, ree:2, fe: 8}},
@@ -603,6 +604,8 @@ for (const b of ['life', 'cargo', 'spares', 'laser']) {
 export const TRAIL_COL = {c: [.45, .8, 1], r: [1, .3, .25], g: [.4, 1, .45], y: [1, .85, .3], v: [.75, .45, 1], w: [1, 1, 1], o: [1, .55, .2]};
 // обычный радиатор: панель 10 м², 100 кг; P = 2 × 0,9 × σ × 10 м² × T⁴ — при 500 K ≈ 64 кВт (0,64 МВт на тонну)
 export const radP = TK => 2 * .9 * 5.67e-8 * 10 * Math.pow(TK, 4) / 1e6; // МВт на панель
+COMP.evap.opts = [O('wt', 'Запас воды, т', '20', [1, 5, 20, 50, 100, 200, 500, 1000].map(v => [String(v), String(v)]))];
+COMP.evap.ap = (c, s) => { const w = +s.wt.v; c.water = w; c.mass = 5 + w; c.cost = {fe: 3 + Math.round(w * .1), ti: 2}; c.name = `Испаритель, ${w} т воды`; c.desc = `${w} т воды: сбрасывает до ${fmtN(w * 2.5, 1)} ГДж тепла`; }; // таблица: 5 т + запас воды, бак 0,1 железа на тонну
 COMP.sink.opts = [O('np', 'Панелей по 10 м²', '100', [10, 20, 50, 100, 200, 500, 1000, 2000].map(v => [String(v), String(v)]))];
 COMP.sink.ap = (c, s) => { const n = +s.np.v; c.mass = n * .1; c.sinkMW = n * radP(500); c.sink = n / 100; c.cost = {fe: Math.round(n * .2), ti: Math.max(1, Math.round(n * .02))}; c.name = `Радиаторы ${n} панелей`; c.desc = `${n} панелей, ${fmtN(c.mass, 1)} т: отводят ${fmtN(c.sinkMW, 1)} МВт при 500 K`; };
 // ядро корабля (таблица): 20 т, 5 человек, 1 МВт; ставится само на каждый корабль (не на истребители)
@@ -615,7 +618,7 @@ COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «$
 const IDLE_MW = {radar: 5, irs: .1, ems: .1, fcs: .5, ew: 2, hangar_f: 1, hangar_b: 1};
 export function designStats(parts, flags) {
   flags = flags || {};
-  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, probe:0, dec:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
+  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, probe:0, dec:0, water:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
     cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, gat:0, hangF:0, hangB:0, hangars:0, hangList:[], engines:0};
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
@@ -648,7 +651,7 @@ export function designStats(parts, flags) {
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
     if (c.bq) for (const k of CR_KEYS) r.bqS[k] = (r.bqS[k] || 0) + c.bq[k] * c.hangB * n;
-    r.xfer += (c.xfer || 0) * n; r.probe += (c.probe || 0) * n; r.dec += (c.dec || 0) * n;
+    r.xfer += (c.xfer || 0) * n; r.probe += (c.probe || 0) * n; r.dec += (c.dec || 0) * n; r.water += (c.water || 0) * n;
     r.armor += (c.armor || 0) * n; r.rail += (c.rail || 0) * n; r.flak += (c.flak || 0) * n; r.gat += (c.gat || 0) * n;
     if (c.hangD) r.hangList.push({ds: c.hangD, n: (c.hangN || 1) * n});
     r.hangF += (c.hangF || 0) * n; r.hangB += (c.hangB || 0) * n; r.hangars += (c.hangars || 0) * n; if (c.power) r.engines += n;
@@ -765,7 +768,6 @@ export function newGame() {
   D2('Рельсотронщик', {[CH]: 2, [TX]: 2, [mkKey('rail', {cal: '15', bar: '1', cap: 'a'})]: 4, gat: 2, radar: 1, irs: 1, fcs: 2, dcon: 1, [RE(300)]: 2, [AM(100)]: 1, armor: 4, cabin: 1, life: 1});
   D2('Крейсер К1', {[IX]: 160, [TX]: 5, [R20]: 24, flak: 10, [RE(5000)]: 4, [AM(500)]: 1, armor: 5, radar: 1, fcs: 3, cabin: 3, life: 2});
   D2('Авианосец А1', {[IX]: 70, [TX]: 3, hangar_f: 3, hangar_b: 1, [R10]: 6, [AM(100)]: 1, armor: 3, radar: 1, fcs: 2, cabin: 3, life: 2});
-  D('Перехватчик-кавалерист', CAV_PARTS());
   D('Боевой танкер', TANK_PARTS());
   D('Осевой рельсотронщик 30 см', AX30_PARTS());
   D('Станция «Опора»', {cargo: 3, [T100]: 2, spares: 2, xfer: 1, repair: 1, cabin: 1, life: 1});
@@ -809,8 +811,6 @@ export function createStation(job, crew) {
 export const groupOf = s => state.groups.find(g => g.id === s.groupId) || null;
 export const programOf = s => groupOf(s) || s.own;
 
-// перехватчик-кавалерист: 580 т с топливом, 20,7 м/с², пулемёт Гатлинга (пробитие растёт со скоростью проскока), 2 слоя брони против пуль, штанга дозаправки; боевой танкер: 20 000 т топлива на передачу
-export const CAV_PARTS = () => ({[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 5, [mkKey('reactor', {p: '100'})]: 1, [mkKey('tank', {tv: '25'})]: 3, [mkKey('ammo', {t: '5'})]: 1, gat: 1, probe: 1, fcs: 1, [mkKey('cabin', {cv: '5'})]: 3, life: 2, armor: 2});
 export const TANK_PARTS = () => ({[mkKey('ion', {pw: '500'})]: 4, [mkKey('reactor', {p: '1000'})]: 1, [mkKey('tank', {tv: '2000'})]: 10, xfer: 1, gat: 2, [mkKey('ammo', {t: '25'})]: 1, fcs: 1, armor: 1, [mkKey('cabin', {cv: '25'})]: 2, life: 4});
 // осевой рельсотронщик: ~2 100 т, с радаром, один осевой рельсотрон 30 см (перезарядка медленная — реактор 300 МВт)
 export const AX30_PARTS = () => ({[mkKey('ion', {pw: '100', zs: '1', tune: 'n'})]: 10, [mkKey('reactor', {p: '300'})]: 1, [mkKey('tank', {tv: '100'})]: 1, [mkKey('ammo', {t: '25'})]: 1, [mkKey('rail', {cal: '30', bar: '1', ld: 'a', cap: 'a', saf: '0', mnt: 'a'})]: 1, fcs: 1, radar: 1, armor: 2, [mkKey('cabin', {cv: '25'})]: 1, life: 3});

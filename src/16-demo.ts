@@ -10,7 +10,7 @@ import { createCorpShip, createCorpStation, pickStationSpot } from './06-corps.t
 import { colonyCost } from './14-climate.ts';
 import { advance } from './04-engine.ts';
 import { botSpec, previewSpec } from './16b-botdesign.ts';
-import { designStats, CAV_PARTS, TANK_PARTS, AX30_PARTS } from './01-data.ts';
+import { designStats, TANK_PARTS, AX30_PARTS } from './01-data.ts';
 const realSp = (parts, extra) => { const o = previewSpec(parts) || {rails: 0, flak: 0, L: .1}; o.spd = 1; return Object.assign(o, extra); };
 
 const LC = (n, pw, fr) => Array.from({length: n}, () => mkLas(pw, fr)), MC = (n, a, sp, w, am) => Array.from({length: n}, () => mkMis(a, sp, w, am));
@@ -30,9 +30,6 @@ const TYPES = {
   cruiser: n => ({name: 'Крейсер', ...gun(RI(14, 24), 15, 2), ...GAT(3, 1), flak: 4, eng: 4, L: R(1.6, 2), arm: RI(6, 8), spd: .9}),
   brawler: n => ({name: 'Броненосец', ...gun(RI(12, 20), Math.random() < .5 ? 20 : 25, 2), ...GAT(3), flak: 3, eng: 5, L: R(1.5, 1.9), arm: RI(8, 10), spd: .8, dopt0: 9}),
   battleship: n => ({name: 'Линкор', ...gun(RI(30, 40), Math.random() < .5 ? 25 : 30, 2), ...GAT(6, 1), flak: 6, eng: 5, L: R(2.8, 3.4), arm: RI(9, 10), spd: .7, defl: .1}),
-  carrier: n => ({name: 'Авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(4, 10), ...GAT(5, 1), flak: 6, eng: 4, L: R(2.2, 2.8), arm: 5, spd: .8, F: RI(6, 14), B: RI(1, 4)}),
-  swarmcarrier: n => ({name: 'Лёгкий авианосец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), ...GAT(3, 1), flak: 3, eng: 3, L: R(1.1, 1.4), arm: 2, spd: 1, F: RI(14, 22), B: 0}),
-  bomber: n => ({name: 'Торпедоносец', fq: randCraft('F'), bq: randCraft('B'), ...gun(2, 10), flak: 2, eng: 3, L: R(1.2, 1.6), arm: 2, spd: .9, F: 2, B: RI(6, 12)}),
   // лазеры редки и огромны: один-два на огромном корабле
   laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: [Math.random() < .5 ? LZR(30, 4, 300) : LZR(20, 5, 200)], eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
   laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), ...GAT(4, 1), flak: 6, lasers: k, laserCfg: [LZR(50, 6, 600)], eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
@@ -40,26 +37,21 @@ const TYPES = {
   missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), misSub: 100, eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; }, // кассетные: при первом попадании ПРО ракета делится на 100
   supply: n => ({role: 'supply', name: 'Транспорт снабжения', rails: 0, flak: 2, ...GAT(2), eng: 3, L: R(.8, 1.1), arm: 1, spd: .85}),
   tanker: n => realSp(TANK_PARTS(), {role: 'supply', name: 'Боевой танкер'}),
-  // перехватчик-кавалерист (470 т, 20 м/с², штанга дозаправки) после наскоков уходит к танкеру
-  cavalry: n => realSp(CAV_PARTS(), {name: 'Перехватчик-кавалерист'}),
   ax30: n => realSp(AX30_PARTS(), {name: 'Осевой рельсотронщик 30 см'}),
   freighter: n => ({role: 'freight', name: 'Транспорт', rails: 0, flak: 1, eng: 3, L: R(.7, 1), arm: 1, spd: .75}),
 };
 // доли состава флота (раскладка по размеру)
 // лазеры и истребители временно убраны из игры (механика будет переделана): их типы заменены пушечными
-const OFF_T = {carrier: 'cruiser', swarmcarrier: 'destroyer', bomber: 'frigate', laserCruiser: 'cruiser', laserBattleship: 'battleship'};
+const OFF_T = {laserCruiser: 'cruiser', laserBattleship: 'battleship'}; // лазеры пока отключены
 for (const k in OFF_T) TYPES[k] = TYPES[OFF_T[k]];
 const MIXES = {
   light: {corvette: 5, destroyer: 3, frigate: 1, gunboat: 2},
   line: {supply: 1, destroyer: 4, cruiser: 3, frigate: 2, battleship: 1, gunboat: 1},
-  heavy: {supply: 1, cruiser: 3, battleship: 3, carrier: 1, destroyer: 2, frigate: 1, brawler: 2},
-  carrier: {supply: 1, carrier: 2, frigate: 3, destroyer: 3, cruiser: 1, swarmcarrier: 2, bomber: 1},
+  heavy: {supply: 1, cruiser: 4, battleship: 3, destroyer: 2, frigate: 1, brawler: 2},
   brawl: {brawler: 3, gunboat: 4, corvette: 4, destroyer: 2},
-  swarm: {corvette: 12, gunboat: 4, frigate: 1, swarmcarrier: 1},
-  strike: {bomber: 3, swarmcarrier: 2, frigate: 3, corvette: 3},
+  swarm: {corvette: 12, gunboat: 4, frigate: 2},
   lasers: {supply: 1, laserCruiser: 1, destroyer: 5, frigate: 2, brawler: 2, cruiser: 2, laserBattleship: 1},
   missiles: {supply: 1, missileFrigate: 5, missileCruiser: 3, frigate: 2},
-  cavalry: {tanker: 1, cavalry: 8, destroyer: 2, frigate: 1},
   convoy: {freighter: 8, corvette: 2, destroyer: 1},
 };
 // ---- доктрины ИИ: у каждой стороны свой замысел при одинаковом весе ----
@@ -67,26 +59,21 @@ const MIXES = {
 const W3 = sp => Math.min(2000, specTons(fitSpec(sp))) / TON_L; // вес в строю — уже с потолком 2000 т, иначе флоты выходят неравными
 const setRails = (sp, k) => { const n = Math.max(sp.rails ? 1 : 0, Math.round(sp.rails * k)); if (!sp.rails) return; const base = sp.railCfg[0]; sp.rails = n; sp.railCfg = Array.from({length: n}, () => base); };
 const DOCT = {
-  cavalry: {n: 'кавалерия перехватчиков с танкером', mix: 'cavalry', mod: sp => {}},
   armor: {n: 'ставка на броню', mix: 'line', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, .95); sp.spd = (sp.spd || 1) * .92; }},
   armorH: {n: 'ставка на броню', mix: 'heavy', mod: sp => { sp.arm = Math.min(10, (sp.arm || 2) + 1); setRails(sp, 1.6); sp.defl = (sp.defl || 0) + .05; sp.spd = (sp.spd || 1) * 1.0; }},
   guns: {n: 'ставка на число орудий', mix: 'line', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 2); setRails(sp, 1.7); sp.spd = (sp.spd || 1) * 1.05; }},
   gunsH: {n: 'ставка на число орудий', mix: 'heavy', mod: sp => { sp.arm = Math.max(2, (sp.arm || 2) - 1); setRails(sp, 2.1); sp.spd = (sp.spd || 1) * 1.05; }},
   balanced: {n: 'сбалансированный флот', mix: 'line', mod: sp => setRails(sp, 1.2)},
-  split: {n: 'истребители и бомбардировщики', mix: 'carrier', mod: sp => { if (sp.F) sp.F = Math.round(sp.F * 1.35); if (sp.B) sp.B = Math.round(sp.B * 1.35); }},
-  fmBig: {n: 'истребители с противокорабельными ракетами', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 1.15); sp.fmis = {n: 2, k: 'big'}; } }},
-  fmSmall: {n: 'истребители с ракетами против мелких целей', mix: {swarmcarrier: 6, carrier: 2, frigate: 2, destroyer: 3, cruiser: 1}, mod: sp => { if (sp.F) { sp.B = 0; sp.F = Math.round(sp.F * 2.1); sp.fmis = {n: 2, k: 'small'}; } }},
-  strike: {n: 'торпедный удар', mix: 'strike', mod: sp => { if (sp.B) sp.B = Math.round(sp.B * 1.3); if (sp.F) sp.F = Math.round(sp.F * 1.2); }},
   lasers: {n: 'лазерная ставка', mix: 'lasers'},
   missiles: {n: 'ракетная ставка', mix: 'missiles', mod: sp => { if (sp.miss) { sp.miss = Math.max(2, Math.round(sp.miss * .35)); sp.missCfg = sp.missCfg.slice(0, sp.miss); } }},
   brawl: {n: 'ближний бой', mix: 'brawl'},
   swarm: {n: 'рой малых кораблей', mix: 'swarm', mod: sp => { setRails(sp, 2.0); sp.flak = (sp.flak || 0) + 1; }},
   light: {n: 'лёгкий флот', mix: 'light', mod: sp => { sp.arm = Math.max(1, (sp.arm || 2) - 1); sp.spd = (sp.spd || 1) * .92; }},
   convoy: {n: 'конвой', mix: 'convoy'},
-  assault: {n: 'десантный флот', mix: {frigate: 3, destroyer: 3, cruiser: 2, carrier: 1, brawler: 1}, mod: sp => { sp.mar = Math.round(({cv: 20, hc: 10, dd: 8, fr: 4}[sp.cls] || 4) * 4); setRails(sp, 1.3); sp.spd = (sp.spd || 1) * 1.08; }},
+  assault: {n: 'десантный флот', mix: {frigate: 3, destroyer: 3, cruiser: 3, brawler: 1}, mod: sp => { sp.mar = Math.round(({cv: 20, hc: 10, dd: 8, fr: 4}[sp.cls] || 4) * 4); setRails(sp, 1.3); sp.spd = (sp.spd || 1) * 1.08; }},
 };
-const BYSIZE = n => { const r = Math.random();  if (r < .08) return 'assault'; if (r < .3) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; if (r < .52) return 'strike'; if (r < .6) return Math.random() < .5 ? 'fmBig' : 'fmSmall';
-  if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'split' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
+const BYSIZE = n => { const r = Math.random();  if (r < .08) return 'assault'; if (r < .3) return 'missiles'; if (r < .34) return 'brawl'; if (r < .44) return 'swarm'; 
+  if (n < 12) return Math.random() < .5 ? 'light' : (Math.random() < .5 ? 'armor' : 'guns'); if (n < 40) { const q = Math.random(); return q < .22 ? 'balanced' : q < .5 ? 'armor' : q < .8 ? 'guns' : 'balanced'; } return Math.random() < .5 ? (Math.random() < .5 ? 'armorH' : 'gunsH') : (Math.random() < .5 ? 'armor' : 'guns'); };
 // оснащение сканерами: радарщики, запасные радарщики, ПВО-радары и «слепая» основная масса
 function outfit(specs) {
   const el = specs.filter(sp => (sp.L0 || sp.L) >= .6 && sp.role !== 'freight' && !sp.F).sort((a, b) => b.arm - a.arm || b.L - a.L), nP = Math.max(1, Math.ceil(el.length * .15)), nR = Math.max(1, Math.ceil(el.length * .1));
@@ -107,9 +94,9 @@ function capTons(sp) { const t = sp.tons || specTons(sp); if (t <= MAXT) return 
   if (sp.fuelCap) { sp.fuelCap *= k; if (sp.fuel != null) sp.fuel *= k; } if (sp.ammoCap) sp.ammoCap = Math.round(sp.ammoCap * k); return sp; }
 // постоянный состав зеркального боя (на сторону): группы — свои генералы (fid)
 export const MIRROR = gdM();
-function gdM() { return {line: {destroyer: 12, cruiser: 8, battleship: 4, brawler: 4, frigate: 6, corvette: 4, gunboat: 2, supply: 3}, missiles: {missileFrigate: 4, missileCruiser: 3}, tanker: {tanker: 2}, cavalry: {cavalry: 10}, ax30: {ax30: 8}}; }
+function gdM() { return {line: {destroyer: 12, cruiser: 8, battleship: 4, brawler: 4, frigate: 6, corvette: 4, gunboat: 2, supply: 3}, missiles: {missileFrigate: 4, missileCruiser: 3}, tanker: {tanker: 2}, ax30: {ax30: 8}}; }
 // стандартная кассета: 2,5 т, Δv по скорости 8 км/с × dvK, 100 мини-ракет — одинаковая у всех ракетных крейсеров, прогоны сравнимы
-const stdCas = sp => { sp.dec = 20; /* у всех 20 ловушек */ if (sp.misSub && sp.missCfg) sp.missCfg = sp.missCfg.map(c => ({...mkMis('m', 'm', 'l', 8), tons: 2.5, sub: sp.misSub, fl: 1, sl: {em: 0, ir: 2, ac: 2}, bat: 60})); /* кассета с комбинированной головкой */ if (sp.missCfg && !sp.misSub) sp.missCfg = sp.missCfg.map(c => ({...c, sl: {em: 0, ir: 2, ac: 0}})); /* ракетные фрегаты — ИК */ if (/Фрегат ПВО/.test(sp.name) && sp.flakCfg) sp.flakCfg = sp.flakCfg.map(c => ({...c, fz: 'l'})); return sp; }; // фрегаты ПВО — шрапнель с лазерным взрывателем
+const stdCas = sp => { sp.dec = 20; sp.water = sp.water || Math.round((sp.tons || 1000) * .02); /* бот ставит испаритель: вода 2% массы */ /* у всех 20 ловушек */ if (sp.misSub && sp.missCfg) sp.missCfg = sp.missCfg.map(c => ({...mkMis('m', 'm', 'l', 8), tons: 2.5, sub: sp.misSub, fl: 1, sl: {em: 0, ir: 2, ac: 2}, bat: 60})); /* кассета с комбинированной головкой */ if (sp.missCfg && !sp.misSub) sp.missCfg = sp.missCfg.map(c => ({...c, sl: {em: 0, ir: 2, ac: 0}})); /* ракетные фрегаты — ИК */ if (/Фрегат ПВО/.test(sp.name) && sp.flakCfg) sp.flakCfg = sp.flakCfg.map(c => ({...c, fz: 'l'})); return sp; }; // фрегаты ПВО — шрапнель с лазерным взрывателем
 function mirrorFleet(fid0) { const out = []; let g = 0; const sk = 6;
   for (const grp in MIRROR) { const list = []; for (const k in MIRROR[grp]) for (let i = 0; i < MIRROR[grp][k]; i++) { const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid0 + g; sp.sk = sk; sp.spdMul = 1; list.push(sp); }
     out.push(...outfit(list).map(botSpec).map(capTons).map(axify).map(stdCas)); g++; }
@@ -119,7 +106,7 @@ function fleet(n, mixOrDoc, fid, speed, W) {
   let mix2 = mix;
   if (doc && mixOrDoc !== 'convoy') { // разнообразие: в любой флот подмешиваем авианосцы, ракетные корабли, торпедоносцы, ПВО
     const t0 = Object.values(mix).reduce((a, b) => a + b, 0); mix2 = {...mix};
-    for (const [k, f] of [['swarmcarrier', .1], ['missileFrigate', .08], ['missileCruiser', .06], ['bomber', .06], ['frigate', .08], ['carrier', .04]]) mix2[k] = (mix2[k] || 0) + t0 * f * R(.5, 1.5);
+    for (const [k, f] of [['missileFrigate', .08], ['missileCruiser', .06], ['frigate', .08]]) mix2[k] = (mix2[k] || 0) + t0 * f * R(.5, 1.5);
   }
   const keys = Object.keys(mix2), tot = keys.reduce((a, k) => a + mix2[k], 0), out = [], sk = RI(4, 8);
   let w = 0;

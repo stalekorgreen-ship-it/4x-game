@@ -107,7 +107,11 @@
   "laser": 0.5,
   "radar": 0.3,
   "jam": 3,
-  "kill": 0.35
+  "kill": 0.35,
+  "v": 1,
+  "rof": 0.5,
+  "heatMW": 0.3,
+  "ammoH": 3
  },
  "missile": {
   "dvK": 1.5,
