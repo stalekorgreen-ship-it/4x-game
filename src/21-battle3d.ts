@@ -50,7 +50,7 @@ if (wrap && bgo) {
   const MAXC = 300; let casings: THREE.InstancedMesh; const cas: any[] = []; let trailLines: THREE.LineSegments, shotLines: THREE.LineSegments; let ring: THREE.LineLoop | null = null; let fxMesh: THREE.InstancedMesh; const MAXFX = 400;
    const dbg: any = { n: 0, m: 0, off: 0 }; const MAXTD = 1500; let tdMesh: THREE.InstancedMesh; const tdeb: any[] = []; const MAXSP = 9000, MAXFL = 500; let sparkLines: THREE.LineSegments, flashPts: THREE.Points, lastImp = 0; const sparks: any[] = [], flashes: any[] = [];
    function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,230,170,.8)'); g.addColorStop(1, 'rgba(255,160,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) }
-   let shutMesh: THREE.InstancedMesh, shutGl: THREE.InstancedMesh, misMesh: THREE.InstancedMesh, misFl: THREE.InstancedMesh, misTr: THREE.LineSegments; const MAXMIS = 1500;
+   let shutMesh: THREE.InstancedMesh, shutGl: THREE.InstancedMesh, misMesh: THREE.InstancedMesh, misFl: THREE.InstancedMesh, misTr: THREE.LineSegments; const MAXMIS = 4000, MAXMP = 20000; // все ракеты и мини-ракеты кассет видны
   let bolts: THREE.InstancedMesh, fighters: THREE.InstancedMesh, projLines: THREE.LineSegments, misPts: THREE.Points, beamLines: THREE.LineSegments;
   const MAXT = 14000, MAXF = 4000, MAXP = 4000;
 
@@ -64,10 +64,25 @@ if (wrap && bgo) {
   const pfLoop = () => { if (!perfOn) return; requestAnimationFrame(pfLoop); const nn = performance.now(); pfN++; if (nn - pfX0 > 500) { perf.textContent = 'FPS ' + (pfN * 1000 / (nn - pfX0)).toFixed(0) + (pfExtra && nn - pfX < 1500 ? '\n' + pfExtra : '\n(3D-бой не открыт)') + '\nF3 — скрыть'; pfX0 = nn; pfN = 0 } };
   addEventListener('keydown', e => { if (e.key === 'F3' || e.code === 'F3') { e.preventDefault(); perfOn = !perfOn; perf.style.display = perfOn ? 'block' : 'none'; if (perfOn) { pfX0 = performance.now(); pfN = 0; requestAnimationFrame(pfLoop) } } }, true);
 
+  let ovl: HTMLCanvasElement | null = null, ovlT = 0;
+  // метки флотов: у каждого генерала — рамка вокруг его кораблей, подпись «сторона · основной класс · число»; каждый корабль — точка цвета стороны
+  function drawFleets() {
+    if (!ovl || !cam) return; const W = ovl.clientWidth, H = ovl.clientHeight; if (ovl.width !== W) ovl.width = W; if (ovl.height !== H) ovl.height = H;
+    const g = ovl.getContext('2d')!; g.clearRect(0, 0, W, H); const v = new THREE.Vector3(), fl = new Map<string, any>(), SC = ['#5fb4ff', '#ff6b5f'];
+    for (const s of Battle.ships() as any[]) { if (!s.alive) continue; v.set(s.x, s.z || 0, s.y).project(cam); if (v.z > 1) continue; const x = (v.x + 1) / 2 * W, y = (1 - v.y) / 2 * H;
+      g.fillStyle = SC[s.side]; g.globalAlpha = .9; g.fillRect(x - 2, y - 2, 4, 4);
+      const k = s.side + ':' + s.fid; let f = fl.get(k); if (!f) fl.set(k, f = { side: s.side, n: 0, x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9, cls: new Map() }); f.n++; f.x0 = Math.min(f.x0, x); f.y0 = Math.min(f.y0, y); f.x1 = Math.max(f.x1, x); f.y1 = Math.max(f.y1, y);
+      const c = (s.T.n || '').replace(/ №\d+$/, ''); f.cls.set(c, (f.cls.get(c) || 0) + 1) }
+    g.font = '11px system-ui'; g.lineWidth = 1; const placed: number[][] = [];
+    for (const f of fl.values()) { const pad = 8, col = SC[f.side]; g.globalAlpha = .55; g.strokeStyle = col; g.setLineDash([4, 3]); g.strokeRect(f.x0 - pad, f.y0 - pad, f.x1 - f.x0 + 2 * pad, f.y1 - f.y0 + 2 * pad); g.setLineDash([]);
+      const main = [...f.cls.entries()].sort((a: any, b: any) => b[1] - a[1])[0][0], txt = `${f.side ? 'Красные' : 'Синие'} · ${main}${f.cls.size > 1 ? ' и др.' : ''} · ${f.n}`;
+      g.globalAlpha = .9; g.fillStyle = '#0e0f11'; const tw = g.measureText(txt).width, lx = f.x0 - pad; let ly = f.y0 - pad - 15; for (let i = 0; i < 12 && placed.some((r: number[]) => lx < r[0] + r[2] && lx + tw + 8 > r[0] && ly < r[1] + 14 && ly + 14 > r[1]); i++) ly -= 15; placed.push([lx, ly, tw + 8]); g.fillRect(lx, ly, tw + 8, 14); g.fillStyle = col; g.fillText(txt, lx + 4, ly + 11) } // подписи не налезают друг на друга
+    g.globalAlpha = 1 }
   function init() {
     const cv = document.createElement('canvas');
     cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block';
     wrap!.appendChild(cv);
+    ovl = document.createElement('canvas'); ovl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none'; wrap!.appendChild(ovl); // поверх 3D: метки сторон и флотов
     ren = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); ren.localClippingEnabled = true;
     ren.setPixelRatio(Math.min(1.5, devicePixelRatio));
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x070a12); scene.fog = new THREE.FogExp2(0x070a12, .00008);
@@ -105,7 +120,7 @@ if (wrap && bgo) {
     tdMesh = new THREE.InstancedMesh((() => { const t = new THREE.TetrahedronGeometry(.62, 0).toNonIndexed(), a = t.attributes.position as THREE.BufferAttribute, off = [[.2, -.1, .1], [-.15, .2, -.1], [.1, .15, .2], [-.1, -.2, -.15]], seen = new Map<string, number>(); for (let i = 0; i < a.count; i++) { const key = a.getX(i).toFixed(3) + a.getY(i).toFixed(3) + a.getZ(i).toFixed(3); if (!seen.has(key)) seen.set(key, seen.size); const o = off[seen.get(key)! % 4]; a.setXYZ(i, a.getX(i) + o[0], a.getY(i) * .55 + o[1] * .6, a.getZ(i) + o[2]) } t.computeVertexNormals(); return t })(), new THREE.MeshStandardMaterial({ roughness: .6, metalness: .35, flatShading: true }), MAXTD); tdMesh.frustumCulled = false; tdMesh.count = 0; tdMesh.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdMesh);
     tdDec = new THREE.InstancedMesh(decalGeo, decalMat, MAXDD); tdDec.frustumCulled = false; tdDec.count = 0; tdDec.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(tdDec); // следы на сорванных плитах летят вместе с ними
     bolts = new THREE.InstancedMesh(geoCyl, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAXP); bolts.frustumCulled = false; bolts.count = 0; bolts.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(bolts);
-    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2000 * 3), 3));
+    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXMP * 3), 3));
     { const body = new THREE.CylinderGeometry(.09, .09, .7, 8).rotateZ(-Math.PI / 2).translate(-.05, 0, 0), nose = new THREE.ConeGeometry(.09, .3, 8).rotateZ(-Math.PI / 2).translate(.45, 0, 0), parts2: THREE.BufferGeometry[] = [body.toNonIndexed(), nose.toNonIndexed()];
       for (let i = 0; i < 4; i++) parts2.push(new THREE.BoxGeometry(.2, .02, .22).translate(-.3, 0, 0).rotateX(i * Math.PI / 2).toNonIndexed());
       misMesh = new THREE.InstancedMesh(mergeGeometries(parts2.map(g2 => { g2.deleteAttribute('uv'); return g2 }), false)!, new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: .4, metalness: .6, emissive: 0x552200, flatShading: true }), MAXMIS); misMesh.frustumCulled = false; misMesh.count = 0; scene.add(misMesh);
@@ -115,7 +130,7 @@ if (wrap && bgo) {
       misFl = new THREE.InstancedMesh(geoSph, new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 }), MAXMIS); misFl.frustumCulled = false; misFl.count = 0; scene.add(misFl);
       const tg2 = new THREE.BufferGeometry(); tg2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXMIS * 12 * 6), 3)); tg2.setDrawRange(0, 0);
       misTr = new THREE.LineSegments(tg2, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); misTr.frustumCulled = false; scene.add(misTr) }
-    misPts = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xff8a50, size: 5, sizeAttenuation: false })); misPts.frustumCulled = false; scene.add(misPts);
+    misPts = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xff8a50, size: 2, sizeAttenuation: false })); misPts.frustumCulled = false; scene.add(misPts);
     const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(400 * 6), 3));
     beamLines = new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ color: 0x7af4ff })); beamLines.frustumCulled = false; scene.add(beamLines);
 
@@ -1051,9 +1066,9 @@ if (wrap && bgo) {
         sc2[o] = c[0] * f * .5; sc2[o + 1] = c[1] * f * .5; sc2[o + 2] = c[2] * f * .5; sc2[o + 3] = c[0] * f * .15; sc2[o + 4] = c[1] * f * .15; sc2[o + 5] = c[2] * f * .15; k++ }
       shotLines.geometry.setDrawRange(0, k * 2); (shotLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (shotLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true}
     const ma = (misPts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array; let mc = 0;
-    for (const p of Battle.mis() as any[]) { if (mc >= 2000) break; ma[mc * 3] = p.x; ma[mc * 3 + 1] = p.z; ma[mc * 3 + 2] = p.y; mc++ }
+    for (const p of Battle.mis() as any[]) { if (mc >= MAXMP) break; ma[mc * 3] = p.x; ma[mc * 3 + 1] = p.z; ma[mc * 3 + 2] = p.y; mc++ }
     { const mt = new THREE.Matrix4(), qm = new THREE.Quaternion(), dm = new THREE.Vector3(), pm = new THREE.Vector3(), sm = new THREE.Vector3(), ax1 = new THREE.Vector3(1, 0, 0), tp = misTr.geometry.attributes.position.array as Float32Array, tc = misTr.geometry.attributes.color.array as Float32Array; let mk = 0, ts = 0;
-      for (const p of Battle.mis() as any[]) { if (mk >= MAXMIS) break; pm.set(p.x, p.z, p.y); const cd = cam.position.distanceTo(pm); if (cd > 6000) continue; const len = Math.max(.08, cd * .032), hd = p.h != null ? p.h : Math.atan2(p.vy, p.vx);
+      for (const p of Battle.mis() as any[]) { if (mk >= MAXMIS) break; pm.set(p.x, p.z, p.y); const cd = cam.position.distanceTo(pm); if (cd > 6000) continue; const len = Math.max(.03, cd * .012) * (p.sub === 0 && p.kg < 100 ? .5 : 1), hd = p.h != null ? p.h : Math.atan2(p.vy, p.vx);
         dm.set(Math.cos(hd), 0, Math.sin(hd)); qm.setFromUnitVectors(ax1, dm); sm.set(len, len, len); mt.compose(pm, qm, sm); misMesh.setMatrixAt(mk, mt);
         const fl = len * (.3 + Math.random() * .2); const pf = pm.clone().addScaledVector(dm, -len * .62); sm.set(fl, len * .1, len * .1); mt.compose(pf, qm, sm); misFl.setMatrixAt(mk, mt); mk++;
         const tr = p.tr as number[]; let px = p.x, py = p.z, pz = p.y; for (let i = tr.length - 3; i >= 0 && ts < MAXMIS * 12; i -= 3) { const f = 1 - (tr.length - 3 - i) / Math.max(3, tr.length) * .9, o = ts * 6; tp[o] = px; tp[o + 1] = py; tp[o + 2] = pz; px = tr[i]; py = tr[i + 2]; pz = tr[i + 1]; tp[o + 3] = px; tp[o + 4] = py; tp[o + 5] = pz; tc[o] = f; tc[o + 1] = f * .55; tc[o + 2] = f * .18; tc[o + 3] = f * .5; tc[o + 4] = f * .25; tc[o + 5] = f * .08; ts++ } }
@@ -1102,7 +1117,7 @@ if (wrap && bgo) {
         fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar((1 - life) * (1 - life))); k++ }
       fxMesh.count = k; fxMesh.instanceMatrix.needsUpdate = true; if (fxMesh.instanceColor) fxMesh.instanceColor.needsUpdate = true}
     { const cf = Battle.cfg && Battle.cfg(), sk = cf ? cf.sky : null; if (sk !== curSky) buildSky(sk || null); if (skyG) skyG.position.copy(cam.position) }
-    const rT0 = performance.now(); ren.render(scene, cam);
+    const rT0 = performance.now(); ren.render(scene, cam); if (performance.now() - ovlT > 120) { ovlT = performance.now(); try { drawFleets() } catch (e) { } }
     if (perfOn) { const nn = performance.now(); pfFrames++; pfJs += rT0 - jsT0; pfRen += nn - rT0;
       if (nn - pfT > 500) { const inf = ren.info.render, sh = Battle.ships() as any[]; let alive = 0; for (const q of sh) if (q.alive) alive++;
         pfExtra = 'кадр ' + (dtEma).toFixed(0) + ' мс\nJS обновление ' + (pfJs / pfFrames).toFixed(1) + ' мс\nrender() CPU ' + (pfRen / pfFrames).toFixed(1) + ' мс\nвызовы ' + inf.calls + ' · треуг. ' + (inf.triangles / 1000).toFixed(0) + 'k\nкорабли ' + alive + ' · авиа ' + (Battle.air() as any[]).length + '\nснаряды ' + (Battle.proj() as any[]).length + ' · искры ' + sparks.length + ' · обломки ' + tdeb.length + ''; pfX = nn; pfT = nn; pfFrames = 0; pfJs = 0; pfRen = 0 } }
