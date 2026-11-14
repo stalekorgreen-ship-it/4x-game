@@ -86,6 +86,8 @@
   "pdR": 120,
   "relK": 30,
   "relP": 0.66,
+  "grp": 0.8,
+  "maxW": 90,
   "salvoW": 30
  },
  "cavalry": {

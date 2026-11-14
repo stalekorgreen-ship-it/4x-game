@@ -785,7 +785,11 @@ function fireShell(s,m,o0,C,lag){
 }
 // взрыв ракеты: бьёт всех рядом, в том числе своих
 // ракеты: полёт с бюджетом Δv. Разгон к точке перехвата, потом наведение: гасим боковой промах (пропорциональная навигация) остатком Δv
-const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,salvoW:30}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
+const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,grp:.8,maxW:90}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
+// залп группы: все трубы флота (своего генерала) копят готовность; когда готово ≥ grp или ждём дольше maxW — окно пуска на 3 с, цель одна на всех
+function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(const q of F.ships)if(q.alive)for(const m of q.tur)if(m.alive&&m.k==='M'&&m.ammo>0){n++;if(m.cd<=1)r++}F.mFr=n?r/n:0;
+    if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
+  return t<(F.mOpen||0)}
 function misFly(p,tg,dt,guide){const rx=tg.x-p.x,ry=tg.y-p.y,d=Math.hypot(rx,ry)||1e-6,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,cl=-(rx*rvx+ry*rvy)/d,tgo=d/Math.max(.2,cl);
   let ax=0,ay=0;if(p.dv>0&&guide){const ux=rx/d,uy=ry/d;
     const zx=rx+rvx*tgo,zy=ry+rvy*tgo,zl=zx*ux+zy*uy,lx=zx-ux*zl,ly=zy-uy*zl; // промах без управления, его боковая часть
@@ -906,7 +910,8 @@ function step(dt){
           m.cd=C.dur?Math.max(180,C.E/800)*R(.95,1.05)/s.enR:cost/C.chg*(1.3-.06*m.sk)*R(.9,1.1)*4.5;
         }else{
           if(d<18){m.cd=4;m.why='ракеты: цель ближе 18 км — пуск опасен';continue}
-          {const wt=s.tur.some(q=>q!==m&&q.alive&&q.k==='M'&&q.ammo>0&&q.cd>1&&q.cd<MIS.salvoW);if(wt){m.cd=.5;m.why='ждёт остальные трубы — пуск залпом';continue}} // залп: ракеты приходят вместе и перегружают ПРО
+          if(!misGate(s.F,o)){m.cd=.5;m.why='ждёт залпа группы: готовы '+Math.round((s.F.mFr||0)*100)+'% труб';continue} // залп всей группой: ракеты приходят десятками и перегружают ПРО
+          if(ok(s.F.mTg))o=s.F.mTg;
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           {const lv=C.sl||null,mx=lv?Math.max(lv.em,lv.ir,lv.ac):3,dumb=!!C.fl&&(C.hm===false||mx===0);let T0=Math.hypot(o.x-s.x,o.y-s.y)/C.spd;for(let k=0;k<3;k++){T0=Math.hypot(o.x+o.sx*T0-s.x,o.y+o.sy*T0-s.y)/C.spd}
           const lh=C.fl?Math.atan2(o.y+o.sy*T0-s.y,o.x+o.sx*T0-s.x):s.hd;
