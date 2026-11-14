@@ -785,11 +785,14 @@ function fireShell(s,m,o0,C,lag){
 }
 // взрыв ракеты: бьёт всех рядом, в том числе своих
 // ракеты: полёт с бюджетом Δv. Разгон к точке перехвата, потом наведение: гасим боковой промах (пропорциональная навигация) остатком Δv
-const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,grp:.8,maxW:90}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
+const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,grp:.8,maxW:90,subM:.8,subV:.05,subDv:1}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
 // залп группы: все трубы флота (своего генерала) копят готовность; когда готово ≥ grp или ждём дольше maxW — окно пуска на 3 с, цель одна на всех
 function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(const q of F.ships)if(q.alive)for(const m of q.tur)if(m.alive&&m.k==='M'&&m.ammo>0){n++;if(m.cd<=1)r++}F.mFr=n?r/n:0;
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
+// кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами — каждая со своей массой и своим Δv (доля сухой массы на двигатель та же)
+function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
+  const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:q.dv*MIS.subDv,dv0:q.dv*MIS.subDv,ph:'coast',pd:null})}}
 function misFly(p,tg,dt,guide){const rx=tg.x-p.x,ry=tg.y-p.y,d=Math.hypot(rx,ry)||1e-6,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,cl=-(rx*rvx+ry*rvy)/d,tgo=d/Math.max(.2,cl);
   let ax=0,ay=0;if(p.dv>0&&guide){const ux=rx/d,uy=ry/d;
     const zx=rx+rvx*tgo,zy=ry+rvy*tgo,zl=zx*ux+zy*uy,lx=zx-ux*zl,ly=zy-uy*zl; // промах без управления, его боковая часть
@@ -810,7 +813,7 @@ function boom(p,direct){
   for(const c of fly[0].concat(fly[1]))if(c.state==='fly'&&Math.hypot(c.x-p.x,c.y-p.y)<p.blast){c.hp-=2;if(c.hp<=0)killCraft(c)}
 }
 function nearMis(s,rg){let b=null,bd=rg*rg;for(const q of mis){if(q.side===s.side)continue;const d=(q.x-s.x)*(q.x-s.x)+(q.y-s.y)*(q.y-s.y);if(d<bd){bd=d;b=q}}return b}
-function hurtMis(q,n){q.hp-=n;if(q.hp<=0){const i=mis.indexOf(q);if(i>=0){mis.splice(i,1);stat.misShot[q.side]++;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:3,r:.6})}}} // сбитая кинетическая ракета просто разваливается, взрыва нет
+function hurtMis(q,n){if(q.sub>1){splitMis(q);return}q.hp-=n;if(q.hp<=0){const i=mis.indexOf(q);if(i>=0){mis.splice(i,1);stat.misShot[q.side]++;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:3,r:.6})}}} // сбитая кинетическая ракета просто разваливается, взрыва нет
 // боевой лазер: на огромной дистанции луч дрожит и уводится движением цели; урон идёт каждые 0,1 с в точку, где луч сейчас, и она ползёт по пластинам; луч оставляет чёрную копоть
 function fireLaser(s,m,o,C){
   const bm={a:s,b:o,tx:o.x,ty:o.y,tz:o.z,rt:performance.now()+C.dur*1000,c0:performance.now(),side:s.side,w:C.dmg,ld:1};beams.push(bm);
@@ -915,7 +918,7 @@ function step(dt){
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           {const lv=C.sl||null,mx=lv?Math.max(lv.em,lv.ir,lv.ac):3,dumb=!!C.fl&&(C.hm===false||mx===0);let T0=Math.hypot(o.x-s.x,o.y-s.y)/C.spd;for(let k=0;k<3;k++){T0=Math.hypot(o.x+o.sx*T0-s.x,o.y+o.sy*T0-s.y)/C.spd}
           const lh=C.fl?Math.atan2(o.y+o.sy*T0-s.y,o.x+o.sx*T0-s.x):s.hd;
-          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:s.sx||0,vy:s.sy||0,dv:C.dv||C.spd*MIS.dvK,acc:C.acc||MIS.acc,kg:Math.max(20,(C.tons||.5)*1000),ph:'boost',src:s});mis[mis.length-1].dv0=mis[mis.length-1].dv}
+          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:s.sx||0,vy:s.sy||0,dv:C.dv||C.spd*MIS.dvK,acc:C.acc||MIS.acc,kg:Math.max(20,(C.tons||.5)*1000),ph:'boost',sub:C.sub||s.spec.misSub||0,src:s});mis[mis.length-1].dv0=mis[mis.length-1].dv}
           s.flash=t;SFX.shot('missile');m.last=m.why='пуск ракеты по '+(o.T?o.T.n:'цели');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=MIS.relK*Math.pow(Math.max(.001,C.tons||.5),MIS.relP)*R(.85,1.15)*(1.3-.06*m.sk); // перезарядка трубы — от массы ракеты: 10 кг ≈ 1 с, 0,5 т ≈ 20 с, 10 т ≈ 2,5 мин
         }
         continue}

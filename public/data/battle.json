@@ -88,6 +88,9 @@
   "relP": 0.66,
   "grp": 0.8,
   "maxW": 90,
+  "subM": 0.8,
+  "subV": 0.05,
+  "subDv": 1,
   "salvoW": 30
  },
  "cavalry": {

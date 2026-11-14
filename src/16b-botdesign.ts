@@ -110,7 +110,7 @@ export function botSpec(sp) {
     const ship = {name: sp.name, id: 'bot' + Math.random(), st, air: {F: Math.min(sp.F || 0, st.hangF), B: Math.min(sp.B || 0, st.hangB)}, hullDmg: 0, crew: {}, fuel: st.fuelCap, cargo: {}};
     const out = specFromShip(ship);
     out.name = sp.name; out.ref = null; out.real = 1; out.parts = c.parts; out.fid = sp.fid; out.sk = sp.sk; out.role = sp.role; out.dopt0 = sp.dopt0; out.mar = sp.mar || st.mar || 0; out.fmis = sp.fmis;
-    out.prim = sp.prim; out.reserve = sp.reserve; out.L0 = sp.L0 || sp.L; out.spd = (st.bspd || 1) * (sp.spdMul || 1);
+    out.misSub = sp.misSub; out.prim = sp.prim; out.reserve = sp.reserve; out.L0 = sp.L0 || sp.L; out.spd = (st.bspd || 1) * (sp.spdMul || 1);
     if (sp.F && out.F > 0) { out.fq = st.fq; out.bq = st.bq; }
     if (sp.station) { out.station = 1; out.spd = 0; out.role = 'station'; out.dmg = 0; }
     if (sp.defl != null && !out.defl) out.defl = sp.defl;

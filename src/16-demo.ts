@@ -37,7 +37,7 @@ const TYPES = {
   laserCruiser: n => { const k = 1; return {name: 'Лазерный крейсер', ...gun(RI(6, 10), 10), flak: 4, lasers: k, laserCfg: [Math.random() < .5 ? LZR(30, 4, 300) : LZR(20, 5, 200)], eng: 5, L: R(2, 2.4), arm: 7, spd: .75}; },
   laserBattleship: n => { const k = 1; return {name: 'Лазерный линкор', ...gun(RI(10, 16), 15, 2), ...GAT(4, 1), flak: 6, lasers: k, laserCfg: [LZR(50, 6, 600)], eng: 6, L: R(3, 3.6), arm: 9, spd: .65, defl: .1}; },
   missileFrigate: n => { const k = RI(2, 4); return {name: 'Ракетный фрегат', ...gun(2, 10), flak: 3, miss: k, missCfg: MC(k, ['l', 'm', 'h'][RI(0, 2)], ['s', 'm', 'f'][RI(0, 2)], ['s', 'm', 'l'][RI(0, 2)], 4), eng: 3, L: R(.9, 1.1), arm: 2, spd: 1.1}; },
-  missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; },
+  missileCruiser: n => { const k = RI(3, 6); return {name: 'Ракетный крейсер', ...gun(RI(6, 12), 15), flak: 4, miss: k, missCfg: MC(k, 'm', 'm', 'l', 8), misSub: 100, eng: 4, L: R(1.5, 1.9), arm: 6, spd: .9}; }, // кассетные: при первом попадании ПРО ракета делится на 100
   supply: n => ({role: 'supply', name: 'Транспорт снабжения', rails: 0, flak: 2, ...GAT(2), eng: 3, L: R(.8, 1.1), arm: 1, spd: .85}),
   tanker: n => realSp(TANK_PARTS(), {role: 'supply', name: 'Боевой танкер'}),
   // перехватчик-кавалерист (470 т, 20 м/с², штанга дозаправки) после наскоков уходит к танкеру
