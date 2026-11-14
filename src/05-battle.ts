@@ -790,9 +790,9 @@ const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK
 function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(const q of F.ships)if(q.alive)for(const m of q.tur)if(m.alive&&m.k==='M'&&m.ammo>0){n++;if(m.cd<=1)r++}F.mFr=n?r/n:0;
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
-// кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами — каждая со своей массой и своим Δv (доля сухой массы на двигатель та же)
+// кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами: вместе весят subM от массы кассеты (каждая — subM×масса/n), у каждой свой маленький бак на subDv км/с; оставшееся топливо кассеты пропадает вместе с корпусом
 function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
-  const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:q.dv*MIS.subDv,dv0:q.dv*MIS.subDv,ph:'coast',pd:null})}}
+  const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:MIS.subDv,dv0:MIS.subDv,ph:'coast',pd:null})}}
 function misFly(p,tg,dt,guide){const rx=tg.x-p.x,ry=tg.y-p.y,d=Math.hypot(rx,ry)||1e-6,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,cl=-(rx*rvx+ry*rvy)/d,tgo=d/Math.max(.2,cl);
   let ax=0,ay=0;if(p.dv>0&&guide){const ux=rx/d,uy=ry/d;
     const zx=rx+rvx*tgo,zy=ry+rvy*tgo,zl=zx*ux+zy*uy,lx=zx-ux*zl,ly=zy-uy*zl; // промах без управления, его боковая часть
