@@ -112,7 +112,8 @@ function mkShip(side,sp,x,y){
 }
 const FORMS=['wedge','claw','x','sphere'];
 // тепло (таблица «Корабли (система)»): теплоёмкость корпуса 0,5 МДж на т на °C; s.heat = °C выше нормы / 100 (выше +100 °C — сбои)
-const HEAT=gd('battle','heat',{engK:20,water:.02,evapAt:.6,evapR:.5,safe:1.5,hull:.1,low:.1,hot:.9,ok:.3,base:2,irEng:10,irHull:.05,irRad:1,irVap:300,irShot:5,irN:20}); // engK МДж на т·(км/с); water — доля массы; hull — доля радиаторов при убранных панелях; low/hot/ok — пороги ухода и возврата; ir* — вклад в ИК-сигнатуру
+const HEAT=gd('battle','heat',{engK:20,water:.02,evapAt:.6,evapR:.5,safe:1.5,hull:.1,low:.1,hot:.9,ok:.3,coolV:.15,pas:.4,base:2,irEng:10,irHull:.05,irRad:1,irVap:300,irShot:5,irN:20}); // engK МДж на т·(км/с); water — доля массы; hull — доля радиаторов при убранных панелях; low/hot/ok — пороги ухода и возврата; ir* — вклад в ИК-сигнатуру
+const HUNT=gd('battle','hunt',{r:400,cool:4,rad:2,sup:3});
 function addHeat(s,MJ){const T=Math.max(1,(s.T&&s.T.tons)||(s.spec&&s.spec.tons)||1000);s.heat=Math.max(0,s.heat+MJ/(.5*T)/100)}
 function mdead(s,m){if(!m.alive)return;m.alive=false;s.aliveN--;if(m.k==='E')s.engN--;else if(m.k==='R')s.rcsN--;else if(m.k==='D')s.radN--}
 function mrev(s,m){m.alive=true;s.aliveN++;if(m.k==='E')s.engN++;else if(m.k==='R')s.rcsN++;else if(m.k==='D')s.radN++}
@@ -260,12 +261,16 @@ function fleetsUpdate(){
       F.formed=t>(F.brk||0)}
     // общий фокус огня: самая ценная и повреждённая цель в зоне
     const cand=around(1-F.side,F.cx+(bf.cx-F.cx)*.3,F.cy+(bf.cy-F.cy)*.3,110);let fb=null,fs=0;
-    for(const o of cand){const sc=val(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;
+    const vul=o=>(o.cool?HUNT.cool:1)*(o.radOut?HUNT.rad:1)*(o.T.role==='supply'||o.tnk||o.T.role==='freight'?HUNT.sup:1); // остывающие, с открытыми радиаторами, снабжение — лакомые цели
+    for(const o of cand){const sc=val(o)*vul(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;
+    // фланговый флот — охотник: ищет уязвимых далеко (остывают, снабженцы, танкеры) и идёт к ним в обход, а не в лоб
+    F.hunt=null;if(F.stance==='flank'){let hb=null,hs=0;for(const o of around(1-F.side,F.cx,F.cy,HUNT.r)){const v=vul(o);if(v<=1)continue;const sc=v*val(o)/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/150);if(sc>hs){hs=sc;hb=o}}if(hb){F.hunt=hb;F.focus=hb;stat.hunt=(stat.hunt||0)+1}}
     if(SALVO.on&&(!F.sv||t>F.sv.tA+4||!F.sv.o.alive)){const o=F.focus;F.sv=null;if(o&&o.alive){let mx=0,N=0;for(const q of F.ships){if(!q.alive)continue;const nr=q.tur.filter(m=>m.alive&&m.k==='T').length;if(!nr)continue;const d=Math.hypot(o.x-q.x,o.y-q.y,(o.z||0)-(q.z||0)),v=(q.tur.find(m=>m.k==='T').cfg.vp||VP);if(d>effR(q,o,v))continue;mx=Math.max(mx,d/v);N+=nr*8}
       if(N>=4)F.sv={o,tA:t+mx+SALVO.prep,N,k:0}}} // залп флота: все снаряды приходят в одну секунду, каждый в свою точку круга, куда цель может увернутьсяif(F.side===0&&ORD.focus&&ORD.focus.alive)F.focus=ORD.focus;
     // точка сбора флота и направление строя
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
-    if(F.stance==='flank'){const a=F.env?F.flank:F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
+    if(F.hunt){dx=F.hunt.x-F.cx;dy=F.hunt.y-F.cy;const hl=Math.hypot(dx,dy)||1;dx/=hl;dy/=hl}
+    else if(F.stance==='flank'){const a=F.env?F.flank:F.flank*Math.min(1,Math.max(0,(dist-F.rng*2)/160)),c=Math.cos(a),s2=Math.sin(a);[dx,dy]=[dx*c-dy*s2,dx*s2+dy*c]}
     {const shp=F.stance==='wedge'?'wedge':F.stance==='echelon'?'echelon':'line';if(F.shape!==shp){F.shape=shp;F.nSlots=-1}}
     if(F.stance==='pass'){ // проход насквозь: цель — точка за строем врага; пролетели — разворот и новый заход
       const ex=bf.cx-F.cx,ey=bf.cy-F.cy;if(!F.pd||Math.hypot(ex,ey)>F.rng*3)F.pd={x:dx,y:dy};F.tgx=bf.cx+F.pd.x*80;F.tgy=bf.cy+F.pd.y*80;if(ex*F.pd.x+ey*F.pd.y<-20)F.pd=null}
@@ -347,7 +352,7 @@ function steer(s,dt){
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
   if(t>=s.next){s.next=t+R(6,14);s.sdir=Math.random()<.5?1:-1}
   const tg=s.tg;let vx=0,vy=0,want=s.hd;
-  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(s.cool&&!T.role)||(hp<.35&&!T.role)||(F.stance==='cover'&&hp<.45&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
+  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(hp<.35&&!T.role)||(F.stance==='cover'&&hp<.45&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
   s.flee=flee;
   // приказы отдельным кораблям: охранять крупного, прятаться за укрытием, отход
   const ord=s.ord||'auto'; /* сопровождение только по приказу: само по себе оно гоняло фрегаты за кораблём и сжигало топливо */let hold=null;
@@ -372,7 +377,8 @@ function steer(s,dt){
   if(!hold&&!tg&&!flee&&!T.role&&s.T.eng>0&&t-s.lastTg>40&&F.n<2){ /* одиночка без цели сам ищет врага; в группе ведёт строй — без рывков туда-обратно */ // потеряли врага из виду и стоим: идём к ближайшему вражескому кораблю, а не ждём на месте
     const nn=nearestShip(s.x,s.y,1-s.side);if(nn&&nn.s&&nn.s.alive&&nn.d>6)hold={x:nn.s.x,y:nn.s.y,face:null,spd:.9}}
   s.holdK=hold&&(hold.cover?'cover':hold.escort?'escort':'');
-  if(flee&&tg&&!hold){s.br='flee';vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
+  if(s.cool&&!flee&&!hold&&!T.role){s.br='cool';const nn=nearestShip(s.x,s.y,1-s.side),safe=nn?Math.max(40,(nn.s.maxR||60))*HEAT.safe:0;if(nn&&nn.d<safe){const ax=s.x-nn.s.x,ay=s.y-nn.s.y,al=Math.hypot(ax,ay)||1;vx=ax/al*HEAT.coolV+(nn.s.sx||0);vy=ay/al*HEAT.coolV+(nn.s.sy||0)}else{vx=(F.vgx||0)*.5;vy=(F.vgy||0)*.5}want=s.hd} // остывает: спокойно выходит за дальность врага, дальше дрейф без тяги; нос не крутим
+  else if(flee&&tg&&!hold){s.br='flee';vx=-ux*vm;vy=-uy*vm;want=Math.atan2(-uy,-ux);if(td<120)boost=1.5}
   else if(hold){s.br='hold:'+(s.holdK||'');const ex=hold.x-s.x,ey=hold.y-s.y,ed=Math.hypot(ex,ey)||1,sp=Math.min(vm*hold.spd,ed*.25+.005);vx=ex/ed*sp+(hold.vx0||0);vy=ey/ed*sp+(hold.vy0||0);want=hold.face!=null?hold.face:ed>6?Math.atan2(vy,vx):(tg?Math.atan2(uy,ux):Math.atan2(F.dy,F.dx));if(ed>60)boost=Math.max(boost,Math.min(1.6,1+(ed-60)/150))}
   else{
     // формация
@@ -424,7 +430,7 @@ function steer(s,dt){
     const em=[];for(const z of s.zones)for(const m of z.mods)if(m.k==='E'&&m.alive)em.push(m);
     if(em.length){const m=em[(Math.random()*em.length)|0];m.alive=false;s.aliveN--;s.engN--;stat.bfail[s.side]++;fx.push({x:s.x,y:s.y,t0:t,d:5,r:1.2});boost=1}}
   s.bst+=(boost-s.bst)*Math.min(1,dt*.8);boost=s.bst;
-  if(tg&&!flee&&!T.role){ // тактики строя на уровне корабля
+  if(tg&&!flee&&!s.cool&&!T.role){ // тактики строя на уровне корабля
     const ddx=vx-s.sx,ddy=vy-s.sy,ddl=Math.hypot(ddx,ddy),far=td>(s.effR||40)*1.3,mv=F.stance!=='drift'&&F.stance!=='pass';
     if(far&&ddl>.05&&mv)want=Math.atan2(ddy,ddx); /* далеко и нужен разгон/торможение — разворот к нужному импульсу и тяга главным */
     else if(F.stance!=='retreat'&&F.stance!=='drift'&&F.stance!=='pass'&&F.stance!=='kite')want=Math.atan2(uy,ux); // нос (70 см брони) строго к врагу — во всех боевых тактиках, без разворота бортом ради башен
@@ -1079,7 +1085,7 @@ function crewStep(dc){
       // радиаторы: в бою убраны (хрупкие), корпус отдаёт только hull от мощности радиаторов; открыты — вне огня или когда корабль уходит остывать
       if(s.water==null){s.water=s.water0=tons*HEAT.water}
       const near=nearestShip(s.x,s.y,1-s.side),danger=near&&near.d<Math.max(60,(s.maxR||60))*HEAT.safe;s.radOut=!danger||s.cool?1:0;
-      const out=(s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle))*(s.radOut?1:HEAT.hull);addHeat(s,(idle-out)*dc);
+      const out=(s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle))*(s.radOut?1:HEAT.hull);addHeat(s,(idle-out)*dc);addHeat(s,-Math.max(0,s.heat)*Math.pow(tons,2/3)*HEAT.pas*dc); // корпус сам излучает: ∝ площади и нагреву (даже без радиаторов)
       // испаритель: выше evapAt сбрасываем пар — 2,5 ГДж на тонну воды, за секунду не больше evapR т; облако пара ярко светит в ИК
       if(s.heat>HEAT.evapAt&&s.water>0){const need=(s.heat-HEAT.evapAt)*100*.5*tons,w=Math.min(s.water,HEAT.evapR*dc,need/2500);s.water-=w;addHeat(s,-w*2500);if(t-(s.vapT||-99)>2)fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:5,r:Math.max(.5,s.T.L*2)});s.vapT=t;stat.water=(stat.water||0)+w}
       // вода почти кончилась и корпус горячий — выходим из боя остывать на радиаторах; вернуться, когда остыли

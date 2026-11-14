@@ -469,9 +469,9 @@ if (wrap && bgo) {
   // гибель корабля: корпус раскалывается на три секции, они расходятся, кувыркаются, горят и гаснут
   const wrecks: any[] = []; let wLast = 0;
   function makeWreck(g: THREE.Group, s: any) {
-    const L = g.userData.L, sc = g.scale.x, nw = performance.now(), d0 = cam.position.distanceTo(g.position); dbg.mw = [d0, g.visible]; if (d0 > 4000 || !g.visible) { scene.remove(g); return }
+    const L = g.userData.L, sc = SC, nw = performance.now(), d0 = cam.position.distanceTo(g.position); dbg.mw = [d0, g.visible]; if (d0 > 4000 || !g.visible) { scene.remove(g); return }
     const cuts = [[-9, -.17], [-.17, .17], [.17, 9]], ch = (() => { const ud = g.userData, kids: any[] = []; g.traverse((o: any) => { if (o !== g && o.userData && Object.keys(o.userData).length) kids.push([o, o.userData]) }); g.userData = {}; kids.forEach(k => k[0].userData = {}); const r = [g, g.clone(true), g.clone(true)]; g.userData = ud; kids.forEach(k => k[0].userData = k[1]); return r })();
-    ch.forEach((c, i) => { const pa = new THREE.Plane(), pb = new THREE.Plane();
+    ch.forEach(c => c.scale.setScalar(SC)); ch.forEach((c, i) => { const pa = new THREE.Plane(), pb = new THREE.Plane();
       c.traverse((o: any) => { if (!o.isMesh || !o.material) return; const mm = Array.isArray(o.material) ? o.material : [o.material]; const cl = mm.map((m: any) => { if (!m.clone) return m; const q = m.clone(); q.clippingPlanes = [pa, pb]; q.needsUpdate = true; return q }); o.material = Array.isArray(o.material) ? cl : cl[0]; o.frustumCulled = false });
       if (i) scene.add(c); const ax = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(), dir = new THREE.Vector3(1, 0, 0).applyQuaternion(g.quaternion);
       wrecks.push({ g: c, pa, pb, lo: cuts[i][0] * L, hi: cuts[i][1] * L, v: dir.clone().multiplyScalar((i - 1) * L * sc * .05).add(new THREE.Vector3((Math.random() - .5) * L * sc * .02, (Math.random() - .5) * L * sc * .03, (Math.random() - .5) * L * sc * .02)), ax, w: (Math.random() - .3) * .5 * (i === 1 ? .4 : 1), t0: nw, sc, L, nf: nw }) });

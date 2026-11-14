@@ -82,6 +82,8 @@
   "low": 0.1,
   "hot": 0.9,
   "ok": 0.3,
+  "coolV": 0.15,
+  "pas": 0.4,
   "base": 2,
   "irEng": 10,
   "irHull": 0.05,
@@ -89,6 +91,12 @@
   "irVap": 300,
   "irShot": 5,
   "irN": 20
+ },
+ "hunt": {
+  "r": 400,
+  "cool": 4,
+  "rad": 2,
+  "sup": 3
  },
  "command": {
   "period": 30,
@@ -125,6 +133,8 @@
   "every": 4,
   "W": 400,
   "lv": 1,
+  "min": 0.3,
+  "max": 5,
   "ir": 0.5,
   "comb": 0.25
  },
