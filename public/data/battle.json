@@ -102,6 +102,12 @@
   "walkN": 6,
   "salvoW": 30
  },
+ "decoy": {
+  "r": 30,
+  "every": 4,
+  "ir": 0.5,
+  "comb": 0.25
+ },
  "cavalry": {
   "arc": 0.35
  },

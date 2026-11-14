@@ -90,7 +90,7 @@ function mkShip(side,sp,x,y){
   const core=add('C',2),total=sp.rails+sp.flak+(sp.gat||0)+(sp.lasers||0)+(sp.miss||0)+T.eng+nR+nD+1;
   const sh={acc:0,spin:0,trail:sp.trail||null,hv:[[0,1,4],[2,3,0]][side][(Math.random()*3)|0],fid:(()=>{const k=side*1e5+(sp.fid||0),n=FCNT.get(k)||0;FCNT.set(k,n+1);return (sp.fid||0)*100+Math.floor(n/FLEET_MAX)})(),side, /* флоты не больше FLEET_MAX кораблей: каждый десяток — свой флот со своим капитаном */cls:sp.cls,T,x,y,vx:0,vy:0,sx:0,sy:0,ax:0,ay:0,next:0,alive:true,nt:0,car:(sp.F+sp.B)>0,hd:side?Math.PI:0,zones,tur,core,total,aliveN:total,engN:T.eng,pool:{ammo:Math.round(((sp.fq&&sp.fq.ammo)||CR_DEF.F.ammo)*.5)*sp.F,torp:sp.B},nextL:0,spec:sp,mag:0,magMax:0,enR:1,z:0,bst:1,lrp:0,srp:0,crew:1,pers:Math.max(20,Math.round(T.tons/40*(sp.role==='freight'?.25:1))),evac:0,abd:0,ldT:0,mor:Math.min(.95,Math.max(.3,.42+.05*(sp.sk||5.5)+R(-.05,.05))),st:'ok',fire:[0,0,0,0],heat:0,ovh:0,hitT:-99,flash:-99,seen:[-99,-99],lock:[-99,-99],rdOn:false,fine:false,trk:[],sc:sp.scList||[{k:'ir',rng:(RADAR[sp.cls]||280)*.8,res:.6},{k:'em',rng:RADAR[sp.cls]||280,res:.6},{k:'rad',rng:(RADAR[sp.cls]||280)*.9,res:1,fine:1}],ch:sp.fcsN!=null?sp.fcsN:({cv:4,hc:8,dd:3,fr:4}[sp.cls]||3),jam:0,blk:0,reps:0,bdo:0,board:null,rad:sp.radar!=null?70+110*Math.min(3,sp.radar):(RADAR[sp.cls]||280),mar:sp.mar!=null?sp.mar:(sp.role==='freight'?0:((sp.mar!=null?sp.mar:MARN[sp.cls])||0))};
   if(side===0&&sh.ch>0)sh.ch+=ta('fcs');
-  sh.acc=accOf(sp,T);sh.raider=sh.acc>=20&&T.tons<=1000&&!sp.role;sh.probe=!!sp.probe;sh.tnk=!!sp.tanker; // лёгкий и резвый — перехватчик: кавалерийские наскоки
+  sh.acc=accOf(sp,T);sh.raider=sh.acc>=20&&T.tons<=1000&&!sp.role;sh.probe=!!sp.probe;sh.tnk=!!sp.tanker;sh.dec=sp.dec||0; // лёгкий и резвый — перехватчик: кавалерийские наскоки
   {const cons=(sp.rails||0)*2+(sp.gat||0)*5,mx=sp.ammoCap!=null?sp.ammoCap:sp.role==='supply'?Math.round(T.tons*.2):Math.round(cons*1.2);sh.mag=sh.magMax=mx;{let need=0;for(const m of tur){const C=m.cfg||{};if(m.k==='T')need+=(C.ammoH||2)*(C.shells||1);else if(m.k==='G')need+=(C.ammoH||2)}need*=AMMO_H*1.05;if(need>sh.mag)sh.mag=sh.magMax=need} /* погреб — на AMMO_H часов непрерывного боя всеми орудиями */if(sp.fuel!=null&&sp.fuelCap>0){sh.fuel=sp.fuel;sh.fuelCap=sp.fuelCap;sh.fpa=sp.fpa||T.tons;sh.frate=sp.frate!=null?sp.frate:sp.fuelCap*4.2e-9}else{sh.fuelCap=Math.round(T.tons*FUEL.cap);sh.fuel=sh.fuelCap;sh.fpa=T.tons;sh.frate=sh.fuelCap*4.2e-9} // у налётчиков бак по умолчанию
   if(cfgNow&&cfgNow.demo&&sh.fuelCap<T.tons*FUEL.cap*(sh.tnk?0:1)){sh.fuelCap=Math.round(T.tons*FUEL.cap*(sh.tnk?0:1));sh.fuel=sh.fuelCap} /* танкер везёт вчетверо больше */ // демо-флоты: полный бак (доля массы из battle.json → fuel.cap)
    const draw=(sp.railCfg||[]).slice(0,sp.rails||0).reduce((a,q)=>a+((q&&q.draw)||0),0)+(sp.lasers?800:0);sh.enR=sp.energy!=null&&draw>0?Math.max(.1,Math.min(1,sp.energy/draw)):1}
@@ -791,6 +791,15 @@ const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK
 function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(const q of F.ships)if(q.alive)for(const m of q.tur)if(m.alive&&m.k==='M'&&m.ammo>0){n++;if(m.cd<=1)r++}F.mFr=n?r/n:0;
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
+// головки: ir — пассивная по теплу (ловушки уводят), ac — активный радар (батарея на bat с, включается на подлёте; ловушки не берут, РЭБ глушит), c — обе (ловушки — ×DEC.comb), none — по данным корабля
+const DEC=gd('battle','decoy',{r:30,every:4,ir:.5,comb:.25});
+function skOf(C){const l=C.sl||{};return l.ir&&l.ac?'c':l.ac?'ac':l.ir?'ir':l.em?'em':'none'}
+function seekOk(p,tg,d,dt){if(p.sk==='ac'||p.sk==='c'){const cl=Math.max(.2,closing({x:p.x,y:p.y,sx:p.vx,sy:p.vy},tg)),tgo=d/cl;if(tgo<p.bat+2){p.bat=Math.max(0,p.bat-dt);if(p.bat<=0&&p.sk==='ac')return false}}return true} // активная: батарея тратится только на подлёте; кончилась — летит вслепую
+// ловушки: корабль с запасом отстреливает ловушку раз в DEC.every с, если к нему летят ракеты ближе DEC.r км; каждая ИК-ракета в зоне уходит на ловушку с шансом ir/(1+уровень), комбинированная — ×comb
+function decoyStep(){for(const s of ships){if(!s.alive||!(s.dec>0)||t<(s.decT||0))continue;let any=false;
+    for(const p of mis){if(p.side===s.side||p.tgt!==s)continue;if(Math.hypot(p.x-s.x,p.y-s.y)>DEC.r)continue;any=true;
+      if(p.sk==='ir'||p.sk==='c'){const lv=(p.lv||1),ch=DEC.ir/(1+lv)*(p.sk==='c'?DEC.comb:1);if(Math.random()<ch){p.tgt=null;p.rl=t+30;stat.decoyHit=(stat.decoyHit||0)+1}}}
+    if(any){s.dec--;s.decT=t+DEC.every;stat.decoyUse=(stat.decoyUse||0)+1;fx.push({x:s.x+R(-1,1),y:s.y+R(-1,1),z:s.z,t0:t,d:4,r:.5})}}}
 // кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами: вместе весят subM от массы кассеты (каждая — subM×масса/n), у каждой свой маленький бак на subDv км/с; оставшееся топливо кассеты пропадает вместе с корпусом
 function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
   const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:MIS.subDv,dv0:MIS.subDv,ph:'boost',sr:0,pd:null})}}
@@ -871,7 +880,7 @@ function step(dt){
   buildGrids();fleetsUpdate();
   if(t>=nextVis){nextVis=t+Math.max(1,ships.length/160);updVis()} // на больших флотах разведка реже
   if(t>=nextCrew){const dc=Math.max(.5,t-lastCrewT);lastCrewT=t;nextCrew=t+1;crewStep(dc)}
-  supplyStep(dt);lasStep(dt);
+  supplyStep(dt);lasStep(dt);decoyStep();
   for(const s of ships.slice()){if(s.alive&&s.bay&&s.bay.length&&t>=s.bayT&&s.st!=='surr'&&(s.tg||t>60))launchBay(s)}
   for(const s of ships){if(!s.alive)continue;steer(s,dt);}
   separateShips();
@@ -919,7 +928,7 @@ function step(dt){
           const hd=Math.atan2(o.y-s.y,o.x-s.x);
           {const lv=C.sl||null,mx=lv?Math.max(lv.em,lv.ir,lv.ac):3,dumb=!!C.fl&&(C.hm===false||mx===0);let T0=Math.hypot(o.x-s.x,o.y-s.y)/C.spd;for(let k=0;k<3;k++){T0=Math.hypot(o.x+o.sx*T0-s.x,o.y+o.sy*T0-s.y)/C.spd}
           const lh=C.fl?Math.atan2(o.y+o.sy*T0-s.y,o.x+o.sx*T0-s.x):s.hd;
-          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:s.sx||0,vy:s.sy||0,dv:C.dv||C.spd*MIS.dvK,acc:C.acc||MIS.acc,kg:Math.max(20,(C.tons||.5)*1000),ph:'boost',sub:C.sub||s.spec.misSub||0,src:s});mis[mis.length-1].dv0=mis[mis.length-1].dv}
+          mis.push({x:s.x,y:s.y,z:s.z,h:lh,dumb:dumb?1:0,sr:C.fl&&lv?[0,25,70,180][mx]*(lv.ac?1.3:1):0,gq:C.fl&&lv?mx/3:null,jf:lv?(lv.em&&!lv.ir&&!lv.ac?1.6:(lv.ir||lv.ac)?.4:1):1,side:s.side,tgt:dumb?null:o,hp:C.hp,spd:C.spd,dmg:C.dmg,blast:C.blast,life:C.fl?Math.min(2400,C.rng/C.spd):C.rng/C.spd*2.2,tr:[],trT:0,vx:s.sx||0,vy:s.sy||0,dv:C.dv||C.spd*MIS.dvK,acc:C.acc||MIS.acc,kg:Math.max(20,(C.tons||.5)*1000),ph:'boost',sub:C.sub||s.spec.misSub||0,sk:skOf(C),lv:Math.max(1,(C.sl&&Math.max(C.sl.ir||0,C.sl.ac||0))||1),bat:C.bat||0,src:s});mis[mis.length-1].dv0=mis[mis.length-1].dv}
           s.flash=t;SFX.shot('missile');m.last=m.why='пуск ракеты по '+(o.T?o.T.n:'цели');say(s.side,'missile',s);say(1-s.side,'inmis',o);m.ammo--;stat.mis[s.side]++;m.cd=MIS.relK*Math.pow(Math.max(.001,C.tons||.5),MIS.relP)*R(.85,1.15)*(1.3-.06*m.sk); // перезарядка трубы — от массы ракеты: 10 кг ≈ 1 с, 0,5 т ≈ 20 с, 10 т ≈ 2,5 мин
         }
         continue}
@@ -991,7 +1000,7 @@ function step(dt){
     p.pd=d;
     if(p.sub>1&&d<MIS.subD){splitMis(p);continue} // кассета раскрывается за subD км до цели
     if(d<45&&tg.jam>0&&t>=(p.blind||0)&&Math.random()<tg.jam*dt*.3*(p.jf||1)){p.blind=t+4;stat.decoy++;fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:1});say(tg.side,'jam',tg)}
-    misFly(p,tg,dt,t>=(p.blind||0)&&(!p.sr||d<p.sr)); // настоящая физика: скорость, ускорение, остаток Δvp.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
+    misFly(p,tg,dt,t>=(p.blind||0)&&(!p.sr||d<p.sr)&&seekOk(p,tg,d,dt)); // настоящая физика: скорость, ускорение, остаток Δvp.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
     if(env.length&&los(p.x-p.vx*dt,p.y-p.vy*dt,p.x,p.y)){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:4,r:1.5});mis.splice(i,1);continue}
     p.life-=dt;p.trT-=dt;if(p.trT<=0){p.trT=.6;p.tr.push(p.x,p.y,p.z);if(p.tr.length>12)p.tr.splice(0,3)}
     {const hr=Math.max(.05,tg.T.L*.5),rx=tg.x-p.x,ry=tg.y-p.y,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,vv=rvx*rvx+rvy*rvy,tc=vv>1e-9?Math.max(0,Math.min(dt,-(rx*rvx+ry*rvy)/vv)):0,mx=rx+rvx*tc,my=ry+rvy*tc; /* ближайшее сближение за шаг: на 15 км/с ракета проходит десятки км за тик */
@@ -1452,14 +1461,14 @@ export function raidSpecs(k) {
 // боевой спек из характеристик проекта (корабль из ангара)
 export function specFromStats(st, name, sk) {
   return {real: 1, name: name || 'Корабль', arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines || 1)), L: st.L, tons: st.tons || st.dry, sk: sk || 5,
-    spd: st.bspd || 1, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, miss: st.msl, missCfg: st.misList, probe: st.probe || 0, tanker: st.tanker ? 1 : 0, fuelCap: st.fuelCap || 0, frate: st.fuelRate || 0, engT: st.engM || 0, pow: st.power || 0,
+    spd: st.bspd || 1, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, miss: st.msl, missCfg: st.misList, dec: st.dec || 0, probe: st.probe || 0, tanker: st.tanker ? 1 : 0, fuelCap: st.fuelCap || 0, frate: st.fuelRate || 0, engT: st.engM || 0, pow: st.power || 0,
     ammoCap: st.ammoCap || 0, energy: st.energy || 0, defl: st.defl, trail: st.trail || null, scList: st.scList || [], fcsN: st.fcsN || 0, ew: st.ew || 0, mar: 0, dcon: st.dcon || 0, sink: st.sink || 0, idleMW: st.enIdle || 0, sinkMW: st.sinkMW || 0, magArm: st.magArm || 0, magEj: st.magEj || 0, magFr: (st.ammoCap || 0) * 1.1 / Math.max(1, st.tons || st.dry)};
 }
 export function specFromShip(s) {
   const st = s.st, cmd = (function(){ try { return effSkill(s, "cmd") } catch (e) { return 4 } })();
   return {real: 1, engCnt: st.engines || 0, name: s.name, ref: s.id, arm: st.armor, rails: st.rail, flak: st.flak, eng: Math.max(1, Math.min(6, st.engines)), L: st.L, tons: st.tons,
     F: s.air.F, B: s.air.B, sk: Math.max(3, Math.min(9, cmd || 4)), dmg: s.hullDmg || 0, spd: st.bspd || (shipSpeedTrue(s) > 0 ? shipSpeedTrue(s) * AU_M / 86400 / 1000 / (.2 * VMK) : (st.L < 1 ? 1.25 : 1)) /* единая скорость: как на карте, км/с */,
-    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, fuel: s.fuel != null ? s.fuel : null, probe: st.probe || 0, tanker: st.tanker ? 1 : 0, fuelCap: st.fuelCap || 0, frate: (st.fuelRate || 0) * (function(){ try { return pilFuel(s) } catch (e) { return 1 } })(), fpa: (function(){ try { return fuelPerAU(s) } catch (e) { return 0 } })(), engT: st.engM || 0, pow: st.power || 0, hang: st.hangList || null, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, trail: st.trail || null, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0, idleMW: st.enIdle||0, sinkMW: st.sinkMW||0, magArm: st.magArm||0, magEj: st.magEj||0, magFr: (st.ammoCap||0)*1.1/Math.max(1, st.tons||st.dry)};
+    lasers: st.lgun, laserCfg: st.lasList, miss: st.msl, missCfg: st.misList, railCfg: st.railList, flakCfg: st.flakList, gat: st.gat, gatCfg: st.gatList, fuel: s.fuel != null ? s.fuel : null, dec: st.dec || 0, probe: st.probe || 0, tanker: st.tanker ? 1 : 0, fuelCap: st.fuelCap || 0, frate: (st.fuelRate || 0) * (function(){ try { return pilFuel(s) } catch (e) { return 1 } })(), fpa: (function(){ try { return fuelPerAU(s) } catch (e) { return 0 } })(), engT: st.engM || 0, pow: st.power || 0, hang: st.hangList || null, ammoCap: st.ammoCap || 0, energy: st.energyLeft != null ? st.energyLeft : (st.energy || 0), defl: st.defl, fq: st.fq, bq: st.bq, trail: st.trail || null, scList: st.scList||[], fcsN: st.fcsN||0, ew: st.ew||0, mar: st.mar||0, dcon: st.dcon||0, sink: st.sink||0, idleMW: st.enIdle||0, sinkMW: st.sinkMW||0, magArm: st.magArm||0, magEj: st.magEj||0, magFr: (st.ammoCap||0)*1.1/Math.max(1, st.tons||st.dry)};
 }
 export function removeShip(s) {
   for (const id of Object.values(s.crew || {})) { const o = officerById(id); if (o) o.where = null; }

@@ -33,6 +33,7 @@ export const COMP = gd('modules', 'modules', {
   life:  {name:'Система жизнеобеспечения', desc:'Рассчитана на 10 человек', life:10, mass:4, cost:{c:8, si:4, fe: 6}},
   xfer:  {name:'Система передачи топлива', desc:'Перекачка топлива другим кораблям и станциям (нужна технология)', xfer:1, mass:5, cost:{si:6, ti:4, fe: 8}, tech:'xfer'},
   probe: {name:'Штанга дозаправки', desc:'Приёмник топлива: в бою корабль сам подлетает к танкеру (корабль с системой передачи топлива) и заправляется', probe:1, mass:1, cost:{fe:2, ti:1}},
+  decoy: {name:'Ловушки против ракет', desc:'20 отстреливаемых ловушек: тепловые уводят ИК-головки, комбинированные обманывает реже, активный радар не обманывают', dec:20, mass:2, cost:{fe:3, c:2}},
   repair:{name:'Ремонтный док', desc:'Чинит корабли у станции, тратит тех. изделия', repair:1, mass:15, cost:{fe:45, si:10, pt:1}},
   spares:{name:'Склад тех. изделий', desc:'Хранит 100 тех. изделий', spares:100, mass:6, cost:{fe:10, ti:4}},
   lab_phys:{name:'Физическая лаборатория', desc:'Изучает физику у аномальных объектов', lab:'phys', mass:8, cost:{si:10, ree:2, fe: 8}},
@@ -516,12 +517,13 @@ export const MIS_W = {s: {dmg: 2, blast: 3, m: 0.8}, m: {dmg: 4, blast: 6, m: 1}
 export const misTons = (a, w) => Math.round(0.5 * MIS_W[w].m * MIS_A[a].m * 100) / 100;
 export const mkMis = (a, sp, w, ammo) => ({tons: misTons(a, w), hp: MIS_A[a].hp, spd: MIS_S[sp].spd * (a === 'h' ? 0.85 : a === 'l' ? 1.1 : 1), dmg: MIS_W[w].dmg, blast: MIS_W[w].blast, ammo: ammo || 8, rng: 220, rel: 0.5 * (1 + MIS_W[w].dmg / 6)});
 const MS_PW = [1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 70, 100], MS_EN = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 100, 300, 1000], MS_FU = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 1000, 10000];
-const MS_SN = [['0', 'нет'], ['1', 'низкое'], ['2', 'среднее'], ['3', 'высокое']], MS_SM = [0, 0.03, 0.08, 0.2];
+const MS_SN = [['0', 'нет'], ['1', 'низкое'], ['2', 'среднее'], ['3', 'высокое']], MS_SM = [0, 0.01, 0.025, 0.05]; // головки: 10 / 25 / 50 кг; у активной ещё батарея MS_BAT на уровень
+export const MS_BAT = {kg: 0.02, s: 30}; // батарея активной головки: 20 кг и 30 с излучения на уровень
 // ракета проектируется отдельно: мощность 1–100 (суммарный урон по броне; чем больше, тем шире воронка), двигатель (тонны) → скорость, топливо (тонны) → дальность, сенсоры, самонаведение
 export const mkMis2 = (pw, en, fu, em, ir, ac, hm, mt) => {
-  const wh = 0.05 * pw, sn = MS_SM[em] + MS_SM[ir] + MS_SM[ac] * 1.5, dry = wh + en + sn + 0.05, tons = dry + fu, spd = Math.round((3 + 15 * en / (en + 0.6 * (tons - en))) * 10) / 10;
+  const wh = 0.05 * pw, sn = MS_SM[em] + MS_SM[ir] + MS_SM[ac] + MS_BAT.kg * ac, dry = wh + en + sn + 0.05, tons = dry + fu, spd = Math.round((3 + 15 * en / (en + 0.6 * (tons - en))) * 10) / 10;
   const r = fu / dry, rng = Math.max(1, Math.min(1e6, Math.round(1000 * r * r))), am = Math.max(1, Math.floor(mt / tons));
-  return {tons: Math.round(tons * 1000) / 1000, hp: 1 + Math.floor(Math.log10(1 + dry * 2)), spd, dmg: pw, blast: Math.round((3 + 2.3 * Math.sqrt(pw)) * 10) / 10, ammo: am, rng, rel: 0.5 * (1 + pw / 6), fl: 1, hm: !!hm && (em + ir + ac) > 0, sl: {em, ir, ac}, pw, en, fu};
+  return {tons: Math.round(tons * 1000) / 1000, hp: 1 + Math.floor(Math.log10(1 + dry * 2)), spd, dmg: pw, blast: Math.round((3 + 2.3 * Math.sqrt(pw)) * 10) / 10, ammo: am, rng, rel: 0.5 * (1 + pw / 6), fl: 1, hm: !!hm && (em + ir + ac) > 0, sl: {em, ir, ac}, bat: MS_BAT.s * ac, pw, en, fu};
 };
 COMP.missile.opts = [O('pw', 'Мощность боеголовки (1–100)', '10', MS_PW.map(v => [String(v), String(v)])), O('en', 'Двигатель, т', '1', MS_EN.map(v => [String(v), v + ' т'])), O('fu', 'Топливо, т', '1', MS_FU.map(v => [String(v), v + ' т'])),
   O('em', 'ЭМ-сенсор', '1', MS_SN), O('ir', 'Тепловой сенсор', '1', MS_SN), O('ac', 'Активный (радар)', '0', MS_SN), O('hm', 'Самонаведение', '1', [['1', 'есть'], ['0', 'нет (летит по прямой)']]),
@@ -613,7 +615,7 @@ COMP.trail.ap = (c, s) => { c.trail = s.col.v; c.desc = `След цвета «$
 const IDLE_MW = {radar: 5, irs: .1, ems: .1, fcs: .5, ew: 2, hangar_f: 1, hangar_b: 1};
 export function designStats(parts, flags) {
   flags = flags || {};
-  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, probe:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
+  const r = {dry:0, power:0, eff:1, fuelCap:0, cargoCap:0, mine:0, crewCap:0, lifeCap:0, lasers:0, tow:0, xfer:0, probe:0, dec:0, repair:0, spareCap:0, labs:{phys:0, eng:0, bio:0}, labsTotal:0, railList:[], flakList:[], gatList:[], lasList:[], misList:[], lgun:0, msl:0, defl:0, fqS:{hp:0,v:0,am:0}, bqS:{hp:0,v:0},
     cost:{}, errors:[], warns:[], station: false, tanker: false, armor:0, rail:0, flak:0, gat:0, hangF:0, hangB:0, hangars:0, hangList:[], engines:0};
   let effSum = 0;
   for (const [k, n] of Object.entries(parts)) {
@@ -646,7 +648,7 @@ export function designStats(parts, flags) {
     if (c.defl) r.defl += c.defl * c.armor * n;
     if (c.fq) for (const k of CR_KEYS) r.fqS[k] = (r.fqS[k] || 0) + c.fq[k] * c.hangF * n;
     if (c.bq) for (const k of CR_KEYS) r.bqS[k] = (r.bqS[k] || 0) + c.bq[k] * c.hangB * n;
-    r.xfer += (c.xfer || 0) * n; r.probe += (c.probe || 0) * n;
+    r.xfer += (c.xfer || 0) * n; r.probe += (c.probe || 0) * n; r.dec += (c.dec || 0) * n;
     r.armor += (c.armor || 0) * n; r.rail += (c.rail || 0) * n; r.flak += (c.flak || 0) * n; r.gat += (c.gat || 0) * n;
     if (c.hangD) r.hangList.push({ds: c.hangD, n: (c.hangN || 1) * n});
     r.hangF += (c.hangF || 0) * n; r.hangB += (c.hangB || 0) * n; r.hangars += (c.hangars || 0) * n; if (c.power) r.engines += n;
