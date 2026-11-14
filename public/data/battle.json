@@ -91,6 +91,9 @@
   "subM": 0.8,
   "subV": 0.05,
   "subDv": 1,
+  "subD": 25,
+  "walk": 0.5,
+  "walkN": 6,
   "salvoW": 30
  },
  "cavalry": {

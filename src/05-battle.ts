@@ -745,7 +745,7 @@ function gatStep(s,m,dt){
   m.last=m.why='огонь по '+(kind===1?'истребителю':kind===2?'ракете':kind===3?'торпеде':(e&&e.T?e.T.n:e&&e.type==='F'?'истребитель':e&&e.type==='B'?'бомбардировщик':'цель'))+' '+dist.toFixed(1)+' км · точность '+Math.round(pAcc*100)+'% · нагрев '+Math.round(m.heat*100)+'%';SFX.shot('gat');let n=0;while(m.acc>=1&&n<6){m.acc--;n++;
     if(kind===1)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,w*.05,C.rng*1.4);
     else if(kind===4)fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc,0,C.rng*1.4,w*C.pen*.01);
-    else{fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc*.6,0,C.rng*1.4);if(Math.random()<pAcc*.12*w/10){if(kind===2)hurtMis(e,1);else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}}}
+    else{fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc*.6,0,C.rng*1.4);if(kind===2&&m.pdT!==e){m.pdT=e;m.pdM=0}if(Math.random()<pAcc*.12*w/10*(kind===2?1+MIS.walk*Math.min(MIS.walkN,m.pdM||0):1)){if(kind===2){hurtMis(e,1);m.pdM=0}else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}else if(kind===2)m.pdM=(m.pdM||0)+1}} // промах по ракете — следующая очередь с другим упреждением: шанс растёт (пристрелка)
   if(n)recoil(s,m,GAT_M*n*C.rpm/600,GV,e.x-s.x,e.y-s.y); // каждый выстрел в симуляции — rpm/600 пуль
 }
 function flakBurst(s,m){
@@ -785,14 +785,14 @@ function fireShell(s,m,o0,C,lag){
 }
 // взрыв ракеты: бьёт всех рядом, в том числе своих
 // ракеты: полёт с бюджетом Δv. Разгон к точке перехвата, потом наведение: гасим боковой промах (пропорциональная навигация) остатком Δv
-const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,grp:.8,maxW:90,subM:.8,subV:.05,subDv:1}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
+const MIS=gd('battle','missile',{dvK:1.5,acc:.5,N:3,boost:.85,cal:1,pdR:120,relK:30,relP:.66,grp:.8,maxW:90,subM:.8,subV:.05,subDv:1,subD:25,walk:.5,walkN:6}); // dvK: Δv = старая «скорость» × dvK; acc км/с²; N — коэффициент навигации; boost — доля Δv на разгон
 // залп группы: все трубы флота (своего генерала) копят готовность; когда готово ≥ grp или ждём дольше maxW — окно пуска на 3 с, цель одна на всех
 function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(const q of F.ships)if(q.alive)for(const m of q.tur)if(m.alive&&m.k==='M'&&m.ammo>0){n++;if(m.cd<=1)r++}F.mFr=n?r/n:0;
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
 // кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами: вместе весят subM от массы кассеты (каждая — subM×масса/n), у каждой свой маленький бак на subDv км/с; оставшееся топливо кассеты пропадает вместе с корпусом
 function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
-  const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:MIS.subDv,dv0:MIS.subDv,ph:'coast',pd:null})}}
+  const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:MIS.subDv,dv0:MIS.subDv,ph:'boost',sr:0,pd:null})}}
 function misFly(p,tg,dt,guide){const rx=tg.x-p.x,ry=tg.y-p.y,d=Math.hypot(rx,ry)||1e-6,rvx=(tg.sx||0)-p.vx,rvy=(tg.sy||0)-p.vy,cl=-(rx*rvx+ry*rvy)/d,tgo=d/Math.max(.2,cl);
   let ax=0,ay=0;if(p.dv>0&&guide){const ux=rx/d,uy=ry/d;
     const zx=rx+rvx*tgo,zy=ry+rvy*tgo,zl=zx*ux+zy*uy,lx=zx-ux*zl,ly=zy-uy*zl; // промах без управления, его боковая часть
@@ -988,6 +988,7 @@ function step(dt){
     const d=Math.hypot(tg.x-p.x,tg.y-p.y);
     if(p.pd!=null&&d>p.pd&&p.pd<25){p.tgt=null;p.rl=t+3;p.pd=null;continue} // проскочила мимо
     p.pd=d;
+    if(p.sub>1&&d<MIS.subD){splitMis(p);continue} // кассета раскрывается за subD км до цели
     if(d<45&&tg.jam>0&&t>=(p.blind||0)&&Math.random()<tg.jam*dt*.3*(p.jf||1)){p.blind=t+4;stat.decoy++;fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:3,r:1});say(tg.side,'jam',tg)}
     misFly(p,tg,dt,t>=(p.blind||0)&&(!p.sr||d<p.sr)); // настоящая физика: скорость, ускорение, остаток Δvp.z+=Math.max(-p.spd*.4*dt,Math.min(p.spd*.4*dt,tg.z-p.z));
     if(env.length&&los(p.x-p.vx*dt,p.y-p.vy*dt,p.x,p.y)){fx.push({x:p.x,y:p.y,z:p.z,t0:t,d:4,r:1.5});mis.splice(i,1);continue}
