@@ -793,14 +793,14 @@ function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(cons
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
 // головки: ir — пассивная по теплу (ловушки уводят), ac — активный радар (батарея на bat с, включается на подлёте; ловушки не берут, РЭБ глушит), c — обе (ловушки — ×DEC.comb), none — по данным корабля
-const DEC=gd('battle','decoy',{r:30,every:4,W:400,lv:1});
+const DEC=gd('battle','decoy',{r:30,every:4,W:400,lv:1,min:.3,max:5});
 function skOf(C){const l=C.sl||{};return l.ir&&l.ac?'c':l.ac?'ac':l.ir?'ir':l.em?'em':'none'}
 function seekOk(p,tg,d,dt){if(p.sk==='ac'||p.sk==='c'){const cl=Math.max(.2,closing({x:p.x,y:p.y,sx:p.vx,sy:p.vy},tg)),tgo=d/cl;if(tgo<p.bat+2){p.bat=Math.max(0,p.bat-dt);if(p.bat<=0&&p.sk==='ac')return false}}return true} // активная: батарея тратится только на подлёте; кончилась — летит вслепую
 // ловушки: корабль с запасом отстреливает ловушку раз в DEC.every с, если к нему летят ракеты ближе DEC.r км; каждая ИК-ракета в зоне уходит на ловушку с шансом ir/(1+уровень), комбинированная — ×comb
-function decoyStep(){for(const s of ships){if(!s.alive||!(s.dec>0)||t<(s.decT||0))continue;let any=false;
+function decoyStep(){for(const s of ships){if(!s.alive||!(s.dec>0)||t<(s.decT||0))continue;let any=false;s.decW=DEC.W*Math.exp(R(Math.log(DEC.min),Math.log(DEC.max)));
     for(const p of mis){if(p.side===s.side||p.tgt!==s)continue;if(Math.hypot(p.x-s.x,p.y-s.y)>DEC.r)continue;any=true;
-      if(p.sk==='ir'||(p.sk==='c'&&p.bat<=0)){const fl=DEC.W/(1+DEC.lv*(p.lv||1));if(fl>irW(s)){p.tgt=null;p.rl=t+30;stat.decoyHit=(stat.decoyHit||0)+1}}} // ИК-головка идёт на самое яркое: ловушка (с поправкой на уровень головки — отличает спектр) против тепла корабля; комбинированная с батареей сверяет с радаром и ловушки отбрасывает
-    if(any){s.dec--;s.decT=t+DEC.every;stat.decoyUse=(stat.decoyUse||0)+1;fx.push({x:s.x+R(-1,1),y:s.y+R(-1,1),z:s.z,t0:t,d:4,r:.5})}}}
+      if(p.sk==='ir'||(p.sk==='c'&&p.bat<=0)){const fl=s.decW/(1+DEC.lv*(p.lv||1));if(fl>irW(s)){p.tgt=null;p.rl=t+30;stat.decoyHit=(stat.decoyHit||0)+1}}} // ИК-головка идёт на самое яркое: ловушка (с поправкой на уровень головки — отличает спектр) против тепла корабля; комбинированная с батареей сверяет с радаром и ловушки отбрасывает
+    if(any){s.dec--;s.decT=t+DEC.every;/* яркость каждой ловушки своя (от min до max ×W): головке труднее выучить «как выглядит ловушка» */stat.decoyUse=(stat.decoyUse||0)+1;fx.push({x:s.x+R(-1,1),y:s.y+R(-1,1),z:s.z,t0:t,d:4,r:.5})}}}
 // кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами: вместе весят subM от массы кассеты (каждая — subM×масса/n), у каждой свой маленький бак на subDv км/с; оставшееся топливо кассеты пропадает вместе с корпусом
 function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
   const kg=q.kg*MIS.subM/n;for(let k=0;k<n;k++){const a=Math.random()*6.283,v=R(0,MIS.subV);mis.push({...q,sub:0,hp:1,kg,tr:[],trT:0,vx:q.vx+Math.cos(a)*v,vy:q.vy+Math.sin(a)*v,dv:MIS.subDv,dv0:MIS.subDv,ph:'boost',sr:0,pd:null})}}
@@ -1081,7 +1081,7 @@ function crewStep(dc){
       const near=nearestShip(s.x,s.y,1-s.side),danger=near&&near.d<Math.max(60,(s.maxR||60))*HEAT.safe;s.radOut=!danger||s.cool?1:0;
       const out=(s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle))*(s.radOut?1:HEAT.hull);addHeat(s,(idle-out)*dc);
       // испаритель: выше evapAt сбрасываем пар — 2,5 ГДж на тонну воды, за секунду не больше evapR т; облако пара ярко светит в ИК
-      if(s.heat>HEAT.evapAt&&s.water>0){const need=(s.heat-HEAT.evapAt)*100*.5*tons,w=Math.min(s.water,HEAT.evapR*dc,need/2500);s.water-=w;addHeat(s,-w*2500);s.vapT=t;stat.water=(stat.water||0)+w}
+      if(s.heat>HEAT.evapAt&&s.water>0){const need=(s.heat-HEAT.evapAt)*100*.5*tons,w=Math.min(s.water,HEAT.evapR*dc,need/2500);s.water-=w;addHeat(s,-w*2500);if(t-(s.vapT||-99)>2)fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:5,r:Math.max(.5,s.T.L*2)});s.vapT=t;stat.water=(stat.water||0)+w}
       // вода почти кончилась и корпус горячий — выходим из боя остывать на радиаторах; вернуться, когда остыли
       if(!s.cool&&s.water<s.water0*HEAT.low&&s.heat>HEAT.hot){s.cool=1;stat.coolOut=(stat.coolOut||0)+1;say(s.side,'heat',s)}else if(s.cool&&s.heat<HEAT.ok)s.cool=0;
       if(s.magEjT&&t>=s.magEjT){s.magEjT=0;s.mag=0;say(s.side,'mod',s)} } // погреб отстрелен
