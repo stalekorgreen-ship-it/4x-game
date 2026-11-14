@@ -739,7 +739,7 @@ const GV=GATP.v; // пуля гатлинга 0,6 км/с; единицы боя
 function gatStep(s,m,dt){
   const C=m.cfg;let e=null,kind=0,bd=Math.min(C.rng,GV*20)**2;
   if(!m.lock){for(const c of fly[1-s.side]){if(c.state!=='fly')continue;const d=(c.x-s.x)**2+(c.y-s.y)**2;if(d<bd){bd=d;e=c;kind=1}}
-    if(!e){let bm=MIS.pdR*MIS.pdR;for(const p of mis){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bm){bm=d;e=p;kind=2}}} // по ракетам пулемёт бьёт до missile.pdR км: ракета сама летит навстречу пулям
+    if(!e){let bm=MIS.pdR*MIS.pdR;for(const p of mis){if(p.side===s.side||!misThreat(s,p))continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bm){bm=d;e=p;kind=2}}} // по ракетам пулемёт бьёт до missile.pdR км: ракета сама летит навстречу пулям
     if(!e)for(const p of torps){if(p.side===s.side)continue;const d=(p.x-s.x)**2+(p.y-s.y)**2;if(d<bd){bd=d;e=p;kind=3}}}
   if(!m.lock&&!e&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,GV)&&hitP(s,s.tg,GV,1)>=PMIN){e=s.tg;kind=4} // дальше 12 км пуля всё равно угаснет — не стреляем
   if(!e||m.lock||s.mag<=0){m.why=m.lock?'перегрев: остывает ('+Math.round(m.heat*100)+'%, стрельба с 55%)':s.mag<=0?'нет боеприпасов':'нет целей ближе '+Math.min(C.rng,GV*20).toFixed(0)+' км'+(m.last?' · последний: '+m.last:'');m.heat=Math.max(0,m.heat-C.cool/60*dt);if(m.lock&&m.heat<.55)m.lock=false;return}
@@ -759,7 +759,7 @@ function gatStep(s,m,dt){
 const FLAKF=gd('battle','flak',{laser:.5,radar:.3,jam:3,kill:.35});
 function flakBurst(s,m){
   const F=m.cfg,cand=[];for(const c of fly[1-s.side])if(Math.hypot(c.x-s.x,c.y-s.y)<F.rng)cand.push(c);
-  const tp=torps.concat(mis).filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng);
+  const tp=torps.concat(mis).filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng&&(p.tr==null||misThreat(s,p)));
   if(!cand.length&&!tp.length){m.cd=2;return false}
   const e=tp.length&&Math.random()<0.5?tp[(Math.random()*tp.length)|0]:(cand.length?cand[(Math.random()*cand.length)|0]:tp[0]);
   const d=Math.hypot(e.x-s.x,e.y-s.y),fz=m.cfg.fz||'t',src=e.src||null,jm=src&&src.jam||0,err=(0.25+0.012*d)*(1.4-0.08*m.sk)*(fz==='l'?FLAKF.laser:fz==='r'?FLAKF.radar*(1+jm*FLAKF.jam):1)/(d<1?1:tq(s,e.T?e:{rl:null}));
@@ -829,7 +829,9 @@ function boom(p,direct){
     if(f>0)hitShip(o,'mis',o.x-p.x,o.y-p.y,p.x,p.y,p.dmg*f*(o===direct?1.3:1),p.dmg)}}
   for(const c of fly[0].concat(fly[1]))if(c.state==='fly'&&Math.hypot(c.x-p.x,c.y-p.y)<p.blast){c.hp-=2;if(c.hp<=0)killCraft(c)}
 }
-function nearMis(s,rg){let b=null,bd=rg*rg;for(const q of mis){if(q.side===s.side)continue;const d=(q.x-s.x)*(q.x-s.x)+(q.y-s.y)*(q.y-s.y);if(d<bd){bd=d;b=q}}return b}
+// ПРО бьёт только ракеты, которые идут на нас: у ракеты есть цель с нашей стороны и она сближается с этим кораблём. Ушедшие мимо, уведённые ловушкой и потерявшие цель не трогаем — пули их не догонят
+function misThreat(s,p){if(!p.tgt||!p.tgt.alive||p.tgt.side!==s.side)return false;const dx=s.x-p.x,dy=s.y-p.y,d=Math.hypot(dx,dy)||1;return ((p.vx-(s.sx||0))*dx+(p.vy-(s.sy||0))*dy)/d>.05}
+function nearMis(s,rg){let b=null,bd=rg*rg;for(const q of mis){if(q.side===s.side||!misThreat(s,q))continue;const d=(q.x-s.x)*(q.x-s.x)+(q.y-s.y)*(q.y-s.y);if(d<bd){bd=d;b=q}}return b}
 function hurtMis(q,n){if(q.sub>1){splitMis(q);return}q.hp-=n;if(q.hp<=0){const i=mis.indexOf(q);if(i>=0){mis.splice(i,1);stat.misShot[q.side]++;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:3,r:.6})}}} // сбитая кинетическая ракета просто разваливается, взрыва нет
 // боевой лазер: на огромной дистанции луч дрожит и уводится движением цели; урон идёт каждые 0,1 с в точку, где луч сейчас, и она ползёт по пластинам; луч оставляет чёрную копоть
 function fireLaser(s,m,o,C){
