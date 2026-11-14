@@ -112,6 +112,7 @@ function mkShip(side,sp,x,y){
 }
 const FORMS=['wedge','claw','x','sphere'];
 // тепло (таблица «Корабли (система)»): теплоёмкость корпуса 0,5 МДж на т на °C; s.heat = °C выше нормы / 100 (выше +100 °C — сбои)
+const HEAT=gd('battle','heat',{engK:20,water:.02,evapAt:.6,evapR:.5,safe:1.5,hull:.1,low:.1,hot:.9,ok:.3,base:2,irEng:10,irHull:.05,irRad:1,irVap:300,irShot:5,irN:20}); // engK МДж на т·(км/с); water — доля массы; hull — доля радиаторов при убранных панелях; low/hot/ok — пороги ухода и возврата; ir* — вклад в ИК-сигнатуру
 function addHeat(s,MJ){const T=Math.max(1,(s.T&&s.T.tons)||(s.spec&&s.spec.tons)||1000);s.heat=Math.max(0,s.heat+MJ/(.5*T)/100)}
 function mdead(s,m){if(!m.alive)return;m.alive=false;s.aliveN--;if(m.k==='E')s.engN--;else if(m.k==='R')s.rcsN--;else if(m.k==='D')s.radN--}
 function mrev(s,m){m.alive=true;s.aliveN++;if(m.k==='E')s.engN++;else if(m.k==='R')s.rcsN++;else if(m.k==='D')s.radN++}
@@ -346,7 +347,7 @@ function steer(s,dt){
   if(t>=s.nt||(s.tg&&!s.tg.alive))retarget(s);
   if(t>=s.next){s.next=t+R(6,14);s.sdir=Math.random()<.5?1:-1}
   const tg=s.tg;let vx=0,vy=0,want=s.hd;
-  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(hp<.35&&!T.role)||(F.stance==='cover'&&hp<.45&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
+  const formed=F.formed!==false&&F.n>=3&&!(t<s.bdo),retreating=F.stance==='retreat'&&!F.convoy,flee=(s.cool&&!T.role)||(hp<.35&&!T.role)||(F.stance==='cover'&&hp<.45&&!T.role)||(retreating&&!formed)||s.st==='panic'||(s.dry&&!T.role),tdx=tg?tg.x-s.x:F.dx,tdy=tg?tg.y-s.y:F.dy,td=Math.hypot(tdx,tdy)||1,ux=tdx/td,uy=tdy/td;
   s.flee=flee;
   // приказы отдельным кораблям: охранять крупного, прятаться за укрытием, отход
   const ord=s.ord||'auto'; /* сопровождение только по приказу: само по себе оно гоняло фрегаты за кораблём и сжигало топливо */let hold=null;
@@ -442,7 +443,7 @@ function steer(s,dt){
   { // тяга только по оси корабля: вперёд — полная, назад — 35%, боком — 12% (маневровые); скорость сохраняется по инерции
     const ch=Math.cos(s.hd),sh=Math.sin(s.hd);let df=dvx*ch+dvy*sh,dlt=-dvx*sh+dvy*ch;
     {const dl2=Math.hypot(df,dlt);if(dl2>1e-9&&Math.abs(df/dl2)<.97&&!(s.dg&&t<s.dgT))df=0;} /* главный двигатель включается, только если нужный импульс почти вдоль оси (±45°): иначе тяга уходит вбок впустую */df=Math.max(-a*.35,Math.min(a,df));{const lf=a*.12*(s.rcs0?.25+.75*s.rcsN/s.rcs0:1);dlt=Math.max(-lf,Math.min(lf,dlt));if(s.dg&&t<s.dgT&&(s.dgU||0)<(s.dgV||0)){const lt2=-s.dg.x*sh+s.dg.y*ch,need=(s.dgV||0)-(s.dgU||0),dd=Math.min(lf,need);dlt=dd*(lt2>=0?1:-1);s.dgU=(s.dgU||0)+dd} /* уклонение — только маневровыми и только на нужную величину */}
-    {const ax0=(df*ch-dlt*sh)/Math.max(dt,1e-3),ay0=(df*sh+dlt*ch)/Math.max(dt,1e-3);s.aex=(s.aex||0)*.7+ax0*.3;s.aey=(s.aey||0)*.7+ay0*.3}s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);s.dvF=(s.dvF||0)+Math.abs(df);s.dvL=(s.dvL||0)+Math.abs(dlt);{const kk=s.holdK||(flee?'бегство':s.tg?'бой':'строй');(stat.dvK=stat.dvK||{})[kk]=(stat.dvK[kk]||0)+Math.hypot(df,dlt)}if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;{const bt=(dryM(s)+s.fuel)*Math.hypot(df,dlt)/FUEL.ve;s.fuel=Math.max(0,s.fuel-bt);stat.mainT=(stat.mainT||0)+bt}void lv /* ракетное уравнение: каждый км/с изменения скорости сжигает топливо, m·Δv/vₑ */}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
+    {const ax0=(df*ch-dlt*sh)/Math.max(dt,1e-3),ay0=(df*sh+dlt*ch)/Math.max(dt,1e-3);s.aex=(s.aex||0)*.7+ax0*.3;s.aey=(s.aey||0)*.7+ay0*.3}s.sx+=df*ch-dlt*sh;s.sy+=df*sh+dlt*ch;s.dvSum=(s.dvSum||0)+Math.hypot(df,dlt);s.dvH=(s.dvH||0)+Math.abs(df);s.dvF=(s.dvF||0)+Math.abs(df);s.dvL=(s.dvL||0)+Math.abs(dlt);{const kk=s.holdK||(flee?'бегство':s.tg?'бой':'строй');(stat.dvK=stat.dvK||{})[kk]=(stat.dvK[kk]||0)+Math.hypot(df,dlt)}if(s.fuelCap){s.bst=boost;{const lv=a>0?Math.min(1,Math.hypot(df,dlt)/a)*(1+(boost-1)*1.2):0;{const bt=(dryM(s)+s.fuel)*Math.hypot(df,dlt)/FUEL.ve;s.fuel=Math.max(0,s.fuel-bt);stat.mainT=(stat.mainT||0)+bt}void lv /* ракетное уравнение: каждый км/с изменения скорости сжигает топливо, m·Δv/vₑ */}if(s.fuel<=0&&!s.dryFuel){s.dryFuel=1;stat.dryFuel=(stat.dryFuel||0)+1;say(s.side,'eng',s)}}}
   s.x+=s.sx*dt;s.y+=s.sy*dt;
   if(env.length)for(const e of env){const dx=s.x-e.x,dy=s.y-e.y,rr=e.r+s.T.L*.3;if(dx>rr||dx<-rr||dy>rr||dy<-rr)continue;const d=Math.hypot(dx,dy)||1;if(d<rr){const nx=dx/d,ny=dy/d;s.x=e.x+nx*rr;s.y=e.y+ny*rr;const vn=(s.sx-(e.vx||0))*nx+(s.sy-(e.vy||0))*ny; // твёрдое тело: выталкиваем из камня и отражаем скорость
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,(e.t==='wreck'?4:2)+(-vn)*(e.t==='wreck'?25:10)))}}}}
@@ -792,13 +793,13 @@ function misGate(F,o){if(!F)return true;if(F.mT!==t){F.mT=t;let n=0,r=0;for(cons
     if(t>=(F.mOpen||0)){if(F.mW==null)F.mW=t;if(n&&(F.mFr>=MIS.grp||t-F.mW>MIS.maxW)){F.mOpen=t+3;F.mW=null;F.mTg=o}}}
   return t<(F.mOpen||0)}
 // головки: ir — пассивная по теплу (ловушки уводят), ac — активный радар (батарея на bat с, включается на подлёте; ловушки не берут, РЭБ глушит), c — обе (ловушки — ×DEC.comb), none — по данным корабля
-const DEC=gd('battle','decoy',{r:30,every:4,ir:.5,comb:.25});
+const DEC=gd('battle','decoy',{r:30,every:4,W:400,lv:1});
 function skOf(C){const l=C.sl||{};return l.ir&&l.ac?'c':l.ac?'ac':l.ir?'ir':l.em?'em':'none'}
 function seekOk(p,tg,d,dt){if(p.sk==='ac'||p.sk==='c'){const cl=Math.max(.2,closing({x:p.x,y:p.y,sx:p.vx,sy:p.vy},tg)),tgo=d/cl;if(tgo<p.bat+2){p.bat=Math.max(0,p.bat-dt);if(p.bat<=0&&p.sk==='ac')return false}}return true} // активная: батарея тратится только на подлёте; кончилась — летит вслепую
 // ловушки: корабль с запасом отстреливает ловушку раз в DEC.every с, если к нему летят ракеты ближе DEC.r км; каждая ИК-ракета в зоне уходит на ловушку с шансом ir/(1+уровень), комбинированная — ×comb
 function decoyStep(){for(const s of ships){if(!s.alive||!(s.dec>0)||t<(s.decT||0))continue;let any=false;
     for(const p of mis){if(p.side===s.side||p.tgt!==s)continue;if(Math.hypot(p.x-s.x,p.y-s.y)>DEC.r)continue;any=true;
-      if(p.sk==='ir'||p.sk==='c'){const lv=(p.lv||1),ch=DEC.ir/(1+lv)*(p.sk==='c'?DEC.comb:1);if(Math.random()<ch){p.tgt=null;p.rl=t+30;stat.decoyHit=(stat.decoyHit||0)+1}}}
+      if(p.sk==='ir'||(p.sk==='c'&&p.bat<=0)){const fl=DEC.W/(1+DEC.lv*(p.lv||1));if(fl>irW(s)){p.tgt=null;p.rl=t+30;stat.decoyHit=(stat.decoyHit||0)+1}}} // ИК-головка идёт на самое яркое: ловушка (с поправкой на уровень головки — отличает спектр) против тепла корабля; комбинированная с батареей сверяет с радаром и ловушки отбрасывает
     if(any){s.dec--;s.decT=t+DEC.every;stat.decoyUse=(stat.decoyUse||0)+1;fx.push({x:s.x+R(-1,1),y:s.y+R(-1,1),z:s.z,t0:t,d:4,r:.5})}}}
 // кассетная ракета: при первом попадании ПРО корпус раскрывается, n боеголовок летят дальше сами: вместе весят subM от массы кассеты (каждая — subM×масса/n), у каждой свой маленький бак на subDv км/с; оставшееся топливо кассеты пропадает вместе с корпусом
 function splitMis(q){const n=q.sub,i=mis.indexOf(q);if(i<0)return;mis.splice(i,1);stat.misSplit=(stat.misSplit||0)+1;fx.push({x:q.x,y:q.y,z:q.z,t0:t,d:2,r:.4});
@@ -1034,8 +1035,10 @@ function step(dt){
 let smoke=[];
 const WR={cv:.38,hc:.32,fr:.3,dd:.24};
 // сигнатуры: тепловая (двигатели, форсаж, перегрев, залпы) и электромагнитная (радар, залпы)
+// тепловая сигнатура, «МВт излучения»: двигатели (по тяге), нагретый корпус, открытые радиаторы, облако пара, вспышки выстрелов
+function irW(o){const tons=Math.max(1,o.T.tons),L2=o.T.L*o.T.L;return HEAT.base*(.3+L2)+(o.thrW||0)*tons*HEAT.irEng+Math.max(0,o.heat)*tons*HEAT.irHull+(o.radOut?(o.spec.sinkMW||6)*HEAT.irRad:0)+(t-(o.vapT||-99)<5?HEAT.irVap:0)+(t-o.flash<3?HEAT.irShot:0)}
 function sigOf(o){const L2=o.T.L*o.T.L,sh=t-o.flash<8?1:0;
-  const h=(.6+L2)*(1+1.8*Math.max(0,o.bst-1)+o.heat*1.2+sh*.6-(o.engN>0?0:.5)),e=.3+L2*.3+(o.rdOn?3+L2*5:0)+sh*.5;
+  const h=irW(o)/HEAT.irN,e=.3+L2*.3+(o.rdOn?3+L2*5:0)+sh*.5;
   const sk=o.side===0?tm('stealth'):1;return [Math.max(.1,h*sk),Math.max(.05,e*sk)]}
 // работающие сканеры: чем сильнее повреждён корабль, тем меньше их живо
 function scAlive(s){const hp=hpf(s);if(hp<.3)return[];let sc=s.sc;if(s.rad0&&s.radN<=0)sc=sc.filter(q=>q.k!=='rad');const n=Math.ceil(sc.length*Math.min(1,hp/.7));return sc.slice(0,n)}
@@ -1070,8 +1073,17 @@ function crewStep(dc){
   env=env.filter(e=>e.ttl>t);for(const e of env)if(e.vx||e.vy){e.x+=e.vx*dc;e.y+=e.vy*dc}
   for(const s of ships){if(!s.alive)continue;const sk=s.spec.sk||5.5,hp=hpf(s);
     // тепло
-    { const sp=s.spec,idle=sp.idleMW!=null&&sp.real?sp.idleMW:6,sink=sp.sinkMW!=null&&sp.real?sp.sinkMW:idle*1.6; // электроника и экипаж греют корпус; радиаторы (64 кВт на панель при 500 K) отводят, пока корпус теплее нормы
-      const out=s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle);addHeat(s,(idle-out)*dc);
+    { const sp=s.spec,idle=sp.idleMW!=null&&sp.real?sp.idleMW:6,sink=sp.sinkMW!=null&&sp.real?sp.sinkMW:idle*1.6; // электроника и экипаж греют корпус
+      // двигатели: доля тяги уходит в корпус — тепло = масса × Δv главного двигателя × engK (МДж)
+      const tons=Math.max(1,s.T.tons);addHeat(s,tons*(s.dvH||0)*HEAT.engK);s.thrW=(s.dvH||0)/Math.max(dc,1e-3);s.dvH=0;
+      // радиаторы: в бою убраны (хрупкие), корпус отдаёт только hull от мощности радиаторов; открыты — вне огня или когда корабль уходит остывать
+      if(s.water==null){s.water=s.water0=tons*HEAT.water}
+      const near=nearestShip(s.x,s.y,1-s.side),danger=near&&near.d<Math.max(60,(s.maxR||60))*HEAT.safe;s.radOut=!danger||s.cool?1:0;
+      const out=(s.heat>0?sink*(.5+.5*hp)*(s.side===0?1+ta('dcx'):1):Math.min(sink,idle))*(s.radOut?1:HEAT.hull);addHeat(s,(idle-out)*dc);
+      // испаритель: выше evapAt сбрасываем пар — 2,5 ГДж на тонну воды, за секунду не больше evapR т; облако пара ярко светит в ИК
+      if(s.heat>HEAT.evapAt&&s.water>0){const need=(s.heat-HEAT.evapAt)*100*.5*tons,w=Math.min(s.water,HEAT.evapR*dc,need/2500);s.water-=w;addHeat(s,-w*2500);s.vapT=t;stat.water=(stat.water||0)+w}
+      // вода почти кончилась и корпус горячий — выходим из боя остывать на радиаторах; вернуться, когда остыли
+      if(!s.cool&&s.water<s.water0*HEAT.low&&s.heat>HEAT.hot){s.cool=1;stat.coolOut=(stat.coolOut||0)+1;say(s.side,'heat',s)}else if(s.cool&&s.heat<HEAT.ok)s.cool=0;
       if(s.magEjT&&t>=s.magEjT){s.magEjT=0;s.mag=0;say(s.side,'mod',s)} } // погреб отстрелен
     if(s.heat>1&&!s.ovh){s.ovh=1;stat.ovh++;say(s.side,'heat',s)}else if(s.ovh&&s.heat<.55)s.ovh=0;
     if(s.heat>1.4&&Math.random()<.03*dc){const al=s.tur.filter(m=>m.alive);if(al.length){const m=al[(Math.random()*al.length)|0];m.alive=false;s.aliveN--;fx.push({x:s.x,y:s.y,z:s.z,t0:t,d:6,r:1.5});s.heat=1}}

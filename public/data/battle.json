@@ -72,6 +72,24 @@
   "ttl": 6,
   "near": 1
  },
+ "heat": {
+  "engK": 20,
+  "water": 0.02,
+  "evapAt": 0.6,
+  "evapR": 0.5,
+  "safe": 1.5,
+  "hull": 0.1,
+  "low": 0.1,
+  "hot": 0.9,
+  "ok": 0.3,
+  "base": 2,
+  "irEng": 10,
+  "irHull": 0.05,
+  "irRad": 1,
+  "irVap": 300,
+  "irShot": 5,
+  "irN": 20
+ },
  "command": {
   "period": 30,
   "minGroup": 6,
@@ -105,6 +123,8 @@
  "decoy": {
   "r": 30,
   "every": 4,
+  "W": 400,
+  "lv": 1,
   "ir": 0.5,
   "comb": 0.25
  },
