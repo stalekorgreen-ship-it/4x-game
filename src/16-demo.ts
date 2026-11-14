@@ -108,9 +108,11 @@ function capTons(sp) { const t = sp.tons || specTons(sp); if (t <= MAXT) return 
 // постоянный состав зеркального боя (на сторону): группы — свои генералы (fid)
 export const MIRROR = gdM();
 function gdM() { return {line: {destroyer: 12, cruiser: 8, battleship: 4, brawler: 4, frigate: 6, corvette: 4, gunboat: 2, supply: 3}, missiles: {missileFrigate: 4, missileCruiser: 3}, tanker: {tanker: 2}, cavalry: {cavalry: 10}, ax30: {ax30: 8}}; }
+// стандартная кассета: 2,5 т, Δv по скорости 8 км/с × dvK, 100 мини-ракет — одинаковая у всех ракетных крейсеров, прогоны сравнимы
+const stdCas = sp => { if (sp.misSub && sp.missCfg) sp.missCfg = sp.missCfg.map(c => ({...mkMis('m', 'm', 'l', 8), tons: 2.5, sub: sp.misSub, fl: c && c.fl, sl: c && c.sl})); if (/Фрегат ПВО/.test(sp.name) && sp.flakCfg) sp.flakCfg = sp.flakCfg.map(c => ({...c, fz: 'l'})); return sp; }; // фрегаты ПВО — шрапнель с лазерным взрывателем
 function mirrorFleet(fid0) { const out = []; let g = 0; const sk = 6;
   for (const grp in MIRROR) { const list = []; for (const k in MIRROR[grp]) for (let i = 0; i < MIRROR[grp][k]; i++) { const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid0 + g; sp.sk = sk; sp.spdMul = 1; list.push(sp); }
-    out.push(...outfit(list).map(botSpec).map(capTons).map(axify)); g++; }
+    out.push(...outfit(list).map(botSpec).map(capTons).map(axify).map(stdCas)); g++; }
   return out; }
 function fleet(n, mixOrDoc, fid, speed, W) {
   const doc = typeof mixOrDoc === 'string' ? DOCT[mixOrDoc] : null, mix = doc ? (typeof doc.mix === 'string' ? MIXES[doc.mix] : doc.mix) : mixOrDoc;

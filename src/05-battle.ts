@@ -748,18 +748,19 @@ function gatStep(s,m,dt){
     else{fireAt(s.x,s.y,s.z,s,m,s.side,e,GV,pAcc*.6,0,C.rng*1.4);if(kind===2&&m.pdT!==e){m.pdT=e;m.pdM=0}if(Math.random()<pAcc*.12*w/10*(kind===2?1+MIS.walk*Math.min(MIS.walkN,m.pdM||0):1)){if(kind===2){hurtMis(e,1);m.pdM=0}else{const i=torps.indexOf(e);if(i>=0){torps.splice(i,1);stat.torpPd[e.side]++}}}else if(kind===2)m.pdM=(m.pdM||0)+1}} // промах по ракете — следующая очередь с другим упреждением: шанс растёт (пристрелка)
   if(n)recoil(s,m,GAT_M*n*C.rpm/600,GV,e.x-s.x,e.y-s.y); // каждый выстрел в симуляции — rpm/600 пуль
 }
+// шрапнель: разрыв в рассчитанной точке, облако шариков радиусом blast. Взрыватель: таймер — промах точки разрыва полный; лазерный — ×laser, РЭБ не мешает; радарный — ×radar, но помехи цели увеличивают промах
+const FLAKF=gd('battle','flak',{laser:.5,radar:.3,jam:3,kill:.35});
 function flakBurst(s,m){
-  if(!s.fine){m.cd=3;return false}
   const F=m.cfg,cand=[];for(const c of fly[1-s.side])if(Math.hypot(c.x-s.x,c.y-s.y)<F.rng)cand.push(c);
   const tp=torps.concat(mis).filter(p=>p.side!==s.side&&Math.hypot(p.x-s.x,p.y-s.y)<F.rng);
   if(!cand.length&&!tp.length){m.cd=2;return false}
   const e=tp.length&&Math.random()<0.5?tp[(Math.random()*tp.length)|0]:(cand.length?cand[(Math.random()*cand.length)|0]:tp[0]);
-  const d=Math.hypot(e.x-s.x,e.y-s.y),err=(0.25+0.012*d)*(1.4-0.08*m.sk);
+  const d=Math.hypot(e.x-s.x,e.y-s.y),fz=m.cfg.fz||'t',src=e.src||null,jm=src&&src.jam||0,err=(0.25+0.012*d)*(1.4-0.08*m.sk)*(fz==='l'?FLAKF.laser:fz==='r'?FLAKF.radar*(1+jm*FLAKF.jam):1)/(d<1?1:tq(s,e.T?e:{rl:null}));
   const bx=e.x+(e.vx||0)*1.5+gauss()*err,by=e.y+(e.vy||0)*1.5+gauss()*err;
   m.fa=Math.atan2(by-s.y,bx-s.x);m.rt=performance.now();SFX.shot('flak');stat.flak[s.side]++;shots.push({x1:s.x,y1:s.y,x2:bx,y2:by,rt:performance.now(),s:s.side,ext:1.7,src:s,m:m,o0:{x:s.x,y:s.y,z:s.z}});fx.push({x:bx,y:by,t0:t,d:3,r:F.blast});
   for(const c of fly[1-s.side])if(c.state==='fly'&&Math.hypot(c.x-bx,c.y-by)<F.blast){c.hp--;if(c.hp<=0){killCraft(c);stat.flakKill[s.side]++}}
   for(let i=torps.length-1;i>=0;i--){const p=torps[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5&&Math.random()<0.7){torps.splice(i,1);stat.torpPd[p.side]++;stat.flakKill[s.side]++}}
-  for(let i=mis.length-1;i>=0;i--){const p=mis[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast*1.5+1&&Math.random()<0.15){p.hp--;if(p.hp<=0){mis.splice(i,1);stat.misShot[p.side]++;stat.flakKill[s.side]++;boom(p,null)}}}
+  for(let i=mis.length-1;i>=0;i--){const p=mis[i];if(p.side!==s.side&&Math.hypot(p.x-bx,p.y-by)<F.blast&&Math.random()<FLAKF.kill){if(p.sub>1){splitMis(p);continue}mis.splice(i,1);stat.misShot[p.side]++;stat.flakKill[s.side]++}}
   return true;
 }
 // осечка: орудие клинит на 4 минуты, иногда взрывается

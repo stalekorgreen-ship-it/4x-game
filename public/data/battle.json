@@ -77,6 +77,12 @@
   "minGroup": 6,
   "fleetMax": 10
  },
+ "flak": {
+  "laser": 0.5,
+  "radar": 0.3,
+  "jam": 3,
+  "kill": 0.35
+ },
  "missile": {
   "dvK": 1.5,
   "acc": 0.5,
