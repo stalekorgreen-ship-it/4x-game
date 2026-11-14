@@ -105,6 +105,13 @@ function axify(sp) { if (sp.railCfg && sp.railCfg.length) { const n = Math.ceil(
 function capTons(sp) { const t = sp.tons || specTons(sp); if (t <= MAXT) return sp; const k = MAXT / t, cut = (n, a) => { const m = Math.max(n > 0 ? 1 : 0, Math.round(n * k)); return [m, a ? a.slice(0, m) : a]; };
   sp.tons = MAXT; sp.L = Math.max(.02, sp.L * Math.cbrt(k)); [sp.rails, sp.railCfg] = cut(sp.rails || 0, sp.railCfg); [sp.gat, sp.gatCfg] = cut(sp.gat || 0, sp.gatCfg); [sp.flak, sp.flakCfg] = cut(sp.flak || 0, sp.flakCfg); sp.eng = Math.max(1, Math.round((sp.eng || 3) * Math.cbrt(k)));
   if (sp.fuelCap) { sp.fuelCap *= k; if (sp.fuel != null) sp.fuel *= k; } if (sp.ammoCap) sp.ammoCap = Math.round(sp.ammoCap * k); return sp; }
+// постоянный состав зеркального боя (на сторону): группы — свои генералы (fid)
+export const MIRROR = gdM();
+function gdM() { return {line: {destroyer: 12, cruiser: 8, battleship: 4, brawler: 4, frigate: 6, corvette: 4, gunboat: 2, supply: 3}, missiles: {missileFrigate: 4, missileCruiser: 3}, tanker: {tanker: 2}, cavalry: {cavalry: 10}, ax30: {ax30: 8}}; }
+function mirrorFleet(fid0) { const out = []; let g = 0; const sk = 6;
+  for (const grp in MIRROR) { const list = []; for (const k in MIRROR[grp]) for (let i = 0; i < MIRROR[grp][k]; i++) { const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid0 + g; sp.sk = sk; sp.spdMul = 1; list.push(sp); }
+    out.push(...outfit(list).map(botSpec).map(capTons).map(axify)); g++; }
+  return out; }
 function fleet(n, mixOrDoc, fid, speed, W) {
   const doc = typeof mixOrDoc === 'string' ? DOCT[mixOrDoc] : null, mix = doc ? (typeof doc.mix === 'string' ? MIXES[doc.mix] : doc.mix) : mixOrDoc;
   let mix2 = mix;
@@ -154,14 +161,9 @@ export function makeScenario(kind, size) {
   const place = (side, specs, ang, edge, t) => { for (const sp of specs) late.push({t: t + R(0, 20), side, spec: sp, edge, ang: ang + R(-.12, .12)}); };
   const mixFor = BYSIZE;
   let title = SCENARIOS[kind].split(':')[0];
-  if (size === 5) { // зеркальный бой: одинаковые флоты по 50 кораблей, одинаковое время прибытия
-    const fa = fleet(50, mixFor(50), 0, 1), fb = JSON.parse(JSON.stringify(fa)).map(sp => ({...sp, fid: 1}));
-    for (const sp of fa) late.push({t: 0, side: 0, spec: sp, edge: E, ang: ang0}); for (const sp of fb) late.push({t: 0, side: 1, spec: sp, edge: E, ang: ang0 + Math.PI}); title = 'Зеркальный бой';
-    // добавка к зеркальному бою: каждой стороне 3 танкера, 30 кавалеристов, 10 осевых 30 см — каждая группа со своим генералом (свой fid)
-    const grp = (k, n, fid) => Array.from({length: n}, (_, i) => { const sp = TYPES[k](i); sp.name += ' №' + (i + 1); sp.fid = fid; sp.sk = 6; return sp; });
-    const extra = [...grp('tanker', 3, 2), ...grp('cavalry', 30, 3), ...grp('ax30', 10, 4)];
-    for (const side of [0, 1]) for (const sp of extra) late.push({t: 0, side, spec: JSON.parse(JSON.stringify(sp)), edge: E + (sp.tanker ? 120 : 0), ang: ang0 + side * Math.PI});
-    title = 'Зеркальный бой + кавалерия';
+  if (size === 5) { // зеркальный бой 70 на 70: состав постоянный (MIRROR), стороны одинаковые, у каждой группы свой генерал
+    const fa = mirrorFleet(0), fb = JSON.parse(JSON.stringify(fa)).map(sp => ({...sp, fid: sp.fid + 50}));
+    for (const sp of fa) late.push({t: 0, side: 0, spec: sp, edge: E + (sp.tanker ? 120 : 0), ang: ang0}); for (const sp of fb) late.push({t: 0, side: 1, spec: sp, edge: E + (sp.tanker ? 120 : 0), ang: ang0 + Math.PI}); title = 'Зеркальный бой 70 на 70';
   } else if (kind === 'line') {
     const n = total(size), fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = size === 4 ? n : Math.max(4, Math.round(n * 1.2)); place(0, fa, ang0, E, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
   } else if (kind === 'pincer') {

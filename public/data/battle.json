@@ -85,7 +85,8 @@
   "cal": 1,
   "pdR": 120,
   "relK": 30,
-  "relP": 0.66
+  "relP": 0.66,
+  "salvoW": 30
  },
  "cavalry": {
   "arc": 0.35
