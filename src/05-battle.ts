@@ -99,15 +99,22 @@ function plan(s,g,eng,dt){if(t<(s.plT||0)&&s.plan)return s.plan;s.plT=t+PLN.dt;
   const C=[['инерция',s.sx,s.sy],['сближение',g.sx+ux*V,g.sy+uy*V],['отход',g.sx-ux*V,g.sy-uy*V],['обход влево',g.sx+px*V+ux*V*.3,g.sy+py*V+uy*V*.3],['обход вправо',g.sx-px*V+ux*V*.3,g.sy-py*V+uy*V*.3],['уравнять',g.sx,g.sy]];
   {const rx=g.x-Math.cos(g.hd||0)*Math.max(5,d0*.5)-s.x,ry=g.y-Math.sin(g.hd||0)*Math.max(5,d0*.5)-s.y,rl=Math.hypot(rx,ry)||1;C.push(['в корму',g.sx+rx/rl*V,g.sy+ry/rl*V])}
   const wf=PLN.wf*(1+2/(1+Math.max(0,spend)));let best=null;
-  const PR=PLN.pred&&dt>0;
-  for(const [k,cvx,cvy] of C){const cost=Math.hypot(cvx-s.sx,cvy-s.sy);if(cost>Math.max(0,spend)&&k!=='инерция')continue;let sc=0;const P=PR?predTraj(s,g,cvx,cvy,eng,dt):null;
+  const PR=PLN.pred&&dt>0,scs={};let m0d=0,sp0=0,tk=null;if(PR){m0d=dryM(s);sp0=spend;tk=s.dvB&&s.dvB.tk;s.planBan=[];s.planRes={}}
+  // резерв на возвращение по траектории призрака: на каждом шаге — тот же расчёт, что в budget(), но на состоянии призрака (топливо, скорость, положение; танкер — по прямой)
+  const resv=P=>{let mn=1e9;for(let i=0;i<P.length;i++){const q=P[i],tt=(i+1)*dt,dvr=FUEL.ve*Math.log((m0d+q.fuel)/m0d);let need;
+    if(tk){const vr=Math.hypot(q.sx-(tk.sx||0),q.sy-(tk.sy||0)),d=Math.hypot(tk.x+(tk.sx||0)*tt-q.x,tk.y+(tk.sy||0)*tt-q.y);need=vr+2*Math.min(dvr*.4,Math.sqrt(2*s.acc/1000*d)*.6)}else need=Math.hypot(q.sx,q.sy);
+    const sp=dvr-need-HOME();if(sp<mn)mn=sp;resv.end=sp}return mn};
+  for(const [k,cvx,cvy] of C){let cost=Math.hypot(cvx-s.sx,cvy-s.sy);if(!PR&&cost>Math.max(0,spend)&&k!=='инерция')continue;let sc=0;const P=PR?predTraj(s,g,cvx,cvy,eng,dt):null;
+    if(PR){cost=FUEL.ve*Math.log((m0d+s.fuel)/(m0d+P[P.length-1].fuel)); // цена — фактический расход призрака (главный, маневровые, разворот, гашение закрутки), в Δv по Циолковскому с убылью массы; |Δv| команды больше не берём
+      const mn=resv(P);(s.planRes||(s.planRes={}))[k]=[mn,resv.end];if(mn<Math.min(0,sp0)-1e-9){s.planBan.push([k,mn,cost]);if(k!=='инерция')continue}} // резерв нарушен хоть на одном шаге — кандидат запрещён (инерция — запасной вариант, только отмечаем)
     for(let tt=PLN.step;tt<=PLN.hor;tt+=PLN.step){const q=PR?trajAt(s,P,tt,dt):null,mx=PR?q.x:s.x+cvx*tt,my=PR?q.y:s.y+cvy*tt,gx=g.x+g.sx*tt,gy=g.y+g.sy*tt,d=Math.hypot(gx-mx,gy-my),
       aG=Math.abs(adiff(g.hd||0,Math.atan2(my-gy,mx-gx))),aS=0;
       sc+=PLN.wd*dpsAt(mb,g,d,aG)*(1/Math.max(.2,eb.md))*PLN.step-PLN.wr*dpsAt(g.tur,s,d,aS,eb.wp)*PLN.step}
     {const T2=PLN.hor,q=PR?trajAt(s,P,T2,dt):null,mx=PR?q.x:s.x+cvx*T2,my=PR?q.y:s.y+cvy*T2,gx=g.x+g.sx*T2,gy=g.y+g.sy*T2,d=Math.hypot(gx-mx,gy-my),aG=Math.abs(adiff(g.hd||0,Math.atan2(my-gy,mx-gx)));
       sc+=PLN.tail*(PLN.wd*dpsAt(mb,g,d,aG)/Math.max(.2,eb.md)-PLN.wr*dpsAt(g.tur,s,d,0,eb.wp))} // ценность позиции: где окажемся через hor с — сколько оттуда сможем бить и получать дальше (tail с боя)
-    sc-=wf*cost;(s.planAll=s.planAll&&s.planAll.t===t?s.planAll:Object.assign([],{t})).push([k,sc,cost]);if(!best||sc>best.sc)best={k,vx:cvx,vy:cvy,sc}}
-  if(s.plan&&best&&best.k!==s.plan.k){const old=C.find(c=>c[0]===s.plan.k);if(old){/* гистерезис: держим прежний план, если новый не заметно лучше */const o2=best.sc;if(o2<(s.plan.sc||0)*PLN.hyst&&o2>0)best={...s.plan,vx:old[1],vy:old[2]}}}
+    sc-=wf*cost;scs[k]=sc;(s.planAll=s.planAll&&s.planAll.t===t?s.planAll:Object.assign([],{t})).push([k,sc,cost]);if(!best||sc>best.sc)best={k,vx:cvx,vy:cvy,sc}}
+  if(PR&&s.plan&&best&&best.k!==s.plan.k){const now=scs[s.plan.k],old=C.find(c=>c[0]===s.plan.k);if(now!=null&&old&&best.sc<now+(PLN.hyst-1)*Math.abs(now))best={k:s.plan.k,vx:old[1],vy:old[2],sc:now}} /* гистерезис по свежей оценке прежнего плана, при любом знаке; запрещённый прежний план не держим */
+  else if(s.plan&&best&&best.k!==s.plan.k){const old=C.find(c=>c[0]===s.plan.k);if(old){/* гистерезис: держим прежний план, если новый не заметно лучше */const o2=best.sc;if(o2<(s.plan.sc||0)*PLN.hyst&&o2>0)best={...s.plan,vx:old[1],vy:old[2]}}}
   s.plan=best;return best}
 // что думает ИИ корабля: план, оценки всех манёвров, цель флота и что корабль знает о ней (оценка, не истина)
 function sideAI(sd){const c={};let lead=0;for(const o of ships)if(o.alive&&o.side===sd){if(o.plan)c[o.plan.k]=(c[o.plan.k]||0)+1;if(o.F&&o.F.lead)lead=1}const k=Object.entries(c);return (lead?' · <b>наступает</b>':'')+(k.length?' · манёвры: '+k.map(([a,b])=>a+' '+b).join(', '):'')}

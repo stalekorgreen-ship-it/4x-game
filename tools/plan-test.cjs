@@ -4,7 +4,7 @@
 const {chromium}=require('playwright');
 (async()=>{const [,,N='3',TS='60,200,400',typ='4v4']=process.argv;const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});const out=[];
 for(let seed=1;seed<=+N;seed++){const p=await b.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
- await p.addInitScript(s=>{let a=s>>>0;window.__rnd=0;Math.random=()=>{window.__rnd++;a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}},seed);
+ await p.addInitScript(s=>{let a=s>>>0;window.__rnd=0;Math.random=()=>{window.__rnd++;a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};const RN=performance.now.bind(performance);window.__rn=RN;let c=0;performance.now=()=>(c+=.05);let d=1.7e12;Date.now=()=>(d+=1)},seed); // часы боя фиксированы (как в duel-test); время планирования меряем настоящими часами __rn
  await p.goto('http://127.0.0.1:5200/');await p.waitForTimeout(2500);
  const r=await p.evaluate(async([TS,typ])=>{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);
   const D=await import(U('01-data.ts'));const B=await import(U('05-battle.ts'));const DM=await import(U('16-demo.ts'));D.newGame();D.state.raid.eta=1e9;D.state.raid.warned=true;
@@ -19,14 +19,14 @@ for(let seed=1;seed<=+N;seed++){const p=await b.newPage();const errs=[];p.on('pa
   for(const T of TS){while(B.Battle.time()-t0<T&&!B.Battle.isDone())B.Battle.tickFixed(1);
    for(const s of SS){if(!s.alive||!s.fuelCap||!s.dvB)continue;const F=s.F,g=(F&&F.focus&&F.focus.alive)?F.focus:s.tg;if(!g||!g.alive||g.side===s.side)continue;
     const eng=Math.max(.15,s.engN/s.T.eng),keep={plT:s.plT,plan:s.plan,planAll:s.planAll},bel=JSON.stringify(g.bel||null);
-    const run=pred=>{PLN.pred=pred;s.plT=0;s.plan=null;s.planAll=null;g.bel=JSON.parse(bel);const t1=performance.now();const c=PT.plan(s,g,eng,DT);const ms=performance.now()-t1;const all=(s.planAll||[]).map(([k,sc,c])=>[k,+sc.toFixed(2),+(c*1000).toFixed(0)]);return {k:c&&c.k,all,ms}};
+    const run=pred=>{PLN.pred=pred;s.plT=0;s.plan=null;s.planAll=null;g.bel=JSON.parse(bel);const t1=window.__rn();const c=PT.plan(s,g,eng,DT);const ms=window.__rn()-t1;const all=(s.planAll||[]).map(([k,sc,c])=>[k,+sc.toFixed(2),+(c*1000).toFixed(0)]);return {k:c&&c.k,all,ms,ban:(pred&&s.planBan||[]).map(([k,mn,c])=>[k,+mn.toFixed(3),+(c*1000).toFixed(1)]),res:pred?JSON.parse(JSON.stringify(s.planRes)):null,spend:+((s.dvB&&s.dvB.spend)||0).toFixed(3)}};
     const before=snap(SKIP);const A=run(0);const mid=snap(SKIP);const P1=run(1);const after=snap(SKIP);const P2=run(1); // P2 — повтор: тот же результат
     // изоляция кандидатов: траектории каждого кандидата по одному, в прямом и обратном порядке, и всех подряд — должны совпасть
     const C=[[s.sx,s.sy],[g.sx+.3,g.sy],[g.sx-.3,g.sy],[g.sx,g.sy+.3],[g.sx,g.sy]];const tr=o=>o.map(([vx,vy])=>JSON.stringify(PT.predTraj(s,g,vx,vy,eng,DT).at(-1)));
     const fw=tr(C),bw=tr([...C].reverse()).reverse(),afterIso=snap(SKIP);
     // время: 50 планирований с pred=1 при dt боя 2 с и при мелком dt 0,1 с (игра в реальном времени)
-    const tm=dt=>{PLN.pred=1;const t1=performance.now();for(let i=0;i<50;i++){s.plT=0;s.plan=null;g.bel=JSON.parse(bel);PT.plan(s,g,eng,dt)}return (performance.now()-t1)/50};
-    const ms2=tm(2),ms01=tm(.1),ms0=(()=>{PLN.pred=0;const t1=performance.now();for(let i=0;i<50;i++){s.plT=0;s.plan=null;g.bel=JSON.parse(bel);PT.plan(s,g,eng,2)}return (performance.now()-t1)/50})();
+    const tm=dt=>{PLN.pred=1;const t1=window.__rn();for(let i=0;i<50;i++){s.plT=0;s.plan=null;g.bel=JSON.parse(bel);PT.plan(s,g,eng,dt)}return (window.__rn()-t1)/50};
+    const ms2=tm(2),ms01=tm(.1),ms0=(()=>{PLN.pred=0;const t1=window.__rn();for(let i=0;i<50;i++){s.plT=0;s.plan=null;g.bel=JSON.parse(bel);PT.plan(s,g,eng,2)}return (window.__rn()-t1)/50})();
     PLN.pred=0;Object.assign(s,keep);g.bel=JSON.parse(bel);
     res.push({T,n:s.T.n,to:g.T.n,d:+Math.hypot(g.x-s.x,g.y-s.y).toFixed(1),old:A,pred:P1,repeat:JSON.stringify(P1.all)===JSON.stringify(P2.all),worldSame:before===mid&&mid===after&&after===afterIso,candIso:JSON.stringify(fw)===JSON.stringify(bw),ms:{lin:+ms0.toFixed(3),pred_dt2:+ms2.toFixed(3),pred_dt01:+ms01.toFixed(3)}})}}
   return res},[TS.split(',').map(Number),typ]);
