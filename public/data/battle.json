@@ -64,6 +64,16 @@
   "rhoT": 7.8,
   "rhoP": 7.8
  },
+ "sens": {
+  "on": 1,
+  "irK": 1,
+  "radK": 60,
+  "track": 1.5,
+  "railT": 1800,
+  "gunT": 700,
+  "coolRail": 2e-12,
+  "coolGun": 2e-10
+ },
  "track": {
   "ally": 0.75,
   "seen": 0.5,
