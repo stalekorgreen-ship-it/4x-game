@@ -79,6 +79,7 @@ function ramHit(s,o){const rvx=s.sx-o.sx,rvy=s.sy-o.sy,dx=o.x-s.x,dy=o.y-s.y,d=M
   fx.push({x:(s.x+o.x)/2,y:(s.y+o.y)/2,z:o.z,t0:t,d:6,r:Math.max(.5,s.T.L*.3)});say(o.side,'hit',o)}
 function zoneTo(o,x,y){const a=adiff(o.hd,Math.atan2(y-o.y,x-o.x)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)}
 const TESTLOG=typeof window!=='undefined'&&window.__testlog;
+const TAC=gd('battle','tactic',{on:1,rich:1.5,re:10,v:.6}); // rich — свободный Δv (км/с), с которого корабль маневрирует ради позиции; re — с между выбором общей цели флота; v — км/с выхода на позицию
 const PMc=(s,o)=>o&&closing(s,o)>PB.passV?PMIN*PB.pass:PMIN;
 // сколько секунд цель видит наш снаряд до удара: дальность её сенсоров по снаряду (калибр ~ по скорости) / скорость сближения снаряда − время сопровождения
 function warnT(o,V,tf,cl){if(!SNS.on||!o||!o.T)return Math.min(12,tf);const kk=V>=2,cal=kk?Math.max(5,V*3):0,A=kk?Math.PI*cal*cal/4:GATP.area,T=kk?SNS.railT:SNS.gunT;let R=0;
@@ -444,6 +445,12 @@ function steer(s,dt){
       let rx=ux*vm*k*.85-uy*lat,ry=uy*vm*k*.85+ux*lat;want=Math.atan2(uy,ux)+(td<er*.9?(s.pOff||0):0);
       
       vx=w*fvx+(1-w)*rx;vy=w*fvy+(1-w)*ry;if(retreating)want=Math.atan2(vy,vx);
+      // тактика при запасе топлива: свободный Δv > TAC.rich — флот бьёт одну цель, держит дистанцию вне её орудий (если наши бьют дальше) и заходит ей в корму (там броня тонкая)
+      s.tac=0;if(TAC.on&&!retreating&&s.fuelCap&&s.dvB&&s.dvB.spend>TAC.rich){
+        if(!F.fT||t>F.fT||!(F.focus&&F.focus.alive)){F.fT=t+TAC.re;let b=null,bs=1e18;for(const o of ships){if(!o.alive||o.side===s.side||!o.T||o.st==='surr')continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d>Math.max(er*2,150))continue;const sc=hpf(o)*o.T.tons*(1+d/200);if(sc<bs){bs=sc;b=o}}F.focus=b}
+        const g=F.focus;if(g){s.tg=g;const gR=g.maxR||60;let dd2=dopt;if(s.maxR>gR*1.2)dd2=Math.max(dopt,Math.min(s.maxR*.9,gR*1.15));
+          const px=g.x-Math.cos(g.hd||0)*dd2,py=g.y-Math.sin(g.hd||0)*dd2,ex=px-s.x,ey=py-s.y,el=Math.hypot(ex,ey)||1e-6,sp2=Math.min(TAC.v,Math.sqrt(s.acc/1000*Math.max(.15,eng)*el)*.7);
+          vx=(g.sx+ex/el*sp2)/Math.max(eng,.05);vy=(g.sy+ey/el*sp2)/Math.max(eng,.05);want=Math.atan2(g.y-s.y,g.x-s.x);s.tac=1;stat.tac=(stat.tac||0)+dt}}
       if(F.stance==='assault'&&td>s.maxR*.7)boost=Math.max(boost,1.7);
       else if(F.stance==='kite'&&td<F.hold*.6)boost=Math.max(boost,1.4);
     }else{s.br='form';vx=fvx;vy=fvy;if(retreating&&sp>.02)want=Math.atan2(vy,vx);else if(tg)want=Math.atan2(uy,ux);else if(sp>.02&&ed>6)want=Math.atan2(vy,vx);else if(F.dx!=null&&(F.dx||F.dy))want=Math.atan2(F.dy,F.dx);
@@ -477,7 +484,7 @@ function steer(s,dt){
   vm*=boost*(s.raidV?2.5:1);if(s.fuelCap){const m0=dryM(s);vm=Math.min(vm,Math.max(.02,s.rf?99:(FUEL.ve*Math.log((m0+s.fuel)/m0)-HOME())/2))}const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   if(s.fuelCap&&!s.rf){const B=budget(s);s.dvB=B;if(B.spend<=0){if(B.tk){s.rf=B.tk;s.rfV=Math.max(.1,B.dvr*.25)}else{vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05)}}else{const ex=vx*eng-s.sx,ey=vy*eng-s.sy,ed=Math.hypot(ex,ey);if(ed>B.spend){const k=B.spend/ed;vx=(s.sx+ex*k)/Math.max(eng,.05);vy=(s.sy+ey*k)/Math.max(eng,.05)}}} // общий бюджет Δv: манёвр не трогает запас на возвращение (к танкеру или до остановки)
   // заблаговременное торможение: на встречном курсе гасим относительную скорость до PB.v ещё до сближения — если хватает топлива (Циолковский) на (rv−PB.v)·res
-  {const g=s.tg;if(PB.on&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
+  {const g=s.tg;if(PB.on&&!s.tac&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
     if(rv>PB.v&&d>PB.near){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0);{const vt=Math.max(PB.v,rv-dvr/PB.res),aa=s.acc/1000*Math.max(.15,eng),vc=Math.min(Math.max(closing(s,g),vt),Math.max(vt,Math.sqrt(aa*(d-PB.near)))),ux=dx/d,uy=dy/d; /* не разгоняемся сверх нынешнего сближения — только гасим лишнее (инерция бесплатна); топлива мало — гасим скорость частично (до vt), но сразу поворачиваем к врагу, а не расходимся */
       const sh=g.pb?.5:1;vx=(s.sx+(g.sx+ux*vc-s.sx)*sh)/Math.max(eng,.05);vy=(s.sy+(g.sy+uy*vc-s.sy)*sh)/Math.max(eng,.05);s.pb=1; /* враг тоже тормозит — берём на себя только половину разницы скоростей, иначе оба гасят всё и потом исправляют перелёт */stat.pbrake=(stat.pbrake||0)+dt}}}}
   // таран: тяжёлый корабль с толстым носом идёт в лоб на лёгкую цель рядом, сближаясь не быстрее RAM.v (км/с)
