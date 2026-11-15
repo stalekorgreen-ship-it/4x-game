@@ -54,6 +54,8 @@ function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/
 const SNS=gd('battle','sens',{on:1,irK:1,radK:60,track:1.5,railT:1800,gunT:700,coolRail:2e-12,coolGun:2e-10});
 function seesP(s,p,d){const A=p.cal?Math.PI*p.cal*p.cal/4:GATP.area,T0=p.kk?SNS.railT:SNS.gunT,age=p.dist/Math.max(.01,Math.hypot(p.vx,p.vy)),T=Math.pow(Math.pow(T0,-3)+(p.kk?SNS.coolRail:SNS.coolGun)*age,-1/3);
   let R=0;for(const q of (s.scl||s.sc)){if(q.k==='ir')R=Math.max(R,SNS.irK*Math.sqrt(A*Math.pow(T/1000,4))*(q.res||1));else if(q.k==='rad'&&s.rdOn)R=Math.max(R,SNS.radK*Math.pow(A/1e4,.25)*(s.rad0?s.radN/s.rad0:1))}return d<R}
+const PB=gd('battle','prebrake',{on:1,v:.4,near:5,res:1.5,pass:.25,passV:1}); // торможение до встречи: до v км/с, если Δv ≥ res×нужного; на проходе (сближение > passV км/с) стреляем при шансе ≥ PMIN×pass
+const PMc=(s,o)=>o&&closing(s,o)>PB.passV?PMIN*PB.pass:PMIN;
 const TRK=gd('battle','track',{ally:.75,seen:.5,none:.25,jam:.6,ttl:6,near:1});
 function tq(s,o){if(!o||!o.rl)return 1;const side=s.side;let q=o.byL&&t-(o.byL.get(s)??-99)<TRK.ttl?1:t-o.rl[side]<TRK.ttl?TRK.ally:t-o.rs[side]<TRK.ttl?TRK.seen:TRK.none;return Math.max(.1,q*(1-(o.jam||0)*TRK.jam))}
 function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1)/(d<TRK.near?1:tq(s,o)),w=Math.min(12,tf),
@@ -445,6 +447,10 @@ function steer(s,dt){
   if(s.fuelCap){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),fq=s.fuel/s.fuelCap;if(fq<.5){boost=Math.min(boost,1);s.bst=Math.min(s.bst,1)}vm=Math.min(vm,Math.max(.02,dvr*(s.rf?99:FUEL.keep)))}
   vm*=boost*(s.raidV?2.5:1);if(s.fuelCap){const m0=dryM(s);vm=Math.min(vm,Math.max(.02,FUEL.ve*Math.log((m0+s.fuel)/m0)*(s.rf?99:FUEL.keep)*1.5))}const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   if(s.fuelCap&&!s.rf){const B=budget(s);s.dvB=B;if(B.spend<=0){if(B.tk){s.rf=B.tk;s.rfV=Math.max(.1,B.dvr*.25)}else{vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05)}}else{const ex=vx*eng-s.sx,ey=vy*eng-s.sy,ed=Math.hypot(ex,ey);if(ed>B.spend){const k=B.spend/ed;vx=(s.sx+ex*k)/Math.max(eng,.05);vy=(s.sy+ey*k)/Math.max(eng,.05)}}} // общий бюджет Δv: манёвр не трогает запас на возвращение (к танкеру или до остановки)
+  // заблаговременное торможение: на встречном курсе гасим относительную скорость до PB.v ещё до сближения — если хватает топлива (Циолковский) на (rv−PB.v)·res
+  {const g=s.tg;if(PB.on&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
+    if(rv>PB.v&&d>PB.near){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0);if(dvr>(rv-PB.v)*PB.res){const aa=s.acc/1000*Math.max(.15,eng),vc=Math.min(rv,Math.max(PB.v,Math.sqrt(aa*(d-PB.near)))),ux=dx/d,uy=dy/d;
+      vx=(g.sx+ux*vc)/Math.max(eng,.05);vy=(g.sy+uy*vc)/Math.max(eng,.05);s.pb=1;stat.pbrake=(stat.pbrake||0)+dt}}}}
   // инерция: ускорение ограничено тягой и массой
   const a=(s.fuelCap&&s.fuel<=0?0:1)*s.acc/1000*eng*dt*(1+(boost-1)*.5),_pl=(t>=(s.vPT||0)||s.dg&&t<s.dgT||flee)?(s.vPT=t+PLAN_T,s.vTx=vx,s.vTy=vy,1):0,dvx0=s.vTx*eng-s.sx,dvy0=s.vTy*eng-s.sy,dl0=Math.hypot(dvx0,dvy0),fq=s.fuelCap?s.fuel/s.fuelCap:1,db=fq<.25?.1:.05,coast=dl0<Math.hypot(s.sx,s.sy)*.2&&(dvx0*s.sx+dvy0*s.sy)<=0===false&&Math.hypot(vx*eng,vy*eng)>Math.hypot(s.sx,s.sy)*.8&&Math.hypot(vx*eng,vy*eng)<Math.hypot(s.sx,s.sy)*1.25&&(vx*s.sx+vy*s.sy)>.97*Math.hypot(vx,vy)*Math.hypot(s.sx,s.sy),dvx=dl0<db||coast?0:dvx0,dvy=dl0<db||coast?0:dvy0,dl=dl0<db||coast?0:dl0; /* coast — идём почти куда надо и почти с нужной скоростью: летим по инерции */ /* мёртвая зона по скорости: мелкие поправки не стоят топлива; при пустеющем баке — шире */
   if(t>=(s.dgN||0)){s.dgN=t+1;if(!(s.dg&&t<s.dgT))s.dg=null;if(s.rcsN>0&&s.sc&&s.sc.length&&(!s.fuelCap||!s.dvB||s.dvB.spend>REF.dodge)){ /* уклоняемся, если в бюджете Δv есть лишнее */ /* уклоняемся, только пока в баке больше 40% */let best=1e9; // уклонение: снаряд, который через ≤12 с пройдёт через корабль, — маневровыми вбок от его пути
@@ -941,7 +947,7 @@ function step(dt){
         continue}
       foes=s.trk||[];
       const VPc=C.vp||VP,fl=C.ax&&m.axO&&m.axO.alive?[m.axO]:(s.tg&&s.tg.alive&&s.tg.st!=='surr'&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<effR(s,s.tg,VPc)&&Math.random()<.7)?[s.tg]:foes.filter(o=>o.alive&&Math.hypot(o.x-s.x,o.y-s.y)<effR(s,o,VPc)); // дальность = (скорость снаряда + сближение) × 20 с
-      {const P0=fl.length?hitP(s,fl[0],VPc,C.sig):0;if(fl.length&&P0<PMIN){const alt=fl.slice(1).find(o=>hitP(s,o,VPc,C.sig)>=PMIN);if(alt)fl.unshift(alt);else{m.cd=1;m.why='шанс попасть '+Math.round(P0*100)+'% ниже '+Math.round(PMIN*100)+'% — ждёт сближения';continue}}}
+      {const P0=fl.length?hitP(s,fl[0],VPc,C.sig):0;if(fl.length&&P0<PMc(s,fl[0])){const alt=fl.slice(1).find(o=>hitP(s,o,VPc,C.sig)>=PMc(s,o));if(alt)fl.unshift(alt);else{m.cd=1;m.why='шанс попасть '+Math.round(P0*100)+'% ниже '+Math.round(PMIN*100)+'% — ждёт сближения';continue}}}
       {const sv=s.F&&s.F.sv;m.sv=null;if(sv&&sv.o.alive&&s.tur.indexOf(m)>=0&&Math.hypot(sv.o.x-s.x,sv.o.y-s.y)<effR(s,sv.o,VPc)){const tf=Math.hypot(sv.o.x-s.x,sv.o.y-s.y,(sv.o.z||0)-(s.z||0))/VPc,fireT=sv.tA-tf;
         if(t<fireT-.3){m.cd=Math.min(2,fireT-t);m.why='залп флота: ждёт своей секунды, чтобы снаряды пришли вместе';continue}
         if(t<fireT+3){fl.length=0;fl.push(sv.o);m.sv=sv}}}
