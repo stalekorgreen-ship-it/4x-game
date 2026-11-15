@@ -260,17 +260,17 @@ function base(s){const g=new THREE.Group();
  const p=cb(6.2*s,6.2*s,1.2*s,.45*s,silver2);p.position.y=.6*s;g.add(p);
  const r=cb(5.4*s,5.4*s,.35*s,.15*s,accent);r.position.y=1.35*s;g.add(r);
  const q=cb(4.2*s,4.2*s,.4*s,.18*s,dark);q.position.y=1.7*s;g.add(q);return g}
-function railTurret(s,n){const g=new THREE.Group();g.add(base(s));const y=3.2*s,rr=.55*s,L=5*s;
- const HH=n>=4?4.6*s:3.2*s,MH=n>=4?4.1*s:2.7*s;const hz=cb(6.4*s,5.8*s,HH,1.0*s,silver);hz.position.set(0,y,0);g.add(hz);
- const up=cb(4.2*s,4.2*s,.6*s,.2*s,steel);up.position.set(-.3*s,y+HH*.56,0);g.add(up);
- const man=cb(1.6*s,5.4*s,MH,.85*s,silver2);man.position.set(3.7*s,y,0);g.add(man);
- const rear=cb(1.8*s,4.4*s,2.4*s,.7*s,silver2);rear.position.set(-3.8*s,y-.1*s,0);g.add(rear);
- for(const sg of[-1,1]){const cap=cb(3.2*s,1.3*s,2.2*s,.45*s,steel);cap.position.set(-.4*s,y-.2*s,sg*3.45*s);g.add(cap);
-  const st=new THREE.Mesh(new THREE.BoxGeometry(2.2*s,.14*s,.9*s),cyan);st.position.set(-.4*s,y+.4*s,sg*(3.45*s+.66*s)*.995);st.scale.z=.1;g.add(st);
-  const ac=cb(2*s,.3*s,1.3*s,.1*s,accent);ac.position.set(1.2*s,y,sg*(2.9*s+.15*s));g.add(ac)}
+function railTurret(s,n){const g=new THREE.Group();{const b=base(s);b.name='base';g.add(b)}const y=3.2*s,rr=.55*s,L=5*s;
+ const HH=n>=4?4.6*s:3.2*s,MH=n>=4?4.1*s:2.7*s;const hz=cb(6.4*s,5.8*s,HH,1.0*s,silver);hz.position.set(0,y,0);hz.name='housing';g.add(hz);
+ const up=cb(4.2*s,4.2*s,.6*s,.2*s,steel);up.position.set(-.3*s,y+HH*.56,0);up.name='top';g.add(up);
+ const man=cb(1.6*s,5.4*s,MH,.85*s,silver2);man.position.set(3.7*s,y,0);man.name='mantlet';g.add(man);
+ const rear=cb(1.8*s,4.4*s,2.4*s,.7*s,silver2);rear.position.set(-3.8*s,y-.1*s,0);rear.name='rear';g.add(rear);
+ for(const sg of[-1,1]){const cap=cb(3.2*s,1.3*s,2.2*s,.45*s,steel);cap.position.set(-.4*s,y-.2*s,sg*3.45*s);cap.name='cap_'+(sg<0?'l':'r');g.add(cap);
+  const st=new THREE.Mesh(new THREE.BoxGeometry(2.2*s,.14*s,.9*s),cyan);st.position.set(-.4*s,y+.4*s,sg*(3.45*s+.66*s)*.995);st.scale.z=.1;st.name='stripe_'+(sg<0?'l':'r');g.add(st);
+  const ac=cb(2*s,.3*s,1.3*s,.1*s,accent);ac.position.set(1.2*s,y,sg*(2.9*s+.15*s));ac.name='accent_'+(sg<0?'l':'r');g.add(ac)}
  const zs=n===1?[[0,0]]:n===2?[[-1.45*s,0],[1.45*s,0]]:n===3?[[-1.8*s,0],[0,0],[1.8*s,0]]:[[-1.5*s,1.05*s],[1.5*s,1.05*s],[-1.5*s,-1.05*s],[1.5*s,-1.05*s]];
- zs.forEach(([z,dy])=>{const p=port(rr);p.position.set(4.5*s,y+dy,z);g.add(p);const b=railOut(L,rr);b.position.set(4.5*s,y+dy,z);g.add(b)});
- if(n>=2){const tr=cb(L*.3,.4*s,3.4*s,.12*s,steel);tr.position.set(4.5*s+L*.45,y,0);g.add(tr)} // стяжка стволов
+ zs.forEach(([z,dy],i)=>{const p=port(rr);p.position.set(4.5*s,y+dy,z);p.name='port_'+i;g.add(p);const b=railOut(L,rr);b.position.set(4.5*s,y+dy,z);b.name='barrel_'+i;g.add(b)});
+ if(n>=2){const tr=cb(L*.3,.4*s,3.4*s,.12*s,steel);tr.position.set(4.5*s+L*.45,y,0);tr.name='brace';g.add(tr)} // стяжка стволов
  return g}
 function gatTurret(s,tw){const g=new THREE.Group();g.add(base(s));const y=3.1*s;
  const hz=cb(5*s,tw?7.4*s:4.4*s,3*s,.95*s,silver);hz.position.set(-.4*s,y,0);g.add(hz);
@@ -630,4 +630,5 @@ function bake(g:any){g.updateMatrixWorld(true);const inv=new THREE.Matrix4().cop
  for(const o of rm)o.parent&&o.parent.remove(o);
  bakeHeads(g);
  for(const[mat,arr] of by){const mg=mergeGeometries(arr,false);if(!mg)continue;const me=new THREE.Mesh(mg,mat);me.userData.keep=true;g.add(me)}}
+export { railTurret }; // первая деталь реестра (21f-parts)
 export function buildSpine(m:number,opt:any){P=opt||{};const g=spine(m);bake(g);if(g.userData.inner)g.userData.inner.visible=false;g.userData.arm=P.arm;g.userData.dmg=makeDamage(g,g.userData.L||100);return g}
