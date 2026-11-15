@@ -80,7 +80,7 @@ function ramHit(s,o){const rvx=s.sx-o.sx,rvy=s.sy-o.sy,dx=o.x-s.x,dy=o.y-s.y,d=M
 function zoneTo(o,x,y){const a=adiff(o.hd,Math.atan2(y-o.y,x-o.x)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)}
 const TESTLOG=typeof window!=='undefined'&&window.__testlog;
 const TAC=gd('battle','tactic',{on:1,rich:1.5,re:10,v:.6,adv:1.3,str:.9}); // str — навязываем бой, только если наша сила ≥ str × вражеской: быстрый, но слабый в лобовой не лезет // adv — во сколько раз свободный Δv флота должен превышать вражеский, чтобы самим навязывать бой // rich — свободный Δv (км/с), с которого корабль маневрирует ради позиции; re — с между выбором общей цели флота; v — км/с выхода на позицию
-const PLN=gd('battle','planner',{on:1,dt:12,hor:60,step:10,v:.4,wd:1,wr:1,wf:3,hyst:1.15,gat:.02,miss:.5}); // планировщик: раз в dt с перебирает манёвры, прогноз на hor с; wd/wr/wf — веса урона врагу, риска себе и топлива; hyst — новый план должен быть лучше старого в столько раз
+const PLN=gd('battle','planner',{on:1,dt:12,hor:60,step:10,v:.4,wd:1,wr:1,wf:1,tail:300,hyst:1.15,gat:.02,miss:.5}); // планировщик: раз в dt с перебирает манёвры, прогноз на hor с; wd/wr/wf — веса урона врагу, риска себе и топлива; hyst — новый план должен быть лучше старого в столько раз
 // оценка противника стороной side: только то, что можно наблюдать. Топливо: априори полбака минус замеченные разгоны; оружие: стволы, которые стреляли (или все, пока не видели); целость: доля живых модулей при захвате радаром, иначе последняя известная
 function belief(side,o){const b=(o.bel||(o.bel=[null,null]))[side]||(o.bel[side]={fu:FUEL.ve*Math.log(1+FUEL.cap*.5),md:1,wp:o.tur.length,dv0:o.dvSum||0,seen:-1});
   if(t-o.seen[side]<TRK.ttl){const ds=(o.dvSum||0)-b.dv0;b.dv0=o.dvSum||0;b.fu=Math.max(0,b.fu-ds*1);if(t-o.lock[side]<TRK.ttl)b.md=o.aliveN/o.total;const fired=o.tur.filter(m=>m.alive&&t-(m.firedT||-1e9)<180).length;b.wp=b.seen<0?o.tur.filter(m=>m.alive).length:Math.max(fired,Math.round(b.wp*.98));b.seen=t}else b.dv0=o.dvSum||0;return b}
@@ -98,6 +98,8 @@ function plan(s,g,eng){if(t<(s.plT||0)&&s.plan)return s.plan;s.plT=t+PLN.dt;
     for(let tt=PLN.step;tt<=PLN.hor;tt+=PLN.step){const mx=s.x+cvx*tt,my=s.y+cvy*tt,gx=g.x+g.sx*tt,gy=g.y+g.sy*tt,d=Math.hypot(gx-mx,gy-my),
       aG=Math.abs(adiff(g.hd||0,Math.atan2(my-gy,mx-gx))),aS=0;
       sc+=PLN.wd*dpsAt(mb,g,d,aG)*(1/Math.max(.2,eb.md))*PLN.step-PLN.wr*dpsAt(g.tur,s,d,aS,eb.wp)*PLN.step}
+    {const T2=PLN.hor,mx=s.x+cvx*T2,my=s.y+cvy*T2,gx=g.x+g.sx*T2,gy=g.y+g.sy*T2,d=Math.hypot(gx-mx,gy-my),aG=Math.abs(adiff(g.hd||0,Math.atan2(my-gy,mx-gx)));
+      sc+=PLN.tail*(PLN.wd*dpsAt(mb,g,d,aG)/Math.max(.2,eb.md)-PLN.wr*dpsAt(g.tur,s,d,0,eb.wp))} // ценность позиции: где окажемся через hor с — сколько оттуда сможем бить и получать дальше (tail с боя)
     sc-=wf*cost;(s.planAll=s.planAll&&s.planAll.t===t?s.planAll:Object.assign([],{t})).push([k,sc,cost]);if(!best||sc>best.sc)best={k,vx:cvx,vy:cvy,sc}}
   if(s.plan&&best&&best.k!==s.plan.k){const old=C.find(c=>c[0]===s.plan.k);if(old){/* гистерезис: держим прежний план, если новый не заметно лучше */const o2=best.sc;if(o2<(s.plan.sc||0)*PLN.hyst&&o2>0)best={...s.plan,vx:old[1],vy:old[2]}}}
   s.plan=best;return best}
@@ -1400,9 +1402,9 @@ const aliveBy=s=>ships.filter(o=>o.side===s&&o.alive&&o.st!=='surr').length;
 function checkEnd(){
   if(done)return;
   {let md=1e9;const F=[...FL.values()];for(const a of F)for(const b of F)if(a.side===0&&b.side===1)md=Math.min(md,Math.hypot(a.cx-b.cx,a.cy-b.cy));
-   if(md<200)hadContact=true;if(hadContact&&md>420&&F.length>1){sepT+=1;if(sepT>90&&cfgNow&&cfgNow.demo)done=true}else sepT=0}
+   if(md<200)hadContact=true;if(hadContact&&md>420&&F.length>1&&!ships.some(o=>o.alive&&o.dvB&&o.dvB.spend>.3)){sepT+=1;if(sepT>600&&cfgNow&&cfgNow.demo)done=true}else sepT=0} /* бой без лимита времени: кончается, только если разошлись и ни у кого не осталось топлива вернуться */
   if(aliveBy(0))lastFriend=t;
-  if((!aliveBy(1)&&!pend.length)||(!aliveBy(0)&&t-lastFriend>1800)||t>((cfgNow&&cfgNow.maxT)||14400)||((()=>{const na=aliveBy(0)+aliveBy(1);if(na!==lastNa){lastNa=na;lastNaT=t}return false})()))done=true; // ничья: никто никого не бьёт уже 8 минут (кончились снаряды, сдавшиеся)
+  if((!aliveBy(1)&&!pend.length)||(!aliveBy(0)&&t-lastFriend>1800)||((()=>{const na=aliveBy(0)+aliveBy(1);if(na!==lastNa){lastNa=na;lastNaT=t}return false})()))done=true; // ничья: никто никого не бьёт уже 8 минут (кончились снаряды, сдавшиеся)
 }
 function result(){
   const mine=ships.filter(s=>s.side===0&&!s.bayOf).map(s=>({ref:s.spec.ref,alive:s.alive||!!s.esc,lost:1-s.aliveN/s.total,fuel:s.spec.fuel!=null&&s.spec.fuelCap>0?s.fuel:null,
