@@ -135,6 +135,10 @@
   "ai2": 1,
   "div": 500,
   "wrole": 3,
+  "gdt": 1,
+  "rtr": 1,
+  "icp": 1,
+  "rfree": 10,
   "wfoc": 1.5,
   "wp": 3,
   "wram": 20,
@@ -142,6 +146,7 @@
   "rpl": 2
  },
  "epred": {
+  "win": 2,
   "prior": 0.002,
   "lat": 0.5,
   "aMin": 0.0005,
@@ -198,6 +203,9 @@
   "period": 30,
   "minGroup": 6,
   "fleetMax": 10
+ },
+ "ab": {
+  "side": -1
  },
  "fleetcmd": {
   "on": 1,
@@ -272,7 +280,7 @@
   "go": 0.45
  },
  "step": {
-  "dt": 0.5
+  "dt": 0.25
  },
  "doctrines": [
   {"name": "Сторож ПВО", "k": 0, "tons": 1257, "gat": 6, "rad": 1, "ir": 1, "em": 1, "fine": 1, "fcs": 2, "arm": 2, "spd": 1.2},

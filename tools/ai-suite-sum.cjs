@@ -16,20 +16,24 @@ function metrics(o) {
     roles: Object.fromEntries(Object.keys(m.all || {}).map(k => [k, r2(m.all[k] / n)])),
     roleOk: Object.fromEntries(Object.keys(m.all || {}).map(k => [k, r2((m.ok[k] || 0) / m.all[k])])),
     slotKm: m.slotN ? m.slot / m.slotN : null, lineDepthKm: m.depthN ? m.depth / m.depthN : null, lineSupKm: m.lsN ? m.ls / m.lsN : null, pvoProtKm: m.pvoN ? m.pvo / m.pvoN : null,
-    blockedFire: f.blk || 0, dangerReal: (f.cal || {}).real || 0, dangerFlagged: (f.cal || {}).flag || 0, dangerHit: (f.cal || {}).realHit || 0
+    modLost0: side(0).reduce((a, x) => a + (+x.mod.split('/')[1] - +x.mod.split('/')[0]), 0), modLost1: side(1).reduce((a, x) => a + (+x.mod.split('/')[1] - +x.mod.split('/')[0]), 0),
+    tonsLost0: side(0).filter(x => !x.alive).reduce((a, x) => a + x.dbg[10], 0), tonsLost1: side(1).filter(x => !x.alive).reduce((a, x) => a + x.dbg[10], 0),
+    firstKill0: o.fk ? o.fk[0] : null, firstKill1: o.fk ? o.fk[1] : null, fuelUsed0: avg(side(0).map(x => 100 - x.dv[3])),
+    roleFn: Object.fromEntries(Object.keys(m.all || {}).map(k => [k, r2(((m.fn || {})[k] || 0) / m.all[k])])), noWeapon: (m.noW || 0) / n,
+        blockedFire: f.blk || 0, dangerReal: (f.cal || {}).real || 0, dangerFlagged: (f.cal || {}).flag || 0, dangerHit: (f.cal || {}).realHit || 0
   };
 }
 const res = {};
 for (const fn of files) {
-  const [sc, mode] = fn.replace('.txt', '').split('.'), L = fs.readFileSync(dir + '/' + fn, 'utf8').split('\n').filter(l => l.startsWith('{"pk'));
+  const [sc, mode] = fn.replace('.txt', '').split('.'), L = fs.readFileSync(dir + '/' + fn, 'utf8').split('\n').filter(l => l.startsWith('{') && l.includes('"ships"'));
   const runs = L.map(l => { const o = JSON.parse(l); return {seed: o.seed, t: o.t, ...metrics(o)} });
   (res[sc] = res[sc] || {})[mode] = {runs, err: L.length ? null : fs.readFileSync(dir + '/' + fn, 'utf8').slice(0, 300)};
 }
-const K = ['alive0', 'alive1', 'hits0', 'hits1', 'switch', 'swBack', 'swKill', 'noAtkShare', 'acqSec', 'repTotal', 'repRepeat', 'repActed', 'repIgnored', 'roleChanges', 'flagLost', 'slotKm', 'lineDepthKm', 'lineSupKm', 'pvoProtKm', 'blockedFire', 'flee0'];
+const K = ['alive0', 'alive1', 'modLost0', 'modLost1', 'tonsLost0', 'tonsLost1', 'firstKill0', 'firstKill1', 'fuelUsed0', 'noWeapon', 'hits0', 'hits1', 'switch', 'swBack', 'swKill', 'noAtkShare', 'acqSec', 'repTotal', 'repRepeat', 'repActed', 'repIgnored', 'roleChanges', 'flagLost', 'slotKm', 'lineDepthKm', 'lineSupKm', 'pvoProtKm', 'blockedFire', 'flee0'];
 for (const sc in res) for (const md in res[sc]) { const R = res[sc][md].runs; res[sc][md].mean = Object.fromEntries(K.map(k => [k, r2(avg(R.map(r => r[k]).filter(v => v != null && isFinite(v))))])); res[sc][md].bySeed = Object.fromEntries(K.map(k => [k, R.map(r => r2(r[k]))])) }
 fs.writeFileSync(outJ, JSON.stringify(res, null, 1));
 let md = '# Combat AI v1 — серия испытаний\n\nРежимы: **new** — текущая версия; **base** — без ролей в планировщике и без докладов (`{"planner":{"wrole":0},"fleetcmd":{"fb":0}}`). Значения: среднее [по seed].\n\n';
 for (const sc of Object.keys(res).sort()) { md += `## ${sc}\n\n| метрика | new | base |\n|---|---|---|\n`;
   for (const k of K) { const f = m => res[sc][m] ? `${res[sc][m].mean[k]} [${res[sc][m].bySeed[k].join(', ')}]` : '—'; md += `| ${k} | ${f('new')} | ${f('base')} |\n` }
-  const rr = res[sc].new && res[sc].new.runs[0]; if (rr) md += `\nРоли (new, seed ${rr.seed}, кораблей на цикл): ${JSON.stringify(rr.roles)}; выполняют роль: ${JSON.stringify(rr.roleOk)}; доклады: ${JSON.stringify(rr.rep)}; причины смен цели: ${JSON.stringify(rr.swWhy)}\n\n` }
+  const rr = res[sc].new && res[sc].new.runs[0]; if (rr) md += `\nРоли (new, seed ${rr.seed}, кораблей на цикл): ${JSON.stringify(rr.roles)}; на позиции роли: ${JSON.stringify(rr.roleOk)}; выполняют функцию роли: ${JSON.stringify(rr.roleFn)}; доклады: ${JSON.stringify(rr.rep)}; причины смен цели: ${JSON.stringify(rr.swWhy)}\n\n` }
 fs.writeFileSync(outM, md); console.log('ok', Object.keys(res).length);

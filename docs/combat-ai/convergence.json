@@ -1,0 +1,182 @@
+{
+ "c8_0.125": {
+  "runs": 8,
+  "shotsPer100s": 13.45,
+  "accuracy": 0.262,
+  "fuelPctPerShip": 30.13,
+  "modulesLost": 590,
+  "destroyed": 42,
+  "aiPlansPer1000s": 1103
+ },
+ "c8_0.25": {
+  "runs": 8,
+  "shotsPer100s": 13.55,
+  "accuracy": 0.234,
+  "fuelPctPerShip": 29.36,
+  "modulesLost": 593,
+  "destroyed": 41,
+  "aiPlansPer1000s": 1172
+ },
+ "c8_0.5": {
+  "runs": 8,
+  "shotsPer100s": 14.49,
+  "accuracy": 0.233,
+  "fuelPctPerShip": 32.09,
+  "modulesLost": 619,
+  "destroyed": 39,
+  "aiPlansPer1000s": 1210
+ },
+ "c8_1": {
+  "runs": 8,
+  "shotsPer100s": 17,
+  "accuracy": 0.206,
+  "fuelPctPerShip": 35.63,
+  "modulesLost": 546,
+  "destroyed": 36,
+  "aiPlansPer1000s": 1441
+ },
+ "dg0.125": {
+  "runs": 6,
+  "shotsPer100s": 12.69,
+  "accuracy": 0.593,
+  "fuelPctPerShip": 1.23,
+  "modulesLost": 46,
+  "destroyed": 1,
+  "aiPlansPer1000s": 307
+ },
+ "dg0.25": {
+  "runs": 6,
+  "shotsPer100s": 13.22,
+  "accuracy": 0.513,
+  "fuelPctPerShip": 0.92,
+  "modulesLost": 34,
+  "destroyed": 0,
+  "aiPlansPer1000s": 281
+ },
+ "dg0.5": {
+  "runs": 6,
+  "shotsPer100s": 12.06,
+  "accuracy": 0.567,
+  "fuelPctPerShip": 0.84,
+  "modulesLost": 42,
+  "destroyed": 0,
+  "aiPlansPer1000s": 303
+ },
+ "dg1": {
+  "runs": 6,
+  "shotsPer100s": 12.28,
+  "accuracy": 0.566,
+  "fuelPctPerShip": 0.96,
+  "modulesLost": 45,
+  "destroyed": 0,
+  "aiPlansPer1000s": 277
+ },
+ "fire0.125": {
+  "runs": 4,
+  "shotsPer100s": 10.43,
+  "accuracy": 0.657,
+  "fuelPctPerShip": 1.15,
+  "modulesLost": 37,
+  "destroyed": 2,
+  "aiPlansPer1000s": 258
+ },
+ "fire0.25": {
+  "runs": 4,
+  "shotsPer100s": 9.24,
+  "accuracy": 0.608,
+  "fuelPctPerShip": 1.44,
+  "modulesLost": 39,
+  "destroyed": 2,
+  "aiPlansPer1000s": 261
+ },
+ "fire0.5": {
+  "runs": 4,
+  "shotsPer100s": 9.74,
+  "accuracy": 0.621,
+  "fuelPctPerShip": 1.42,
+  "modulesLost": 38,
+  "destroyed": 2,
+  "aiPlansPer1000s": 248
+ },
+ "fire1": {
+  "runs": 4,
+  "shotsPer100s": 10.64,
+  "accuracy": 0.609,
+  "fuelPctPerShip": 1.47,
+  "modulesLost": 42,
+  "destroyed": 2,
+  "aiPlansPer1000s": 250
+ },
+ "mv0.125": {
+  "runs": 4,
+  "shotsPer100s": 13.92,
+  "accuracy": 0.317,
+  "fuelPctPerShip": 1.16,
+  "modulesLost": 15,
+  "destroyed": 0,
+  "aiPlansPer1000s": 308
+ },
+ "mv0.25": {
+  "runs": 4,
+  "shotsPer100s": 12.67,
+  "accuracy": 0.316,
+  "fuelPctPerShip": 1.06,
+  "modulesLost": 11,
+  "destroyed": 0,
+  "aiPlansPer1000s": 299
+ },
+ "mv0.5": {
+  "runs": 4,
+  "shotsPer100s": 13.5,
+  "accuracy": 0.278,
+  "fuelPctPerShip": 1.12,
+  "modulesLost": 15,
+  "destroyed": 0,
+  "aiPlansPer1000s": 298
+ },
+ "mv1": {
+  "runs": 4,
+  "shotsPer100s": 13.42,
+  "accuracy": 0.298,
+  "fuelPctPerShip": 1.15,
+  "modulesLost": 17,
+  "destroyed": 1,
+  "aiPlansPer1000s": 291
+ },
+ "sm0.125": {
+  "runs": 4,
+  "shotsPer100s": 14.17,
+  "accuracy": 0.406,
+  "fuelPctPerShip": 1.16,
+  "modulesLost": 22,
+  "destroyed": 0,
+  "aiPlansPer1000s": 313
+ },
+ "sm0.25": {
+  "runs": 4,
+  "shotsPer100s": 15.33,
+  "accuracy": 0.342,
+  "fuelPctPerShip": 1.17,
+  "modulesLost": 18,
+  "destroyed": 0,
+  "aiPlansPer1000s": 323
+ },
+ "sm0.5": {
+  "runs": 4,
+  "shotsPer100s": 16,
+  "accuracy": 0.333,
+  "fuelPctPerShip": 1.17,
+  "modulesLost": 17,
+  "destroyed": 0,
+  "aiPlansPer1000s": 335
+ },
+ "sm1": {
+  "runs": 4,
+  "shotsPer100s": 15.08,
+  "accuracy": 0.331,
+  "fuelPctPerShip": 1.07,
+  "modulesLost": 11,
+  "destroyed": 0,
+  "aiPlansPer1000s": 313
+ }
+}

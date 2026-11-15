@@ -1,0 +1,1109 @@
+{
+ "12v12 full": {
+  "n": 12,
+  "dMod": 0.25,
+  "dMod_se": 10.29,
+  "dTons": 4.45,
+  "dTons_se": 4.35,
+  "dAlive": 0.08,
+  "dAlive_se": 0.86,
+  "hitsAI": 41.92,
+  "hitsBase": 39.17,
+  "winsByTons": 7,
+  "lossesByTons": 5,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -36,
+    "dTons": -8.8,
+    "dAlive": 0,
+    "hitsAI": 22,
+    "hitsB": 32
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -25,
+    "dTons": -3.2,
+    "dAlive": -3,
+    "hitsAI": 48,
+    "hitsB": 72
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 28,
+    "dTons": 11.250000000000004,
+    "dAlive": 1,
+    "hitsAI": 65,
+    "hitsB": 58
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 20,
+    "dTons": -4.4,
+    "dAlive": 3,
+    "hitsAI": 14,
+    "hitsB": 22
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": -7,
+    "dTons": -8.200000000000003,
+    "dAlive": -3,
+    "hitsAI": 25,
+    "hitsB": 47
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": -26,
+    "dTons": 0.75,
+    "dAlive": -2,
+    "hitsAI": 35,
+    "hitsB": 27
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 15,
+    "dTons": 14.5,
+    "dAlive": 1,
+    "hitsAI": 34,
+    "hitsB": 31
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 32,
+    "dTons": 5.750000000000002,
+    "dAlive": 2,
+    "hitsAI": 63,
+    "hitsB": 32
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": 29,
+    "dTons": 20.5,
+    "dAlive": 2,
+    "hitsAI": 82,
+    "hitsB": 50
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -12,
+    "dTons": 10.1,
+    "dAlive": -2,
+    "hitsAI": 21,
+    "hitsB": 12
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": -70,
+    "dTons": -20.3,
+    "dAlive": -4,
+    "hitsAI": 26,
+    "hitsB": 56
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": 55,
+    "dTons": 35.5,
+    "dAlive": 6,
+    "hitsAI": 68,
+    "hitsB": 31
+   }
+  ]
+ },
+ "8v8 full": {
+  "n": 12,
+  "dMod": 13.17,
+  "dMod_se": 10.45,
+  "dTons": 5.02,
+  "dTons_se": 4.16,
+  "dAlive": 0.75,
+  "dAlive_se": 0.85,
+  "hitsAI": 27.83,
+  "hitsBase": 22.75,
+  "winsByTons": 8,
+  "lossesByTons": 4,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -41,
+    "dTons": -16.65,
+    "dAlive": -5,
+    "hitsAI": 17,
+    "hitsB": 44
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -35,
+    "dTons": -4.800000000000001,
+    "dAlive": -2,
+    "hitsAI": 19,
+    "hitsB": 39
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 63,
+    "dTons": 23.95,
+    "dAlive": 5,
+    "hitsAI": 60,
+    "hitsB": 30
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 39,
+    "dTons": 13.2,
+    "dAlive": 3,
+    "hitsAI": 8,
+    "hitsB": 6
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": 28,
+    "dTons": 9.5,
+    "dAlive": 1,
+    "hitsAI": 16,
+    "hitsB": 13
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 60,
+    "dTons": -8.35,
+    "dAlive": 2,
+    "hitsAI": 21,
+    "hitsB": 13
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 24,
+    "dTons": 21.049999999999997,
+    "dAlive": 2,
+    "hitsAI": 50,
+    "hitsB": 24
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 24,
+    "dTons": 3,
+    "dAlive": 1,
+    "hitsAI": 27,
+    "hitsB": 9
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -10,
+    "dTons": 14.049999999999999,
+    "dAlive": -1,
+    "hitsAI": 52,
+    "hitsB": 51
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -32,
+    "dTons": -17,
+    "dAlive": -3,
+    "hitsAI": 2,
+    "hitsB": 6
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": 0,
+    "dTons": 1.4000000000000004,
+    "dAlive": 2,
+    "hitsAI": 13,
+    "hitsB": 25
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": 38,
+    "dTons": 20.95,
+    "dAlive": 4,
+    "hitsAI": 49,
+    "hitsB": 13
+   }
+  ]
+ },
+ "8v8 noIC": {
+  "n": 12,
+  "dMod": 13.17,
+  "dMod_se": 10.45,
+  "dTons": 5.02,
+  "dTons_se": 4.16,
+  "dAlive": 0.75,
+  "dAlive_se": 0.85,
+  "hitsAI": 27.83,
+  "hitsBase": 22.75,
+  "winsByTons": 8,
+  "lossesByTons": 4,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -41,
+    "dTons": -16.65,
+    "dAlive": -5,
+    "hitsAI": 17,
+    "hitsB": 44
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -35,
+    "dTons": -4.800000000000001,
+    "dAlive": -2,
+    "hitsAI": 19,
+    "hitsB": 39
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 63,
+    "dTons": 23.95,
+    "dAlive": 5,
+    "hitsAI": 60,
+    "hitsB": 30
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 39,
+    "dTons": 13.2,
+    "dAlive": 3,
+    "hitsAI": 8,
+    "hitsB": 6
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": 28,
+    "dTons": 9.5,
+    "dAlive": 1,
+    "hitsAI": 16,
+    "hitsB": 13
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 60,
+    "dTons": -8.35,
+    "dAlive": 2,
+    "hitsAI": 21,
+    "hitsB": 13
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 24,
+    "dTons": 21.049999999999997,
+    "dAlive": 2,
+    "hitsAI": 50,
+    "hitsB": 24
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 24,
+    "dTons": 3,
+    "dAlive": 1,
+    "hitsAI": 27,
+    "hitsB": 9
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -10,
+    "dTons": 14.049999999999999,
+    "dAlive": -1,
+    "hitsAI": 52,
+    "hitsB": 51
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -32,
+    "dTons": -17,
+    "dAlive": -3,
+    "hitsAI": 2,
+    "hitsB": 6
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": 0,
+    "dTons": 1.4000000000000004,
+    "dAlive": 2,
+    "hitsAI": 13,
+    "hitsB": 25
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": 38,
+    "dTons": 20.95,
+    "dAlive": 4,
+    "hitsAI": 49,
+    "hitsB": 13
+   }
+  ]
+ },
+ "8v8 noLine": {
+  "n": 12,
+  "dMod": 4.42,
+  "dMod_se": 9.01,
+  "dTons": 1.2,
+  "dTons_se": 3.73,
+  "dAlive": -0.08,
+  "dAlive_se": 0.75,
+  "hitsAI": 22.33,
+  "hitsBase": 19.67,
+  "winsByTons": 4,
+  "lossesByTons": 7,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": 6,
+    "dTons": -14.75,
+    "dAlive": 0,
+    "hitsAI": 9,
+    "hitsB": 20
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -16,
+    "dTons": -0.7,
+    "dAlive": -1,
+    "hitsAI": 15,
+    "hitsB": 30
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 50,
+    "dTons": 28.45,
+    "dAlive": 6,
+    "hitsAI": 49,
+    "hitsB": 17
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 19,
+    "dTons": -6.5,
+    "dAlive": 0,
+    "hitsAI": 2,
+    "hitsB": 7
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": -61,
+    "dTons": -3.1999999999999993,
+    "dAlive": -3,
+    "hitsAI": 21,
+    "hitsB": 21
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 18,
+    "dTons": -5.4,
+    "dAlive": 0,
+    "hitsAI": 30,
+    "hitsB": 24
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": -12,
+    "dTons": 5.25,
+    "dAlive": -1,
+    "hitsAI": 29,
+    "hitsB": 10
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 22,
+    "dTons": 0,
+    "dAlive": 0,
+    "hitsAI": 27,
+    "hitsB": 12
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": 40,
+    "dTons": 18.299999999999997,
+    "dAlive": 1,
+    "hitsAI": 46,
+    "hitsB": 42
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -19,
+    "dTons": -4.4,
+    "dAlive": -3,
+    "hitsAI": 5,
+    "hitsB": 3
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": -21,
+    "dTons": -14.7,
+    "dAlive": -3,
+    "hitsAI": 10,
+    "hitsB": 28
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": 27,
+    "dTons": 12,
+    "dAlive": 3,
+    "hitsAI": 25,
+    "hitsB": 22
+   }
+  ]
+ },
+ "8v8 noPVO": {
+  "n": 12,
+  "dMod": 1.42,
+  "dMod_se": 10.73,
+  "dTons": -1.17,
+  "dTons_se": 4.37,
+  "dAlive": -0.5,
+  "dAlive_se": 0.87,
+  "hitsAI": 23.58,
+  "hitsBase": 25.67,
+  "winsByTons": 5,
+  "lossesByTons": 7,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -23,
+    "dTons": -21.9,
+    "dAlive": -4,
+    "hitsAI": 21,
+    "hitsB": 47
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -20,
+    "dTons": -7.499999999999999,
+    "dAlive": -2,
+    "hitsAI": 14,
+    "hitsB": 30
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 47,
+    "dTons": 14.45,
+    "dAlive": 4,
+    "hitsAI": 45,
+    "hitsB": 41
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 42,
+    "dTons": 13.2,
+    "dAlive": 3,
+    "hitsAI": 11,
+    "hitsB": 4
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": -6,
+    "dTons": -1.25,
+    "dAlive": -1,
+    "hitsAI": 23,
+    "hitsB": 25
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 56,
+    "dTons": -8.35,
+    "dAlive": 2,
+    "hitsAI": 12,
+    "hitsB": 13
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 24,
+    "dTons": 16,
+    "dAlive": 1,
+    "hitsAI": 48,
+    "hitsB": 19
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 6,
+    "dTons": 8.95,
+    "dAlive": 1,
+    "hitsAI": 29,
+    "hitsB": 9
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -5,
+    "dTons": 18.85,
+    "dAlive": 1,
+    "hitsAI": 56,
+    "hitsB": 45
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -27,
+    "dTons": -12.5,
+    "dAlive": -2,
+    "hitsAI": 3,
+    "hitsB": 8
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": -76,
+    "dTons": -24.65,
+    "dAlive": -6,
+    "hitsAI": 9,
+    "hitsB": 46
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": -1,
+    "dTons": -9.4,
+    "dAlive": -3,
+    "hitsAI": 12,
+    "hitsB": 21
+   }
+  ]
+ },
+ "8v8 noSup": {
+  "n": 12,
+  "dMod": 12.92,
+  "dMod_se": 10.23,
+  "dTons": 4.87,
+  "dTons_se": 4,
+  "dAlive": 0.92,
+  "dAlive_se": 0.87,
+  "hitsAI": 28.33,
+  "hitsBase": 22.08,
+  "winsByTons": 8,
+  "lossesByTons": 4,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -41,
+    "dTons": -16.65,
+    "dAlive": -5,
+    "hitsAI": 17,
+    "hitsB": 44
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -35,
+    "dTons": -4.800000000000001,
+    "dAlive": -2,
+    "hitsAI": 19,
+    "hitsB": 39
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 63,
+    "dTons": 23.95,
+    "dAlive": 5,
+    "hitsAI": 60,
+    "hitsB": 30
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 39,
+    "dTons": 13.2,
+    "dAlive": 3,
+    "hitsAI": 8,
+    "hitsB": 6
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": 28,
+    "dTons": 9.5,
+    "dAlive": 1,
+    "hitsAI": 16,
+    "hitsB": 13
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 49,
+    "dTons": -8.35,
+    "dAlive": 2,
+    "hitsAI": 24,
+    "hitsB": 14
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 21,
+    "dTons": 14,
+    "dAlive": 2,
+    "hitsAI": 44,
+    "hitsB": 19
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 35,
+    "dTons": 8.2,
+    "dAlive": 3,
+    "hitsAI": 36,
+    "hitsB": 5
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -10,
+    "dTons": 14.049999999999999,
+    "dAlive": -1,
+    "hitsAI": 52,
+    "hitsB": 51
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -32,
+    "dTons": -17,
+    "dAlive": -3,
+    "hitsAI": 2,
+    "hitsB": 6
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": 0,
+    "dTons": 1.4000000000000004,
+    "dAlive": 2,
+    "hitsAI": 13,
+    "hitsB": 25
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": 38,
+    "dTons": 20.95,
+    "dAlive": 4,
+    "hitsAI": 49,
+    "hitsB": 13
+   }
+  ]
+ },
+ "homog full": {
+  "n": 12,
+  "dMod": -20.42,
+  "dMod_se": 11.37,
+  "dTons": -3.25,
+  "dTons_se": 1.37,
+  "dAlive": -2.17,
+  "dAlive_se": 0.91,
+  "hitsAI": 35.58,
+  "hitsBase": 55.42,
+  "winsByTons": 2,
+  "lossesByTons": 8,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -24,
+    "dTons": -3,
+    "dAlive": -2,
+    "hitsAI": 3,
+    "hitsB": 82
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": -20,
+    "dTons": -6,
+    "dAlive": -4,
+    "hitsAI": 21,
+    "hitsB": 67
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 56,
+    "dTons": 7.5,
+    "dAlive": 5,
+    "hitsAI": 132,
+    "hitsB": 32
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 25,
+    "dTons": 0,
+    "dAlive": 0,
+    "hitsAI": 2,
+    "hitsB": 0
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": -56,
+    "dTons": -7.5,
+    "dAlive": -5,
+    "hitsAI": 49,
+    "hitsB": 116
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": -15,
+    "dTons": -3,
+    "dAlive": -2,
+    "hitsAI": 63,
+    "hitsB": 64
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 19,
+    "dTons": 1.5,
+    "dAlive": 1,
+    "hitsAI": 90,
+    "hitsB": 1
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": -68,
+    "dTons": -7.5,
+    "dAlive": -5,
+    "hitsAI": 11,
+    "hitsB": 37
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -66,
+    "dTons": -7.5,
+    "dAlive": -5,
+    "hitsAI": 5,
+    "hitsB": 110
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": 0,
+    "dTons": 0,
+    "dAlive": 0,
+    "hitsAI": 0,
+    "hitsB": 1
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": -45,
+    "dTons": -6,
+    "dAlive": -4,
+    "hitsAI": 44,
+    "hitsB": 130
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": -51,
+    "dTons": -7.5,
+    "dAlive": -5,
+    "hitsAI": 7,
+    "hitsB": 25
+   }
+  ]
+ },
+ "icheavy full": {
+  "n": 12,
+  "dMod": -3.17,
+  "dMod_se": 7.32,
+  "dTons": -2.48,
+  "dTons_se": 3.68,
+  "dAlive": -0.33,
+  "dAlive_se": 1.34,
+  "hitsAI": 11.5,
+  "hitsBase": 15.17,
+  "winsByTons": 7,
+  "lossesByTons": 5,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": -35,
+    "dTons": -2.1,
+    "dAlive": 1,
+    "hitsAI": 13,
+    "hitsB": 27
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": 0,
+    "dTons": 8.8,
+    "dAlive": 4,
+    "hitsAI": 18,
+    "hitsB": 16
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 37,
+    "dTons": 9.5,
+    "dAlive": 5,
+    "hitsAI": 12,
+    "hitsB": 7
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": 13,
+    "dTons": 9.5,
+    "dAlive": 5,
+    "hitsAI": 5,
+    "hitsB": 3
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": -27,
+    "dTons": -1.25,
+    "dAlive": 3,
+    "hitsAI": 0,
+    "hitsB": 32
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 31,
+    "dTons": 9.5,
+    "dAlive": 5,
+    "hitsAI": 9,
+    "hitsB": 5
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": 11,
+    "dTons": 0.7,
+    "dAlive": -3,
+    "hitsAI": 16,
+    "hitsB": 23
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": -24,
+    "dTons": -19,
+    "dAlive": -6,
+    "hitsAI": 11,
+    "hitsB": 15
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -41,
+    "dTons": -28.5,
+    "dAlive": -7,
+    "hitsAI": 6,
+    "hitsB": 13
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": 9,
+    "dTons": 0.7,
+    "dAlive": -3,
+    "hitsAI": 9,
+    "hitsB": 4
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": 4,
+    "dTons": 0.7,
+    "dAlive": -3,
+    "hitsAI": 24,
+    "hitsB": 0
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": -16,
+    "dTons": -18.3,
+    "dAlive": -5,
+    "hitsAI": 15,
+    "hitsB": 37
+   }
+  ]
+ },
+ "range full": {
+  "n": 12,
+  "dMod": 6,
+  "dMod_se": 13.44,
+  "dTons": 3.16,
+  "dTons_se": 3.9,
+  "dAlive": 0.58,
+  "dAlive_se": 1.2,
+  "hitsAI": 26.5,
+  "hitsBase": 21.25,
+  "winsByTons": 7,
+  "lossesByTons": 5,
+  "runs": [
+   {
+    "side": 0,
+    "seed": 1,
+    "dMod": 30,
+    "dTons": -11,
+    "dAlive": 0,
+    "hitsAI": 17,
+    "hitsB": 21
+   },
+   {
+    "side": 0,
+    "seed": 2,
+    "dMod": 51,
+    "dTons": 2.75,
+    "dAlive": 2,
+    "hitsAI": 20,
+    "hitsB": 50
+   },
+   {
+    "side": 0,
+    "seed": 3,
+    "dMod": 56,
+    "dTons": 18,
+    "dAlive": 6,
+    "hitsAI": 46,
+    "hitsB": 25
+   },
+   {
+    "side": 0,
+    "seed": 4,
+    "dMod": -6,
+    "dTons": -5,
+    "dAlive": 0,
+    "hitsAI": 4,
+    "hitsB": 14
+   },
+   {
+    "side": 0,
+    "seed": 5,
+    "dMod": 73,
+    "dTons": 22.25,
+    "dAlive": 7,
+    "hitsAI": 66,
+    "hitsB": 3
+   },
+   {
+    "side": 0,
+    "seed": 6,
+    "dMod": 45,
+    "dTons": 13.25,
+    "dAlive": 5,
+    "hitsAI": 26,
+    "hitsB": 16
+   },
+   {
+    "side": 1,
+    "seed": 1,
+    "dMod": -11,
+    "dTons": 14.75,
+    "dAlive": -1,
+    "hitsAI": 33,
+    "hitsB": 3
+   },
+   {
+    "side": 1,
+    "seed": 2,
+    "dMod": 7,
+    "dTons": 10.2,
+    "dAlive": 2,
+    "hitsAI": 38,
+    "hitsB": 12
+   },
+   {
+    "side": 1,
+    "seed": 3,
+    "dMod": -48,
+    "dTons": -8.75,
+    "dAlive": -4,
+    "hitsAI": 34,
+    "hitsB": 38
+   },
+   {
+    "side": 1,
+    "seed": 4,
+    "dMod": -2,
+    "dTons": 8,
+    "dAlive": 0,
+    "hitsAI": 13,
+    "hitsB": 2
+   },
+   {
+    "side": 1,
+    "seed": 5,
+    "dMod": -72,
+    "dTons": -22.25,
+    "dAlive": -7,
+    "hitsAI": 10,
+    "hitsB": 58
+   },
+   {
+    "side": 1,
+    "seed": 6,
+    "dMod": -51,
+    "dTons": -4.25,
+    "dAlive": -3,
+    "hitsAI": 11,
+    "hitsB": 13
+   }
+  ]
+ }
+}
