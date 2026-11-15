@@ -129,7 +129,28 @@
   "tail": 300,
   "hyst": 1.15,
   "gat": 0.02,
-  "miss": 0.5
+  "miss": 0.5,
+  "pred": 0,
+  "pu": 2,
+  "ai2": 1,
+  "div": 500,
+  "wrole": 1,
+  "wfoc": 1.5,
+  "wp": 3,
+  "wram": 20,
+  "wform": 0.02,
+  "rpl": 2
+ },
+ "epred": {
+  "prior": 0.002,
+  "lat": 0.5,
+  "aMin": 0.0005,
+  "dvMax": 1,
+  "jump": 0.001,
+  "age": 60,
+  "acc": 5,
+  "pseudo": 8,
+  "burn": 10
  },
  "track": {
   "ally": 0.75,
@@ -165,10 +186,32 @@
   "rad": 2,
   "sup": 3
  },
+ "detach": {
+  "e": 5000
+ },
+ "struct": {
+  "e": 5000,
+  "fill": 0.2,
+  "rho": 7800
+ },
  "command": {
   "period": 30,
   "minGroup": 6,
   "fleetMax": 10
+ },
+ "fleetcmd": {
+  "on": 1,
+  "re": 10,
+  "hold": 20,
+  "hyst": 1.25,
+  "T": 90,
+  "R": 300,
+  "rep": 30,
+  "repTTL": 60,
+  "fb": 1,
+  "sp": 3,
+  "back": 6,
+  "cover": 1.3
  },
  "flak": {
   "laser": 0.5,

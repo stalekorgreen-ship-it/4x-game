@@ -73,4 +73,8 @@ function snapshot1(s: any): ShipView { return { id: s.uid, side: s.side, alive: 
   x: s.x, y: s.y, z: s.z || 0, hd: s.hd || 0, roll: s.roll || 0, w: s.w || 0, sx: s.sx || 0, sy: s.sy || 0, ax: s.aex || 0, ay: s.aey || 0, accMax: (s.acc || 5) / 1000, boost: s.bst || 1,
   hp: s.total ? s.aliveN / s.total : 1, mods: [] } }
 export function modsOf(id: number): ModView[] { for (const s of (Battle.ships() || []) as any[]) if (s.uid === id) { const r: ModView[] = []; for (const z of s.zones || []) for (const m of z.mods) if (m.id != null) r.push({ id: m.id, k: m.k, alive: m.alive, loc: m.loc }); return r } return [] }
-export const View = { poll, drain, headCursor, snapshot, shipView, modsOf };
+// тактика для диагностики: роль, цель, причина смены, доклад, флагман, место в линии и прикрываемый — что решил ИИ (только чтение)
+export function tactics() { const out = []; for (const s of (Battle.ships() || []) as any[]) { if (!s.alive) continue; const k = s.task, F = s.F;
+  out.push({ id: s.uid, side: s.side, x: s.x, y: s.y, z: s.z || 0, role: k && k.role || s.role || null, tg: k && k.tg && k.tg.alive ? k.tg.uid : null, why: k && k.why || null, rep: s.report && Battle.time() - s.report.t < 60 ? s.report.why : null,
+    roleWhy: s.roleWhy || null, flag: !!(F && F.flag === s), flagSince: F && F.flag === s ? F.flagT || 0 : null, slot: s.slot ? { x: s.slot.x, y: s.slot.y } : null, prot: s.prot && s.prot.alive ? s.prot.uid : null }) } return out }
+export const View = { poll, drain, headCursor, snapshot, shipView, modsOf, tactics };
