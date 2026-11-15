@@ -13,12 +13,14 @@ for(let seed=1;seed<=+N;seed++){const p=await b.newPage();const errs=[];p.on('pa
   const RC=(c,n)=>Array(n).fill(D.compOf(D.mkKey('rail',{cal:c,bar:'1',cap:'a'})).rcfg),GC=D.compOf(D.mkKey('gat',{tw:'1'})).gcfg;
   const mk=(name,o,tons,acc)=>({...D.fitSpec({name,eng:3,spd:1,flak:0,rails:0,...o}),tons,pow:acc*tons/120});
   const late=[];for(const sd of [0,1]){const a=sd?Math.PI:0;
-   late.push({t:0,side:sd,spec:typ==='fr'?mk('Фрегат'+sd,{L:.15,arm:2,rails:2,railCfg:RC('10',2),gat:2,gatCfg:[GC,GC],ammoCap:300,energy:5000},1500,10):mk('Броненосец'+sd,{L:.3,arm:5,rails:2,railCfg:RC('20',2),gat:4,gatCfg:Array(4).fill(GC),ammoCap:500,energy:5000},9500,5),edge:80,ang:a})}
+   const FR=()=>mk('Фрегат'+sd,{L:.15,arm:2,rails:2,railCfg:RC('10',2),gat:2,gatCfg:[GC,GC],ammoCap:300,energy:5000},1500,10),BB=()=>mk('Броненосец'+sd,{L:.3,arm:5,rails:2,railCfg:RC('20',2),gat:4,gatCfg:Array(4).fill(GC),ammoCap:500,energy:5000},9500,5),
+    PD=()=>mk('Сторож'+sd,{L:.12,arm:2,gat:6,gatCfg:Array(6).fill(GC),ammoCap:300,energy:5000},1250,12);
+   for(const f of typ==='3v3'?[FR,BB,PD]:[typ==='fr'?FR:BB])late.push({t:0,side:sd,spec:f(),edge:80,ang:a})}
   D.state.demo=true;D.state.paused=false;B.Battle.begin({title:'d',fleets:[[],[]],late,demo:true,maxT:1e5,names:['a','b'],onEnd(){}});
   B.Battle.tickN(1);const SS=B.Battle.ships().filter(s=>!s.bayOf),tau=TAU||300+Math.random()*600; // встречный курс: точка пересечения (0,0) через tau с, скорость до 2 км/с, случайное направление; полбака
-  for(const s of SS){const a=Math.random()*6.283,v=Math.random()*2;s.sx=s.vx=Math.cos(a)*v;s.sy=s.vy=Math.sin(a)*v;s.hd=a;if(s.fuelCap)s.fuel=s.fuelCap/2}
-  {const[a,c]=SS,rv=Math.hypot(a.sx-c.sx,a.sy-c.sy)||.01,tt=Math.min(tau,350/rv);for(const s of SS){s.x=-s.sx*tt;s.y=-s.sy*tt}} // старт не дальше 350 км друг от друга
-  const tr=[];const t0=B.Battle.time();while(B.Battle.time()-t0<T&&!B.Battle.isDone()){B.Battle.tickN(1);const k=Math.round(B.Battle.time()-t0);if(k%60===0&&tr.length<k/60+1){const[a,c]=SS;tr.push([k,+Math.hypot(a.x-c.x,a.y-c.y).toFixed(1),+Math.hypot(a.sx-c.sx,a.sy-c.sy).toFixed(2),Math.round(100*a.fuel/a.fuelCap),Math.round(100*c.fuel/c.fuelCap),(B.Battle.stat().shots||[0,0]).join('/')])}}
+  const VS=[0,1].map(()=>{const a=Math.random()*6.283,v=Math.random()*2;return [Math.cos(a)*v,Math.sin(a)*v,a]});for(const s of SS){const w=VS[s.side];s.sx=s.vx=w[0];s.sy=s.vy=w[1];s.hd=w[2];if(s.fuelCap)s.fuel=s.fuelCap/2}
+  {const rv=Math.hypot(VS[0][0]-VS[1][0],VS[0][1]-VS[1][1])||.01,tt=Math.min(tau,350/rv);const k=[0,0];for(const s of SS){const i=k[s.side]++;s.x=-s.sx*tt+(i-1)*3;s.y=-s.sy*tt+(i-1)*3*(s.side?1:-1)}} // старт не дальше 350 км друг от друга
+  const tr=[];const t0=B.Battle.time();while(B.Battle.time()-t0<T&&!B.Battle.isDone()){B.Battle.tickN(1);const k=Math.round(B.Battle.time()-t0);if(k%60===0&&tr.length<k/60+1){const a=SS.find(q=>q.side===0),c=SS.find(q=>q.side===1);tr.push([k,+Math.hypot(a.x-c.x,a.y-c.y).toFixed(1),+Math.hypot(a.sx-c.sx,a.sy-c.sy).toFixed(2),Math.round(100*a.fuel/a.fuelCap),Math.round(100*c.fuel/c.fuelCap),(B.Battle.stat().shots||[0,0]).join('/')])}}
   const st=B.Battle.stat(),arm=s=>s.zones.reduce((a,z)=>a+z.armN,0);
   return {gh:st.gHit||0,gs:st.gatT,ext:st.extK||0,tr,t:Math.round(B.Battle.time()-t0),hits:st.hits,shots:st.shots,dodge:st.dodge||0,blind:st.blind||0,ships:B.Battle.ships().filter(s=>!s.bayOf).map(s=>({why:[...new Set(s.tur.map(m=>m.k+':'+(m.why||'')+':'+(m.ammo??'')))].slice(0,4),mag:Math.round(s.mag),n:s.T.n,alive:s.alive,mod:s.aliveN+'/'+s.total,arm:arm(s)}))}}catch(e){return {err:e.stack.slice(0,400)}}},[+T,typ,+(process.env.TAU||0)]);
  r.seed=seed;if(errs.length)r.errs=errs.slice(0,3);res.push(r);await p.close()}
