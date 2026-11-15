@@ -65,6 +65,7 @@ const RAM=gd('battle','ram',{on:1,mass:1.5,nose:20,dist:4,v:.2,tip:.03,cd:20,sy:
 // удар корпусов, неупругий: энергия ½·μ·v² (μ = m1m2/(m1+m2)) уходит в смятие. Сила одна на обоих (3-й закон) — мнётся тот, у кого сейчас слабее сопротивление:
 // броня — сталь при смятии RAM.sy (кДж/см³), за бронёй — сталь × заполненность корпуса (масса / (7,8 т/м³ × объём)). После удара — общая скорость (сохранение импульса)
 function ramHit(s,o){const rvx=s.sx-o.sx,rvy=s.sy-o.sy,dx=o.x-s.x,dy=o.y-s.y,d=Math.hypot(dx,dy)||1e-6,vr=Math.max(0,(rvx*dx+rvy*dy)/d);if(vr<=0)return;
+  const est=ramEst(s,o,vr,zoneTo(s,o.x,o.y),zoneTo(o,s.x,s.y)),al0=[s.aliveN,o.aliveN];
   const m1=s.T.tons,m2=o.T.tons,mu=m1*m2/(m1+m2);let E=.5*mu*vr*vr*1e9; // Дж
   const zs=zoneTo(s,o.x,o.y),zo=zoneTo(o,s.x,s.y),A=Math.pow(Math.max(2,s.T.L*1000*RAM.tip),2)*1e4; // см²
   const fill=q=>{const L=q.T.L*1000,vol=L*Math.pow(L*.22,2)*.5;return Math.min(1,q.T.tons/(7.8*vol))};
@@ -75,8 +76,17 @@ function ramHit(s,o){const rvx=s.sx-o.sx,rvy=s.sy-o.sy,dx=o.x-s.x,dy=o.y-s.y,d=M
     if(inner>0){const ms=z.mods.filter(m=>m.alive&&m.k!=='C'),n=Math.min(ms.length,Math.round(ms.length*inner/half));for(let i=0;i<n;i++)mdead(p.q,ms[i]);if(inner>half*.8&&p.q.core.alive){p.q.core.alive=false;p.q.aliveN--}
       p.q.crew=Math.max(0,p.q.crew-.3*Math.min(1,inner/half));if(!p.q.core.alive||p.q.aliveN<p.q.total*.22)kill(p.q,'таран')}}
   const vx=(m1*s.sx+m2*o.sx)/(m1+m2),vy=(m1*s.sy+m2*o.sy)/(m1+m2);s.sx=o.sx=vx;s.sy=o.sy=vy; // сцепились: общая скорость
-  s.ramT=o.ramT=t+RAM.cd;stat.ram=(stat.ram||[]);stat.ram.push({by:s.T.n,to:o.T.n,v:+(vr*1000).toFixed(0),GJ:+(.5*mu*vr*vr).toFixed(2),dep:[+(P[0].dep/100).toFixed(2),+(P[1].dep/100).toFixed(2)],kill:[!s.alive,!o.alive]});
+  s.ramT=o.ramT=t+RAM.cd;stat.ram=(stat.ram||[]);stat.ram.push({by:s.T.n,to:o.T.n,v:+(vr*1000).toFixed(0),GJ:+(.5*mu*vr*vr).toFixed(2),dep:[+(P[0].dep/100).toFixed(2),+(P[1].dep/100).toFixed(2)],kill:[!s.alive,!o.alive],lost:[al0[0]-s.aliveN,al0[1]-o.aliveN],est:[est[0].mods,est[1].mods,est[0].kill,est[1].kill]});
   fx.push({x:(s.x+o.x)/2,y:(s.y+o.y)/2,z:o.z,t0:t,d:6,r:Math.max(.5,s.T.L*.3)});say(o.side,'hit',o)}
+// исход тарана без изменения мира — тот же расчёт смятия, что в ramHit: энергия сближения уходит в сторону с меньшим сопротивлением (броня Rt, за бронёй — заполнение корпуса), по глубине смятия за бронёй гибнут модули зоны, ядро, корабль
+// a — таранящий, b — цель; vr — скорость сближения, км/с; za, zb — зоны контакта. Возвращает потерянные модули и гибель каждой стороны
+function ramEst(a,b,vr,za,zb){const m1=a.T.tons,m2=b.T.tons,mu=m1*m2/(m1+m2);let E=.5*mu*vr*vr*1e9;const A=Math.pow(Math.max(2,a.T.L*1000*RAM.tip),2)*1e4,Rt=RAM.sy*1000;
+  const fill=q=>{const L=q.T.L*1000,vol=L*Math.pow(L*.22,2)*.5;return Math.min(1,q.T.tons/(7.8*vol))};
+  const P=[{q:a,z:a.zones[za],arm:a.zones[za].arm*2,dep:0,f:fill(a)},{q:b,z:b.zones[zb],arm:b.zones[zb].arm*2,dep:0,f:fill(b)}];
+  for(let i=0;i<20000&&E>0;i++){const r=P.map(p=>Rt*(p.dep<p.arm?1:p.f));const ks=Math.abs(r[0]-r[1])<1e-9?[0,1]:[r[0]<r[1]?0:1];for(const k of ks){const step=(P[k].dep<P[k].arm?1:20)/ks.length,e=r[k]*A*step;P[k].dep+=Math.min(step,step*E/e);E-=e}}
+  return P.map(p=>{const inner=Math.max(0,p.dep-p.arm)/100,half=p.q.T.L*1000*.11,ms=p.z.mods.filter(m=>m.alive&&m.k!=='C').length,n=inner>0?Math.min(ms,Math.round(ms*inner/half)):0,core=inner>half*.8&&p.q.core.alive,kill=core||!p.q.core.alive||p.q.aliveN-n-(core?1:0)<p.q.total*.22;
+    return {mods:n+(core?1:0),kill,alive:p.q.aliveN,dep:p.dep}})}
+const zoneAt=(hd,x0,y0,x,y)=>{const a=adiff(hd,Math.atan2(y-y0,x-x0)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)};
 function zoneTo(o,x,y){const a=adiff(o.hd,Math.atan2(y-o.y,x-o.x)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)}
 const TESTLOG=typeof window!=='undefined'&&window.__testlog;
 const TAC=gd('battle','tactic',{on:1,rich:1.5,re:10,v:.6,adv:1.3,str:.9}); // str — навязываем бой, только если наша сила ≥ str × вражеской: быстрый, но слабый в лобовой не лезет // adv — во сколько раз свободный Δv флота должен превышать вражеский, чтобы самим навязывать бой // rich — свободный Δv (км/с), с которого корабль маневрирует ради позиции; re — с между выбором общей цели флота; v — км/с выхода на позицию
@@ -168,7 +178,6 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
   const evalAt=(G,tt)=>{let v=0;for(const e of EN){const ex=e.x+e.sx*tt,ey=e.y+e.sy*tt,d=Math.hypot(ex-G.x,ey-G.y),bt=Math.atan2(ey-G.y,ex-G.x),a=adiff(G.hd,bt),
       wb=ws.filter(m=>m.cfg.ax?Math.abs(a)<.175:bearsDir(m,s.roll||0,a,0));
       v+=e.w*PLN.wd*dpsAt(wb,e.o,d,Math.abs(adiff(e.hd,Math.atan2(G.y-ey,G.x-ex))))/Math.max(.2,e.b.md)-PLN.wr*surv*dpsAt(e.o.tur,s,d,Math.abs(a),e.b.wp)}return v};
-  let Eref=1;for(const m of ws){const C=m.cfg,E=m.k==='T'?.5*RAIL_M(C.cal)*((C.vp||VP)*1000)**2:m.k==='G'?.5*GAT_M*(GV*1000)**2:0;if(E>Eref)Eref=E} // энергия снаряда своего главного калибра, Дж
   const scs={},all=[];let best=null;s.planBan=[];
   for(const I of I0){let P=predI(s,I,intentCmd(I,tgP,slP,eng),dt,tk);
     // контакт с кораблём врага: дальше прогноз не знает, что будет (столкновение — внешнее событие), — оцениваем траекторию только до контакта
@@ -181,10 +190,11 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
     for(const h of TH){let mn=1e9,ai=0,px0=h.x-s.x,py0=h.y-s.y;for(let i=0;i<P.length;i++){const tt=(i+1)*dt,px1=h.x+h.vx*tt-P[i].x,py1=h.y+h.vy*tt-P[i].y,qx=px1-px0,qy=py1-py0,l2=qx*qx+qy*qy||1e-12,u=Math.max(0,Math.min(1,-(px0*qx+py0*qy)/l2)),dd=Math.hypot(px0+qx*u,py0+qy*u);
         if(dd<mn){mn=dd;ai=i}px0=px1;py0=py1;if(tt>h.tc+4)break} // сближение снаряда с траекторией призрака (непрерывно между шагами)
       const ph=mn<=hr?1:Math.max(0,1-(mn-hr)/(2*hr)),Q=P[ai];sc-=PLN.wp*surv*ph*aspK(Math.abs(adiff(Q.hd,Math.atan2(-h.vy,-h.vx))))} // ожидаемое попадание × броня стороны × живучесть
-    if(I.mode==='ram'&&ce&&ce.o===g){const Q=P[ic],gx=g.x+g.sx*tc,gy=g.y+g.sy*tc,nx=gx-Q.x,ny=gy-Q.y,nl=Math.hypot(nx,ny)||1,vr=Math.max(0,((Q.sx-g.sx)*nx+(Q.sy-g.sy)*ny)/nl),
-      mu=s.T.tons*g.T.tons/(s.T.tons+g.T.tons)*1000,E=.5*mu*(vr*1000)**2,zt=g.zones[zoneTo(g,Q.x,Q.y)],zn=s.zones[0],
-      hits=E/Eref; // удар ≈ столько попаданий нашего главного калибра (по энергии)
-    sc+=PLN.wd*hits*aspK(Math.abs(adiff(g.hd||0,Math.atan2(Q.y-gy,Q.x-gx))))/Math.max(.2,EN[0].b.md)-PLN.wr*surv*hits*Math.min(3,(zt.arm||1)/Math.max(1,zn.arm||1))*(Math.abs(adiff(Q.hd,Math.atan2(ny,nx)))>.785?3:1)} // своя цена: та же энергия, делённая на соотношение брони (нос против стороны цели); не носом — втрое // удар засчитываем, только если прогноз доводит до контакта; ценность — по энергии сближения (∝ v²)
+    if(I.mode==='ram'&&ce&&ce.o===g){const Q=P[ic],gx=g.x+g.sx*tc,gy=g.y+g.sy*tc,nx=gx-Q.x,ny=gy-Q.y,nl=Math.hypot(nx,ny)||1,vr=Math.max(0,((Q.sx-g.sx)*nx+(Q.sy-g.sy)*ny)/nl);
+      if(vr>0){const R=ramEst(s,g,vr,zoneAt(Q.hd,Q.x,Q.y,gx,gy),zoneAt(g.hd||0,gx,gy,Q.x,Q.y)),
+        Dv=.5*.12*(g.acc||0)/1000*tc*tc,cdc=s.T.L*.5+g.T.L*.12,pc=g.rcsN>0?Math.min(1,cdc/Math.max(cdc,Dv)):1, // вероятность контакта: цель может уйти маневровыми на ½·0,12a·t² за время до удара
+        val=o=>o.kill?o.alive:o.mods; // модули: гибель корабля — все его живые модули
+      sc+=pc*(PLN.wd*val(R[1])/Math.max(.2,EN[0].b.md)-PLN.wr*surv*val(R[0]))}} // выгода и цена — потерянные модули обеих сторон по модели ramHit (≈ попадания, пробившие броню)
     sc-=wf*cost;scs[id]=sc;all.push([id,sc,cost]);if(!best||sc>best.sc){best={k:id,I,sc};best.P=P}}
   if(best&&s.plan&&s.plan.k!==best.k){const now=scs[s.plan.k];if(now!=null&&best.sc<now+(PLN.hyst-1)*Math.abs(now)){const I=I0.find(q=>(q.k+'·'+q.orient)===s.plan.k.replace(/·уклон.$/,'')&&!q.dodge===!s.plan.I.dodge);if(I)best={k:s.plan.k,I,sc:now}}} // гистерезис по свежей оценке
   s.planAll=Object.assign(all,{t});s.planExt=0;if(best&&best.P){s.planP=best.P;s.planS={x:s.x,y:s.y,hd:s.hd};s.planT0=t;s.planDt=dt}else s.planP=null;s.plan=best;return best}
@@ -1651,7 +1661,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {predictCmds,planT:{plan,belief,predTraj,PLN},ctrlStepT:(s)=>s,tickFixed:n=>{for(let i=0;i<n&&active&&!done;i++)tick(2)},setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,flakS:()=>flakS,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+return {predictCmds,planT:{plan,belief,predTraj,PLN,ramHit,ramEst},ctrlStepT:(s)=>s,tickFixed:n=>{for(let i=0;i<n&&active&&!done;i++)tick(2)},setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,flakS:()=>flakS,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
 }
 export const mainBattle = makeBattle();
 let curB = mainBattle;
