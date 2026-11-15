@@ -98,7 +98,7 @@ const zoneAt=(hd,x0,y0,x,y)=>{const a=adiff(hd,Math.atan2(y-y0,x-x0)),ab=Math.ab
 function zoneTo(o,x,y){const a=adiff(o.hd,Math.atan2(y-o.y,x-o.x)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)}
 const TESTLOG=typeof window!=='undefined'&&window.__testlog;
 const TAC=gd('battle','tactic',{on:1,rich:1.5,re:10,v:.6,adv:1.3,str:.9}); // str — навязываем бой, только если наша сила ≥ str × вражеской: быстрый, но слабый в лобовой не лезет // adv — во сколько раз свободный Δv флота должен превышать вражеский, чтобы самим навязывать бой // rich — свободный Δv (км/с), с которого корабль маневрирует ради позиции; re — с между выбором общей цели флота; v — км/с выхода на позицию
-const PLN=gd('battle','planner',{on:1,dt:12,hor:60,step:10,v:.4,wd:1,wr:1,wf:1,tail:300,hyst:1.15,gat:.02,miss:.5,pred:0,pu:2,ai2:1,div:500,wrole:1,wfoc:1.5,wp:3,wram:20,wform:.02,rpl:2}); // ai2 — единый тактический планировщик (движение+ориентация+уклонение+таран+строй по траектории призрака); wfoc — вес главной цели среди врагов; wp — вес ожидаемого попадания замеченного снаряда; wram — ценность удачного тарана; wform — штраф за км от места в строю; rpl — с между внеочередными пересмотрами // pred — оценивать кандидатов по траектории призрака (predictCmds) вместо прямой; pu — с между пересчётами курса политики (физика — с тем же dt, что в бою) // планировщик: раз в dt с перебирает манёвры, прогноз на hor с; wd/wr/wf — веса урона врагу, риска себе и топлива; hyst — новый план должен быть лучше старого в столько раз
+const PLN=gd('battle','planner',{on:1,dt:12,hor:60,step:10,v:.4,wd:1,wr:1,wf:1,tail:300,hyst:1.15,gat:.02,miss:.5,pred:0,pu:2,ai2:1,div:500,wrole:3,wfoc:1.5,wp:3,wram:20,wform:.02,rpl:2}); // ai2 — единый тактический планировщик (движение+ориентация+уклонение+таран+строй по траектории призрака); wfoc — вес главной цели среди врагов; wp — вес ожидаемого попадания замеченного снаряда; wram — ценность удачного тарана; wform — штраф за км от места в строю; rpl — с между внеочередными пересмотрами // pred — оценивать кандидатов по траектории призрака (predictCmds) вместо прямой; pu — с между пересчётами курса политики (физика — с тем же dt, что в бою) // планировщик: раз в dt с перебирает манёвры, прогноз на hor с; wd/wr/wf — веса урона врагу, риска себе и топлива; hyst — новый план должен быть лучше старого в столько раз
 // оценка противника стороной side: только то, что можно наблюдать. Топливо: априори полбака минус замеченные разгоны; оружие: стволы, которые стреляли (или все, пока не видели); целость: доля живых модулей при захвате радаром, иначе последняя известная
 function belief(side,o){const b=(o.bel||(o.bel=[null,null]))[side]||(o.bel[side]={fu:FUEL.ve*Math.log(1+FUEL.cap*.5),md:1,wp:o.tur.length,dv0:o.dvSum||0,seen:-1});
   if(t-o.seen[side]<TRK.ttl){const ds=(o.dvSum||0)-b.dv0;b.dv0=o.dvSum||0;b.fu=Math.max(0,b.fu-ds*1);if(t-o.lock[side]<TRK.ttl)b.md=o.aliveN/o.total;const fired=o.tur.filter(m=>m.alive&&t-(m.firedT||-1e9)<180).length;b.wp=b.seen<0?o.tur.filter(m=>m.alive).length:Math.max(fired,Math.round(b.wp*.98));b.seen=t}else b.dv0=o.dvSum||0;return b}
@@ -206,14 +206,14 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
   // Линия и поддержка — свои места в линии соединения (линия движется вместе с флотом); ПВО — у прикрываемого, между ним и угрозой; перехват — во фланг/корму цели,
   // но только если до неё уже недалеко и он не медленнее её (иначе прямой подход). При устойчивой угрозе роль весит втрое меньше — строй не ценой гибели.
   const role=FC.on&&s.task&&s.task.role,LN=F&&F.line,tl=Math.hypot(tx,ty)||1,tdx=tx/tl,tdy=ty/tl,dopt=Math.max(5,(s.T.dopt||0)||(s.maxR||60)*.6),Rs=(s.maxR||60)*.8;
-  const slotAt=tt=>({x:s.slot.x+(LN?LN.vx:0)*tt,y:s.slot.y+(LN?LN.vy:0)*tt}),prot=role==='ПВО'&&s.prot&&s.prot.alive?s.prot:null,spn=LN?LN.sp:3;
+  const dS0=s.slot?Math.hypot(s.slot.x-s.x,s.slot.y-s.y):0,dP0=role==='ПВО'&&s.prot&&s.prot.alive?Math.hypot(s.prot.x-s.x,s.prot.y-s.y):0; /* текущие расстояния: оценка роли — доля оставшегося пути, иначе вдали от места все планы равны (насыщение) и строй не собирается */const slotAt=tt=>({x:s.slot.x+(LN?LN.vx:0)*tt,y:s.slot.y+(LN?LN.vy:0)*tt}),prot=role==='ПВО'&&s.prot&&s.prot.alive?s.prot:null,spn=LN?LN.sp:3;
   const icFeas=role==='перехват'?Math.max(.3,Math.min(1.5,(s.acc||5)/Math.max(1,(rg.am||0)*1000||EP.acc)))*(d0<(s.maxR||60)*2?1:.3):0;
-  const RC=!role?null:role==='линия'&&s.slot?(G,tt)=>{const S=slotAt(tt),m=scenMean(rg,Sg,tt);return Math.min(3,Math.hypot(G.x-S.x,G.y-S.y)/spn)+.5*Math.min(2,Math.abs(Math.hypot(m.x-G.x,m.y-G.y)-dopt)/dopt)}
-    :role==='поддержка'?(G,tt)=>{let dn=1e9;for(const e of EN){const m=scenMean(e.r,e.S,tt);dn=Math.min(dn,Math.hypot(m.x-G.x,m.y-G.y))}const S=s.slot?slotAt(tt):null;return 2*Math.max(0,Rs-dn)/Rs+(S?Math.min(2,Math.hypot(G.x-S.x,G.y-S.y)/(spn*2)):0)}
-    :prot?(G,tt)=>{const px=prot.x+(prot.sx||0)*tt+tdx*Math.max(1.5,prot.T.L*8),py=prot.y+(prot.sy||0)*tt+tdy*Math.max(1.5,prot.T.L*8);return Math.min(3,Math.hypot(G.x-px,G.y-py)/3)}
+  const RC=!role?null:role==='линия'&&s.slot?(G,tt)=>{const S=slotAt(tt),m=scenMean(rg,Sg,tt);return Math.min(3,Math.hypot(G.x-S.x,G.y-S.y)/Math.max(spn,dS0))+.5*Math.min(2,Math.abs(Math.hypot(m.x-G.x,m.y-G.y)-dopt)/dopt)}
+    :role==='поддержка'?(G,tt)=>{let dn=1e9;for(const e of EN){const m=scenMean(e.r,e.S,tt);dn=Math.min(dn,Math.hypot(m.x-G.x,m.y-G.y))}const S=s.slot?slotAt(tt):null;return 2*Math.max(0,Rs-dn)/Rs+(S?Math.min(2,Math.hypot(G.x-S.x,G.y-S.y)/Math.max(spn*2,dS0)):0)}
+    :prot?(G,tt)=>{const px=prot.x+(prot.sx||0)*tt+tdx*Math.max(1.5,prot.T.L*8),py=prot.y+(prot.sy||0)*tt+tdy*Math.max(1.5,prot.T.L*8);return Math.min(3,Math.hypot(G.x-px,G.y-py)/Math.max(3,dP0))}
     :role==='перехват'?(G,tt)=>{const m=scenMean(rg,Sg,tt);return icFeas*(1-Math.abs(adiff(rg.hd,Math.atan2(G.y-m.y,G.x-m.x)))/Math.PI)}
     :null;
-  const rS=RC?(()=>{let v=0;for(const e of EN){const d=Math.hypot(e.x-s.x,e.y-s.y);v+=dpsAt(ws,e.px[1],d,0)+dpsAt(e.wt,s,d,0,e.b.wp)}return Math.max(.01,.25*v*(PLN.hor+PLN.tail)/(PLN.hor/PLN.step))*((s.riskN||0)>=2?1/3:1)})():0; // роль сдвигает оценку в пределах ~15% боевой ценности: выбирает из близких вариантов, бой не перевешивает
+  const rS=RC?(()=>{let v=0;for(const e of EN){const d=Math.hypot(e.x-s.x,e.y-s.y);v+=dpsAt(ws,e.px[1],d,0)+dpsAt(e.wt,s,d,0,e.b.wp)}return Math.max(.01,.25*v*(PLN.hor+PLN.tail)/(PLN.hor/PLN.step))*((s.riskN||0)>=2?1/3:1)})():0; // роль сдвигает оценку в пределах ~15% боевой ценности × PLN.wrole (3 → ~45%: замер — строй вдвое плотнее при тех же потерях); бой не перевешивает
   const scs={},all=[];let best=null;s.planBan=[];
   for(const I of I0){let P=predI(s,I,intentCmd(I,tgP,slP,eng),dt,tk);
     // контакт с кораблём врага: дальше прогноз не знает, что будет (столкновение — внешнее событие), — оцениваем траекторию только до контакта
@@ -234,10 +234,11 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
   if(best&&s.plan&&s.plan.k!==best.k){const now=scs[s.plan.k];if(now!=null&&best.sc<now+(PLN.hyst-1)*Math.abs(now)){const I=I0.find(q=>(q.k+'·'+q.orient)===s.plan.k.replace(/·уклон.$/,'')&&!q.dodge===!s.plan.I.dodge);if(I)best={k:s.plan.k,I,sc:now}}} // гистерезис по свежей оценке
   if(best&&best.P&&FC.on&&s.task){let dG=0,rv=0;for(let t1=PLN.step;t1<=PLN.hor+1e-9;t1+=PLN.step){const G=trajAt(s,best.P,t1,dt);for(const e of EN)for(const q of e.S){const E=scenAt(e.r,q,t1),d=Math.hypot(E.x-G.x,E.y-G.y),a=adiff(G.hd,Math.atan2(E.y-G.y,E.x-G.x));
         rv+=q.w*dpsAt(e.wt,s,d,Math.abs(a),e.b.wp)*PLN.step;if(e.o===g)dG+=q.w*dpsAt(ws.filter(m=>m.cfg.ax?Math.abs(a)<.175:bearsDir(m,s.roll||0,a,0)),e.px[1],d,0)*PLN.step}}
-    s.noAtk=dG<1e-3?(s.noAtk||0)+PLN.dt:0;const left=s.aliveN;let why=null;
-    s.riskN=rv>left*.5?(s.riskN||0)+1:Math.max(0,(s.riskN||0)-1); // временная опасность: счётчик растёт и убывает; доклад — только при устойчивой (3 пересмотра)
-    if(hpf(s)<.35)why='критические повреждения';else if(s.dvB&&s.dvB.spend<=0&&s.dvB.tk)why='необходимо отступление';else if(s.riskN>=3)why='устойчивая угроза';else if(s.noAtk>=30)why='не может атаковать цель';
-    else if(role==='ПВО'&&!s.tur.some(m=>m.alive&&m.k==='A'))why='роль невыполнима';else if(role==='перехват'&&s.dvB&&s.dvB.spend<.2)why='роль невыполнима';
+    s.noAtk=dG<1e-3?(s.noAtk||0)+PLN.dt:0;{const S3=stat.fc=stat.fc||{};S3.atkT=(S3.atkT||0)+PLN.dt;if(dG<1e-3)S3.noAtkT=(S3.noAtkT||0)+PLN.dt;if(s.task.sw&&s.task.acq==null&&dG>=1e-3){s.task.acq=t-s.task.at;S3.acqT=(S3.acqT||0)+s.task.acq;S3.acqN=(S3.acqN||0)+1}}const left=s.aliveN;let why=null;{const S4=stat.fc=stat.fc||{},cal=S4.cal=S4.cal||{p:0,a:0,n:0,hi:0,hiA:0};(s.rvQ=s.rvQ||[]).push([t,rv,left,(s.riskN||0)>=2]);while(s.rvQ.length&&t-s.rvQ[0][0]>=PLN.hor){const z=s.rvQ.shift(),lf=(z[2]-left)/z[2];cal.p+=z[1];cal.a+=z[2]-left;cal.n++;if(lf>=FC.risk){cal.real=(cal.real||0)+1;if(z[3])cal.realHit=(cal.realHit||0)+1}if(z[3]){cal.flag=(cal.flag||0)+1;cal.flagLoss=(cal.flagLoss||0)+lf}}}
+    const H=s.hpH=s.hpH||[];H.push([t,left]);while(H.length>1&&t-H[1][0]>=FC.win)H.shift();const lossF=(H[0][1]-left)/Math.max(1,H[0][1]),grow=rv>=.8*(s.rvP||0);s.rvP=rv;s.riskF=lossF;
+    s.riskN=lossF>=FC.risk&&grow?(s.riskN||0)+1:lossF<FC.risk*.4?0:Math.max(0,(s.riskN||0)-1); // устойчивая угроза = корабль уже теряет модули (своё наблюдаемое состояние за FC.win с) И прогноз огня по нему не спадает; абсолютная шкала прогноза ненадёжна (сверка cal: расхождение в 10 раз между боями) // rvK — пересчёт оценки в модули (сверено с фактическими потерями: stat.fc.cal); опасность — доля оставшихся модулей за горизонт; спад ниже половины порога — сброс // временная опасность: счётчик растёт и убывает; доклад — только при устойчивой (3 пересмотра)
+    if(hpf(s)<.35)why='критические повреждения';else if(s.dvB&&s.dvB.spend<=0&&s.dvB.tk)why='необходимо отступление';else if(s.riskN>=2)why='устойчивая угроза';else if(s.noAtk>=30)why='не может атаковать цель';
+    else if(role==='ПВО'&&!s.tur.some(m=>m.alive&&(m.k==='A'||m.k==='G')))why='роль невыполнима';else if(role==='перехват'&&s.dvB&&s.dvB.spend<.2)why='роль невыполнима';
     if(why)reportTask(s,F,why,g)}
   if(best)best.rg0={...rg};s.planAll=Object.assign(all,{t});s.planExt=0;if(best&&best.P){s.planP=best.P;s.planS={x:s.x,y:s.y,hd:s.hd};s.planT0=t;s.planDt=dt}else s.planP=null;s.plan=best;return best}
 // что думает ИИ корабля: план, оценки всех манёвров, цель флота и что корабль знает о ней (оценка, не истина)
@@ -407,20 +408,32 @@ const CMD=gd('battle','command',{period:30,minGroup:6,fleetMax:10});let CMDS=[{}
 // Цели — только видимые сенсорами стороны (trackOf), их опасность и целость — по оценке (belief), оружие — по проекту с исправной долей. Без случайности.
 // Распределение жадное по предельной пользе: польза цели = опасность × ценность × вероятность выбить её за FC.T с при уже назначенном огне (1−e^(−урон·T/живучесть)).
 // Поэтому второй корабль на ту же цель идёт, только если это полезнее новой цели, — концентрация огня осознанная. Гистерезис и минимальное время удержания — без дёрганья.
-const FC=gd('battle','fleetcmd',{on:1,re:10,hold:20,hyst:1.25,T:90,R:300,rep:30,repTTL:60,fb:1,sp:3,back:6,cover:1.3}); // sp — км между местами линии; back — км второй линии (поддержка); cover — ценность незанятой серьёзной угрозы // fb — доклады кораблей включены // rep — с между докладами корабля; repTTL — сколько командир учитывает доклад
-function roleOf(s){const al=s.tur.filter(m=>m.alive),fl=al.filter(m=>m.k==='A').length,gun=al.filter(m=>m.k==='T'||m.k==='G'||m.k==='L'||m.k==='M').length,ac=(s.acc||5);
-  return fl>0&&fl>=gun?'ПВО':s.T.tons>=4000&&gun>=3?'линия':ac>=8&&s.T.tons<2500?'перехват':'поддержка'} // по реальному вооружению и манёвренности; меняется с повреждениями
+const FC=gd('battle','fleetcmd',{on:1,re:10,hold:20,hyst:1.25,T:90,R:300,rep:30,repTTL:60,fb:1,risk:.08,win:36,swc:2,sp:3,back:6,cover:1.3}); // sp — км между местами линии; back — км второй линии (поддержка); cover — ценность незанятой серьёзной угрозы // fb — доклады кораблей включены // rep — с между докладами корабля; repTTL — сколько командир учитывает доклад
+// РОЛЬ — по возможностям корабля относительно своего соединения (медианы флота), не по абсолютным порогам: однородный флот целиком — линия;
+// ПВО — корабль, у которого противоракетные установки (зенитки A, картечницы G) — основное вооружение; перехват — заметно быстрее флота при меньшей живучести и с топливом;
+// поддержка — дальнобойный, но слабее линии, или неспособный к линейному бою; всё по исправным модулям и двигателям — повреждения пересматривают роль.
+function capOf(s){const al=s.tur.filter(m=>m.alive),pd=al.filter(m=>m.k==='A'||m.k==='G').length,main=al.filter(m=>m.k==='T'||m.k==='L'||m.k==='M').length,
+  rng=Math.max(0,...al.filter(m=>(m.k==='T'||m.k==='M')&&m.cfg&&m.cfg.rng).map(m=>m.cfg.rng)),fp=dpsAt(al,{T:s.T,acc:EP.acc,rcsN:1},Math.min(40,rng||20),0),
+  ac=(s.acc||5)*(s.T.eng?s.engN/s.T.eng:1),dur=s.T.tons*hpf(s),fuel=s.dvB?s.dvB.spend:1;return {pd,main,rng,fp,ac,dur,fuel}}
+const med=a=>{const b=[...a].sort((x,y)=>x-y);return b.length?b[b.length>>1]:0};
+function roleOf(s,M,cur){const c=capOf(s),fp=c.fp/Math.max(1e-6,M.fp),du=c.dur/Math.max(1,M.dur),ls=Math.sqrt(fp*du),K=r=>cur===r?.85:1; // K — гистерезис: удержать текущую роль легче, чем войти в неё
+  if(c.pd>=3*Math.max(1,c.main)||cur==='ПВО'&&c.pd>=2*Math.max(1,c.main))return 'ПВО'; // противоракетные установки — основное вооружение
+  if(c.main===0&&c.pd===0)return 'поддержка';
+  if(c.ac>=1.3*K('перехват')*M.ac&&du<=1/K('перехват')&&c.fuel>=.25*K('перехват')&&(c.fp>0||c.pd>0))return 'перехват';
+  if(ls>=.7*K('линия')||c.main>=1&&du>=.9)return 'линия';
+  return 'поддержка'}
 const wtOf=o=>o.__dt||(o.__dt=o.tur.map(m=>({k:m.k,cfg:m.cfg,face:m.face,alive:true}))); // оружие врага по проекту (видно на корпусе), исправная доля — belief.wp
 function fleetAssign(F){if(t<(F.faT||0))return;F.faT=t+FC.re;const sd=F.side,my=F.ships.filter(q=>q.alive&&!q.T.role&&q.tur.length);if(!my.length)return;
   const st=stat.fc=stat.fc||{};
   // флагман: крупнейший живой корабль; потеря — один цикл без распределения (новый командир принимает дела)
   const fl=my.reduce((a,q)=>q.T.tons>a.T.tons?q:a,my[0]);if(F.flag&&F.flag!==fl&&!F.flag.alive){F.flag=fl;F.flagT=t;st.flagLost=(st.flagLost||0)+1;return}F.flag=fl;
   const E=[];for(const o of ships){if(!o.alive||o.side===sd||!o.T||o.st==='surr')continue;const r=trackOf(sd,o);if(!r)continue;const d=Math.hypot(r.x-F.cx,r.y-F.cy);if(d>FC.R)continue;
-    const b=belief(sd,o);let th=0;for(const q of my)th+=dpsAt(wtOf(o),q,Math.hypot(r.x-q.x,r.y-q.y),0,b.wp);E.push({o,r,b,th,hp:Math.max(1,o.total*b.md),V:(VAL[o.cls]||1)*(o.T.role==='supply'||o.tnk?HUNT.sup:1),D:0,n:0})}
+    const b=belief(sd,o);let th=0;for(const q of my)th+=dpsAt(wtOf(o),q,Math.hypot(r.x-q.x,r.y-q.y),0,b.wp);{const M0=F.thE=F.thE||new Map(),p0=M0.get(o);th=p0!=null?p0+.35*(th-p0):th;M0.set(o,th)} /* опасность сглажена по циклам: шум расстояний не гоняет цели */E.push({o,r,b,th,hp:Math.max(1,o.total*b.md),V:(VAL[o.cls]||1)*(o.T.role==='supply'||o.tnk?HUNT.sup:1),D:0,n:0})}
   if(!E.length){for(const q of my)q.task=null;F.line=null;return}
   // РОЛИ: по вооружению и манёвренности; смена роли — только если новая держится 2 цикла подряд (кроме критических повреждений)
-  for(const q of my){const rp=q.report&&t-q.report.t<FC.repTTL?q.report.why:null,crit=rp==='критические повреждения'||rp==='необходимо отступление';let want=crit?'поддержка':roleOf(q);
-    if(!q.role){q.role=want;q.roleC=null}else if(want!==q.role){if(crit||q.roleC===want){st.roleCh=(st.roleCh||0)+1;(st.roleWhy=st.roleWhy||{})[crit?rp:'состав/состояние']=((st.roleWhy||{})[crit?rp:'состав/состояние']||0)+1;q.roleWhy=crit?rp:'изменилось вооружение/состояние';q.role=want;q.roleC=null}else q.roleC=want}else q.roleC=null}
+  const CP=my.map(capOf),M={fp:med(CP.map(c=>c.fp)),dur:med(CP.map(c=>c.dur)),ac:med(CP.map(c=>c.ac))};
+  for(const q of my){const rp=q.report&&t-q.report.t<FC.repTTL?q.report.why:null,crit=rp==='критические повреждения'||rp==='необходимо отступление';let want=crit?'поддержка':roleOf(q,M,q.role);
+    q.__rc=0;if(!q.role){q.role=want;q.roleC=null}else if(want!==q.role){if(crit||q.roleC===want){st.roleCh=(st.roleCh||0)+1;(st.roleWhy=st.roleWhy||{})[crit?rp:'состав/состояние']=((st.roleWhy||{})[crit?rp:'состав/состояние']||0)+1;q.roleWhy=crit?rp:'изменилось вооружение/состояние';q.role=want;q.__rc=1;q.roleT=t;q.roleC=null}else q.roleC=want}else q.roleC=null}
   // ЛИНИЯ БОЯ: опорная точка — центр линейных кораблей (или всего соединения), фронт — на видимых врагов; места линии — по боковому порядку (без пересечений), поддержка — второй линией за ней
   {let ex=0,ey=0,ew=0;for(const e of E){const w=e.th+.001;ex+=e.r.x*w;ey+=e.r.y*w;ew+=w}ex/=ew;ey/=ew;const L=my.filter(q=>q.role==='линия'),base=L.length?L:my;let ax=0,ay=0;for(const q of base){ax+=q.x;ay+=q.y}ax/=base.length;ay/=base.length;
     const dl=Math.hypot(ex-ax,ey-ay)||1,ux=(ex-ax)/dl,uy=(ey-ay)/dl,px=-uy,py=ux,sp=Math.max(FC.sp,Math.max(...my.map(q=>q.T.L))*12),vx=F.vgx||0,vy=F.vgy||0;F.line={ax,ay,ux,uy,px,py,sp,vx,vy,t};
@@ -429,15 +442,35 @@ function fleetAssign(F){if(t<(F.faT||0))return;F.faT=t+FC.re;const sd=F.side,my=
     // ПВО прикрывает самого уязвимого ценного союзника (флагман — с запасом), между ним и угрозой
     const prots=my.filter(q=>q.role!=='ПВО');for(const q of my.filter(q=>q.role==='ПВО')){let pb=null,ps=-1;for(const a of prots){const sc=(VAL[a.cls]||1)*(1.3-hpf(a))*(a===F.flag?1.5:1)/(1+Math.hypot(a.x-q.x,a.y-q.y)/40);if(sc>ps){ps=sc;pb=a}}q.prot=pb}}
   // ЦЕЛИ: жадно по предельной пользе; незанятая серьёзная угроза ценится выше (не все на одну); доклады — безопаснее цели, запрет цели «не может атаковать»
-  const kill=(e,D)=>1-Math.exp(-D*FC.T/e.hp),thMed=[...E.map(e=>e.th)].sort((a,b)=>a-b)[E.length>>1];
-  for(const q of [...my].sort((a,b)=>a.uid-b.uid)){const rp=q.report&&t-q.report.t<FC.repTTL?q.report.why:null,risk=rp==='устойчивая угроза',role=q.role;
-    if(q.task&&q.task.tg){const w=!q.task.tg.alive?'цель уничтожена':!trackOf(sd,q.task.tg)?'нет сопровождения':null;if(w){(st.why=st.why||{})[w]=(st.why[w]||0)+1;q.task.lastWhy=w;q.task.tg=null}}
-    const old=q.task&&q.task.tg&&q.task.tg.alive?q.task:null;let best=null,bu=-1;
-    for(const e of E){const d=Math.hypot(e.r.x-q.x,e.r.y-q.y),c=dpsAt(q.tur,{T:e.o.T,acc:EP.acc,rcsN:1},d,0);if(c<=0&&d>(q.maxR||60)*2)continue;if(q.ban&&q.ban.get(e.o)>t)continue;
+  // устойчивое распределение: сначала учитываем огонь всех, кто уже ведёт цель; каждый корабль, выбирая, снимает только свой вклад —
+  // так оценка его цели не скачет от того, в каком порядке пересматривают остальные (главный источник колебаний в 184df06)
+  const kill=(e,D)=>D/(D+e.hp/FC.T),thMed=[...E.map(e=>e.th)].sort((a,b)=>a-b)[E.length>>1],cOf=(q,e)=>dpsAt(q.tur,{T:e.o.T,acc:EP.acc,rcsN:1},Math.hypot(e.r.x-q.x,e.r.y-q.y),0),EB=new Map(E.map(e=>[e.o,e]));
+  for(const q of my){const g=q.task&&q.task.tg;if(g&&g.alive&&EB.has(g)){const e=EB.get(g);q.__c=cOf(q,e);e.D+=q.__c;e.n++}else q.__c=0}
+  for(const q of [...my].sort((a,b)=>a.uid-b.uid)){const rp=q.report&&t-q.report.t<FC.repTTL?q.report.why:null,fresh=q.report&&!q.report.h&&rp,risk=rp==='устойчивая угроза',role=q.role;if(fresh)q.report.h=1;
+    if(q.task&&q.task.tg){const w=!q.task.tg.alive?'цель уничтожена':!trackOf(sd,q.task.tg)?'нет сопровождения':null;if(w){(st.why=st.why||{})[w]=(st.why[w]||0)+1;if(w==='цель уничтожена'&&q.task.sw){const S2=st.sw=st.sw||{n:0,why:{},back:0,kill:0,lost:0};S2.kill++}q.task.sw=false;q.task.lastWhy=w;q.task.tg=null}}
+    const old=q.task&&q.task.tg&&q.task.tg.alive?q.task:null,oe=old&&EB.get(old.tg);if(oe&&q.__c){oe.D-=q.__c;oe.n--}let best=null,bu=-1,ou=-1;
+    for(const e of E){const d=Math.hypot(e.r.x-q.x,e.r.y-q.y),c=cOf(q,e);if(c<=0&&d>(q.maxR||60)*2)continue;if(q.ban&&q.ban.get(e.o)>t)continue;
       const thr=role==='ПВО'?(e.th+.001)/(1+Math.hypot(e.r.x-(q.prot||q).x,e.r.y-(q.prot||q).y)/30):e.th+.001; // ПВО — угрозы рядом с защищаемым
-      let u=(thr*e.V)*(kill(e,e.D+c+1e-4)-kill(e,e.D))/Math.max(.2,e.b.md);if(e.n===0&&e.th>=thMed)u*=FC.cover;if(risk)u/=1+e.th*3;if(old&&old.tg===e.o)u*=t-old.at<FC.hold?1e3:FC.hyst;if(u>bu){bu=u;best=e}}
-    if(!best){if(q.task)q.task.tg=null;continue}best.D+=dpsAt(q.tur,{T:best.o.T,acc:EP.acc,rcsN:1},Math.hypot(best.r.x-q.x,best.r.y-q.y),0);best.n++;
-    if(!old||old.tg!==best.o){st.switch=(st.switch||0)+1;if(rp)st.byRep=(st.byRep||0)+1;const why=!old?(q.task&&q.task.lastWhy)||'первое назначение':rp?'доклад: '+rp:'выгоднее другая цель';q.task={tg:best.o,role,at:t,st:'ok',why}}else{q.task.role=role;q.task.st='ok'}}
+      let u=(thr*e.V)*(kill(e,e.D+c+1e-4)-kill(e,e.D))/Math.max(.2,e.b.md);if(e.n===0&&e.th>=thMed)u*=FC.cover;if(risk)u/=1+e.th*3;
+      if(old&&old.tg===e.o){u*=t-old.at<FC.hold?2*FC.hyst:FC.hyst;ou=u}else if(oe&&e.th<oe.th*1.5)u/=FC.swc; /* цена смены цели (разворот, новое решение огня — замер acq ≈15–30 с из FC.T): ради перераспределения — только при явной выгоде; новая серьёзная угроза (опасность ×1.5) — сразу */if(u>bu){bu=u;best=e}} // удержание: только множитель — важная перемена обстановки (втрое выгоднее) всё равно переключит
+    const SW=st.sw=st.sw||{n:0,why:{},back:0,kill:0,lost:0};
+    if(!best){if(q.task){if(fresh)st.repIgn=(st.repIgn||0)+1;q.task.tg=null}continue}best.D+=cOf(q,best);best.n++;
+    if(!old||old.tg!==best.o){st.switch=(st.switch||0)+1;if(rp)st.byRep=(st.byRep||0)+1;
+      const pe=old?EB.get(old.tg):null,why=!old?(q.task&&q.task.lastWhy)||'первое назначение':rp?'доклад: '+rp:pe&&best.th>pe.th*1.2?'опаснее':best.b.md<.4?'добивание':'выгоднее другая цель';
+      if(old){if((SW.dbg=SW.dbg||[]).length<40)SW.dbg.push([Math.round(t),q.uid,why,+(bu/Math.max(1e-12,ou)).toFixed(2),ou<0?'нет в списке':'',pe?+pe.th.toFixed(3):null,+best.th.toFixed(3),pe?pe.n:null,best.n]);SW.n++;SW.why[why]=(SW.why[why]||0)+1;if(q.prevTg===best.o&&t-(q.prevT||-1e9)<90)SW.back++;q.prevTg=old.tg;q.prevT=t}
+      if(q.task&&q.task.tg0&&q.task.tg0.alive&&q.task.sw)SW.lost++; // ушёл с цели, взятой переключением, не добив её
+      q.task={tg:best.o,tg0:best.o,role,at:t,st:'ok',why,sw:!!old,acq:null};if(fresh)st.repAct=(st.repAct||0)+1}
+    else{q.task.role=role;q.task.st='ok';if(fresh)q.__rc?st.repAct=(st.repAct||0)+1:st.repIgn=(st.repIgn||0)+1}}
+  // ОЦЕНКА СТРОЯ (только статистика): расстояние до мест, глубина линии, линия↔поддержка, ПВО↔прикрываемый, доля кораблей, выполняющих задачу роли
+  {const fm=st.form=st.form||{n:0,slot:0,slotN:0,depth:0,depthN:0,ls:0,lsN:0,pvo:0,pvoN:0,ok:{},all:{}},LN=F.line,cen=a=>{let x=0,y=0;for(const q of a){x+=q.x;y+=q.y}return {x:x/a.length,y:y/a.length}},ne=q=>Math.min(...E.map(e=>Math.hypot(e.r.x-q.x,e.r.y-q.y)));fm.n++;
+    const L=my.filter(q=>q.role==='линия'),S=my.filter(q=>q.role==='поддержка'),lc=L.length?cen(L):null,lcE=lc?ne(lc):0;
+    if(L.length>1&&LN){const al=L.map(q=>(q.x-lc.x)*LN.ux+(q.y-lc.y)*LN.uy);fm.depth+=Math.sqrt(al.reduce((a,v)=>a+v*v,0)/al.length);fm.depthN++}
+    if(lc&&S.length){fm.ls+=Math.hypot(cen(S).x-lc.x,cen(S).y-lc.y);fm.lsN++}
+    for(const q of my){const r=q.role;fm.all[r]=(fm.all[r]||0)+1;let ok=false;const sd2=q.slot?Math.hypot(q.slot.x-q.x,q.slot.y-q.y):null;if(sd2!=null){fm.slot+=sd2;fm.slotN++}
+      if(r==='линия')ok=sd2!=null&&sd2<=2*(LN?LN.sp:3)+5;else if(r==='поддержка')ok=(lc?ne(q)>=lcE-2:true)||sd2!=null&&sd2<=2*(LN?LN.sp:3)+5;
+      else if(r==='ПВО'){const d=q.prot?Math.hypot(q.prot.x-q.x,q.prot.y-q.y):0;if(q.prot){fm.pvo+=d;fm.pvoN++}ok=!q.prot||d<=20}
+      else if(r==='перехват'){const g=q.task&&q.task.tg;ok=!!g&&(Math.hypot(g.x-q.x,g.y-q.y)<=(q.maxR||60)*1.2||((g.x-q.x)*(q.vx-g.vx)+(g.y-q.y)*(q.vy-g.vy))>0)}
+      if(ok)fm.ok[r]=(fm.ok[r]||0)+1}}
   // статистика (только для проверок): места в линии, прикрытие, ракурс перехвата, дистанция поддержки, разброс соединения
   {const rm=st.rm=st.rm||{},A=(k,f,v)=>{const a=rm[k]||(rm[k]={n:0});a.n_=a.n_||{};a[f]=(a[f]||0)+v;a.n_[f]=(a.n_[f]||0)+1};
     for(const q of my){const r=q.task&&q.task.tg&&trackOf(sd,q.task.tg);if(q.slot)A(q.role,'доСлота',Math.hypot(q.x-q.slot.x,q.y-q.slot.y));if(q.prot)A(q.role,'доЗащищаемого',Math.hypot(q.x-q.prot.x,q.y-q.prot.y));if(r){A(q.role,'доЦели',Math.hypot(r.x-q.x,r.y-q.y));if(q.role==='перехват')A(q.role,'ракурс',Math.abs(adiff(r.hd,Math.atan2(q.y-r.y,q.x-r.x)))*57.3)}
@@ -445,7 +478,7 @@ function fleetAssign(F){if(t<(F.faT||0))return;F.faT=t+FC.re;const sd=F.side,my=
     let sp=0,np=0;for(let i=0;i<my.length;i++)for(let j=i+1;j<my.length;j++){sp+=Math.hypot(my[i].x-my[j].x,my[i].y-my[j].y);np++}if(np){st.spread=(st.spread||0)+sp/np;st.spreadN=(st.spreadN||0)+1}}
   st.cycles=(st.cycles||0)+1;st.tg=(st.tg||0)+E.filter(e=>e.n>0).length;st.conc=(st.conc||0)+E.filter(e=>e.n>1).length;st.ships=(st.ships||0)+my.length}
 // ДОКЛАД КОМАНДОВАНИЮ: задача стала невыгодной или опасной. Не чаще раза в FC.rep с от корабля; доклад действует FC.repTTL с. Командование сразу пересматривает распределение.
-function reportTask(s,F,why,g){if(!FC.fb||t-(s.repT??-1e9)<FC.rep)return;s.repT=t;s.report={why,t,tg:g};if(why==='не может атаковать цель'){s.noAtk=0;(s.ban=s.ban||new Map()).set(g,t+60)}if(F)F.faT=0;const st=stat.fc=stat.fc||{};(st.rep=st.rep||{})[why]=(st.rep[why]||0)+1}
+function reportTask(s,F,why,g){if(!FC.fb||t-(s.repT??-1e9)<FC.rep)return;s.repT=t;{const st=stat.fc=stat.fc||{};if(s.report&&s.report.why===why)st.repRep=(st.repRep||0)+1}s.report={why,t,tg:g};if(why==='не может атаковать цель'){s.noAtk=0;(s.ban=s.ban||new Map()).set(g,t+60)}if(F)F.faT=0;const st=stat.fc=stat.fc||{};(st.rep=st.rep||{})[why]=(st.rep[why]||0)+1}
 // корабль сообщает, что задачу выполнить не может (цель уничтожена, не видна, корабль отходит) — командование пересматривает распределение сразу
 function taskTarget(s,F){const k=s.task;if(!k||!k.tg)return null;let bad=null;if(!k.tg.alive)bad='цель уничтожена';else if(!trackOf(s.side,k.tg))bad='нет сопровождения';else if(s.flee)bad='повреждён, отходит'; /* без запаса Δv корабль всё равно стреляет — задачу не снимаем */
   if(bad){k.st=bad;if(F)F.faT=0;const st=stat.fc=stat.fc||{};(st.why=st.why||{})[bad]=(st.why[bad]||0)+1;s.task=null;return null}return k.tg}
@@ -1276,7 +1309,7 @@ function step(dt){
       // не стрелять через своих: если на линии огня союзник — чаще воздерживаемся
       {const o0=fl[0],ux=o0.x-s.x,uy=o0.y-s.y,ul=Math.hypot(ux,uy)||1;let bl=false;
         for(const q of around(s.side,s.x,s.y,14)){if(q===s)continue;const al=((q.x-s.x)*ux+(q.y-s.y)*uy)/ul,pp=Math.abs(((q.x-s.x)*uy-(q.y-s.y)*ux)/ul);if(al>0&&al<ul&&pp<q.T.L*.4+1.5){bl=true;break}}
-        if(bl&&rnd()<.4){m.cd=2+rnd()*3;m.why='на линии огня свой корабль — пропускает выстрел';continue}}
+        if(bl){const S5=stat.fc=stat.fc||{};S5.blk=(S5.blk||0)+1}if(bl&&rnd()<.4){m.cd=2+rnd()*3;m.why='на линии огня свой корабль — пропускает выстрел';continue}}
       if(s.mag<=0){m.cd=20;m.why='нет боеприпасов';if(!s.dryS){s.dryS=1;say(s.side,'dry',s)}continue}
       m.last=m.why='выстрел по '+(fl[0].T?fl[0].T.n:'цель')+' с '+Math.hypot(fl[0].x-s.x,fl[0].y-s.y).toFixed(1)+' км';addHeat(s,(C.heatGJ!=null?C.heatGJ:.15)*1000*C.shells);say(s.side,'fire',s); /* КПД 50%: половина энергии выстрела — в корпус */
       const B=BURST[C.cal]||8;
@@ -1746,7 +1779,7 @@ function beginBg(cfg){cfgNow=cfg;reset(cfg);active=true;acc=0;viewed=false}
 function fastForward(ms){if(!active||done)return 0;const t0=t,w0=performance.now();let k=0;while(!done&&k<4000&&performance.now()-w0<ms){tick(2);k++}return t-t0}
 // ФИКСИРОВАННЫЙ ШАГ: кадр только добавляет игровое время, бой идёт шагами FDT с. Одинаковая последовательность шагов при любом FPS и нагрузке;
 // если кадр не успевает (больше FMAX шагов), лишнее время отбрасывается — бой замедляется, но не меняется.
-const FDT=1,FMAX=64;let simAcc=0;
+const FDT=gd('battle','step',{dt:.5}).dt,FMAX=Math.ceil(64/FDT); /* шаг симуляции, с; фиксированный — результат не зависит от FPS */let simAcc=0;
 function fixedSteps(sim){simAcc+=sim;let k=0;while(simAcc>=FDT-1e-9&&k<FMAX&&active&&!done){tick(FDT);simAcc-=FDT;k++}if(k>=FMAX)simAcc=0}
 function tickN(rdt){if(!active||done)return;fixedSteps(rdt*bspeed)}
 function abort(){setTilt(Math.round(prevTilt*180/Math.PI));ui.bship=false;active=false;$b('battle').hidden=true;cfgNow=null}
@@ -1777,7 +1810,7 @@ function pick(mx,my){
 function pick0(mx,my){const cT=vw.cT||1,sT=vw.sT||0;let b=null,bd=16;
   for(const s of ships){const d=Math.hypot(vw.ox+s.x*vw.kk-mx,vw.oy+s.y*vw.kk*cT-s.z*vw.kk*sT*.7-my);if(d<bd){bd=d;b=s}}
   if(b){sel=b;return true}return false}
-return {predictCmds,planT:{plan,belief,predTraj,PLN,ramHit,ramEst},detaches:()=>detaches,attachStructure,structEvents:()=>strEv,ctrlStepT:(s)=>s,tickFixed:n=>{for(let i=0;i<n&&active&&!done;i++)tick(2)},setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,flakS:()=>flakS,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
+return {killShip:(o,why)=>kill(o,why||'тест'),predictCmds,planT:{plan,belief,predTraj,PLN,ramHit,ramEst},detaches:()=>detaches,attachStructure,structEvents:()=>strEv,ctrlStepT:(s)=>s,tickFixed:n=>{for(let i=0;i<n&&active&&!done;i++)tick(2)},setMuzzle:f=>{MUZ=f},shuttles:()=>shuttles,tracers:()=>tracers,env:()=>env,impacts:()=>impacts,frags:()=>frags,turAim,shots:()=>shots,fx:()=>fx,proj:()=>proj,mis:()=>mis,flakS:()=>flakS,air:()=>air,beams:()=>beams,select:q=>{sel=q},moveFleet:(q,x,y)=>{if(q&&q.F)q.F.mv={x,y}},stat:()=>stat,frame,fastForward,setSpeed:v=>{bspeed=v},getSpeed:()=>bspeed,anchorSel:()=>sel,abort,ships:()=>ships,begin,tick,draw,hud,pick,join,finish,isDone:()=>done,active:()=>active,hot:()=>autoSlow&&t-lastEng<3,later:(tt,spec)=>pend.push({t:t+tt,spec}),time:()=>t,clear:()=>{sel=null},beginBg,view:()=>{viewed=true;bound=false;bind();$b('btitle').textContent=(cfgNow&&cfgNow.title)||'Бой';$b('battle').hidden=false},unview:()=>{viewed=false;const e=document.getElementById('bmods');if(e)e.hidden=true},setViewed:v=>{viewed=v;if(v){bound=false;bind()}},isViewed:()=>viewed,cfg:()=>cfgNow,result,setBSpeed:v=>{bspeed=v},addLate:e=>{pend.push({...e,t:t+(e.t||0)});pend.sort((a,b)=>a.t-b.t)},hide:()=>{$b('battle').hidden=true;const e=document.getElementById('bmods');if(e)e.hidden=true},tickN,sim:()=>({alive:[aliveBy(0),aliveBy(1)]})};
 }
 export const mainBattle = makeBattle();
 let curB = mainBattle;

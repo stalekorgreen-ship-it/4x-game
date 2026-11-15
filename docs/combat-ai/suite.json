@@ -1,0 +1,5389 @@
+{
+ "1_8v8": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 8,
+     "alive1": 6,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 0,
+     "hits": 19,
+     "hits0": 8,
+     "hits1": 11,
+     "switch": 98,
+     "swBack": 28,
+     "swKill": 0,
+     "swLeftAlive": 85,
+     "swWhy": {
+      "выгоднее другая цель": 60,
+      "опаснее": 38
+     },
+     "firstAssign": 32,
+     "noAtkShare": 0.20789473684210527,
+     "acqSec": 23.833333333333332,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 8,
+     "roleWhy": {
+      "состав/состояние": 8
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 3.34,
+      "ПВО": 1.67,
+      "перехват": 1.62,
+      "поддержка": 0.49
+     },
+     "roleOk": {
+      "линия": 0.23,
+      "ПВО": 0.26,
+      "перехват": 0.8,
+      "поддержка": 0.84
+     },
+     "slotKm": 129.90053927788094,
+     "lineDepthKm": 103.63763027910754,
+     "lineSupKm": 253.62915315495164,
+     "pvoProtKm": 66.75096693945878,
+     "blockedFire": 43,
+     "dangerReal": 28,
+     "dangerFlagged": 9,
+     "dangerHit": 1
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 8,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 4,
+     "hits": 28,
+     "hits0": 7,
+     "hits1": 21,
+     "switch": 130,
+     "swBack": 28,
+     "swKill": 0,
+     "swLeftAlive": 112,
+     "swWhy": {
+      "опаснее": 70,
+      "выгоднее другая цель": 60
+     },
+     "firstAssign": 33,
+     "noAtkShare": 0.2140896614821592,
+     "acqSec": 23.903846153846153,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 3.54,
+      "ПВО": 2,
+      "перехват": 1.53,
+      "поддержка": 0.25
+     },
+     "roleOk": {
+      "линия": 0.19,
+      "ПВО": 0.31,
+      "перехват": 0.43,
+      "поддержка": 0.84
+     },
+     "slotKm": 62.97971405575094,
+     "lineDepthKm": 52.69627338186215,
+     "lineSupKm": 79.29343807466587,
+     "pvoProtKm": 49.16286102751846,
+     "blockedFire": 29,
+     "dangerReal": 95,
+     "dangerFlagged": 54,
+     "dangerHit": 14
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 8,
+     "alive1": 1,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 0,
+     "hits": 50,
+     "hits0": 43,
+     "hits1": 7,
+     "switch": 108,
+     "swBack": 21,
+     "swKill": 5,
+     "swLeftAlive": 91,
+     "swWhy": {
+      "выгоднее другая цель": 66,
+      "опаснее": 42
+     },
+     "firstAssign": 24,
+     "noAtkShare": 0.13374805598755832,
+     "acqSec": 21.91176470588235,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 17,
+     "roleWhy": {
+      "состав/состояние": 17
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 1.88,
+      "ПВО": 2.35,
+      "перехват": 0.83,
+      "поддержка": 0.53
+     },
+     "roleOk": {
+      "линия": 0.39,
+      "ПВО": 0.68,
+      "перехват": 0.97,
+      "поддержка": 0.29
+     },
+     "slotKm": 81.39672619429817,
+     "lineDepthKm": 59.378415239795395,
+     "lineSupKm": 154.30394213734408,
+     "pvoProtKm": 27.109068308045053,
+     "blockedFire": 34,
+     "dangerReal": 35,
+     "dangerFlagged": 3,
+     "dangerHit": 3
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 7,
+    "alive1": 5,
+    "hits0": 19.33,
+    "hits1": 13,
+    "switch": 112,
+    "swBack": 25.67,
+    "swKill": 1.67,
+    "noAtkShare": 0.19,
+    "acqSec": 23.22,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 10.67,
+    "flagLost": 1.33,
+    "slotKm": 91.43,
+    "lineDepthKm": 71.9,
+    "lineSupKm": 162.41,
+    "pvoProtKm": 47.67,
+    "blockedFire": 35.33,
+    "flee0": 1.33
+   },
+   "bySeed": {
+    "alive0": [
+     8,
+     5,
+     8
+    ],
+    "alive1": [
+     6,
+     8,
+     1
+    ],
+    "hits0": [
+     8,
+     7,
+     43
+    ],
+    "hits1": [
+     11,
+     21,
+     7
+    ],
+    "switch": [
+     98,
+     130,
+     108
+    ],
+    "swBack": [
+     28,
+     28,
+     21
+    ],
+    "swKill": [
+     0,
+     0,
+     5
+    ],
+    "noAtkShare": [
+     0.21,
+     0.21,
+     0.13
+    ],
+    "acqSec": [
+     23.83,
+     23.9,
+     21.91
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     8,
+     7,
+     17
+    ],
+    "flagLost": [
+     1,
+     1,
+     2
+    ],
+    "slotKm": [
+     129.9,
+     62.98,
+     81.4
+    ],
+    "lineDepthKm": [
+     103.64,
+     52.7,
+     59.38
+    ],
+    "lineSupKm": [
+     253.63,
+     79.29,
+     154.3
+    ],
+    "pvoProtKm": [
+     66.75,
+     49.16,
+     27.11
+    ],
+    "blockedFire": [
+     43,
+     29,
+     34
+    ],
+    "flee0": [
+     0,
+     4,
+     0
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 7,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 2,
+     "hits": 24,
+     "hits0": 6,
+     "hits1": 18,
+     "switch": 169,
+     "swBack": 35,
+     "swKill": 0,
+     "swLeftAlive": 151,
+     "swWhy": {
+      "доклад: не может атаковать цель": 59,
+      "опаснее": 58,
+      "выгоднее другая цель": 52
+     },
+     "firstAssign": 37,
+     "noAtkShare": 0.36436170212765956,
+     "acqSec": 31.13888888888889,
+     "rep": {
+      "не может атаковать цель": 51
+     },
+     "repTotal": 51,
+     "repRepeat": 43,
+     "repActed": 39,
+     "repIgnored": 12,
+     "roleChanges": 9,
+     "roleWhy": {
+      "состав/состояние": 9
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 3.09,
+      "ПВО": 1.98,
+      "перехват": 1.74,
+      "поддержка": 0.56
+     },
+     "roleOk": {
+      "линия": 0.25,
+      "ПВО": 0.19,
+      "перехват": 0.41,
+      "поддержка": 0.89
+     },
+     "slotKm": 87.81123300030359,
+     "lineDepthKm": 46.956423553208054,
+     "lineSupKm": 280.7383716477555,
+     "pvoProtKm": 88.04747323445848,
+     "blockedFire": 68,
+     "dangerReal": 29,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 7,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 38,
+     "hits0": 12,
+     "hits1": 26,
+     "switch": 134,
+     "swBack": 25,
+     "swKill": 1,
+     "swLeftAlive": 120,
+     "swWhy": {
+      "доклад: не может атаковать цель": 22,
+      "опаснее": 64,
+      "выгоднее другая цель": 48
+     },
+     "firstAssign": 45,
+     "noAtkShare": 0.25,
+     "acqSec": 47.142857142857146,
+     "rep": {
+      "не может атаковать цель": 31,
+      "устойчивая угроза": 2
+     },
+     "repTotal": 33,
+     "repRepeat": 23,
+     "repActed": 16,
+     "repIgnored": 17,
+     "roleChanges": 9,
+     "roleWhy": {
+      "состав/состояние": 9
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.39,
+      "ПВО": 1.77,
+      "перехват": 0.4,
+      "поддержка": 1.68
+     },
+     "roleOk": {
+      "линия": 0.3,
+      "ПВО": 0.47,
+      "перехват": 0.51,
+      "поддержка": 0.66
+     },
+     "slotKm": 95.11845946386963,
+     "lineDepthKm": 56.3814193642795,
+     "lineSupKm": 125.90199546745855,
+     "pvoProtKm": 71.93242460338189,
+     "blockedFire": 52,
+     "dangerReal": 29,
+     "dangerFlagged": 6,
+     "dangerHit": 1
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 2,
+     "alive1": 5,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 89,
+     "hits0": 33,
+     "hits1": 56,
+     "switch": 142,
+     "swBack": 37,
+     "swKill": 1,
+     "swLeftAlive": 127,
+     "swWhy": {
+      "доклад: не может атаковать цель": 42,
+      "выгоднее другая цель": 44,
+      "опаснее": 52,
+      "доклад: устойчивая угроза": 4
+     },
+     "firstAssign": 23,
+     "noAtkShare": 0.1912568306010929,
+     "acqSec": 9.272727272727273,
+     "rep": {
+      "не может атаковать цель": 31,
+      "устойчивая угроза": 6
+     },
+     "repTotal": 37,
+     "repRepeat": 24,
+     "repActed": 27,
+     "repIgnored": 10,
+     "roleChanges": 12,
+     "roleWhy": {
+      "состав/состояние": 12
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 2.29,
+      "ПВО": 1.36,
+      "перехват": 0.97,
+      "поддержка": 0.36
+     },
+     "roleOk": {
+      "линия": 0.4,
+      "ПВО": 0.49,
+      "перехват": 0.75,
+      "поддержка": 0.6
+     },
+     "slotKm": 76.64601572260901,
+     "lineDepthKm": 56.77601683379101,
+     "lineSupKm": 213.92030139019303,
+     "pvoProtKm": 53.56958268747424,
+     "blockedFire": 27,
+     "dangerReal": 77,
+     "dangerFlagged": 8,
+     "dangerHit": 1
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 4.67,
+    "alive1": 6.33,
+    "hits0": 17,
+    "hits1": 33.33,
+    "switch": 148.33,
+    "swBack": 32.33,
+    "swKill": 0.67,
+    "noAtkShare": 0.27,
+    "acqSec": 29.18,
+    "repTotal": 40.33,
+    "repRepeat": 30,
+    "repActed": 27.33,
+    "repIgnored": 13,
+    "roleChanges": 10,
+    "flagLost": 1.33,
+    "slotKm": 86.53,
+    "lineDepthKm": 53.37,
+    "lineSupKm": 206.85,
+    "pvoProtKm": 71.18,
+    "blockedFire": 49,
+    "flee0": 2.67
+   },
+   "bySeed": {
+    "alive0": [
+     6,
+     6,
+     2
+    ],
+    "alive1": [
+     7,
+     7,
+     5
+    ],
+    "hits0": [
+     6,
+     12,
+     33
+    ],
+    "hits1": [
+     18,
+     26,
+     56
+    ],
+    "switch": [
+     169,
+     134,
+     142
+    ],
+    "swBack": [
+     35,
+     25,
+     37
+    ],
+    "swKill": [
+     0,
+     1,
+     1
+    ],
+    "noAtkShare": [
+     0.36,
+     0.25,
+     0.19
+    ],
+    "acqSec": [
+     31.14,
+     47.14,
+     9.27
+    ],
+    "repTotal": [
+     51,
+     33,
+     37
+    ],
+    "repRepeat": [
+     43,
+     23,
+     24
+    ],
+    "repActed": [
+     39,
+     16,
+     27
+    ],
+    "repIgnored": [
+     12,
+     17,
+     10
+    ],
+    "roleChanges": [
+     9,
+     9,
+     12
+    ],
+    "flagLost": [
+     2,
+     0,
+     2
+    ],
+    "slotKm": [
+     87.81,
+     95.12,
+     76.65
+    ],
+    "lineDepthKm": [
+     46.96,
+     56.38,
+     56.78
+    ],
+    "lineSupKm": [
+     280.74,
+     125.9,
+     213.92
+    ],
+    "pvoProtKm": [
+     88.05,
+     71.93,
+     53.57
+    ],
+    "blockedFire": [
+     68,
+     52,
+     27
+    ],
+    "flee0": [
+     2,
+     3,
+     3
+    ]
+   }
+  }
+ },
+ "2_12v12": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 11,
+     "alive1": 9,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 1,
+     "hits": 51,
+     "hits0": 30,
+     "hits1": 21,
+     "switch": 174,
+     "swBack": 17,
+     "swKill": 4,
+     "swLeftAlive": 150,
+     "swWhy": {
+      "выгоднее другая цель": 97,
+      "опаснее": 76,
+      "добивание": 1
+     },
+     "firstAssign": 34,
+     "noAtkShare": 0.31687014428412874,
+     "acqSec": 14.078125,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 16,
+     "roleWhy": {
+      "состав/состояние": 16
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.98,
+      "ПВО": 1.59,
+      "перехват": 0.8,
+      "поддержка": 0.69
+     },
+     "roleOk": {
+      "линия": 0.48,
+      "ПВО": 0.16,
+      "перехват": 0.86,
+      "поддержка": 0.53
+     },
+     "slotKm": 63.42531304850234,
+     "lineDepthKm": 40.99466134718768,
+     "lineSupKm": 118.51728557270077,
+     "pvoProtKm": 60.534031467688536,
+     "blockedFire": 136,
+     "dangerReal": 63,
+     "dangerFlagged": 9,
+     "dangerHit": 1
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 8,
+     "alive1": 11,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 1,
+     "hits": 40,
+     "hits0": 14,
+     "hits1": 26,
+     "switch": 194,
+     "swBack": 24,
+     "swKill": 2,
+     "swLeftAlive": 169,
+     "swWhy": {
+      "опаснее": 96,
+      "выгоднее другая цель": 98
+     },
+     "firstAssign": 47,
+     "noAtkShare": 0.28960709759188846,
+     "acqSec": 23.060606060606062,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 12,
+     "roleWhy": {
+      "состав/состояние": 12
+     },
+     "flagLost": 1,
+     "roles": {
+      "поддержка": 0.93,
+      "линия": 2.91,
+      "ПВО": 1.04,
+      "перехват": 0.76
+     },
+     "roleOk": {
+      "поддержка": 0.63,
+      "линия": 0.44,
+      "ПВО": 0.31,
+      "перехват": 0.54
+     },
+     "slotKm": 79.51040621129194,
+     "lineDepthKm": 34.272680382016034,
+     "lineSupKm": 152.0343447874558,
+     "pvoProtKm": 67.48705261603497,
+     "blockedFire": 113,
+     "dangerReal": 60,
+     "dangerFlagged": 19,
+     "dangerHit": 9
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 4,
+     "alive1": 5,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 6,
+     "hits": 146,
+     "hits0": 58,
+     "hits1": 88,
+     "switch": 188,
+     "swBack": 44,
+     "swKill": 3,
+     "swLeftAlive": 162,
+     "swWhy": {
+      "выгоднее другая цель": 109,
+      "опаснее": 78,
+      "добивание": 1
+     },
+     "firstAssign": 34,
+     "noAtkShare": 0.176,
+     "acqSec": 17.096491228070175,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 18,
+     "roleWhy": {
+      "состав/состояние": 18
+     },
+     "flagLost": 3,
+     "roles": {
+      "линия": 1.61,
+      "ПВО": 1.72,
+      "перехват": 0.32,
+      "поддержка": 0.5
+     },
+     "roleOk": {
+      "линия": 0.7,
+      "ПВО": 0.21,
+      "перехват": 0.95,
+      "поддержка": 0.58
+     },
+     "slotKm": 23.51947375062687,
+     "lineDepthKm": 10.192773688960587,
+     "lineSupKm": 72.5250818160307,
+     "pvoProtKm": 138.2836965595499,
+     "blockedFire": 81,
+     "dangerReal": 105,
+     "dangerFlagged": 11,
+     "dangerHit": 9
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 7.67,
+    "alive1": 8.33,
+    "hits0": 34,
+    "hits1": 45,
+    "switch": 185.33,
+    "swBack": 28.33,
+    "swKill": 3,
+    "noAtkShare": 0.26,
+    "acqSec": 18.08,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 15.33,
+    "flagLost": 1.67,
+    "slotKm": 55.49,
+    "lineDepthKm": 28.49,
+    "lineSupKm": 114.36,
+    "pvoProtKm": 88.77,
+    "blockedFire": 110,
+    "flee0": 2.67
+   },
+   "bySeed": {
+    "alive0": [
+     11,
+     8,
+     4
+    ],
+    "alive1": [
+     9,
+     11,
+     5
+    ],
+    "hits0": [
+     30,
+     14,
+     58
+    ],
+    "hits1": [
+     21,
+     26,
+     88
+    ],
+    "switch": [
+     174,
+     194,
+     188
+    ],
+    "swBack": [
+     17,
+     24,
+     44
+    ],
+    "swKill": [
+     4,
+     2,
+     3
+    ],
+    "noAtkShare": [
+     0.32,
+     0.29,
+     0.18
+    ],
+    "acqSec": [
+     14.08,
+     23.06,
+     17.1
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     16,
+     12,
+     18
+    ],
+    "flagLost": [
+     1,
+     1,
+     3
+    ],
+    "slotKm": [
+     63.43,
+     79.51,
+     23.52
+    ],
+    "lineDepthKm": [
+     40.99,
+     34.27,
+     10.19
+    ],
+    "lineSupKm": [
+     118.52,
+     152.03,
+     72.53
+    ],
+    "pvoProtKm": [
+     60.53,
+     67.49,
+     138.28
+    ],
+    "blockedFire": [
+     136,
+     113,
+     81
+    ],
+    "flee0": [
+     1,
+     1,
+     6
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 10,
+     "alive1": 11,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 5,
+     "hits": 55,
+     "hits0": 18,
+     "hits1": 37,
+     "switch": 220,
+     "swBack": 35,
+     "swKill": 0,
+     "swLeftAlive": 203,
+     "swWhy": {
+      "выгоднее другая цель": 90,
+      "опаснее": 75,
+      "доклад: не может атаковать цель": 53,
+      "доклад: устойчивая угроза": 2
+     },
+     "firstAssign": 57,
+     "noAtkShare": 0.19971469329529243,
+     "acqSec": 21.701923076923077,
+     "rep": {
+      "не может атаковать цель": 60,
+      "устойчивая угроза": 2
+     },
+     "repTotal": 62,
+     "repRepeat": 53,
+     "repActed": 40,
+     "repIgnored": 22,
+     "roleChanges": 14,
+     "roleWhy": {
+      "состав/состояние": 14
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.71,
+      "ПВО": 1.5,
+      "перехват": 0.61,
+      "поддержка": 0.84
+     },
+     "roleOk": {
+      "линия": 0.52,
+      "ПВО": 0.21,
+      "перехват": 0.62,
+      "поддержка": 0.73
+     },
+     "slotKm": 118.10350234657801,
+     "lineDepthKm": 47.46376837132427,
+     "lineSupKm": 310.8658823802077,
+     "pvoProtKm": 66.86672647804541,
+     "blockedFire": 117,
+     "dangerReal": 37,
+     "dangerFlagged": 10,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 9,
+     "alive1": 12,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 2,
+     "hits": 21,
+     "hits0": 6,
+     "hits1": 15,
+     "switch": 226,
+     "swBack": 37,
+     "swKill": 0,
+     "swLeftAlive": 202,
+     "swWhy": {
+      "доклад: не может атаковать цель": 51,
+      "опаснее": 88,
+      "выгоднее другая цель": 83,
+      "доклад: устойчивая угроза": 4
+     },
+     "firstAssign": 56,
+     "noAtkShare": 0.18790849673202614,
+     "acqSec": 33.69078947368421,
+     "rep": {
+      "не может атаковать цель": 54,
+      "устойчивая угроза": 4
+     },
+     "repTotal": 58,
+     "repRepeat": 40,
+     "repActed": 33,
+     "repIgnored": 25,
+     "roleChanges": 6,
+     "roleWhy": {
+      "состав/состояние": 6
+     },
+     "flagLost": 0,
+     "roles": {
+      "поддержка": 0.66,
+      "линия": 2.8,
+      "ПВО": 1.75,
+      "перехват": 0.67
+     },
+     "roleOk": {
+      "поддержка": 0.49,
+      "линия": 0.43,
+      "ПВО": 0.21,
+      "перехват": 0.51
+     },
+     "slotKm": 130.2600851570836,
+     "lineDepthKm": 92.72497097214847,
+     "lineSupKm": 328.8573971053066,
+     "pvoProtKm": 64.05444122344196,
+     "blockedFire": 70,
+     "dangerReal": 21,
+     "dangerFlagged": 10,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 0,
+     "alive1": 6,
+     "n0": 12,
+     "n1": 12,
+     "flee0": 10,
+     "hits": 116,
+     "hits0": 32,
+     "hits1": 84,
+     "switch": 201,
+     "swBack": 29,
+     "swKill": 1,
+     "swLeftAlive": 172,
+     "swWhy": {
+      "выгоднее другая цель": 60,
+      "опаснее": 56,
+      "доклад: не может атаковать цель": 84,
+      "доклад: устойчивая угроза": 1
+     },
+     "firstAssign": 50,
+     "noAtkShare": 0.26932668329177056,
+     "acqSec": 8.119047619047619,
+     "rep": {
+      "устойчивая угроза": 7,
+      "не может атаковать цель": 62
+     },
+     "repTotal": 69,
+     "repRepeat": 57,
+     "repActed": 54,
+     "repIgnored": 15,
+     "roleChanges": 11,
+     "roleWhy": {
+      "состав/состояние": 11
+     },
+     "flagLost": 5,
+     "roles": {
+      "линия": 1.88,
+      "ПВО": 2.1,
+      "перехват": 0.29,
+      "поддержка": 0.25
+     },
+     "roleOk": {
+      "линия": 0.83,
+      "ПВО": 0.43,
+      "перехват": 0.93,
+      "поддержка": 0.25
+     },
+     "slotKm": 14.957183227273136,
+     "lineDepthKm": 7.539694345576671,
+     "lineSupKm": 76.38512829533433,
+     "pvoProtKm": 66.09311420535694,
+     "blockedFire": 93,
+     "dangerReal": 39,
+     "dangerFlagged": 13,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 6.33,
+    "alive1": 9.67,
+    "hits0": 18.67,
+    "hits1": 45.33,
+    "switch": 215.67,
+    "swBack": 33.67,
+    "swKill": 0.33,
+    "noAtkShare": 0.22,
+    "acqSec": 21.17,
+    "repTotal": 63,
+    "repRepeat": 50,
+    "repActed": 42.33,
+    "repIgnored": 20.67,
+    "roleChanges": 10.33,
+    "flagLost": 2,
+    "slotKm": 87.77,
+    "lineDepthKm": 49.24,
+    "lineSupKm": 238.7,
+    "pvoProtKm": 65.67,
+    "blockedFire": 93.33,
+    "flee0": 5.67
+   },
+   "bySeed": {
+    "alive0": [
+     10,
+     9,
+     0
+    ],
+    "alive1": [
+     11,
+     12,
+     6
+    ],
+    "hits0": [
+     18,
+     6,
+     32
+    ],
+    "hits1": [
+     37,
+     15,
+     84
+    ],
+    "switch": [
+     220,
+     226,
+     201
+    ],
+    "swBack": [
+     35,
+     37,
+     29
+    ],
+    "swKill": [
+     0,
+     0,
+     1
+    ],
+    "noAtkShare": [
+     0.2,
+     0.19,
+     0.27
+    ],
+    "acqSec": [
+     21.7,
+     33.69,
+     8.12
+    ],
+    "repTotal": [
+     62,
+     58,
+     69
+    ],
+    "repRepeat": [
+     53,
+     40,
+     57
+    ],
+    "repActed": [
+     40,
+     33,
+     54
+    ],
+    "repIgnored": [
+     22,
+     25,
+     15
+    ],
+    "roleChanges": [
+     14,
+     6,
+     11
+    ],
+    "flagLost": [
+     1,
+     0,
+     5
+    ],
+    "slotKm": [
+     118.1,
+     130.26,
+     14.96
+    ],
+    "lineDepthKm": [
+     47.46,
+     92.72,
+     7.54
+    ],
+    "lineSupKm": [
+     310.87,
+     328.86,
+     76.39
+    ],
+    "pvoProtKm": [
+     66.87,
+     64.05,
+     66.09
+    ],
+    "blockedFire": [
+     117,
+     70,
+     93
+    ],
+    "flee0": [
+     5,
+     2,
+     10
+    ]
+   }
+  }
+ },
+ "3_superior": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 8,
+     "alive1": 3,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 0,
+     "hits": 19,
+     "hits0": 11,
+     "hits1": 8,
+     "switch": 53,
+     "swBack": 15,
+     "swKill": 1,
+     "swLeftAlive": 41,
+     "swWhy": {
+      "опаснее": 22,
+      "выгоднее другая цель": 31
+     },
+     "firstAssign": 19,
+     "noAtkShare": 0.5125628140703518,
+     "acqSec": 147.4375,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 4,
+     "roleWhy": {
+      "состав/состояние": 4
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 2.56,
+      "ПВО": 1.19,
+      "перехват": 0.64,
+      "поддержка": 1.3
+     },
+     "roleOk": {
+      "линия": 0.41,
+      "ПВО": 0.22,
+      "перехват": 0.72,
+      "поддержка": 0.68
+     },
+     "slotKm": 111.28677740053,
+     "lineDepthKm": 37.74179310441078,
+     "lineSupKm": 229.2847041224182,
+     "pvoProtKm": 63.65354415609795,
+     "blockedFire": 9,
+     "dangerReal": 0,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 329,
+     "alive0": 8,
+     "alive1": 3,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 1,
+     "hits": 6,
+     "hits0": 5,
+     "hits1": 1,
+     "switch": 30,
+     "swBack": 7,
+     "swKill": 0,
+     "swLeftAlive": 20,
+     "swWhy": {
+      "опаснее": 13,
+      "выгоднее другая цель": 14,
+      "добивание": 3
+     },
+     "firstAssign": 18,
+     "noAtkShare": 0.10655737704918032,
+     "acqSec": 24.285714285714285,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 4,
+     "roleWhy": {
+      "состав/состояние": 4
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 2.77,
+      "ПВО": 1.56,
+      "перехват": 1.51,
+      "поддержка": 0.19
+     },
+     "roleOk": {
+      "линия": 0.8,
+      "ПВО": 0.75,
+      "перехват": 0.24,
+      "поддержка": 1
+     },
+     "slotKm": 10.473078175779106,
+     "lineDepthKm": 7.396866745738554,
+     "lineSupKm": 31.909007928543417,
+     "pvoProtKm": 19.27286948104625,
+     "blockedFire": 21,
+     "dangerReal": 0,
+     "dangerFlagged": 13,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 580,
+     "alive0": 8,
+     "alive1": 2,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 0,
+     "hits": 23,
+     "hits0": 12,
+     "hits1": 11,
+     "switch": 36,
+     "swBack": 4,
+     "swKill": 0,
+     "swLeftAlive": 25,
+     "swWhy": {
+      "выгоднее другая цель": 19,
+      "опаснее": 17
+     },
+     "firstAssign": 15,
+     "noAtkShare": 0.125,
+     "acqSec": 60.57142857142857,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 1,
+     "roleWhy": {
+      "состав/состояние": 1
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3,
+      "ПВО": 1.31,
+      "перехват": 1.5
+     },
+     "roleOk": {
+      "линия": 0.56,
+      "ПВО": 0.54,
+      "перехват": 0.96
+     },
+     "slotKm": 16.368486966109696,
+     "lineDepthKm": 14.688242917376346,
+     "lineSupKm": null,
+     "pvoProtKm": 39.109699561411674,
+     "blockedFire": 20,
+     "dangerReal": 12,
+     "dangerFlagged": 2,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 8,
+    "alive1": 2.67,
+    "hits0": 9.33,
+    "hits1": 6.67,
+    "switch": 39.67,
+    "swBack": 8.67,
+    "swKill": 0.33,
+    "noAtkShare": 0.25,
+    "acqSec": 77.43,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 3,
+    "flagLost": 0,
+    "slotKm": 46.04,
+    "lineDepthKm": 19.94,
+    "lineSupKm": 130.6,
+    "pvoProtKm": 40.68,
+    "blockedFire": 16.67,
+    "flee0": 0.33
+   },
+   "bySeed": {
+    "alive0": [
+     8,
+     8,
+     8
+    ],
+    "alive1": [
+     3,
+     3,
+     2
+    ],
+    "hits0": [
+     11,
+     5,
+     12
+    ],
+    "hits1": [
+     8,
+     1,
+     11
+    ],
+    "switch": [
+     53,
+     30,
+     36
+    ],
+    "swBack": [
+     15,
+     7,
+     4
+    ],
+    "swKill": [
+     1,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.51,
+     0.11,
+     0.13
+    ],
+    "acqSec": [
+     147.44,
+     24.29,
+     60.57
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     4,
+     4,
+     1
+    ],
+    "flagLost": [
+     0,
+     0,
+     0
+    ],
+    "slotKm": [
+     111.29,
+     10.47,
+     16.37
+    ],
+    "lineDepthKm": [
+     37.74,
+     7.4,
+     14.69
+    ],
+    "lineSupKm": [
+     229.28,
+     31.91,
+     null
+    ],
+    "pvoProtKm": [
+     63.65,
+     19.27,
+     39.11
+    ],
+    "blockedFire": [
+     9,
+     21,
+     20
+    ],
+    "flee0": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 301,
+     "alive0": 8,
+     "alive1": 1,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 0,
+     "hits": 11,
+     "hits0": 9,
+     "hits1": 2,
+     "switch": 21,
+     "swBack": 2,
+     "swKill": 0,
+     "swLeftAlive": 9,
+     "swWhy": {
+      "доклад: не может атаковать цель": 2,
+      "опаснее": 6,
+      "выгоднее другая цель": 13
+     },
+     "firstAssign": 18,
+     "noAtkShare": 0.2967032967032967,
+     "acqSec": 29.875,
+     "rep": {
+      "не может атаковать цель": 6
+     },
+     "repTotal": 6,
+     "repRepeat": 3,
+     "repActed": 2,
+     "repIgnored": 4,
+     "roleChanges": 2,
+     "roleWhy": {
+      "состав/состояние": 2
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.89,
+      "ПВО": 1.53,
+      "перехват": 1.16,
+      "поддержка": 0.18
+     },
+     "roleOk": {
+      "линия": 0.89,
+      "ПВО": 0.67,
+      "перехват": 0.55,
+      "поддержка": 1
+     },
+     "slotKm": 7.645058781107233,
+     "lineDepthKm": 4.995152042317858,
+     "lineSupKm": 6.255817452531628,
+     "pvoProtKm": 17.34216570128344,
+     "blockedFire": 9,
+     "dangerReal": 0,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1190,
+     "alive0": 8,
+     "alive1": 1,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 1,
+     "hits": 19,
+     "hits0": 12,
+     "hits1": 7,
+     "switch": 69,
+     "swBack": 8,
+     "swKill": 2,
+     "swLeftAlive": 57,
+     "swWhy": {
+      "доклад: не может атаковать цель": 12,
+      "опаснее": 29,
+      "выгоднее другая цель": 28
+     },
+     "firstAssign": 23,
+     "noAtkShare": 0.24125874125874125,
+     "acqSec": 33.84090909090909,
+     "rep": {
+      "не может атаковать цель": 12,
+      "устойчивая угроза": 3
+     },
+     "repTotal": 15,
+     "repRepeat": 8,
+     "repActed": 10,
+     "repIgnored": 5,
+     "roleChanges": 8,
+     "roleWhy": {
+      "состав/состояние": 8
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.77,
+      "ПВО": 1.55,
+      "перехват": 1.02,
+      "поддержка": 0.48
+     },
+     "roleOk": {
+      "линия": 0.47,
+      "ПВО": 0.23,
+      "перехват": 0.64,
+      "поддержка": 0.83
+     },
+     "slotKm": 82.87874879912881,
+     "lineDepthKm": 15.779423975860672,
+     "lineSupKm": 376.1609106737422,
+     "pvoProtKm": 70.06030790594022,
+     "blockedFire": 2,
+     "dangerReal": 17,
+     "dangerFlagged": 3,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 572,
+     "alive0": 8,
+     "alive1": 0,
+     "n0": 8,
+     "n1": 4,
+     "flee0": 0,
+     "hits": 15,
+     "hits0": 12,
+     "hits1": 3,
+     "switch": 18,
+     "swBack": 2,
+     "swKill": 4,
+     "swLeftAlive": 10,
+     "swWhy": {
+      "доклад: не может атаковать цель": 3,
+      "выгоднее другая цель": 9,
+      "опаснее": 6
+     },
+     "firstAssign": 22,
+     "noAtkShare": 0.08558558558558559,
+     "acqSec": 60.333333333333336,
+     "rep": {
+      "не может атаковать цель": 4
+     },
+     "repTotal": 4,
+     "repRepeat": 1,
+     "repActed": 3,
+     "repIgnored": 1,
+     "roleChanges": 1,
+     "roleWhy": {
+      "состав/состояние": 1
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.41,
+      "ПВО": 1.42,
+      "перехват": 1.17,
+      "поддержка": 0.09
+     },
+     "roleOk": {
+      "линия": 0.72,
+      "ПВО": 0.71,
+      "перехват": 0.95,
+      "поддержка": 1
+     },
+     "slotKm": 9.326024214149939,
+     "lineDepthKm": 8.807306008342294,
+     "lineSupKm": null,
+     "pvoProtKm": 29.768770554723346,
+     "blockedFire": 13,
+     "dangerReal": 0,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 8,
+    "alive1": 0.67,
+    "hits0": 11,
+    "hits1": 4,
+    "switch": 36,
+    "swBack": 4,
+    "swKill": 2,
+    "noAtkShare": 0.21,
+    "acqSec": 41.35,
+    "repTotal": 8.33,
+    "repRepeat": 4,
+    "repActed": 5,
+    "repIgnored": 3.33,
+    "roleChanges": 3.67,
+    "flagLost": 1,
+    "slotKm": 33.28,
+    "lineDepthKm": 9.86,
+    "lineSupKm": 191.21,
+    "pvoProtKm": 39.06,
+    "blockedFire": 8,
+    "flee0": 0.33
+   },
+   "bySeed": {
+    "alive0": [
+     8,
+     8,
+     8
+    ],
+    "alive1": [
+     1,
+     1,
+     0
+    ],
+    "hits0": [
+     9,
+     12,
+     12
+    ],
+    "hits1": [
+     2,
+     7,
+     3
+    ],
+    "switch": [
+     21,
+     69,
+     18
+    ],
+    "swBack": [
+     2,
+     8,
+     2
+    ],
+    "swKill": [
+     0,
+     2,
+     4
+    ],
+    "noAtkShare": [
+     0.3,
+     0.24,
+     0.09
+    ],
+    "acqSec": [
+     29.88,
+     33.84,
+     60.33
+    ],
+    "repTotal": [
+     6,
+     15,
+     4
+    ],
+    "repRepeat": [
+     3,
+     8,
+     1
+    ],
+    "repActed": [
+     2,
+     10,
+     3
+    ],
+    "repIgnored": [
+     4,
+     5,
+     1
+    ],
+    "roleChanges": [
+     2,
+     8,
+     1
+    ],
+    "flagLost": [
+     1,
+     1,
+     1
+    ],
+    "slotKm": [
+     7.65,
+     82.88,
+     9.33
+    ],
+    "lineDepthKm": [
+     5,
+     15.78,
+     8.81
+    ],
+    "lineSupKm": [
+     6.26,
+     376.16,
+     null
+    ],
+    "pvoProtKm": [
+     17.34,
+     70.06,
+     29.77
+    ],
+    "blockedFire": [
+     9,
+     2,
+     13
+    ],
+    "flee0": [
+     0,
+     1,
+     0
+    ]
+   }
+  }
+ },
+ "4_range": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 4,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 27,
+     "hits0": 2,
+     "hits1": 25,
+     "switch": 74,
+     "swBack": 8,
+     "swKill": 0,
+     "swLeftAlive": 65,
+     "swWhy": {
+      "выгоднее другая цель": 46,
+      "опаснее": 27,
+      "добивание": 1
+     },
+     "firstAssign": 21,
+     "noAtkShare": 0.4161073825503356,
+     "acqSec": 21.93243243243243,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 1,
+     "roleWhy": {
+      "состав/состояние": 1
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 3.39,
+      "ПВО": 2,
+      "поддержка": 0.44
+     },
+     "roleOk": {
+      "линия": 0.38,
+      "ПВО": 0.3,
+      "поддержка": 1
+     },
+     "slotKm": 85.53647597023061,
+     "lineDepthKm": 32.02880138778805,
+     "lineSupKm": 492.4325303248072,
+     "pvoProtKm": 87.07278928142583,
+     "blockedFire": 48,
+     "dangerReal": 26,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 20,
+     "hits0": 3,
+     "hits1": 17,
+     "switch": 106,
+     "swBack": 25,
+     "swKill": 0,
+     "swLeftAlive": 95,
+     "swWhy": {
+      "выгоднее другая цель": 71,
+      "опаснее": 35
+     },
+     "firstAssign": 20,
+     "noAtkShare": 0.3507728894173603,
+     "acqSec": 20.454545454545453,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 3,
+     "roleWhy": {
+      "состав/состояние": 3
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.52,
+      "ПВО": 2.42,
+      "поддержка": 0.01
+     },
+     "roleOk": {
+      "линия": 0.34,
+      "ПВО": 0.2,
+      "поддержка": 0
+     },
+     "slotKm": 64.341117738391,
+     "lineDepthKm": 60.56360195042856,
+     "lineSupKm": 271.4542200988634,
+     "pvoProtKm": 79.22786456367301,
+     "blockedFire": 8,
+     "dangerReal": 21,
+     "dangerFlagged": 3,
+     "dangerHit": 3
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 5,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 2,
+     "hits": 83,
+     "hits0": 13,
+     "hits1": 70,
+     "switch": 31,
+     "swBack": 2,
+     "swKill": 0,
+     "swLeftAlive": 18,
+     "swWhy": {
+      "опаснее": 12,
+      "выгоднее другая цель": 19
+     },
+     "firstAssign": 16,
+     "noAtkShare": 0.45623836126629425,
+     "acqSec": 78.69444444444444,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 2,
+     "roleWhy": {
+      "состав/состояние": 2
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.6,
+      "ПВО": 2,
+      "поддержка": 0.01
+     },
+     "roleOk": {
+      "линия": 0.49,
+      "ПВО": 0.22,
+      "поддержка": 0.33
+     },
+     "slotKm": 32.265010178657825,
+     "lineDepthKm": 38.50248679250052,
+     "lineSupKm": 49.534041189074266,
+     "pvoProtKm": 67.34206906225077,
+     "blockedFire": 23,
+     "dangerReal": 44,
+     "dangerFlagged": 7,
+     "dangerHit": 4
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 4,
+    "alive1": 5.67,
+    "hits0": 6,
+    "hits1": 37.33,
+    "switch": 70.33,
+    "swBack": 11.67,
+    "swKill": 0,
+    "noAtkShare": 0.41,
+    "acqSec": 40.36,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 2,
+    "flagLost": 1,
+    "slotKm": 60.71,
+    "lineDepthKm": 43.7,
+    "lineSupKm": 271.14,
+    "pvoProtKm": 77.88,
+    "blockedFire": 26.33,
+    "flee0": 1.33
+   },
+   "bySeed": {
+    "alive0": [
+     4,
+     5,
+     3
+    ],
+    "alive1": [
+     6,
+     6,
+     5
+    ],
+    "hits0": [
+     2,
+     3,
+     13
+    ],
+    "hits1": [
+     25,
+     17,
+     70
+    ],
+    "switch": [
+     74,
+     106,
+     31
+    ],
+    "swBack": [
+     8,
+     25,
+     2
+    ],
+    "swKill": [
+     0,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.42,
+     0.35,
+     0.46
+    ],
+    "acqSec": [
+     21.93,
+     20.45,
+     78.69
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     1,
+     3,
+     2
+    ],
+    "flagLost": [
+     2,
+     0,
+     1
+    ],
+    "slotKm": [
+     85.54,
+     64.34,
+     32.27
+    ],
+    "lineDepthKm": [
+     32.03,
+     60.56,
+     38.5
+    ],
+    "lineSupKm": [
+     492.43,
+     271.45,
+     49.53
+    ],
+    "pvoProtKm": [
+     87.07,
+     79.23,
+     67.34
+    ],
+    "blockedFire": [
+     48,
+     8,
+     23
+    ],
+    "flee0": [
+     1,
+     1,
+     2
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 12,
+     "hits0": 2,
+     "hits1": 10,
+     "switch": 86,
+     "swBack": 13,
+     "swKill": 0,
+     "swLeftAlive": 77,
+     "swWhy": {
+      "доклад: не может атаковать цель": 23,
+      "выгоднее другая цель": 45,
+      "опаснее": 17,
+      "доклад: устойчивая угроза": 1
+     },
+     "firstAssign": 38,
+     "noAtkShare": 0.25871559633027524,
+     "acqSec": 19.91891891891892,
+     "rep": {
+      "не может атаковать цель": 39,
+      "устойчивая угроза": 3
+     },
+     "repTotal": 42,
+     "repRepeat": 32,
+     "repActed": 22,
+     "repIgnored": 20,
+     "roleChanges": 3,
+     "roleWhy": {
+      "состав/состояние": 3
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.57,
+      "ПВО": 2.01,
+      "поддержка": 0.42
+     },
+     "roleOk": {
+      "линия": 0.24,
+      "ПВО": 0.16,
+      "поддержка": 1
+     },
+     "slotKm": 91.26915448463852,
+     "lineDepthKm": 53.68435482284271,
+     "lineSupKm": 413.9386021148846,
+     "pvoProtKm": 105.35307986793167,
+     "blockedFire": 30,
+     "dangerReal": 8,
+     "dangerFlagged": 1,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 14,
+     "hits0": 3,
+     "hits1": 11,
+     "switch": 142,
+     "swBack": 32,
+     "swKill": 0,
+     "swLeftAlive": 133,
+     "swWhy": {
+      "выгоднее другая цель": 58,
+      "опаснее": 32,
+      "доклад: не может атаковать цель": 48,
+      "доклад: устойчивая угроза": 4
+     },
+     "firstAssign": 35,
+     "noAtkShare": 0.37265917602996257,
+     "acqSec": 20.175925925925927,
+     "rep": {
+      "не может атаковать цель": 80,
+      "устойчивая угроза": 6
+     },
+     "repTotal": 86,
+     "repRepeat": 71,
+     "repActed": 39,
+     "repIgnored": 47,
+     "roleChanges": 2,
+     "roleWhy": {
+      "состав/состояние": 2
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 4,
+      "ПВО": 1.69,
+      "перехват": 0.07,
+      "поддержка": 0.15
+     },
+     "roleOk": {
+      "линия": 0.38,
+      "ПВО": 0.12,
+      "перехват": 1,
+      "поддержка": 0
+     },
+     "slotKm": 76.94708620910203,
+     "lineDepthKm": 65.60401590571759,
+     "lineSupKm": 335.75619003870855,
+     "pvoProtKm": 81.92582973929565,
+     "blockedFire": 15,
+     "dangerReal": 28,
+     "dangerFlagged": 20,
+     "dangerHit": 7
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 2,
+     "hits": 63,
+     "hits0": 6,
+     "hits1": 57,
+     "switch": 94,
+     "swBack": 19,
+     "swKill": 0,
+     "swLeftAlive": 85,
+     "swWhy": {
+      "опаснее": 25,
+      "доклад: не может атаковать цель": 28,
+      "выгоднее другая цель": 39,
+      "доклад: устойчивая угроза": 2
+     },
+     "firstAssign": 23,
+     "noAtkShare": 0.23178016726403824,
+     "acqSec": 27.1,
+     "rep": {
+      "не может атаковать цель": 42,
+      "устойчивая угроза": 8
+     },
+     "repTotal": 50,
+     "repRepeat": 38,
+     "repActed": 29,
+     "repIgnored": 21,
+     "roleChanges": 8,
+     "roleWhy": {
+      "состав/состояние": 8
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.4,
+      "ПВО": 1.76,
+      "поддержка": 0.84
+     },
+     "roleOk": {
+      "линия": 0.49,
+      "ПВО": 0.19,
+      "поддержка": 0.52
+     },
+     "slotKm": 42.51651995244022,
+     "lineDepthKm": 35.10906721383448,
+     "lineSupKm": 101.50772461651474,
+     "pvoProtKm": 61.98110784429422,
+     "blockedFire": 14,
+     "dangerReal": 32,
+     "dangerFlagged": 17,
+     "dangerHit": 5
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 4.67,
+    "alive1": 6,
+    "hits0": 3.67,
+    "hits1": 26,
+    "switch": 107.33,
+    "swBack": 21.33,
+    "swKill": 0,
+    "noAtkShare": 0.29,
+    "acqSec": 22.4,
+    "repTotal": 59.33,
+    "repRepeat": 47,
+    "repActed": 30,
+    "repIgnored": 29.33,
+    "roleChanges": 4.33,
+    "flagLost": 0.33,
+    "slotKm": 70.24,
+    "lineDepthKm": 51.47,
+    "lineSupKm": 283.73,
+    "pvoProtKm": 83.09,
+    "blockedFire": 19.67,
+    "flee0": 1.33
+   },
+   "bySeed": {
+    "alive0": [
+     6,
+     5,
+     3
+    ],
+    "alive1": [
+     6,
+     6,
+     6
+    ],
+    "hits0": [
+     2,
+     3,
+     6
+    ],
+    "hits1": [
+     10,
+     11,
+     57
+    ],
+    "switch": [
+     86,
+     142,
+     94
+    ],
+    "swBack": [
+     13,
+     32,
+     19
+    ],
+    "swKill": [
+     0,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.26,
+     0.37,
+     0.23
+    ],
+    "acqSec": [
+     19.92,
+     20.18,
+     27.1
+    ],
+    "repTotal": [
+     42,
+     86,
+     50
+    ],
+    "repRepeat": [
+     32,
+     71,
+     38
+    ],
+    "repActed": [
+     22,
+     39,
+     29
+    ],
+    "repIgnored": [
+     20,
+     47,
+     21
+    ],
+    "roleChanges": [
+     3,
+     2,
+     8
+    ],
+    "flagLost": [
+     0,
+     0,
+     1
+    ],
+    "slotKm": [
+     91.27,
+     76.95,
+     42.52
+    ],
+    "lineDepthKm": [
+     53.68,
+     65.6,
+     35.11
+    ],
+    "lineSupKm": [
+     413.94,
+     335.76,
+     101.51
+    ],
+    "pvoProtKm": [
+     105.35,
+     81.93,
+     61.98
+    ],
+    "blockedFire": [
+     30,
+     15,
+     14
+    ],
+    "flee0": [
+     1,
+     1,
+     2
+    ]
+   }
+  }
+ },
+ "5_icVSheavy": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 7,
+     "alive1": 3,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 0,
+     "hits": 39,
+     "hits0": 32,
+     "hits1": 7,
+     "switch": 82,
+     "swBack": 24,
+     "swKill": 0,
+     "swLeftAlive": 73,
+     "swWhy": {
+      "выгоднее другая цель": 45,
+      "опаснее": 37
+     },
+     "firstAssign": 16,
+     "noAtkShare": 0.046875,
+     "acqSec": 6.0606060606060606,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 4,
+     "roleWhy": {
+      "состав/состояние": 4
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 4.47,
+      "ПВО": 0.5,
+      "поддержка": 0.02
+     },
+     "roleOk": {
+      "линия": 0.25,
+      "ПВО": 0.18,
+      "поддержка": 0.6
+     },
+     "slotKm": 42.68192632568197,
+     "lineDepthKm": 34.497065121716716,
+     "lineSupKm": 85.6617326533606,
+     "pvoProtKm": 65.73336317877153,
+     "blockedFire": 71,
+     "dangerReal": 5,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 900,
+     "alive0": 7,
+     "alive1": 0,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 0,
+     "hits": 22,
+     "hits0": 19,
+     "hits1": 3,
+     "switch": 54,
+     "swBack": 13,
+     "swKill": 0,
+     "swLeftAlive": 44,
+     "swWhy": {
+      "выгоднее другая цель": 41,
+      "опаснее": 13
+     },
+     "firstAssign": 13,
+     "noAtkShare": 0.17365269461077845,
+     "acqSec": 9.458333333333334,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 5,
+     "roleWhy": {
+      "состав/состояние": 5
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 4.22,
+      "ПВО": 0.5,
+      "поддержка": 0.05,
+      "перехват": 0.01
+     },
+     "roleOk": {
+      "линия": 0.59,
+      "ПВО": 0.27,
+      "поддержка": 0.38,
+      "перехват": 1
+     },
+     "slotKm": 13.666674062412904,
+     "lineDepthKm": 11.246064895361188,
+     "lineSupKm": 29.918668788355735,
+     "pvoProtKm": 107.19007882174046,
+     "blockedFire": 7,
+     "dangerReal": 0,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 7,
+     "alive1": 2,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 0,
+     "hits": 30,
+     "hits0": 21,
+     "hits1": 9,
+     "switch": 57,
+     "swBack": 8,
+     "swKill": 0,
+     "swLeftAlive": 47,
+     "swWhy": {
+      "опаснее": 24,
+      "выгоднее другая цель": 33
+     },
+     "firstAssign": 10,
+     "noAtkShare": 0.21153846153846154,
+     "acqSec": 5.25,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 12,
+     "roleWhy": {
+      "состав/состояние": 12
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.96,
+      "ПВО": 0.54,
+      "поддержка": 0.13
+     },
+     "roleOk": {
+      "линия": 0.3,
+      "ПВО": 0.26,
+      "поддержка": 0.69
+     },
+     "slotKm": 26.45851010268784,
+     "lineDepthKm": 17.84966022522049,
+     "lineSupKm": 24.538603542387747,
+     "pvoProtKm": 53.18790168547065,
+     "blockedFire": 48,
+     "dangerReal": 17,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 7,
+    "alive1": 1.67,
+    "hits0": 24,
+    "hits1": 6.33,
+    "switch": 64.33,
+    "swBack": 15,
+    "swKill": 0,
+    "noAtkShare": 0.14,
+    "acqSec": 6.92,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 7,
+    "flagLost": 0.67,
+    "slotKm": 27.6,
+    "lineDepthKm": 21.2,
+    "lineSupKm": 46.71,
+    "pvoProtKm": 75.37,
+    "blockedFire": 42,
+    "flee0": 0
+   },
+   "bySeed": {
+    "alive0": [
+     7,
+     7,
+     7
+    ],
+    "alive1": [
+     3,
+     0,
+     2
+    ],
+    "hits0": [
+     32,
+     19,
+     21
+    ],
+    "hits1": [
+     7,
+     3,
+     9
+    ],
+    "switch": [
+     82,
+     54,
+     57
+    ],
+    "swBack": [
+     24,
+     13,
+     8
+    ],
+    "swKill": [
+     0,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.05,
+     0.17,
+     0.21
+    ],
+    "acqSec": [
+     6.06,
+     9.46,
+     5.25
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     4,
+     5,
+     12
+    ],
+    "flagLost": [
+     0,
+     2,
+     0
+    ],
+    "slotKm": [
+     42.68,
+     13.67,
+     26.46
+    ],
+    "lineDepthKm": [
+     34.5,
+     11.25,
+     17.85
+    ],
+    "lineSupKm": [
+     85.66,
+     29.92,
+     24.54
+    ],
+    "pvoProtKm": [
+     65.73,
+     107.19,
+     53.19
+    ],
+    "blockedFire": [
+     71,
+     7,
+     48
+    ],
+    "flee0": [
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 7,
+     "alive1": 2,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 1,
+     "hits": 32,
+     "hits0": 29,
+     "hits1": 3,
+     "switch": 58,
+     "swBack": 12,
+     "swKill": 0,
+     "swLeftAlive": 47,
+     "swWhy": {
+      "доклад: не может атаковать цель": 4,
+      "выгоднее другая цель": 35,
+      "опаснее": 19
+     },
+     "firstAssign": 13,
+     "noAtkShare": 0.06015037593984962,
+     "acqSec": 18.533333333333335,
+     "rep": {
+      "не может атаковать цель": 3,
+      "устойчивая угроза": 1
+     },
+     "repTotal": 4,
+     "repRepeat": 1,
+     "repActed": 3,
+     "repIgnored": 1,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.93,
+      "ПВО": 0.73,
+      "поддержка": 0.18
+     },
+     "roleOk": {
+      "линия": 0.33,
+      "ПВО": 0.33,
+      "поддержка": 0.26
+     },
+     "slotKm": 35.097898315261624,
+     "lineDepthKm": 28.64925716330527,
+     "lineSupKm": 42.16477131684522,
+     "pvoProtKm": 78.41544778791108,
+     "blockedFire": 59,
+     "dangerReal": 8,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 574,
+     "alive0": 7,
+     "alive1": 1,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 0,
+     "hits": 2,
+     "hits0": 2,
+     "hits1": 0,
+     "switch": 56,
+     "swBack": 13,
+     "swKill": 0,
+     "swLeftAlive": 44,
+     "swWhy": {
+      "доклад: не может атаковать цель": 10,
+      "выгоднее другая цель": 34,
+      "опаснее": 10,
+      "доклад: устойчивая угроза": 2
+     },
+     "firstAssign": 13,
+     "noAtkShare": 0.14124293785310735,
+     "acqSec": 14.868421052631579,
+     "rep": {
+      "не может атаковать цель": 6,
+      "устойчивая угроза": 1
+     },
+     "repTotal": 7,
+     "repRepeat": 2,
+     "repActed": 6,
+     "repIgnored": 1,
+     "roleChanges": 5,
+     "roleWhy": {
+      "состав/состояние": 5
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 4.26,
+      "ПВО": 0.61,
+      "поддержка": 0.06
+     },
+     "roleOk": {
+      "линия": 0.63,
+      "ПВО": 0.43,
+      "поддержка": 0
+     },
+     "slotKm": 12.546756721096763,
+     "lineDepthKm": 10.154018270055653,
+     "lineSupKm": 54.97178800484923,
+     "pvoProtKm": 46.251754718094595,
+     "blockedFire": 3,
+     "dangerReal": 9,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 566,
+     "alive0": 7,
+     "alive1": 0,
+     "n0": 7,
+     "n1": 3,
+     "flee0": 0,
+     "hits": 32,
+     "hits0": 29,
+     "hits1": 3,
+     "switch": 47,
+     "swBack": 12,
+     "swKill": 3,
+     "swLeftAlive": 38,
+     "swWhy": {
+      "доклад: не может атаковать цель": 5,
+      "опаснее": 23,
+      "выгоднее другая цель": 19
+     },
+     "firstAssign": 14,
+     "noAtkShare": 0.17391304347826086,
+     "acqSec": 16.5,
+     "rep": {
+      "не может атаковать цель": 6
+     },
+     "repTotal": 6,
+     "repRepeat": 2,
+     "repActed": 5,
+     "repIgnored": 1,
+     "roleChanges": 5,
+     "roleWhy": {
+      "состав/состояние": 5
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.84,
+      "ПВО": 0.54,
+      "поддержка": 0.13,
+      "перехват": 0.04
+     },
+     "roleOk": {
+      "линия": 0.65,
+      "ПВО": 0.15,
+      "поддержка": 0.71,
+      "перехват": 1
+     },
+     "slotKm": 9.179579090208051,
+     "lineDepthKm": 8.588722651442456,
+     "lineSupKm": 13.004967676289015,
+     "pvoProtKm": 65.60944900161893,
+     "blockedFire": 33,
+     "dangerReal": 2,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 7,
+    "alive1": 1,
+    "hits0": 20,
+    "hits1": 2,
+    "switch": 53.67,
+    "swBack": 12.33,
+    "swKill": 1,
+    "noAtkShare": 0.13,
+    "acqSec": 16.63,
+    "repTotal": 5.67,
+    "repRepeat": 1.67,
+    "repActed": 4.67,
+    "repIgnored": 1,
+    "roleChanges": 5.67,
+    "flagLost": 0,
+    "slotKm": 18.94,
+    "lineDepthKm": 15.8,
+    "lineSupKm": 36.71,
+    "pvoProtKm": 63.43,
+    "blockedFire": 31.67,
+    "flee0": 0.33
+   },
+   "bySeed": {
+    "alive0": [
+     7,
+     7,
+     7
+    ],
+    "alive1": [
+     2,
+     1,
+     0
+    ],
+    "hits0": [
+     29,
+     2,
+     29
+    ],
+    "hits1": [
+     3,
+     0,
+     3
+    ],
+    "switch": [
+     58,
+     56,
+     47
+    ],
+    "swBack": [
+     12,
+     13,
+     12
+    ],
+    "swKill": [
+     0,
+     0,
+     3
+    ],
+    "noAtkShare": [
+     0.06,
+     0.14,
+     0.17
+    ],
+    "acqSec": [
+     18.53,
+     14.87,
+     16.5
+    ],
+    "repTotal": [
+     4,
+     7,
+     6
+    ],
+    "repRepeat": [
+     1,
+     2,
+     2
+    ],
+    "repActed": [
+     3,
+     6,
+     5
+    ],
+    "repIgnored": [
+     1,
+     1,
+     1
+    ],
+    "roleChanges": [
+     7,
+     5,
+     5
+    ],
+    "flagLost": [
+     0,
+     0,
+     0
+    ],
+    "slotKm": [
+     35.1,
+     12.55,
+     9.18
+    ],
+    "lineDepthKm": [
+     28.65,
+     10.15,
+     8.59
+    ],
+    "lineSupKm": [
+     42.16,
+     54.97,
+     13
+    ],
+    "pvoProtKm": [
+     78.42,
+     46.25,
+     65.61
+    ],
+    "blockedFire": [
+     59,
+     3,
+     33
+    ],
+    "flee0": [
+     1,
+     0,
+     0
+    ]
+   }
+  }
+ },
+ "6_damaged": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 2,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 2,
+     "hits": 41,
+     "hits0": 25,
+     "hits1": 16,
+     "switch": 111,
+     "swBack": 29,
+     "swKill": 4,
+     "swLeftAlive": 95,
+     "swWhy": {
+      "выгоднее другая цель": 55,
+      "опаснее": 56
+     },
+     "firstAssign": 31,
+     "noAtkShare": 0.18196994991652754,
+     "acqSec": 26.046511627906977,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 10,
+     "roleWhy": {
+      "состав/состояние": 10
+     },
+     "flagLost": 0,
+     "roles": {
+      "поддержка": 0.64,
+      "линия": 2.99,
+      "ПВО": 0.95,
+      "перехват": 0.8
+     },
+     "roleOk": {
+      "поддержка": 0.57,
+      "линия": 0.25,
+      "ПВО": 0.13,
+      "перехват": 0.82
+     },
+     "slotKm": 70.81614859037273,
+     "lineDepthKm": 49.9115943718934,
+     "lineSupKm": 86.34003840073295,
+     "pvoProtKm": 69.04374001503973,
+     "blockedFire": 30,
+     "dangerReal": 72,
+     "dangerFlagged": 18,
+     "dangerHit": 4
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 7,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 2,
+     "hits": 11,
+     "hits0": 6,
+     "hits1": 5,
+     "switch": 93,
+     "swBack": 8,
+     "swKill": 0,
+     "swLeftAlive": 80,
+     "swWhy": {
+      "опаснее": 47,
+      "выгоднее другая цель": 46
+     },
+     "firstAssign": 25,
+     "noAtkShare": 0.30781758957654726,
+     "acqSec": 53.916666666666664,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 6,
+     "roleWhy": {
+      "состав/состояние": 6
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.85,
+      "поддержка": 1.03,
+      "ПВО": 0.61,
+      "перехват": 1.37
+     },
+     "roleOk": {
+      "линия": 0.22,
+      "поддержка": 0.88,
+      "ПВО": 0.3,
+      "перехват": 0.47
+     },
+     "slotKm": 125.34342892862657,
+     "lineDepthKm": 76.13017050721716,
+     "lineSupKm": 208.43867885762356,
+     "pvoProtKm": 107.27404025821191,
+     "blockedFire": 34,
+     "dangerReal": 36,
+     "dangerFlagged": 22,
+     "dangerHit": 5
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 0,
+     "alive1": 6,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 5,
+     "hits": 51,
+     "hits0": 16,
+     "hits1": 35,
+     "switch": 83,
+     "swBack": 17,
+     "swKill": 0,
+     "swLeftAlive": 70,
+     "swWhy": {
+      "опаснее": 40,
+      "выгоднее другая цель": 43
+     },
+     "firstAssign": 16,
+     "noAtkShare": 0.07547169811320754,
+     "acqSec": 7.660714285714286,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 10,
+     "roleWhy": {
+      "состав/состояние": 10
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.61,
+      "ПВО": 0.55,
+      "перехват": 1.32,
+      "поддержка": 0.61
+     },
+     "roleOk": {
+      "линия": 0.36,
+      "ПВО": 0.74,
+      "перехват": 0.96,
+      "поддержка": 0.64
+     },
+     "slotKm": 32.59306680814566,
+     "lineDepthKm": 32.18670038216152,
+     "lineSupKm": 41.29517122906414,
+     "pvoProtKm": 15.730901607890436,
+     "blockedFire": 20,
+     "dangerReal": 26,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 3.67,
+    "alive1": 5,
+    "hits0": 15.67,
+    "hits1": 18.67,
+    "switch": 95.67,
+    "swBack": 18,
+    "swKill": 1.33,
+    "noAtkShare": 0.19,
+    "acqSec": 29.21,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 8.67,
+    "flagLost": 0.33,
+    "slotKm": 76.25,
+    "lineDepthKm": 52.74,
+    "lineSupKm": 112.02,
+    "pvoProtKm": 64.02,
+    "blockedFire": 28,
+    "flee0": 3
+   },
+   "bySeed": {
+    "alive0": [
+     5,
+     6,
+     0
+    ],
+    "alive1": [
+     2,
+     7,
+     6
+    ],
+    "hits0": [
+     25,
+     6,
+     16
+    ],
+    "hits1": [
+     16,
+     5,
+     35
+    ],
+    "switch": [
+     111,
+     93,
+     83
+    ],
+    "swBack": [
+     29,
+     8,
+     17
+    ],
+    "swKill": [
+     4,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.18,
+     0.31,
+     0.08
+    ],
+    "acqSec": [
+     26.05,
+     53.92,
+     7.66
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     10,
+     6,
+     10
+    ],
+    "flagLost": [
+     0,
+     0,
+     1
+    ],
+    "slotKm": [
+     70.82,
+     125.34,
+     32.59
+    ],
+    "lineDepthKm": [
+     49.91,
+     76.13,
+     32.19
+    ],
+    "lineSupKm": [
+     86.34,
+     208.44,
+     41.3
+    ],
+    "pvoProtKm": [
+     69.04,
+     107.27,
+     15.73
+    ],
+    "blockedFire": [
+     30,
+     34,
+     20
+    ],
+    "flee0": [
+     2,
+     2,
+     5
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 4,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 3,
+     "hits": 29,
+     "hits0": 15,
+     "hits1": 14,
+     "switch": 86,
+     "swBack": 14,
+     "swKill": 4,
+     "swLeftAlive": 72,
+     "swWhy": {
+      "выгоднее другая цель": 39,
+      "опаснее": 42,
+      "добивание": 1,
+      "доклад: не может атаковать цель": 4
+     },
+     "firstAssign": 29,
+     "noAtkShare": 0.14161220043572983,
+     "acqSec": 43.88,
+     "rep": {
+      "не может атаковать цель": 14,
+      "устойчивая угроза": 6
+     },
+     "repTotal": 20,
+     "repRepeat": 13,
+     "repActed": 4,
+     "repIgnored": 16,
+     "roleChanges": 9,
+     "roleWhy": {
+      "состав/состояние": 9
+     },
+     "flagLost": 2,
+     "roles": {
+      "поддержка": 1.43,
+      "линия": 2.19,
+      "ПВО": 0.66,
+      "перехват": 1.01
+     },
+     "roleOk": {
+      "поддержка": 0.76,
+      "линия": 0.37,
+      "ПВО": 0.18,
+      "перехват": 0.75
+     },
+     "slotKm": 116.43816983250426,
+     "lineDepthKm": 45.139033714613475,
+     "lineSupKm": 151.397781769117,
+     "pvoProtKm": 179.12871314662365,
+     "blockedFire": 28,
+     "dangerReal": 50,
+     "dangerFlagged": 27,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 7,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 1,
+     "hits": 11,
+     "hits0": 9,
+     "hits1": 2,
+     "switch": 123,
+     "swBack": 23,
+     "swKill": 0,
+     "swLeftAlive": 110,
+     "swWhy": {
+      "опаснее": 65,
+      "выгоднее другая цель": 44,
+      "доклад: не может атаковать цель": 10,
+      "доклад: устойчивая угроза": 4
+     },
+     "firstAssign": 30,
+     "noAtkShare": 0.1891348088531187,
+     "acqSec": 63.41860465116279,
+     "rep": {
+      "устойчивая угроза": 7,
+      "не может атаковать цель": 18
+     },
+     "repTotal": 25,
+     "repRepeat": 13,
+     "repActed": 7,
+     "repIgnored": 18,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 3.62,
+      "поддержка": 0.32,
+      "ПВО": 0.92,
+      "перехват": 1.88
+     },
+     "roleOk": {
+      "линия": 0.25,
+      "поддержка": 0.69,
+      "ПВО": 0.24,
+      "перехват": 0.45
+     },
+     "slotKm": 93.6552149435045,
+     "lineDepthKm": 63.33945751820547,
+     "lineSupKm": 442.5671996824158,
+     "pvoProtKm": 113.44716601047868,
+     "blockedFire": 38,
+     "dangerReal": 50,
+     "dangerFlagged": 14,
+     "dangerHit": 3
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 0,
+     "alive1": 5,
+     "n0": 7,
+     "n1": 7,
+     "flee0": 6,
+     "hits": 57,
+     "hits0": 26,
+     "hits1": 31,
+     "switch": 92,
+     "swBack": 24,
+     "swKill": 1,
+     "swLeftAlive": 78,
+     "swWhy": {
+      "опаснее": 38,
+      "выгоднее другая цель": 50,
+      "доклад: не может атаковать цель": 4
+     },
+     "firstAssign": 16,
+     "noAtkShare": 0.03183023872679045,
+     "acqSec": 4.384615384615385,
+     "rep": {
+      "не может атаковать цель": 2,
+      "роль невыполнима": 1
+     },
+     "repTotal": 3,
+     "repRepeat": 1,
+     "repActed": 2,
+     "repIgnored": 0,
+     "roleChanges": 11,
+     "roleWhy": {
+      "состав/состояние": 11
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 2.03,
+      "ПВО": 0.36,
+      "перехват": 0.83,
+      "поддержка": 0.9
+     },
+     "roleOk": {
+      "линия": 0.5,
+      "ПВО": 0.79,
+      "перехват": 0.94,
+      "поддержка": 0.87
+     },
+     "slotKm": 32.1736194132058,
+     "lineDepthKm": 15.323270496884552,
+     "lineSupKm": 80.53152038546858,
+     "pvoProtKm": 14.532362234062509,
+     "blockedFire": 8,
+     "dangerReal": 9,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 3.67,
+    "alive1": 5.33,
+    "hits0": 16.67,
+    "hits1": 15.67,
+    "switch": 100.33,
+    "swBack": 20.33,
+    "swKill": 1.67,
+    "noAtkShare": 0.12,
+    "acqSec": 37.23,
+    "repTotal": 16,
+    "repRepeat": 9,
+    "repActed": 4.33,
+    "repIgnored": 11.33,
+    "roleChanges": 9,
+    "flagLost": 1.33,
+    "slotKm": 80.76,
+    "lineDepthKm": 41.27,
+    "lineSupKm": 224.83,
+    "pvoProtKm": 102.37,
+    "blockedFire": 24.67,
+    "flee0": 3.33
+   },
+   "bySeed": {
+    "alive0": [
+     5,
+     6,
+     0
+    ],
+    "alive1": [
+     4,
+     7,
+     5
+    ],
+    "hits0": [
+     15,
+     9,
+     26
+    ],
+    "hits1": [
+     14,
+     2,
+     31
+    ],
+    "switch": [
+     86,
+     123,
+     92
+    ],
+    "swBack": [
+     14,
+     23,
+     24
+    ],
+    "swKill": [
+     4,
+     0,
+     1
+    ],
+    "noAtkShare": [
+     0.14,
+     0.19,
+     0.03
+    ],
+    "acqSec": [
+     43.88,
+     63.42,
+     4.38
+    ],
+    "repTotal": [
+     20,
+     25,
+     3
+    ],
+    "repRepeat": [
+     13,
+     13,
+     1
+    ],
+    "repActed": [
+     4,
+     7,
+     2
+    ],
+    "repIgnored": [
+     16,
+     18,
+     0
+    ],
+    "roleChanges": [
+     9,
+     7,
+     11
+    ],
+    "flagLost": [
+     2,
+     0,
+     2
+    ],
+    "slotKm": [
+     116.44,
+     93.66,
+     32.17
+    ],
+    "lineDepthKm": [
+     45.14,
+     63.34,
+     15.32
+    ],
+    "lineSupKm": [
+     151.4,
+     442.57,
+     80.53
+    ],
+    "pvoProtKm": [
+     179.13,
+     113.45,
+     14.53
+    ],
+    "blockedFire": [
+     28,
+     38,
+     8
+    ],
+    "flee0": [
+     3,
+     1,
+     6
+    ]
+   }
+  }
+ },
+ "7_flagloss": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 7,
+     "alive1": 6,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 1,
+     "hits": 11,
+     "hits0": 4,
+     "hits1": 7,
+     "switch": 99,
+     "swBack": 27,
+     "swKill": 2,
+     "swLeftAlive": 84,
+     "swWhy": {
+      "выгоднее другая цель": 56,
+      "опаснее": 43
+     },
+     "firstAssign": 34,
+     "noAtkShare": 0.34717607973421927,
+     "acqSec": 25.8,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 5,
+     "roleWhy": {
+      "состав/состояние": 5
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 2.97,
+      "ПВО": 2,
+      "перехват": 1.68,
+      "поддержка": 0.07
+     },
+     "roleOk": {
+      "линия": 0.31,
+      "ПВО": 0.2,
+      "перехват": 0.68,
+      "поддержка": 0.83
+     },
+     "slotKm": 72.71650361610727,
+     "lineDepthKm": 62.925980705959084,
+     "lineSupKm": 331.7608342474597,
+     "pvoProtKm": 109.00979229249522,
+     "blockedFire": 44,
+     "dangerReal": 31,
+     "dangerFlagged": 9,
+     "dangerHit": 1
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 7,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 18,
+     "hits0": 5,
+     "hits1": 13,
+     "switch": 138,
+     "swBack": 32,
+     "swKill": 2,
+     "swLeftAlive": 119,
+     "swWhy": {
+      "опаснее": 70,
+      "выгоднее другая цель": 68
+     },
+     "firstAssign": 34,
+     "noAtkShare": 0.2598870056497175,
+     "acqSec": 19.048076923076923,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 11,
+     "roleWhy": {
+      "состав/состояние": 11
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 3.47,
+      "ПВО": 2,
+      "перехват": 1.15,
+      "поддержка": 0.45
+     },
+     "roleOk": {
+      "линия": 0.2,
+      "ПВО": 0.4,
+      "перехват": 0.47,
+      "поддержка": 0.83
+     },
+     "slotKm": 85.19035207697196,
+     "lineDepthKm": 68.49101446761779,
+     "lineSupKm": 155.51122036907705,
+     "pvoProtKm": 86.02176881389009,
+     "blockedFire": 30,
+     "dangerReal": 29,
+     "dangerFlagged": 13,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 7,
+     "alive1": 2,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 0,
+     "hits": 49,
+     "hits0": 42,
+     "hits1": 7,
+     "switch": 100,
+     "swBack": 25,
+     "swKill": 2,
+     "swLeftAlive": 81,
+     "swWhy": {
+      "выгоднее другая цель": 54,
+      "опаснее": 46
+     },
+     "firstAssign": 20,
+     "noAtkShare": 0.12355212355212356,
+     "acqSec": 13.15,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 3,
+     "roles": {
+      "линия": 2.39,
+      "ПВО": 1.91,
+      "перехват": 1.19,
+      "поддержка": 0.01
+     },
+     "roleOk": {
+      "линия": 0.37,
+      "ПВО": 0.49,
+      "перехват": 0.98,
+      "поддержка": 0.5
+     },
+     "slotKm": 56.78738044662484,
+     "lineDepthKm": 54.49770514450964,
+     "lineSupKm": 29.875225721761147,
+     "pvoProtKm": 44.08398314842267,
+     "blockedFire": 8,
+     "dangerReal": 10,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 6.33,
+    "alive1": 5,
+    "hits0": 17,
+    "hits1": 9,
+    "switch": 112.33,
+    "swBack": 28,
+    "swKill": 2,
+    "noAtkShare": 0.24,
+    "acqSec": 19.33,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 7.67,
+    "flagLost": 2.33,
+    "slotKm": 71.56,
+    "lineDepthKm": 61.97,
+    "lineSupKm": 172.38,
+    "pvoProtKm": 79.71,
+    "blockedFire": 27.33,
+    "flee0": 1.33
+   },
+   "bySeed": {
+    "alive0": [
+     7,
+     5,
+     7
+    ],
+    "alive1": [
+     6,
+     7,
+     2
+    ],
+    "hits0": [
+     4,
+     5,
+     42
+    ],
+    "hits1": [
+     7,
+     13,
+     7
+    ],
+    "switch": [
+     99,
+     138,
+     100
+    ],
+    "swBack": [
+     27,
+     32,
+     25
+    ],
+    "swKill": [
+     2,
+     2,
+     2
+    ],
+    "noAtkShare": [
+     0.35,
+     0.26,
+     0.12
+    ],
+    "acqSec": [
+     25.8,
+     19.05,
+     13.15
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     5,
+     11,
+     7
+    ],
+    "flagLost": [
+     2,
+     2,
+     3
+    ],
+    "slotKm": [
+     72.72,
+     85.19,
+     56.79
+    ],
+    "lineDepthKm": [
+     62.93,
+     68.49,
+     54.5
+    ],
+    "lineSupKm": [
+     331.76,
+     155.51,
+     29.88
+    ],
+    "pvoProtKm": [
+     109.01,
+     86.02,
+     44.08
+    ],
+    "blockedFire": [
+     44,
+     30,
+     8
+    ],
+    "flee0": [
+     1,
+     3,
+     0
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 4,
+     "alive1": 7,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 2,
+     "hits": 33,
+     "hits0": 4,
+     "hits1": 29,
+     "switch": 136,
+     "swBack": 33,
+     "swKill": 4,
+     "swLeftAlive": 114,
+     "swWhy": {
+      "доклад: не может атаковать цель": 31,
+      "опаснее": 53,
+      "выгоднее другая цель": 52
+     },
+     "firstAssign": 41,
+     "noAtkShare": 0.3439767779390421,
+     "acqSec": 15.551724137931034,
+     "rep": {
+      "не может атаковать цель": 40,
+      "устойчивая угроза": 5
+     },
+     "repTotal": 45,
+     "repRepeat": 31,
+     "repActed": 24,
+     "repIgnored": 21,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 3,
+     "roles": {
+      "линия": 2.64,
+      "ПВО": 2,
+      "перехват": 1.42,
+      "поддержка": 0.66
+     },
+     "roleOk": {
+      "линия": 0.32,
+      "ПВО": 0.15,
+      "перехват": 0.48,
+      "поддержка": 0.85
+     },
+     "slotKm": 88.05111386053686,
+     "lineDepthKm": 40.665564401297814,
+     "lineSupKm": 285.879662431968,
+     "pvoProtKm": 91.31004101322961,
+     "blockedFire": 67,
+     "dangerReal": 40,
+     "dangerFlagged": 9,
+     "dangerHit": 3
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 6,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 1,
+     "hits": 17,
+     "hits0": 3,
+     "hits1": 14,
+     "switch": 136,
+     "swBack": 25,
+     "swKill": 2,
+     "swLeftAlive": 119,
+     "swWhy": {
+      "доклад: не может атаковать цель": 41,
+      "опаснее": 51,
+      "выгоднее другая цель": 44
+     },
+     "firstAssign": 47,
+     "noAtkShare": 0.37251908396946565,
+     "acqSec": 52.86585365853659,
+     "rep": {
+      "не может атаковать цель": 52,
+      "устойчивая угроза": 3
+     },
+     "repTotal": 55,
+     "repRepeat": 44,
+     "repActed": 35,
+     "repIgnored": 20,
+     "roleChanges": 4,
+     "roleWhy": {
+      "состав/состояние": 4
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 3.47,
+      "ПВО": 1.72,
+      "перехват": 0.4,
+      "поддержка": 1.12
+     },
+     "roleOk": {
+      "линия": 0.27,
+      "ПВО": 0.44,
+      "перехват": 0.51,
+      "поддержка": 0.34
+     },
+     "slotKm": 104.44112977288265,
+     "lineDepthKm": 56.98476238856233,
+     "lineSupKm": 195.8763799513832,
+     "pvoProtKm": 40.21608318282081,
+     "blockedFire": 49,
+     "dangerReal": 49,
+     "dangerFlagged": 5,
+     "dangerHit": 2
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 2,
+     "alive1": 4,
+     "n0": 8,
+     "n1": 8,
+     "flee0": 5,
+     "hits": 64,
+     "hits0": 26,
+     "hits1": 38,
+     "switch": 124,
+     "swBack": 23,
+     "swKill": 1,
+     "swLeftAlive": 104,
+     "swWhy": {
+      "доклад: не может атаковать цель": 42,
+      "выгоднее другая цель": 35,
+      "опаснее": 44,
+      "доклад: устойчивая угроза": 3
+     },
+     "firstAssign": 26,
+     "noAtkShare": 0.22084367245657568,
+     "acqSec": 10.53125,
+     "rep": {
+      "не может атаковать цель": 32,
+      "устойчивая угроза": 8
+     },
+     "repTotal": 40,
+     "repRepeat": 29,
+     "repActed": 30,
+     "repIgnored": 10,
+     "roleChanges": 11,
+     "roleWhy": {
+      "состав/состояние": 11
+     },
+     "flagLost": 4,
+     "roles": {
+      "линия": 1.95,
+      "ПВО": 1.4,
+      "перехват": 0.65,
+      "поддержка": 0.57
+     },
+     "roleOk": {
+      "линия": 0.51,
+      "ПВО": 0.58,
+      "перехват": 0.95,
+      "поддержка": 0.3
+     },
+     "slotKm": 23.74821375909096,
+     "lineDepthKm": 18.916461312342346,
+     "lineSupKm": 32.40290757160934,
+     "pvoProtKm": 45.42653315561345,
+     "blockedFire": 20,
+     "dangerReal": 28,
+     "dangerFlagged": 9,
+     "dangerHit": 3
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 4,
+    "alive1": 5.67,
+    "hits0": 11,
+    "hits1": 27,
+    "switch": 132,
+    "swBack": 27,
+    "swKill": 2.33,
+    "noAtkShare": 0.31,
+    "acqSec": 26.32,
+    "repTotal": 46.67,
+    "repRepeat": 34.67,
+    "repActed": 29.67,
+    "repIgnored": 17,
+    "roleChanges": 7.33,
+    "flagLost": 2.67,
+    "slotKm": 72.08,
+    "lineDepthKm": 38.86,
+    "lineSupKm": 171.39,
+    "pvoProtKm": 58.98,
+    "blockedFire": 45.33,
+    "flee0": 2.67
+   },
+   "bySeed": {
+    "alive0": [
+     4,
+     6,
+     2
+    ],
+    "alive1": [
+     7,
+     6,
+     4
+    ],
+    "hits0": [
+     4,
+     3,
+     26
+    ],
+    "hits1": [
+     29,
+     14,
+     38
+    ],
+    "switch": [
+     136,
+     136,
+     124
+    ],
+    "swBack": [
+     33,
+     25,
+     23
+    ],
+    "swKill": [
+     4,
+     2,
+     1
+    ],
+    "noAtkShare": [
+     0.34,
+     0.37,
+     0.22
+    ],
+    "acqSec": [
+     15.55,
+     52.87,
+     10.53
+    ],
+    "repTotal": [
+     45,
+     55,
+     40
+    ],
+    "repRepeat": [
+     31,
+     44,
+     29
+    ],
+    "repActed": [
+     24,
+     35,
+     30
+    ],
+    "repIgnored": [
+     21,
+     20,
+     10
+    ],
+    "roleChanges": [
+     7,
+     4,
+     11
+    ],
+    "flagLost": [
+     3,
+     1,
+     4
+    ],
+    "slotKm": [
+     88.05,
+     104.44,
+     23.75
+    ],
+    "lineDepthKm": [
+     40.67,
+     56.98,
+     18.92
+    ],
+    "lineSupKm": [
+     285.88,
+     195.88,
+     32.4
+    ],
+    "pvoProtKm": [
+     91.31,
+     40.22,
+     45.43
+    ],
+    "blockedFire": [
+     67,
+     49,
+     20
+    ],
+    "flee0": [
+     2,
+     1,
+     5
+    ]
+   }
+  }
+ },
+ "8_retreat": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 11,
+     "hits0": 1,
+     "hits1": 10,
+     "switch": 35,
+     "swBack": 3,
+     "swKill": 1,
+     "swLeftAlive": 23,
+     "swWhy": {
+      "выгоднее другая цель": 25,
+      "опаснее": 8,
+      "добивание": 2
+     },
+     "firstAssign": 21,
+     "noAtkShare": 0.33399602385685884,
+     "acqSec": 111.94444444444444,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 2.16,
+      "ПВО": 1.58,
+      "перехват": 1.34,
+      "поддержка": 0.89
+     },
+     "roleOk": {
+      "линия": 0.24,
+      "ПВО": 0.2,
+      "перехват": 0.7,
+      "поддержка": 1
+     },
+     "slotKm": 178.77941905416415,
+     "lineDepthKm": 104.45831199656035,
+     "lineSupKm": 420.1065028602074,
+     "pvoProtKm": 126.6623161864146,
+     "blockedFire": 42,
+     "dangerReal": 4,
+     "dangerFlagged": 5,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 1,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 2,
+     "hits": 4,
+     "hits0": 1,
+     "hits1": 3,
+     "switch": 36,
+     "swBack": 3,
+     "swKill": 1,
+     "swLeftAlive": 22,
+     "swWhy": {
+      "опаснее": 11,
+      "выгоднее другая цель": 25
+     },
+     "firstAssign": 21,
+     "noAtkShare": 0.2509090909090909,
+     "acqSec": 26.35,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 3,
+     "roleWhy": {
+      "состав/состояние": 3
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 2.65,
+      "ПВО": 1.29,
+      "поддержка": 0.29,
+      "перехват": 0.95
+     },
+     "roleOk": {
+      "линия": 0.61,
+      "ПВО": 0.4,
+      "поддержка": 0.27,
+      "перехват": 0.43
+     },
+     "slotKm": 64.31389950173086,
+     "lineDepthKm": 18.264563833735227,
+     "lineSupKm": 421.900734733379,
+     "pvoProtKm": 43.885315040645516,
+     "blockedFire": 27,
+     "dangerReal": 0,
+     "dangerFlagged": 1,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 0,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 11,
+     "hits0": 2,
+     "hits1": 9,
+     "switch": 12,
+     "swBack": 0,
+     "swKill": 0,
+     "swLeftAlive": 4,
+     "swWhy": {
+      "выгоднее другая цель": 12
+     },
+     "firstAssign": 12,
+     "noAtkShare": 0.30120481927710846,
+     "acqSec": 17.333333333333332,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 1,
+     "roleWhy": {
+      "состав/состояние": 1
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.57,
+      "ПВО": 1.14,
+      "перехват": 0.97,
+      "поддержка": 0.54
+     },
+     "roleOk": {
+      "линия": 1,
+      "ПВО": 1,
+      "перехват": 0.89,
+      "поддержка": 0.85
+     },
+     "slotKm": 6.202959515823913,
+     "lineDepthKm": 4.862184294909542,
+     "lineSupKm": 10.444883836801628,
+     "pvoProtKm": 11.553031642212574,
+     "blockedFire": 5,
+     "dangerReal": 0,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 1.33,
+    "alive1": 8,
+    "hits0": 1.33,
+    "hits1": 7.33,
+    "switch": 27.67,
+    "swBack": 2,
+    "swKill": 0.67,
+    "noAtkShare": 0.3,
+    "acqSec": 51.88,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 3.67,
+    "flagLost": 0.33,
+    "slotKm": 83.1,
+    "lineDepthKm": 42.53,
+    "lineSupKm": 284.15,
+    "pvoProtKm": 60.7,
+    "blockedFire": 24.67,
+    "flee0": 2.67
+   },
+   "bySeed": {
+    "alive0": [
+     3,
+     1,
+     0
+    ],
+    "alive1": [
+     8,
+     8,
+     8
+    ],
+    "hits0": [
+     1,
+     1,
+     2
+    ],
+    "hits1": [
+     10,
+     3,
+     9
+    ],
+    "switch": [
+     35,
+     36,
+     12
+    ],
+    "swBack": [
+     3,
+     3,
+     0
+    ],
+    "swKill": [
+     1,
+     1,
+     0
+    ],
+    "noAtkShare": [
+     0.33,
+     0.25,
+     0.3
+    ],
+    "acqSec": [
+     111.94,
+     26.35,
+     17.33
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     7,
+     3,
+     1
+    ],
+    "flagLost": [
+     0,
+     0,
+     1
+    ],
+    "slotKm": [
+     178.78,
+     64.31,
+     6.2
+    ],
+    "lineDepthKm": [
+     104.46,
+     18.26,
+     4.86
+    ],
+    "lineSupKm": [
+     420.11,
+     421.9,
+     10.44
+    ],
+    "pvoProtKm": [
+     126.66,
+     43.89,
+     11.55
+    ],
+    "blockedFire": [
+     42,
+     27,
+     5
+    ],
+    "flee0": [
+     3,
+     2,
+     3
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 2,
+     "hits": 12,
+     "hits0": 6,
+     "hits1": 6,
+     "switch": 71,
+     "swBack": 26,
+     "swKill": 3,
+     "swLeftAlive": 60,
+     "swWhy": {
+      "выгоднее другая цель": 38,
+      "опаснее": 29,
+      "доклад: не может атаковать цель": 4
+     },
+     "firstAssign": 24,
+     "noAtkShare": 0.1595744680851064,
+     "acqSec": 34.65384615384615,
+     "rep": {
+      "не может атаковать цель": 5
+     },
+     "repTotal": 5,
+     "repRepeat": 2,
+     "repActed": 4,
+     "repIgnored": 1,
+     "roleChanges": 8,
+     "roleWhy": {
+      "состав/состояние": 8
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 2.24,
+      "ПВО": 1.3,
+      "перехват": 0.77,
+      "поддержка": 1.09
+     },
+     "roleOk": {
+      "линия": 0.53,
+      "ПВО": 0.48,
+      "перехват": 0.51,
+      "поддержка": 0.8
+     },
+     "slotKm": 102.97373298982221,
+     "lineDepthKm": 41.24005052106991,
+     "lineSupKm": 205.16107380090912,
+     "pvoProtKm": 64.69251697028403,
+     "blockedFire": 36,
+     "dangerReal": 1,
+     "dangerFlagged": 0,
+     "dangerHit": 0
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 1,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 3,
+     "hits0": 2,
+     "hits1": 1,
+     "switch": 30,
+     "swBack": 6,
+     "swKill": 2,
+     "swLeftAlive": 20,
+     "swWhy": {
+      "опаснее": 11,
+      "выгоднее другая цель": 16,
+      "доклад: не может атаковать цель": 3
+     },
+     "firstAssign": 26,
+     "noAtkShare": 0.23376623376623376,
+     "acqSec": 19.333333333333332,
+     "rep": {
+      "не может атаковать цель": 7,
+      "устойчивая угроза": 1
+     },
+     "repTotal": 8,
+     "repRepeat": 2,
+     "repActed": 3,
+     "repIgnored": 4,
+     "roleChanges": 1,
+     "roleWhy": {
+      "состав/состояние": 1
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.69,
+      "ПВО": 1.45,
+      "поддержка": 0.02,
+      "перехват": 0.99
+     },
+     "roleOk": {
+      "линия": 0.79,
+      "ПВО": 0.68,
+      "поддержка": 1,
+      "перехват": 0.59
+     },
+     "slotKm": 7.516521958192086,
+     "lineDepthKm": 7.300223037303289,
+     "lineSupKm": 4.668468989640374,
+     "pvoProtKm": 40.24757168267443,
+     "blockedFire": 16,
+     "dangerReal": 2,
+     "dangerFlagged": 1,
+     "dangerHit": 0
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 0,
+     "alive1": 8,
+     "n0": 4,
+     "n1": 8,
+     "flee0": 3,
+     "hits": 13,
+     "hits0": 5,
+     "hits1": 8,
+     "switch": 7,
+     "swBack": 0,
+     "swKill": 1,
+     "swLeftAlive": 1,
+     "swWhy": {
+      "выгоднее другая цель": 5,
+      "доклад: не может атаковать цель": 1,
+      "опаснее": 1
+     },
+     "firstAssign": 20,
+     "noAtkShare": 0.5644171779141104,
+     "acqSec": 15.5,
+     "rep": {
+      "не может атаковать цель": 10,
+      "устойчивая угроза": 1
+     },
+     "repTotal": 11,
+     "repRepeat": 8,
+     "repActed": 1,
+     "repIgnored": 10,
+     "roleChanges": 2,
+     "roleWhy": {
+      "состав/состояние": 2
+     },
+     "flagLost": 1,
+     "roles": {
+      "линия": 2.59,
+      "ПВО": 1.15,
+      "перехват": 1.06,
+      "поддержка": 0.24
+     },
+     "roleOk": {
+      "линия": 0.88,
+      "ПВО": 0.92,
+      "перехват": 0.94,
+      "поддержка": 1
+     },
+     "slotKm": 9.085622410443756,
+     "lineDepthKm": 9.657947962077726,
+     "lineSupKm": 8.753047410975636,
+     "pvoProtKm": 11.568236927898072,
+     "blockedFire": 5,
+     "dangerReal": 3,
+     "dangerFlagged": 1,
+     "dangerHit": 0
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 1.33,
+    "alive1": 8,
+    "hits0": 4.33,
+    "hits1": 5,
+    "switch": 36,
+    "swBack": 10.67,
+    "swKill": 2,
+    "noAtkShare": 0.32,
+    "acqSec": 23.16,
+    "repTotal": 8,
+    "repRepeat": 4,
+    "repActed": 2.67,
+    "repIgnored": 5,
+    "roleChanges": 3.67,
+    "flagLost": 0.67,
+    "slotKm": 39.86,
+    "lineDepthKm": 19.4,
+    "lineSupKm": 72.86,
+    "pvoProtKm": 38.84,
+    "blockedFire": 19,
+    "flee0": 2.67
+   },
+   "bySeed": {
+    "alive0": [
+     3,
+     1,
+     0
+    ],
+    "alive1": [
+     8,
+     8,
+     8
+    ],
+    "hits0": [
+     6,
+     2,
+     5
+    ],
+    "hits1": [
+     6,
+     1,
+     8
+    ],
+    "switch": [
+     71,
+     30,
+     7
+    ],
+    "swBack": [
+     26,
+     6,
+     0
+    ],
+    "swKill": [
+     3,
+     2,
+     1
+    ],
+    "noAtkShare": [
+     0.16,
+     0.23,
+     0.56
+    ],
+    "acqSec": [
+     34.65,
+     19.33,
+     15.5
+    ],
+    "repTotal": [
+     5,
+     8,
+     11
+    ],
+    "repRepeat": [
+     2,
+     2,
+     8
+    ],
+    "repActed": [
+     4,
+     3,
+     1
+    ],
+    "repIgnored": [
+     1,
+     4,
+     10
+    ],
+    "roleChanges": [
+     8,
+     1,
+     2
+    ],
+    "flagLost": [
+     0,
+     1,
+     1
+    ],
+    "slotKm": [
+     102.97,
+     7.52,
+     9.09
+    ],
+    "lineDepthKm": [
+     41.24,
+     7.3,
+     9.66
+    ],
+    "lineSupKm": [
+     205.16,
+     4.67,
+     8.75
+    ],
+    "pvoProtKm": [
+     64.69,
+     40.25,
+     11.57
+    ],
+    "blockedFire": [
+     36,
+     16,
+     5
+    ],
+    "flee0": [
+     2,
+     3,
+     3
+    ]
+   }
+  }
+ },
+ "9_homog": {
+  "base": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 6,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 51,
+     "hits0": 0,
+     "hits1": 51,
+     "switch": 159,
+     "swBack": 30,
+     "swKill": 0,
+     "swLeftAlive": 147,
+     "swWhy": {
+      "выгоднее другая цель": 75,
+      "опаснее": 84
+     },
+     "firstAssign": 24,
+     "noAtkShare": 0.079247152055473,
+     "acqSec": 7.7272727272727275,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 3,
+     "roleWhy": {
+      "состав/состояние": 3
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 5.59,
+      "поддержка": 0.41
+     },
+     "roleOk": {
+      "линия": 0.2,
+      "поддержка": 0.79
+     },
+     "slotKm": 42.08856123230802,
+     "lineDepthKm": 40.580673297738805,
+     "lineSupKm": 86.50573904849998,
+     "pvoProtKm": null,
+     "blockedFire": 99,
+     "dangerReal": 25,
+     "dangerFlagged": 25,
+     "dangerHit": 3
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 2,
+     "hits": 134,
+     "hits0": 46,
+     "hits1": 88,
+     "switch": 96,
+     "swBack": 20,
+     "swKill": 0,
+     "swLeftAlive": 84,
+     "swWhy": {
+      "выгоднее другая цель": 53,
+      "опаснее": 43
+     },
+     "firstAssign": 12,
+     "noAtkShare": 0.013218390804597701,
+     "acqSec": 6.722222222222222,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 5,
+     "roleWhy": {
+      "состав/состояние": 5
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 5.26,
+      "поддержка": 0.1
+     },
+     "roleOk": {
+      "линия": 0.44,
+      "поддержка": 0.54
+     },
+     "slotKm": 18.83411551479601,
+     "lineDepthKm": 19.090684080374437,
+     "lineSupKm": 16.685554840119675,
+     "pvoProtKm": null,
+     "blockedFire": 134,
+     "dangerReal": 123,
+     "dangerFlagged": 78,
+     "dangerHit": 12
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 5,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 3,
+     "hits": 101,
+     "hits0": 54,
+     "hits1": 47,
+     "switch": 71,
+     "swBack": 17,
+     "swKill": 0,
+     "swLeftAlive": 59,
+     "swWhy": {
+      "опаснее": 30,
+      "выгоднее другая цель": 41
+     },
+     "firstAssign": 12,
+     "noAtkShare": 0.04646360351058337,
+     "acqSec": 9.836065573770492,
+     "rep": {},
+     "repTotal": 0,
+     "repRepeat": 0,
+     "repActed": 0,
+     "repIgnored": 0,
+     "roleChanges": 7,
+     "roleWhy": {
+      "состав/состояние": 7
+     },
+     "flagLost": 3,
+     "roles": {
+      "линия": 4.45,
+      "поддержка": 0.19
+     },
+     "roleOk": {
+      "линия": 0.47,
+      "поддержка": 0.44
+     },
+     "slotKm": 23.216039313034265,
+     "lineDepthKm": 25.53279491009004,
+     "lineSupKm": 16.68612201351007,
+     "pvoProtKm": null,
+     "blockedFire": 91,
+     "dangerReal": 74,
+     "dangerFlagged": 18,
+     "dangerHit": 15
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 4,
+    "alive1": 5.67,
+    "hits0": 33.33,
+    "hits1": 62,
+    "switch": 108.67,
+    "swBack": 22.33,
+    "swKill": 0,
+    "noAtkShare": 0.05,
+    "acqSec": 8.1,
+    "repTotal": 0,
+    "repRepeat": 0,
+    "repActed": 0,
+    "repIgnored": 0,
+    "roleChanges": 5,
+    "flagLost": 1,
+    "slotKm": 28.05,
+    "lineDepthKm": 28.4,
+    "lineSupKm": 39.96,
+    "pvoProtKm": null,
+    "blockedFire": 108,
+    "flee0": 2
+   },
+   "bySeed": {
+    "alive0": [
+     6,
+     3,
+     3
+    ],
+    "alive1": [
+     6,
+     6,
+     5
+    ],
+    "hits0": [
+     0,
+     46,
+     54
+    ],
+    "hits1": [
+     51,
+     88,
+     47
+    ],
+    "switch": [
+     159,
+     96,
+     71
+    ],
+    "swBack": [
+     30,
+     20,
+     17
+    ],
+    "swKill": [
+     0,
+     0,
+     0
+    ],
+    "noAtkShare": [
+     0.08,
+     0.01,
+     0.05
+    ],
+    "acqSec": [
+     7.73,
+     6.72,
+     9.84
+    ],
+    "repTotal": [
+     0,
+     0,
+     0
+    ],
+    "repRepeat": [
+     0,
+     0,
+     0
+    ],
+    "repActed": [
+     0,
+     0,
+     0
+    ],
+    "repIgnored": [
+     0,
+     0,
+     0
+    ],
+    "roleChanges": [
+     3,
+     5,
+     7
+    ],
+    "flagLost": [
+     0,
+     0,
+     3
+    ],
+    "slotKm": [
+     42.09,
+     18.83,
+     23.22
+    ],
+    "lineDepthKm": [
+     40.58,
+     19.09,
+     25.53
+    ],
+    "lineSupKm": [
+     86.51,
+     16.69,
+     16.69
+    ],
+    "pvoProtKm": [
+     null,
+     null,
+     null
+    ],
+    "blockedFire": [
+     99,
+     134,
+     91
+    ],
+    "flee0": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  "new": {
+   "runs": [
+    {
+     "seed": 1,
+     "t": 1500,
+     "alive0": 5,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 1,
+     "hits": 67,
+     "hits0": 0,
+     "hits1": 67,
+     "switch": 115,
+     "swBack": 13,
+     "swKill": 0,
+     "swLeftAlive": 103,
+     "swWhy": {
+      "выгоднее другая цель": 47,
+      "опаснее": 57,
+      "доклад: не может атаковать цель": 8,
+      "доклад: устойчивая угроза": 3
+     },
+     "firstAssign": 25,
+     "noAtkShare": 0.026026604973973393,
+     "acqSec": 12.494736842105263,
+     "rep": {
+      "не может атаковать цель": 6,
+      "устойчивая угроза": 9
+     },
+     "repTotal": 15,
+     "repRepeat": 7,
+     "repActed": 7,
+     "repIgnored": 8,
+     "roleChanges": 6,
+     "roleWhy": {
+      "состав/состояние": 6
+     },
+     "flagLost": 0,
+     "roles": {
+      "линия": 5.73,
+      "поддержка": 0.14
+     },
+     "roleOk": {
+      "линия": 0.49,
+      "поддержка": 0.8
+     },
+     "slotKm": 15.320732084331288,
+     "lineDepthKm": 15.36639140596494,
+     "lineSupKm": 13.130549994694881,
+     "pvoProtKm": null,
+     "blockedFire": 110,
+     "dangerReal": 66,
+     "dangerFlagged": 10,
+     "dangerHit": 6
+    },
+    {
+     "seed": 2,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 6,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 2,
+     "hits": 73,
+     "hits0": 18,
+     "hits1": 55,
+     "switch": 121,
+     "swBack": 15,
+     "swKill": 0,
+     "swLeftAlive": 109,
+     "swWhy": {
+      "выгоднее другая цель": 56,
+      "опаснее": 55,
+      "доклад: не может атаковать цель": 9,
+      "доклад: устойчивая угроза": 1
+     },
+     "firstAssign": 14,
+     "noAtkShare": 0.03219315895372234,
+     "acqSec": 17.876470588235293,
+     "rep": {
+      "не может атаковать цель": 6,
+      "устойчивая угроза": 7
+     },
+     "repTotal": 13,
+     "repRepeat": 5,
+     "repActed": 9,
+     "repIgnored": 4,
+     "roleChanges": 3,
+     "roleWhy": {
+      "состав/состояние": 3
+     },
+     "flagLost": 2,
+     "roles": {
+      "линия": 5.62,
+      "поддержка": 0.07
+     },
+     "roleOk": {
+      "линия": 0.49,
+      "поддержка": 0
+     },
+     "slotKm": 18.85029832501124,
+     "lineDepthKm": 15.642010420315962,
+     "lineSupKm": 45.83595264981147,
+     "pvoProtKm": null,
+     "blockedFire": 144,
+     "dangerReal": 37,
+     "dangerFlagged": 9,
+     "dangerHit": 1
+    },
+    {
+     "seed": 3,
+     "t": 1500,
+     "alive0": 3,
+     "alive1": 1,
+     "n0": 6,
+     "n1": 6,
+     "flee0": 2,
+     "hits": 202,
+     "hits0": 138,
+     "hits1": 64,
+     "switch": 129,
+     "swBack": 19,
+     "swKill": 2,
+     "swLeftAlive": 116,
+     "swWhy": {
+      "доклад: не может атаковать цель": 28,
+      "выгоднее другая цель": 50,
+      "опаснее": 43,
+      "доклад: устойчивая угроза": 8
+     },
+     "firstAssign": 14,
+     "noAtkShare": 0.07801418439716312,
+     "acqSec": 12.567708333333334,
+     "rep": {
+      "не может атаковать цель": 14,
+      "устойчивая угроза": 11
+     },
+     "repTotal": 25,
+     "repRepeat": 12,
+     "repActed": 17,
+     "repIgnored": 8,
+     "roleChanges": 11,
+     "roleWhy": {
+      "состав/состояние": 11
+     },
+     "flagLost": 3,
+     "roles": {
+      "линия": 3.7,
+      "поддержка": 0.55
+     },
+     "roleOk": {
+      "линия": 0.85,
+      "поддержка": 0.84
+     },
+     "slotKm": 9.693159397543559,
+     "lineDepthKm": 4.629058881679927,
+     "lineSupKm": 35.19131447490646,
+     "pvoProtKm": null,
+     "blockedFire": 155,
+     "dangerReal": 73,
+     "dangerFlagged": 6,
+     "dangerHit": 3
+    }
+   ],
+   "err": null,
+   "mean": {
+    "alive0": 3.67,
+    "alive1": 4.33,
+    "hits0": 52,
+    "hits1": 62,
+    "switch": 121.67,
+    "swBack": 15.67,
+    "swKill": 0.67,
+    "noAtkShare": 0.05,
+    "acqSec": 14.31,
+    "repTotal": 17.67,
+    "repRepeat": 8,
+    "repActed": 11,
+    "repIgnored": 6.67,
+    "roleChanges": 6.67,
+    "flagLost": 1.67,
+    "slotKm": 14.62,
+    "lineDepthKm": 11.88,
+    "lineSupKm": 31.39,
+    "pvoProtKm": null,
+    "blockedFire": 136.33,
+    "flee0": 1.67
+   },
+   "bySeed": {
+    "alive0": [
+     5,
+     3,
+     3
+    ],
+    "alive1": [
+     6,
+     6,
+     1
+    ],
+    "hits0": [
+     0,
+     18,
+     138
+    ],
+    "hits1": [
+     67,
+     55,
+     64
+    ],
+    "switch": [
+     115,
+     121,
+     129
+    ],
+    "swBack": [
+     13,
+     15,
+     19
+    ],
+    "swKill": [
+     0,
+     0,
+     2
+    ],
+    "noAtkShare": [
+     0.03,
+     0.03,
+     0.08
+    ],
+    "acqSec": [
+     12.49,
+     17.88,
+     12.57
+    ],
+    "repTotal": [
+     15,
+     13,
+     25
+    ],
+    "repRepeat": [
+     7,
+     5,
+     12
+    ],
+    "repActed": [
+     7,
+     9,
+     17
+    ],
+    "repIgnored": [
+     8,
+     4,
+     8
+    ],
+    "roleChanges": [
+     6,
+     3,
+     11
+    ],
+    "flagLost": [
+     0,
+     2,
+     3
+    ],
+    "slotKm": [
+     15.32,
+     18.85,
+     9.69
+    ],
+    "lineDepthKm": [
+     15.37,
+     15.64,
+     4.63
+    ],
+    "lineSupKm": [
+     13.13,
+     45.84,
+     35.19
+    ],
+    "pvoProtKm": [
+     null,
+     null,
+     null
+    ],
+    "blockedFire": [
+     110,
+     144,
+     155
+    ],
+    "flee0": [
+     1,
+     2,
+     2
+    ]
+   }
+  }
+ }
+}

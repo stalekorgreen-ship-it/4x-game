@@ -77,7 +77,7 @@ if (wrap && bgo) {
       if (tg) { const b = P(tg.x, tg.y, tg.z); if (b) { g.strokeStyle = SC[q.side]; g.globalAlpha = .45; g.setLineDash([]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke() } }
       if (pr) { const b = P(pr.x, pr.y, pr.z); if (b) { g.strokeStyle = '#9fffb0'; g.globalAlpha = .6; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]) } }
       if (q.slot) { const b = P(q.slot.x, q.slot.y, q.z); if (b) { g.strokeStyle = SC[q.side]; g.globalAlpha = .7; g.beginPath(); g.arc(b[0], b[1], 4, 0, 6.283); g.stroke() } }
-      g.globalAlpha = .95; g.fillStyle = SC[q.side]; const L = [(q.flag ? '★ ' : '') + (q.role || '—') + (tg ? ' → #' + tg.id : ''), q.rep ? 'доклад: ' + q.rep : q.why ? q.why : ''].filter(Boolean);
+      g.globalAlpha = .95; g.fillStyle = SC[q.side]; const L = [(q.flag ? '★ ' : '') + (q.role || '—') + (tg ? ' → #' + tg.id : ''), q.rep ? 'доклад: ' + q.rep : q.why ? 'цель: ' + q.why : '', q.roleWhy ? 'роль сменена: ' + q.roleWhy : ''].filter(Boolean);
       L.forEach((t2, i) => g.fillText(t2, a[0] + 6, a[1] - 6 + i * 12)) } g.globalAlpha = 1 }
   function drawFleets() { drawFleets0(); if (tacOn) drawTac() }
   function drawFleets0() {
