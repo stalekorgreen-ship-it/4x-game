@@ -56,7 +56,10 @@ function seesP(s,p,d){const A=p.cal?Math.PI*p.cal*p.cal/4:GATP.area,T0=p.kk?SNS.
   let R=0;for(const q of (s.scl||s.sc)){if(q.k==='ir')R=Math.max(R,SNS.irK*Math.sqrt(A*Math.pow(T/1000,4))*(q.res||1));else if(q.k==='rad'&&s.rdOn)R=Math.max(R,SNS.radK*Math.pow(A/1e4,.25)*(s.rad0?s.radN/s.rad0:1))}return d<R}
 const PB=gd('battle','prebrake',{on:1,v:.4,near:5,res:1.5,pass:.25,passV:1}); // торможение до встречи: до v км/с, если Δv ≥ res×нужного; на проходе (сближение > passV км/с) стреляем при шансе ≥ PMIN×pass
 const GCLOSE=gd('battle','gclose',{on:1,wait:20,r:8}); // если все рельсы заряжаются дольше wait с (или их нет), а гатлинги есть — держим дистанцию r км
-const EXTM=gd('battle','extmod',{p:.04,r:.12,k:['T','G','A','D','R','M','L']}); // шанс пули гатлинга попасть во внешний модуль рядом с точкой попадания (r — доля длины корпуса)
+const EXTM=gd('battle','extmod',{size:{T:8,G:4,A:4,D:6,R:2,M:5,L:5}}); // внешние модули — физические коробки на корпусе, размер в метрах; пуля попадает в модуль, только если точка удара внутри его контура
+// точка удара в системе корабля (м) против центра модуля на той же грани: модуль задет, если удар внутри его квадрата
+function extHit(o,zi,x,y){const L=o.T.L*1000,c=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),dx=(x-o.x)*1000,dy=(y-o.y)*1000,au=dx*c+dy*sn,av=-dx*sn+dy*c,wr=(WR[o.cls]||.3)*1.4;
+  for(const z of o.zones)for(const q of z.mods){if(!q.alive||z!==o.zones[zi])continue;const h=(EXTM.size[q.k]||0)/2;if(!h)continue;if(Math.abs(au-(q.u||0)*L)<h&&Math.abs(av-(q.v||0)*L*wr)<h)return q}return null}
 const PMc=(s,o)=>o&&closing(s,o)>PB.passV?PMIN*PB.pass:PMIN;
 const TRK=gd('battle','track',{ally:.75,seen:.5,none:.25,jam:.6,ttl:6,near:1});
 function tq(s,o){if(!o||!o.rl)return 1;const side=s.side;let q=o.byL&&t-(o.byL.get(s)??-99)<TRK.ttl?1:t-o.rl[side]<TRK.ttl?TRK.ally:t-o.rs[side]<TRK.ttl?TRK.seen:TRK.none;return Math.max(.1,q*(1-(o.jam||0)*TRK.jam))}
@@ -452,7 +455,7 @@ function steer(s,dt){
   if(s.fuelCap&&!s.rf){const B=budget(s);s.dvB=B;if(B.spend<=0){if(B.tk){s.rf=B.tk;s.rfV=Math.max(.1,B.dvr*.25)}else{vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05)}}else{const ex=vx*eng-s.sx,ey=vy*eng-s.sy,ed=Math.hypot(ex,ey);if(ed>B.spend){const k=B.spend/ed;vx=(s.sx+ex*k)/Math.max(eng,.05);vy=(s.sy+ey*k)/Math.max(eng,.05)}}} // общий бюджет Δv: манёвр не трогает запас на возвращение (к танкеру или до остановки)
   // заблаговременное торможение: на встречном курсе гасим относительную скорость до PB.v ещё до сближения — если хватает топлива (Циолковский) на (rv−PB.v)·res
   {const g=s.tg;if(PB.on&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
-    if(rv>PB.v&&d>PB.near){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0);if(dvr>(rv-PB.v)*PB.res){const aa=s.acc/1000*Math.max(.15,eng),vc=Math.min(rv,Math.max(PB.v,Math.sqrt(aa*(d-PB.near)))),ux=dx/d,uy=dy/d;
+    if(rv>PB.v&&d>PB.near){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0);{const vt=Math.max(PB.v,rv-dvr/PB.res),aa=s.acc/1000*Math.max(.15,eng),vc=Math.min(rv,Math.max(vt,Math.sqrt(aa*(d-PB.near)))),ux=dx/d,uy=dy/d; /* топлива мало — гасим скорость частично (до vt), но сразу поворачиваем к врагу, а не расходимся */
       vx=(g.sx+ux*vc)/Math.max(eng,.05);vy=(g.sy+uy*vc)/Math.max(eng,.05);s.pb=1;stat.pbrake=(stat.pbrake||0)+dt}}}}
   // инерция: ускорение ограничено тягой и массой
   const a=(s.fuelCap&&s.fuel<=0?0:1)*s.acc/1000*eng*dt*(1+(boost-1)*.5),_pl=(t>=(s.vPT||0)||s.dg&&t<s.dgT||flee)?(s.vPT=t+PLAN_T,s.vTx=vx,s.vTy=vy,1):0,dvx0=s.vTx*eng-s.sx,dvy0=s.vTy*eng-s.sy,dl0=Math.hypot(dvx0,dvy0),fq=s.fuelCap?s.fuel/s.fuelCap:1,db=fq<.25?.1:.05,coast=dl0<Math.hypot(s.sx,s.sy)*.2&&(dvx0*s.sx+dvy0*s.sy)<=0===false&&Math.hypot(vx*eng,vy*eng)>Math.hypot(s.sx,s.sy)*.8&&Math.hypot(vx*eng,vy*eng)<Math.hypot(s.sx,s.sy)*1.25&&(vx*s.sx+vy*s.sy)>.97*Math.hypot(vx,vy)*Math.hypot(s.sx,s.sy),dvx=dl0<db||coast?0:dvx0,dvy=dl0<db||coast?0:dvy0,dl=dl0<db||coast?0:dl0; /* coast — идём почти куда надо и почти с нужной скоростью: летим по инерции */ /* мёртвая зона по скорости: мелкие поправки не стоят топлива; при пустеющем баке — шире */
@@ -717,8 +720,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;if(pr&&pr.src&
   if(gat)stat.gHit=(stat.gHit||0)+1;
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
-    {const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=EXTM.r*EXTM.r;for(const zz of o.zones)for(const q of zz.mods)if(q.alive&&EXTM.k.includes(q.k)){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}} // внешние модули (башни, радар, маневровые) стоят снаружи брони: пуля рядом может попасть прямо в них
-      if(m&&Math.random()<EXTM.p){mdead(o,m);stat.extK=(stat.extK||0)+1;if(imp){imp.left=0;imp.arm=z.arm}say(o.side,'mod',o);return}}
+    {const m=extHit(o,zi,x,y);if(m){mdead(o,m);stat.extK=(stat.extK||0)+1;if(imp){imp.left=0;imp.arm=z.arm}say(o.side,'mod',o);return}} // пуля физически попала во внешний модуль (стоит снаружи брони)
     if(pr){const g=dig(o,z,x,y,iz,Math.min(GAT_K*vr*vr,penCap(GATP.m,GATP.area)),1,{k:'гатлинг 30 мм',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
       if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
       if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
@@ -727,7 +729,7 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;if(pr&&pr.src&
     else{if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=.01)return}
     const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=1e9;for(const zz of o.zones)for(const q of zz.mods)if(q.alive){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}}
     if(m){mdead(o,m);if(m.k==='E')say(o.side,'eng',o);else if(m.k!=='C')say(o.side,'mod',o)}return}
-  if(kind==='rail'&&pr&&pr.kk){ // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
+  if(kind==='rail'&&pr&&pr.kk){{const m=extHit(o,zi,x,y);if(m){mdead(o,m);stat.extK=(stat.extK||0)+1;say(o.side,'mod',o)}} // рельс: снаряд калибра N см накрывает ⌈N/10⌉² ячеек, глубина = 10 мм на МДж/см²; остаток после пробития — по модулям (1 удар на 2 см лишней глубины)
     const g=dig(o,z,x,y,iz,Math.min(pr.kk*vr*vr,penCap(RAIL_M(pr.cal||10),Math.PI*((pr.cal||10)/2)**2)),Math.max(1,Math.ceil((pr.cal||10)/10)),{k:'рельс '+(pr.cal||10)+' см',v:vr}),cut=g.took/LAYER_MM,pass=g.left>0?Math.min(PASS.max,1+Math.floor(g.left/PASS.mm)):0;if(imp){imp.mm=g.rem;imp.dep=g.dep}
     if(g.took<.5&&!pass){ricochet(o,x,y,vx,vy);if(imp){imp.rico=1;imp.left=z.cols[g.c];imp.arm=z.arm}return}
     fin(g.c,z.nc,cut,pass);return}
