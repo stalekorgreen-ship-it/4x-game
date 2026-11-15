@@ -141,6 +141,32 @@ function armsMiss(a, b) { let m = 0; for (const k of ['rail', 'gat', 'flak']) { 
   const ca = [...a.cal].sort((x, y) => x - y), cb = [...b.cal].sort((x, y) => x - y); for (let i = 0; i < Math.min(ca.length, cb.length); i++) if (ca[i] !== cb[i]) m += .1; return m }
 export function pickByArms(l, tons, spec) { const A = armsOf(spec), inR = l.filter(d => Math.abs(Math.log(d.M / tons)) <= Math.log(MASS_K)), pool = inR.length ? inR : l;
   let b = null, bs = 1e9; for (const d of pool) { const sc = armsMiss(A, designArms(d)) + W_MASS * Math.abs(Math.log(d.M / tons)); if (sc < bs - 1e-9) { bs = sc; b = d } } return b }
+// АВТОРАССТАНОВКА БАШЕН: модулю без установки в проекте ставится башня того же вида на свободную ровную площадку корпуса.
+// Геометрия — из готовых башен проектов (тот же вид; рельс — ближайший калибр), место — лучами по поверхности: верх, низ, борта; площадка ровная (нормаль ±25°),
+// над ней свободно на высоту башни, до соседних башен — не ближе суммы их радиусов ×1,15. Без координат под конкретные проекты.
+const TPL = new Map();
+function turGeo(t) { const pi = new Int16Array(ub(t.pos).buffer), ci = ub(t.col), k = pi.length, P = new Float32Array(k), C = new Float32Array(k); for (let i = 0; i < k; i++) { P[i] = pi[i] / 20; C[i] = ci[i] / 255 }
+  const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('color', new THREE.BufferAttribute(C, 3));
+  const tu = new THREE.Object3D(); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(t.n[0], t.n[1], t.n[2])); tu.updateMatrix(); bg.applyMatrix4(tu.matrix.clone().invert()); bg.computeVertexNormals(); return bg }
+function footR(g) { const P = g.attributes.position.array; let h = 0; for (let i = 1; i < P.length; i += 3) h = Math.max(h, P[i]); let r = 0; for (let i = 0; i < P.length; i += 3) if (P[i + 1] < h * .25) r = Math.max(r, Math.hypot(P[i], P[i + 2])); return { r: r || 1, h } }
+function tplOf(k) { if (TPL.has(k)) return TPL.get(k); const all = []; for (const d of list()) for (const t of d.turs || []) if (t.pos) all.push(t);
+  const cal = s => +String(s).slice(1); let t = all.find(q => q.k === k); if (!t && /^r\d+$/.test(k)) { const rs = all.filter(q => /^r\d+$/.test(q.k)).sort((a, b) => Math.abs(cal(a.k) - cal(k)) - Math.abs(cal(b.k) - cal(k))); t = rs[0] }
+  let v = null; if (t) { const g = turGeo(t), f = footR(g); v = { geo: g, r: f.r, h: f.h } } TPL.set(k, v); return v }
+export function autoTurrets(sp, kinds) { const d = list().find(q => q.name === sp.userData.design); if (!d || !kinds.length) return [];
+  const body = new THREE.Mesh(geo(d), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), rc = new THREE.Raycaster(), L = d.L, bb = new THREE.Box3().setFromObject(body), out = [];
+  const T = sp.userData.turs, rOf = tu => tu.userData.r || 3, N = [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map(a => new THREE.Vector3(...a)), cand = [];
+  for (const n of N) for (let i = 0; i <= 40; i++) { const x = bb.min.x + (bb.max.x - bb.min.x) * (.05 + .9 * i / 40); for (const off of n.y ? [0, -.25, .25] : [0, -.2, .2]) {
+      const o = new THREE.Vector3(x, n.y ? 0 : off * (bb.max.y - bb.min.y), n.y ? off * (bb.max.z - bb.min.z) : 0).addScaledVector(n, L * 2); rc.set(o, n.clone().negate()); const h = rc.intersectObject(body, false)[0];
+      if (!h || !h.face) continue; const fn = h.face.normal.clone(); if (Math.abs(fn.dot(n)) < .9) continue; cand.push({ p: h.point, n, pri: (n.y > 0 ? 0 : n.y < 0 ? 1 : 2) * 10 + Math.abs(x - (bb.min.x + bb.max.x) / 2) / L * 4 + Math.abs(off) * 2 }) } }
+  cand.sort((a, b) => a.pri - b.pri);
+  for (const k of kinds) { const tp = tplOf(k); if (!tp) { out.push(null); continue } let ok = null;
+    for (const c of cand) { if (T.some(tu => tu.position.distanceTo(c.p) < (rOf(tu) + tp.r) * 1.15)) continue
+      rc.set(c.p.clone().addScaledVector(c.n, .05), c.n); const up = rc.intersectObject(body, false)[0]; if (up && up.distance < tp.h * 1.2) continue; // над площадкой нависает корпус
+      ok = c; break }
+    if (!ok) { out.push(null); continue }
+    const tu = new THREE.Group(); tu.position.copy(ok.p); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ok.n); const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd);
+    const bm = new THREE.Mesh(tp.geo, lodMat); bm.name = 'body'; tu.add(bm); tu.userData = { isTur: 1, head: hd, tipX: k === 'gat' ? 6 : 8, n: ok.n.clone(), k, r: tp.r, auto: 1 }; sp.add(tu); T.push(tu); out.push(tu) }
+  return out }
 export function buildDesign(d, opt) {
   const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); { // нутро: тёмный внутренний корпус (меньше на 10–20%) и переборки — в пробоине видно конструкцию, а не пустоту насквозь
     gB.computeBoundingBox(); const bb = gB.boundingBox, c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3()), inner = new THREE.Group(); inner.position.copy(c); inner.scale.set(.9, .78, .78);
@@ -151,7 +177,7 @@ export function buildDesign(d, opt) {
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n, k: t.k }; g.add(tu); turs.push(tu);
     if (t.pos) { const pi = new Int16Array(ub(t.pos).buffer), ci = ub(t.col), k = pi.length, P = new Float32Array(k), C = new Float32Array(k); for (let i = 0; i < k; i++) { P[i] = pi[i] / 20; C[i] = ci[i] / 255 } // геометрия башни из редактора — отдельно от корпуса (те же треугольники)
       const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('color', new THREE.BufferAttribute(C, 3)); tu.updateMatrix(); bg.applyMatrix4(tu.matrix.clone().invert()); bg.computeVertexNormals();
-      const bm = new THREE.Mesh(bg, lodMat); bm.name = 'body'; tu.add(bm) } }
+      const bm = new THREE.Mesh(bg, lodMat); bm.name = 'body'; tu.add(bm); tu.userData.r = footR(bg).r } }
   // огни и факелы двигателей из редактора: аддитивные спрайты (огни мигают) и конусы пламени
   const glowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const lights = [], plumes = [];

@@ -11,7 +11,7 @@ import type { LoftPack } from './21c-loft.ts';
 import { buildSpine } from './21d-spine.ts';
 import { View } from './21a-battle-view.ts';
 import { registerPart, createPart, adoptPart, applyViewEvent, stepDebris, debris, partOfModule } from './21f-parts.ts';
-import { pickDesign, buildDesign } from './21e-design.ts';
+import { pickDesign, buildDesign, autoTurrets } from './21e-design.ts';
 
 const wrap = document.getElementById('mapwrap');
 const bgo = document.getElementById('bgo');
@@ -510,7 +510,7 @@ if (wrap && bgo) {
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
       const dsg = pickDesign(tons, spc); const sp = dsg ? buildDesign(dsg, { arm: s.zones ? { nose: s.zones[0].arm * .02, side: s.zones[1].arm * .02, rear: s.zones[2].arm * .02 } : s.T.arm }) : buildSpine(m, { arm: s.T.arm, tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
       const k = u.L / (sp.userData.L + (sp.userData.design ? 0 : 16)); sp.scale.setScalar(k); if (sp.userData.setLodScale) sp.userData.setLodScale(k); u.spK = k; u.sp = sp; g.add(sp);
-      u.turByMod = turMatch(s, sp); for (const [mid, tu] of u.turByMod) { const P = adoptPart('rail_turret', tu, sp.userData.design ? {} : { head: tu.userData.head }).bindModule(mid); if (gone.has(mid)) { for (const k of P.pieces.keys()) { P.hide(k); P.state.set(k, 'detached') } } } /* башня сорвана раньше, чем построена модель — её нет */ } } // башни «хребта» — детали реестра (голова отдельной частью), привязаны к модулям по номеру башни
+      if (sp.userData.design) { const miss = turMiss(s, sp); if (miss.length) autoTurrets(sp, miss) } u.turByMod = turMatch(s, sp); for (const [mid, tu] of u.turByMod) { const P = adoptPart('rail_turret', tu, sp.userData.design ? {} : { head: tu.userData.head }).bindModule(mid); if (gone.has(mid)) { for (const k of P.pieces.keys()) { P.hide(k); P.state.set(k, 'detached') } } } /* башня сорвана раньше, чем построена модель — её нет */ } } // башни «хребта» — детали реестра (голова отдельной частью), привязаны к модулям по номеру башни
     u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake && !on) Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
@@ -1197,6 +1197,9 @@ if (wrap && bgo) {
   // ТЕСТ: оторвать голову башни у корабля (визуальная проверка, бой не меняется). imp — добавочная скорость, км/с
   // башни модели ↔ модули боя. Проект редактора: по виду установки (гатлинг, рельс по калибру, зенитка), по порядку, без подмены вида — лишние установки остаются без модуля.
   // «Хребет» строится из состава корабля в том же порядке — по номеру башни.
+  // виды установок для модулей, которым в проекте не нашлось башни (порядок — как у модулей): по ним ставятся недостающие башни
+  function turMiss(s: any, sp: THREE.Object3D) { const got = turMatch(s, sp), out: string[] = []; for (const m of s.tur || []) if (m.id != null && !got.has(m.id)) { const k = turKinds(m)[0]; if (k) out.push(k) } return out }
+  function turKinds(m: any) { return m.k === 'G' ? ['gat'] : m.k === 'T' ? (c => c <= 10 ? ['r10', 'r15', 'r20'] : c <= 15 ? ['r15', 'r20', 'r10'] : ['r20', 'r15', 'r10'])((m.cfg && m.cfg.cal) || 10) : m.k === 'A' ? ['flak'] : [] }
   function turMatch(s: any, sp: THREE.Object3D) { const T: any[] = sp.userData.turs || [], out = new Map<number, any>(), used = new Set<any>();
     const kinds = (m: any) => m.k === 'G' ? ['gat'] : m.k === 'T' ? (c => c <= 10 ? ['r10', 'r15', 'r20'] : c <= 15 ? ['r15', 'r20', 'r10'] : ['r20', 'r15', 'r10'])((m.cfg && m.cfg.cal) || 10) : m.k === 'A' ? ['flak'] : []; /* A — зенитка (spec.flak); ac в редакторе — автопушка, в бою её нет */
     for (const m of s.tur || []) { if (m.id == null) continue; let tu: any = null;
