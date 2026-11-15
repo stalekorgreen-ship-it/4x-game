@@ -56,6 +56,7 @@ function seesP(s,p,d){const A=p.cal?Math.PI*p.cal*p.cal/4:GATP.area,T0=p.kk?SNS.
   let R=0;for(const q of (s.scl||s.sc)){if(q.k==='ir')R=Math.max(R,SNS.irK*Math.sqrt(A*Math.pow(T/1000,4))*(q.res||1));else if(q.k==='rad'&&s.rdOn)R=Math.max(R,SNS.radK*Math.pow(A/1e4,.25)*(s.rad0?s.radN/s.rad0:1))}return d<R}
 const PB=gd('battle','prebrake',{on:1,v:.4,near:5,res:1.5,pass:.25,passV:1}); // торможение до встречи: до v км/с, если Δv ≥ res×нужного; на проходе (сближение > passV км/с) стреляем при шансе ≥ PMIN×pass
 const GCLOSE=gd('battle','gclose',{on:1,wait:20,r:8}); // если все рельсы заряжаются дольше wait с (или их нет), а гатлинги есть — держим дистанцию r км
+const EXTM=gd('battle','extmod',{p:.04,r:.12,k:['T','G','A','D','R','M','L']}); // шанс пули гатлинга попасть во внешний модуль рядом с точкой попадания (r — доля длины корпуса)
 const PMc=(s,o)=>o&&closing(s,o)>PB.passV?PMIN*PB.pass:PMIN;
 const TRK=gd('battle','track',{ally:.75,seen:.5,none:.25,jam:.6,ttl:6,near:1});
 function tq(s,o){if(!o||!o.rl)return 1;const side=s.side;let q=o.byL&&t-(o.byL.get(s)??-99)<TRK.ttl?1:t-o.rl[side]<TRK.ttl?TRK.ally:t-o.rs[side]<TRK.ttl?TRK.seen:TRK.none;return Math.max(.1,q*(1-(o.jam||0)*TRK.jam))}
@@ -713,8 +714,11 @@ function hitShip(o,kind,vx,vy,x,y,dmg,pw,iz,vz,gat,pr){lastDmgT=t;if(pr&&pr.src&
   if(!o.core.alive){if(!o.ecore){o.ecore=1;o.core.alive=true;o.aliveN++;o.blk=t+R(40,70);o.heat=0;stat.blk++;say(o.side,'power',o);fx.push({z:o.z,x:o.x,y:o.y,t0:t,d:12,r:6})}else kill(o,'реактор: второе отключение')}
   if(o.alive&&o.aliveN<o.total*0.22)kill(o,'модули выбиты попаданиями');
   };
+  if(gat)stat.gHit=(stat.gHit||0)+1;
   if(gat){ // пуля минигана: по броне — 0,1% снять слой, иначе рикошет; по голому месту — 1% уничтожить ближайший модуль
     const nc=z.nc,uu=Math.max(-.5,Math.min(.5,((x-o.x)*Math.cos(o.hd)+(y-o.y)*Math.sin(o.hd))/o.T.L));let c=Math.max(0,Math.min(nc-1,Math.round((uu+.5)/.84*nc+R(-1.5,1.5))));
+    {const f=(c+.5)/nc,pu=zi===0?.33:zi===2?-.4:(f-.5)*.52,pv=zi===1?.2:zi===3?-.2:(f-.5)*.5;let m=null,bd=EXTM.r*EXTM.r;for(const zz of o.zones)for(const q of zz.mods)if(q.alive&&EXTM.k.includes(q.k)){const du=(q.u||0)-pu,dv=(q.v||0)-pv,d=du*du+dv*dv;if(d<bd){bd=d;m=q}} // внешние модули (башни, радар, маневровые) стоят снаружи брони: пуля рядом может попасть прямо в них
+      if(m&&Math.random()<EXTM.p){mdead(o,m);stat.extK=(stat.extK||0)+1;if(imp){imp.left=0;imp.arm=z.arm}say(o.side,'mod',o);return}}
     if(pr){const g=dig(o,z,x,y,iz,Math.min(GAT_K*vr*vr,penCap(GATP.m,GATP.area)),1,{k:'гатлинг 30 мм',v:vr});c=g.c; // пуля: одна ячейка, глубина по энергии
       if(g.left<=0){if(g.took<.5){ricochet(o,x,y,vx,vy);if(imp)imp.rico=1}if(imp){imp.left=z.cols[c];imp.arm=z.arm;imp.mm=g.rem}return}
       if(imp){imp.left=0;imp.arm=z.arm}if(Math.random()>=Math.min(1,.01+g.left/LAYER_MM))return}
