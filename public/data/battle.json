@@ -31,7 +31,8 @@
   "ve": 9,
   "rcsVe": 3,
   "cap": 0.6,
-  "keep": 0.12
+  "keep": 0.12,
+  "Tb": 3600
  },
  "battle": {
   "DOPT": {"hc": 20, "dd": 20, "fr": 35, "cv": 100},
@@ -139,11 +140,13 @@
   "rtr": 1,
   "icp": 1,
   "rfree": 10,
+  "lam0": 200,
   "wfoc": 1.5,
   "wp": 3,
   "wram": 20,
   "wform": 0.02,
-  "rpl": 2
+  "rpl": 2,
+  "wfr": 1
  },
  "epred": {
   "win": 2,
@@ -206,6 +209,22 @@
  },
  "ab": {
   "side": -1
+ },
+ "pvo": {
+  "on": 1,
+  "dmin": 2,
+  "dmax": 6,
+  "vc": 0.3,
+  "tc": 60
+ },
+ "retreat": {
+  "hpIn": 0.35,
+  "hpOut": 0.6,
+  "prep": 10,
+  "clear": 30,
+  "try": 120,
+  "exit": 60,
+  "ret": 30
  },
  "fleetcmd": {
   "on": 1,
