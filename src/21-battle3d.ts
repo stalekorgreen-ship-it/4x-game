@@ -1198,7 +1198,7 @@ if (wrap && bgo) {
   // башни модели ↔ модули боя. Проект редактора: по виду установки (гатлинг, рельс по калибру, зенитка), по порядку, без подмены вида — лишние установки остаются без модуля.
   // «Хребет» строится из состава корабля в том же порядке — по номеру башни.
   function turMatch(s: any, sp: THREE.Object3D) { const T: any[] = sp.userData.turs || [], out = new Map<number, any>(), used = new Set<any>();
-    const kinds = (m: any) => m.k === 'G' ? ['gat'] : m.k === 'T' ? (c => c <= 10 ? ['r10', 'r15', 'r20'] : c <= 15 ? ['r15', 'r20', 'r10'] : ['r20', 'r15', 'r10'])((m.cfg && m.cfg.cal) || 10) : m.k === 'A' ? ['flak', 'ac'] : [];
+    const kinds = (m: any) => m.k === 'G' ? ['gat'] : m.k === 'T' ? (c => c <= 10 ? ['r10', 'r15', 'r20'] : c <= 15 ? ['r15', 'r20', 'r10'] : ['r20', 'r15', 'r10'])((m.cfg && m.cfg.cal) || 10) : m.k === 'A' ? ['flak'] : []; /* A — зенитка (spec.flak); ac в редакторе — автопушка, в бою её нет */
     for (const m of s.tur || []) { if (m.id == null) continue; let tu: any = null;
       if (sp.userData.design) { const ks = kinds(m); for (const k of ks) { tu = T.find(q => !used.has(q) && q.userData.k === k); if (tu) break } }
       else { const ti = m.loc ? m.loc.ti : -1; tu = ti >= 0 ? T[ti] : null }
