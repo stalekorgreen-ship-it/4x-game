@@ -28,6 +28,7 @@ const PMIN=BT.PMIN!=null?BT.PMIN:.08,DISP=BT.DISP!=null?BT.DISP:.0003,GDISP=BT.G
 const FI=BT.FI,BO=BT.BO,TORP=BT.TORP,FLAK=BT.FLAK,RC0=BT.RC0,FC0=BT.FC0,GC0=BT.GC0,LC0=BT.LC0,MC0=BT.MC0,BURST=BT.BURST,RCT=BT.RCT;
 const ZN=['нос','правый борт','корма','левый борт'];
 const BSPEEDS=[1,5,20,100,300];
+let MODID=0; // счётчик id модулей: только растёт, не сбрасывается между боями
 let lasBeams=[],shuttles=[],hitLog=[],impacts=[],impN=0,frags=[],pyro=[],pods=[],lands=[],mis=[],beams=[],bursts=[],curCT=1,curST=0,ships,proj,fx,flights,air,torps,shots,fly,t,paused=false,speed=100,acc=0,stat,lastEng=-99,autoSlow=true,autoCam=true,sel=null,projMode=0,done=false,isOpen=false,cfgNow=null,bound=false,last=0;
 let uidN=0,lastDmgT=0,lastNa=0,lastNaT=0,env=[],ORD={st:null,focus:null},nextVis=0,nextCrew=0,lastCrewT=0,endSaid=false;
 const say=(side,key,s)=>{if(active&&!done)SFX.radio(side,key,s)};
@@ -281,6 +282,7 @@ function mkShip(side,sp,x,y){
   {let ci=0;for(const z of zones)for(const m of z.mods)if(m.k==='T'||m.k==='A'||m.k==='G'||m.k==='L'||m.k==='M')m.face=[0,0,1,3,0,2,1,3,0,2][ci++%10]} // стороны башен: верх/правый/низ/левый
   sh.roll=0;sh.rollT=0;sh.pOff=0;sh.pNext=0;sh.uid=uidN++;sh.rcs0=sh.rcsN=nR;sh.rad0=sh.radN=nD;sh.trn=0;
   {const ar=Math.min(3,Math.floor(T.arm/3));for(const z of zones)for(const m of z.mods){if('TALMRDG'.includes(m.k))m.ar=ar;if(m.k==='T')m.am=Math.ceil(7200/(60*((m.cfg&&m.cfg.rel)||1)*.85))+10;else if(m.k==='A')m.am=50}} /* боезапас башни — на 2 часа непрерывной стрельбы */ // у внешних модулей своя броня, у орудий — боезапас
+  zones.forEach((z,zi)=>{for(const m of z.mods){m.id=++MODID;m.loc={zone:zi,face:m.face??null,u:m.u??null,v:m.v??null,ti:sh.tur?sh.tur.indexOf(m):-1}}}); // устойчивый id модуля (сквозной счётчик, не индекс) и его место на корпусе: зона, сторона башни, положение по длине u и вбок v, номер в списке башен — для графики
   const cand=[];for(const z of zones)for(const m of z.mods)if(m.k!=='C')cand.push(m);
   const kill=Math.floor((sp.dmg||0)*(total-1));
   for(let i=0;i<kill&&cand.length;i++){const m=cand.splice((Math.random()*cand.length)|0,1)[0];m.alive=false;sh.aliveN--;if(m.k==='E')sh.engN--;else if(m.k==='R')sh.rcsN--;else if(m.k==='D')sh.radN--}

@@ -9,6 +9,7 @@ import { hooks } from './00-hooks.ts';
 import { buildLoft, invFromSpec, buildWoundFx, makeWoundTex, faceV, loftMats, turretGeo } from './21c-loft.ts';
 import type { LoftPack } from './21c-loft.ts';
 import { buildSpine } from './21d-spine.ts';
+import { View } from './21a-battle-view.ts';
 import { pickDesign, buildDesign } from './21e-design.ts';
 
 const wrap = document.getElementById('mapwrap');
@@ -540,14 +541,15 @@ if (wrap && bgo) {
         const tw2 = new THREE.Vector3(tg.x, tg.z || 0, tg.y), iq = sp.getWorldQuaternion(new THREE.Quaternion()).invert(), sw = sp.getWorldPosition(new THREE.Vector3()), dl2 = tw2.sub(sw).applyQuaternion(iq).normalize(), hq2 = new THREE.Quaternion(), tq2 = new THREE.Quaternion();
         for (const tu of turs) { if (tu.parent !== sp || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
     D.step(dt);
-    if (sp.userData.design && D.mark) { const sh = u.s, md: Set<any> = u.mdS || (u.mdS = new Set()); // выбитые модули видны на корпусе
-      for (const z of sh.zones) for (const m of z.mods) { if (m.alive || md.has(m)) continue; md.add(m);
-        const ti = sh.tur.indexOf(m), T3 = sp.userData.turs;
+    if (sp.userData.design && D.mark) { const sv = View.shipView(u.s.uid), md: Set<number> = u.mdS || (u.mdS = new Set()); // выбитые модули видны на корпусе — по событиям mod_dead (и уже выбитые к моменту постройки модели)
+      const dead = u.mdInit ? (modDeadQ.get(u.s.uid) || []) : (u.mdInit = 1, View.modsOf(u.s.uid).filter(m => !m.alive)); modDeadQ.delete(u.s.uid);
+      for (const m of dead) { if (md.has(m.id)) continue; md.add(m.id);
+        const ti = m.loc ? m.loc.ti : -1, T3 = sp.userData.turs;
         if (ti >= 0 && T3[ti]) { const tu = T3[ti]; D.markAt(tu.position.clone().addScaledVector(tu.userData.n, .3), tu.userData.n, 1.4); tu.userData.dead = 1 } // башня: сажа, тлеет, больше не стреляет
         else if (m.k === 'E') { const P = sp.userData.plumes.filter((p: any) => p.visible); if (P.length) P[(Math.random() * P.length) | 0].visible = false } // двигатель: его факел гаснет
-        else { const Ld = sp.userData.L, x = Math.max(-.48, Math.min(.48, m.u || 0)) * Ld, sd = (m.v || 0) > .02 ? 1 : (m.v || 0) < -.02 ? -1 : (Math.random() < .5 ? 1 : -1);
+        else { const mu = m.loc && m.loc.u || 0, mv = m.loc && m.loc.v || 0, Ld = sp.userData.L, x = Math.max(-.48, Math.min(.48, mu)) * Ld, sd = mv > .02 ? 1 : mv < -.02 ? -1 : (Math.random() < .5 ? 1 : -1);
           D.mark(new THREE.Vector3(x, (Math.random() - .5) * Ld * .05, sd * Ld), new THREE.Vector3(0, 0, -sd), 1.8) } } // внутренний модуль: пробоина с огнём на борту против него
-      const thr = Math.min(1, Math.hypot(sh.aex || 0, sh.aey || 0) / Math.max(1e-6, (sh.acc || 5) / 1000)); for (const p of sp.userData.plumes) p.scale.set(.25 + .75 * thr, .6 + .4 * thr, .6 + .4 * thr); } // длина факела по тяге
+      const thr = sv ? Math.min(1, Math.hypot(sv.ax, sv.ay) / Math.max(1e-6, sv.accMax)) : 0; for (const p of sp.userData.plumes) p.scale.set(.25 + .75 * thr, .6 + .4 * thr, .6 + .4 * thr); } // длина факела по тяге
   }
   let frameNo = 0, spFrame = -1, spDmgFrame = -1, spBud = 0;
   function setLod(s: any, g: THREE.Group, lod: number) { // 0 — силуэт, 1 — средний гладкий корпус, 2 — полный корпус (плиты, башни)
@@ -566,6 +568,7 @@ if (wrap && bgo) {
       else { u.body.geometry = simpleGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) } }
     u.lod = lod;
   }
+  let impCur = 0; const modDeadQ = new Map<number, any[]>(), modelById = new Map<number, THREE.Group>(); // курсор событий слоя отображения; выбитые модули, ждущие своей модели; модель по id корабля
   const shTr = new Map<any, number[][]>(); let stepFreeze = false; let ultraBuilds = 0; // вблизи — слой мелких деталей поверх полного корпуса (строится лениво, по одному на кадр)
   function ultra(s: any, g: THREE.Group, want: boolean) {
     const u = g.userData; if (u.lp) return; if (!want) { if (u.ultra) u.ultra.visible = false; return } if (u.ultra) { u.ultra.visible = true; return } if (u.ultraTried || ultraBuilds >= 1 || !u.full) return; ultraBuilds++; u.ultraTried = true;
@@ -872,7 +875,7 @@ if (wrap && bgo) {
   function frame() { if (!pv) return frame0(); const pc = Battles.cur; Battles.cur = pv.b; try { frame0() } finally { Battles.cur = pc } }
   function frame0() {
     frameNo++;
-    raf = requestAnimationFrame(frame); if (!ren) return; const jsT0 = performance.now();
+    raf = requestAnimationFrame(frame); if (!ren) return; View.poll(); // слой отображения: изменения боя → события (раз за кадр) const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
     const r = (pv ? pv.host : wrap!).getBoundingClientRect(); if (pv) { const cs = ren.domElement.style; cs.position = 'fixed'; cs.left = r.left + 'px'; cs.top = r.top + 'px'; cs.width = r.width + 'px'; cs.height = r.height + 'px'; cs.zIndex = '70'; if (!pv.drag) yaw += .004 }
     if (ren.domElement.width !== Math.round(r.width * ren.getPixelRatio()) || ren.domElement.height !== Math.round(r.height * ren.getPixelRatio())) { ren.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix() }
@@ -890,7 +893,7 @@ if (wrap && bgo) {
     for (const s of ships) {
       if (!s.alive) { const g = models.get(s); if (g) { models.delete(s); makeWreck(g, s) } continue }
       alive.add(s);
-      let g = models.get(s); if (!g) { g = build(s); models.set(s, g) } g.visible = true;
+      let g = models.get(s); if (!g) { g = build(s); models.set(s, g); modelById.set(s.uid, g) } g.visible = true;
       g.position.set(s.x, s.z, s.y); g.rotation.order = 'YZX'; const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
       { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; const tg = s.tg && s.tg.alive ? s.tg : null, ap = tg ? Math.atan2((tg.z || 0) - (s.z || 0), Math.max(1e-3, Math.hypot(tg.x - s.x, tg.y - s.y))) : 0; ud.pt += (0 * ap - ud.pt) * .015 } // нос наклоняется к цели по высоте // сглаживание курса и тангажа
       if (ud.rl == null) ud.rl = s.roll || 0; ud.rl += ((s.roll || 0) - ud.rl) * .2; g.rotation.y = -ud.hd; g.rotation.z = ud.pt; g.rotation.x = ud.rl;
@@ -1019,8 +1022,9 @@ if (wrap && bgo) {
         tmp.setHSL(st.side ? .08 : .52, .9, .65); pcol[o] = tmp.r * f; pcol[o + 1] = tmp.g * f; pcol[o + 2] = tmp.b * f; pcol[o + 3] = tmp.r * f * .25; pcol[o + 4] = tmp.g * f * .25; pcol[o + 5] = tmp.b * f * .25; pc++ } }
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
-    { const imp = Battle.impacts() as any[], nw = performance.now();
-      for (const q of imp) { if (q.id <= lastImp) continue; lastImp = q.id; let hit: any = null; { const gg = models.get(q.s); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
+    { const nw = performance.now(), ev = View.drain(impCur); impCur = ev.cursor;
+      for (const e of ev.events) { if (e.type === 'mod_dead') { const L = modDeadQ.get(e.ship!) || []; L.push({ id: e.mod, k: e.data.k, alive: false, loc: e.data.loc }); modDeadQ.set(e.ship!, L); continue }
+        if (e.type !== 'impact') continue; const q = e.data; let hit: any = null; { const gg = modelById.get(e.ship!); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
         const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         const big = q.k === 'gat' ? .5 : 1; flashes.push({ p: pos, t0: nw, life: (260 + q.pw * 50) * big, sz: Math.min(90, (30 + q.pw * 7) * big) }); if (q.left === 0 || q.k !== 'gat') flashes.push({ p: pos.clone(), t0: nw + 60, life: 500 * big, sz: Math.min(60, 20 + q.pw * 4) * big }); // вспышка ярче и дольше, у пробития — вторая волна
         const n = Math.min(90, (q.k === 'gat' ? 10 : 30) + Math.round(q.pw * 8)), nrm = hit ? hit.nrm.clone().add(new THREE.Vector3(q.nx * .4, 0, q.ny * .4)).normalize() : new THREE.Vector3(q.nx, .6 + Math.random() * .4, q.ny).normalize();
@@ -1153,7 +1157,7 @@ if (wrap && bgo) {
   function reset3d() {
     if (scene) for (const [, g] of models) scene.remove(g);
     puffs.length = 0; for (const w of wrecks) scene.remove(w.g); wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
-    const im = Battle.impacts() as any[]; lastImp = im.length ? Math.max(...im.map((q: any) => q.id)) : 0;
+    View.poll(); impCur = View.headCursor(); modDeadQ.clear();
     follow = true; fitAll = true; curSky = undefined;
   }
   (hooks as any).reset3d = reset3d;
