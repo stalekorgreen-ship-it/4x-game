@@ -131,6 +131,7 @@ export const rockField = (n, cx, cy, sx, sy, r0, r1) => Array.from({length: n}, 
 // стреляющая станция: неподвижна, много орудий, толстая броня
 export function stationSpec(fid) { return botSpec({name: 'Орбитальная станция', role: 'station', rails: 14, railCfg: Array.from({length: 14}, () => RCf(15, 2)), flak: 8, lasers: 2, laserCfg: LC(2, 'l', 'f'), arm: 7, eng: 1, L: .9, spd: 0, tons: 90000, sk: 6, fid, station: 1, F: 0, B: 0, dmg: 0}); }
 export const SCENARIOS = {
+  duel4: 'Дуэль 4×4: фрегат, броненосец, сторож ПВО, ракетный корабль — случайный встречный курс до 2 км/с, полбака',
   line: 'Линия фронта: два флота лоб в лоб',
   pincer: 'Клещи: один флот против нескольких с разных сторон',
   convoy: 'Налёт на конвой: транспорты с охраной и три группы рейдеров',
@@ -142,6 +143,22 @@ export const SCENARIOS = {
   planet: 'Бой у планеты: огромный диск закрывает сектор',
   ring: 'Бой у кольцевого мира: планета с поясом обломков',
 };
+// состав дуэли: те же корабли, что в tools/duel-test.cjs (3v3) + ракетный корабль
+export function duelSpecs(sd) {
+  const RC = (c, n) => Array(n).fill(compOf(mkKey('rail', {cal: c, bar: '1', cap: 'a'})).rcfg), GC = compOf(mkKey('gat', {tw: '1'})).gcfg, MC = compOf(mkKey('missile', {})).mcfg;
+  const mk = (name, o, tons, acc) => ({...fitSpec({name, eng: 3, spd: 1, flak: 0, rails: 0, ...o}), tons, pow: acc * tons / 120});
+  return [mk('Фрегат', {L: .15, arm: 2, rails: 2, railCfg: RC('10', 2), gat: 2, gatCfg: [GC, GC], ammoCap: 300, energy: 5000}, 1500, 10),
+    mk('Броненосец', {L: .3, arm: 5, rails: 2, railCfg: RC('20', 2), gat: 4, gatCfg: Array(4).fill(GC), ammoCap: 500, energy: 5000}, 9500, 5),
+    mk('Сторож ПВО', {L: .12, arm: 2, gat: 6, gatCfg: Array(6).fill(GC), ammoCap: 300, energy: 5000}, 1250, 12),
+    mk('Ракетоносец', {L: .2, arm: 2, miss: 4, missCfg: Array(4).fill(MC), gat: 2, gatCfg: [GC, GC], ammoCap: 400, energy: 5000}, 3000, 8)].map(sp => ({...sp, name: sp.name + (sd ? ' (красные)' : ' (синие)')}));
+}
+// старт дуэли: каждая сторона летит одним вектором (случайное направление, до 2 км/с), курсы пересекаются в (0,0) через 5–15 мин, но не дальше 350 км; полбака
+export function duelStart(ships, rnd = Math.random) {
+  const VS = [0, 1].map(() => { const a = rnd() * 6.283, v = rnd() * 2; return [Math.cos(a) * v, Math.sin(a) * v, a]; });
+  for (const s of ships) { const w = VS[s.side]; s.sx = s.vx = w[0]; s.sy = s.vy = w[1]; s.hd = w[2]; if (s.fuelCap) s.fuel = s.fuelCap / 2; }
+  const rv = Math.hypot(VS[0][0] - VS[1][0], VS[0][1] - VS[1][1]) || .01, tt = Math.min(300 + rnd() * 600, 350 / rv), k = [0, 0];
+  for (const s of ships) { const i = k[s.side]++; s.x = -s.sx * tt + (i - 1.5) * 3; s.y = -s.sy * tt + (i - 1.5) * 3 * (s.side ? 1 : -1); }
+}
 export function makeScenario(kind, size) {
   if (kind === 'random') kind = Object.keys(SCENARIOS)[RI(0, 4)];
   if (kind === 'range') return rangeScenario();
@@ -153,6 +170,9 @@ export function makeScenario(kind, size) {
   if (size === 5) { // зеркальный бой 70 на 70: состав постоянный (MIRROR), стороны одинаковые, у каждой группы свой генерал
     const fa = mirrorFleet(0), fb = JSON.parse(JSON.stringify(fa)).map(sp => ({...sp, fid: sp.fid + 50}));
     for (const sp of fa) late.push({t: 0, side: 0, spec: sp, edge: E + (sp.tanker ? 120 : 0), ang: ang0}); for (const sp of fb) late.push({t: 0, side: 1, spec: sp, edge: E + (sp.tanker ? 120 : 0), ang: ang0 + Math.PI}); title = 'Зеркальный бой 70 на 70';
+  } else if (kind === 'duel4') {
+    for (const side of [0, 1]) for (const sp of duelSpecs(side)) late.push({t: 0, side, spec: sp, edge: E, ang: ang0 + side * Math.PI});
+    title = 'Дуэль 4×4';
   } else if (kind === 'line') {
     const n = total(size), fa = fleet(n, mixFor(n), 0, 1), W = fleetW(fa), nb = size === 4 ? n : Math.max(4, Math.round(n * 1.2)); place(0, fa, ang0, E, 0); place(1, fleet(nb, mixFor(n), 1, 1, W), ang0 + Math.PI, E, 0);
   } else if (kind === 'pincer') {
@@ -174,7 +194,9 @@ export function makeScenario(kind, size) {
 export function startDemo(kind, size) {
   if (Battle.active()) return;
   const cfg = makeScenario(kind, size);
-  state.demo = true; state.paused = false; Battle.begin(cfg); ui.bfollow = true; focusBattle(); ui.bfollow = false;
+  state.demo = true; state.paused = false; Battle.begin(cfg);
+  if (kind === 'duel4') { Battle.tickN(1); duelStart(Battle.ships().filter(s => !s.bayOf)); }
+  ui.bfollow = true; focusBattle(); ui.bfollow = false;
   log(cfg.title + '.');
 }
 export function refreshDemo() {
