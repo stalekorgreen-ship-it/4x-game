@@ -378,6 +378,32 @@ const hpf=s=>s.aliveN/s.total,PW=12; // PW: ширина воронки в ко�
 const val=s=>s.T.role==='freight'||s.T.role==='supply'?.6:(VAL[s.cls]||1);
 // ===== командир стороны: раз в CMD.period с решает план — собраться в кулак, охватить врага 2–5 группами, отойти =====
 const CMD=gd('battle','command',{period:30,minGroup:6,fleetMax:10});let CMDS=[{},{}],FCNT=new Map();const FLEET_MAX=CMD.fleetMax;
+// КОМАНДОВАНИЕ СОЕДИНЕНИЕМ: над индивидуальным планировщиком. Раз в FC.re с (и сразу — при потере цели, её гибели или отказе корабля) командир флота
+// (флагман — крупнейший живой корабль; погиб — один цикл без распределения) назначает каждому кораблю задачу: роль и цель. Как выполнять — решает сам корабль (plan2).
+// Цели — только видимые сенсорами стороны (trackOf), их опасность и целость — по оценке (belief), оружие — по проекту с исправной долей. Без случайности.
+// Распределение жадное по предельной пользе: польза цели = опасность × ценность × вероятность выбить её за FC.T с при уже назначенном огне (1−e^(−урон·T/живучесть)).
+// Поэтому второй корабль на ту же цель идёт, только если это полезнее новой цели, — концентрация огня осознанная. Гистерезис и минимальное время удержания — без дёрганья.
+const FC=gd('battle','fleetcmd',{on:1,re:10,hold:20,hyst:1.25,T:90,R:300});
+function roleOf(s){const al=s.tur.filter(m=>m.alive),fl=al.filter(m=>m.k==='A').length,gun=al.filter(m=>m.k==='T'||m.k==='G'||m.k==='L'||m.k==='M').length,ac=(s.acc||5);
+  return fl>0&&fl>=gun?'ПВО':s.T.tons>=4000&&gun>=3?'линия':ac>=8&&s.T.tons<2500?'перехват':'поддержка'} // по реальному вооружению и манёвренности; меняется с повреждениями
+const wtOf=o=>o.__dt||(o.__dt=o.tur.map(m=>({k:m.k,cfg:m.cfg,face:m.face,alive:true}))); // оружие врага по проекту (видно на корпусе), исправная доля — belief.wp
+function fleetAssign(F){if(t<(F.faT||0))return;F.faT=t+FC.re;const sd=F.side,my=F.ships.filter(q=>q.alive&&!q.T.role&&q.tur.length);if(!my.length)return;
+  // флагман: крупнейший живой корабль; потеря — цикл без распределения (новый командир принимает дела)
+  const fl=my.reduce((a,q)=>q.T.tons>a.T.tons?q:a,my[0]);if(F.flag&&F.flag!==fl&&!F.flag.alive){F.flag=fl;stat.fc=stat.fc||{};stat.fc.flagLost=(stat.fc.flagLost||0)+1;return}F.flag=fl;
+  const E=[];for(const o of ships){if(!o.alive||o.side===sd||!o.T||o.st==='surr')continue;const r=trackOf(sd,o);if(!r)continue;const d=Math.hypot(r.x-F.cx,r.y-F.cy);if(d>FC.R)continue;
+    const b=belief(sd,o);let th=0;for(const q of my)th+=dpsAt(wtOf(o),q,Math.hypot(r.x-q.x,r.y-q.y),0,b.wp);E.push({o,r,b,th,hp:Math.max(1,o.total*b.md),V:(VAL[o.cls]||1)*(o.T.role==='supply'||o.tnk?HUNT.sup:1),D:0,n:0})}
+  if(!E.length){for(const q of my)q.task=null;return}
+  const st=stat.fc=stat.fc||{};const kill=(e,D)=>1-Math.exp(-D*FC.T/e.hp);
+  for(const q of [...my].sort((a,b)=>a.uid-b.uid)){const role=roleOf(q);if(q.task&&q.task.tg){const w=!q.task.tg.alive?'цель уничтожена':!trackOf(sd,q.task.tg)?'нет сопровождения':null;if(w){(st.why=st.why||{})[w]=(st.why[w]||0)+1;q.task=null}}if(q.task&&q.task.role!==role)st.roleCh=(st.roleCh||0)+1;const old=q.task&&q.task.tg&&q.task.tg.alive?q.task:null;let best=null,bu=-1;
+    for(const e of E){const d=Math.hypot(e.r.x-q.x,e.r.y-q.y),c=dpsAt(q.tur,{T:e.o.T,acc:EP.acc,rcsN:1},d,0);if(c<=0&&d>(q.maxR||60)*2)continue;
+      const thr=role==='ПВО'?(e.th+.001)/(1+d/50):e.th+.001; // ПВО — ближайшие к флоту угрозы, а не самые ценные
+      let u=(thr*e.V)*(kill(e,e.D+c+1e-4)-kill(e,e.D))/Math.max(.2,e.b.md);if(old&&old.tg===e.o)u*=t-old.at<FC.hold?1e3:FC.hyst;if(u>bu){bu=u;best=e}}
+    if(!best){q.task=null;continue}best.D+=dpsAt(q.tur,{T:best.o.T,acc:EP.acc,rcsN:1},Math.hypot(best.r.x-q.x,best.r.y-q.y),0);best.n++;
+    if(!old||old.tg!==best.o){st.switch=(st.switch||0)+1;q.task={tg:best.o,role,at:t,st:'ok'}}else{q.task.role=role;q.task.st='ok'}}
+  st.cycles=(st.cycles||0)+1;st.tg=(st.tg||0)+E.filter(e=>e.n>0).length;st.conc=(st.conc||0)+E.filter(e=>e.n>1).length;st.ships=(st.ships||0)+my.length}
+// корабль сообщает, что задачу выполнить не может (цель уничтожена, не видна, корабль отходит) — командование пересматривает распределение сразу
+function taskTarget(s,F){const k=s.task;if(!k||!k.tg)return null;let bad=null;if(!k.tg.alive)bad='цель уничтожена';else if(!trackOf(s.side,k.tg))bad='нет сопровождения';else if(s.flee)bad='повреждён, отходит'; /* без запаса Δv корабль всё равно стреляет — задачу не снимаем */
+  if(bad){k.st=bad;if(F)F.faT=0;const st=stat.fc=stat.fc||{};(st.why=st.why||{})[bad]=(st.why[bad]||0)+1;s.task=null;return null}return k.tg}
 function command(sd,all){ // у каждого флота (до 10 кораблей) свой капитан: смотрит на своего противника и на союзников, раз в CMD.period с меняет план
   const C=CMDS[sd];C.plans=C.plans||{};C.bad=C.bad||{};const mine=all.filter(F=>F.side===sd&&F.n>0),foes=all.filter(F=>F.side!==sd&&F.n>0);if(!mine.length||!foes.length)return;
   const ex=foes.reduce((a,F)=>a+F.cx*F.n,0)/foes.reduce((a,F)=>a+F.n,0),ey=foes.reduce((a,F)=>a+F.cy*F.n,0)/foes.reduce((a,F)=>a+F.n,0),mx=mine.reduce((a,F)=>a+F.cx*F.n,0)/mine.reduce((a,F)=>a+F.n,0),my=mine.reduce((a,F)=>a+F.cy*F.n,0)/mine.reduce((a,F)=>a+F.n,0);
@@ -460,11 +486,12 @@ function fleetsUpdate(){
     // общий фокус огня: самая ценная и повреждённая цель в зоне
     const cand=around(1-F.side,F.cx+(bf.cx-F.cx)*.3,F.cy+(bf.cy-F.cy)*.3,110);let fb=null,fs=0;
     const vul=o=>(o.cool?HUNT.cool:1)*(o.radOut?HUNT.rad:1)*(o.T.role==='supply'||o.tnk||o.T.role==='freight'?HUNT.sup:1); // остывающие, с открытыми радиаторами, снабжение — лакомые цели
-    for(const o of cand){const sc=val(o)*vul(o)*(1.4-hpf(o))/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb;
+    for(const o of cand){if(!trackOf(F.side,o))continue;const sc=val(o)*vul(o)*(1.4-belief(F.side,o).md)/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/100);if(sc>fs){fs=sc;fb=o}}F.focus=fb; /* только видимые сенсорами стороны; целость — оценка, не факт */
     // фланговый флот — охотник: ищет уязвимых далеко (остывают, снабженцы, танкеры) и идёт к ним в обход, а не в лоб
     F.hunt=null;if(F.stance==='flank'){let hb=null,hs=0;for(const o of around(1-F.side,F.cx,F.cy,HUNT.r)){const v=vul(o);if(v<=1)continue;const sc=v*val(o)/(1+Math.hypot(o.x-F.cx,o.y-F.cy)/150);if(sc>hs){hs=sc;hb=o}}if(hb){F.hunt=hb;F.focus=hb;stat.hunt=(stat.hunt||0)+1}}
     if(SALVO.on&&(!F.sv||t>F.sv.tA+4||!F.sv.o.alive)){const o=F.focus;F.sv=null;if(o&&o.alive){let mx=0,N=0;for(const q of F.ships){if(!q.alive)continue;const nr=q.tur.filter(m=>m.alive&&m.k==='T').length;if(!nr)continue;const d=Math.hypot(o.x-q.x,o.y-q.y,(o.z||0)-(q.z||0)),v=(q.tur.find(m=>m.k==='T').cfg.vp||VP);if(d>effR(q,o,v))continue;mx=Math.max(mx,d/v);N+=nr*8}
       if(N>=4)F.sv={o,tA:t+mx+SALVO.prep,N,k:0}}} // залп флота: все снаряды приходят в одну секунду, каждый в свою точку круга, куда цель может увернутьсяif(F.side===0&&ORD.focus&&ORD.focus.alive)F.focus=ORD.focus;
+    if(FC.on)fleetAssign(F);
     // точка сбора флота и направление строя
     let dx=bf.cx-F.cx,dy=bf.cy-F.cy;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
     if(F.hunt){dx=F.hunt.x-F.cx;dy=F.hunt.y-F.cy;const hl=Math.hypot(dx,dy)||1;dx/=hl;dy/=hl}
@@ -595,7 +622,7 @@ function ai2Step(s,g,eng,dt,F){let force=false;{const C=s.epC;if(C&&!C.done&&t>=
   {const r0=trackOf(s.side,g);if(!r0||Math.hypot(r0.x-s.x,r0.y-s.y)>=RAM.dist)s.ramIn=0}
   const c=plan2(s,g,eng,dt,F,force);
   if(c!==s.planX){s.planX=c;s.intT0=t;s.intN=-1;const S0=F&&F.gx!=null?F:null;s.intF=intentCmd(c.I,()=>{const r=trackOf(s.side,g)||c.rg0;const T=t-r.t;return {x:r.x+r.sx*T,y:r.y+r.sy*T,sx:r.sx,sy:r.sy}},()=>S0?slotNow(s,S0):{x:s.x,y:s.y,vx:s.sx,vy:s.sy},eng);
-    if(c.I.dodge){s.dg={x:c.I.dodge.x,y:c.I.dodge.y};s.dgU=0;s.dgT=t+c.I.dodge.T;s.dgV=c.I.dodge.V;stat.dodge=(stat.dodge||0)+1}}
+    if(c.I.dodge){s.dg={x:c.I.dodge.x,y:c.I.dodge.y};s.dgU=0;s.dgT=t+c.I.dodge.T;s.dgV=c.I.dodge.V;stat.dodge=(stat.dodge||0)+1;if(s.task){const st=stat.fc=stat.fc||{};st.override=(st.override||0)+1}}} // уклон при задаче: корабль сам отвлекается на непосредственную угрозу
   if(t>=(s.intN||-1)-1e-9){s.intN=t+(PLN.pu||dt);s.ai2v=s.intF(s,t-s.intT0)}
   s.ramTg=c.I.mode==='ram'&&Math.hypot(g.x-s.x,g.y-s.y)<RAM.dist?g:null}
 function steer(s,dt){
@@ -663,7 +690,7 @@ function steer(s,dt){
       // тактика при запасе топлива: свободный Δv > TAC.rich — флот бьёт одну цель, держит дистанцию вне её орудий (если наши бьют дальше) и заходит ей в корму (там броня тонкая)
       s.tac=0;if(PLN.on&&!retreating&&s.fuelCap&&s.dvB){ // единый планировщик: общая цель флота + выбор манёвра по оценке вариантов
         if(!F.fT||t>F.fT||!(F.focus&&F.focus.alive)){F.fT=t+TAC.re;let b=null,bs=1e18;for(const o of ships){if(!o.alive||o.side===s.side||!o.T||o.st==='surr')continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d>Math.max(er*2,150))continue;const e=belief(s.side,o),sc=e.md*o.T.tons*(1+d/200)/(1+e.wp*.2);if(sc<bs){bs=sc;b=o}}F.focus=b}
-        const g=F.focus||tg;if(g&&g.alive&&PLN.ai2&&trackOf(s.side,g)){s.tg=g;s.ai2=1;ai2Step(s,g,eng,dt,F);vx=s.ai2v[0];vy=s.ai2v[1];want=s.ai2v[2];s.tac=1;stat.tac=(stat.tac||0)+dt;const kk=s.plan.k.replace(/·уклон.$/,'');(stat.pk=stat.pk||{})[kk]=(stat.pk[kk]||0)+dt}
+        const g=(FC.on&&taskTarget(s,F))||F.focus||tg;if(g&&g.alive&&PLN.ai2&&trackOf(s.side,g)){s.tg=g;s.ai2=1;ai2Step(s,g,eng,dt,F);vx=s.ai2v[0];vy=s.ai2v[1];want=s.ai2v[2];s.tac=1;stat.tac=(stat.tac||0)+dt;const kk=s.plan.k.replace(/·уклон.$/,'');(stat.pk=stat.pk||{})[kk]=(stat.pk[kk]||0)+dt}
         else if(g&&g.alive){s.tg=g;const c=plan(s,g,eng,dt);if(c){vx=c.vx/Math.max(eng,.05);vy=c.vy/Math.max(eng,.05);want=Math.atan2(g.y-s.y,g.x-s.x);s.tac=1;stat.tac=(stat.tac||0)+dt;(stat.pk=stat.pk||{})[c.k]=(stat.pk[c.k]||0)+dt}}}
       if(F.stance==='assault'&&td>s.maxR*.7)boost=Math.max(boost,1.7);
       else if(F.stance==='kite'&&td<F.hold*.6)boost=Math.max(boost,1.4);
