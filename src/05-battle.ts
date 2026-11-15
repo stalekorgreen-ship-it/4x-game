@@ -128,10 +128,11 @@ function slotNow(s,F){const fx=F.dx||1,fy=F.dy||0;return {x:F.gx-fx*(s.slotBack|
 // намерение → команда: tgt(tt), slot(tt) — где цель и место в строю через tt с (в прогнозе — по прямой от снимка, в бою — живые)
 function intentCmd(I,tgt,slot,eng){const e=Math.max(eng,.05);return (G,tt)=>{const q=tgt(tt);let vx,vy;
   if(I.mode==='slot'){const S=slot(tt),ex=S.x-G.x,ey=S.y-G.y,ed=Math.hypot(ex,ey)||1;if(ed<I.tol){vx=S.vx;vy=S.vy}else{const sp=Math.min(I.vcap,(ed-I.tol)*.04+.004);vx=S.vx+ex/ed*sp;vy=S.vy+ey/ed*sp}}
-  else if(I.mode==='ram'){const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy)||1e-6,vc=Math.min(RAM.v*.9,Math.max(.02,Math.sqrt(G.acc/1000*Math.max(.15,eng)*d)));vx=q.sx+dx/d*vc;vy=q.sy+dy/d*vc}
+  else if(I.mode==='ram'){const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy)||1e-6,vc=Math.min(RAM.v*.9,Math.max(.02,Math.sqrt(2*G.acc/1000*Math.max(.15,eng)*d)*.7));vx=q.sx+dx/d*vc;vy=q.sy+dy/d*vc} // перехват: в системе цели летим к ней по прямой со сближением vc
   else{vx=I.cvx;vy=I.cvy}
   if(I.mode!=='ram'){const vl=Math.hypot(vx,vy);if(vl>I.vcap){vx*=I.vcap/vl;vy*=I.vcap/vl}} // предел скорости: не разгоняемся выше max(vm, нынешней)
   let want=I.orient==='броня'?I.wA:Math.atan2(q.y-G.y,q.x-G.x);
+  if(I.mode==='ram'){const ddx=vx-G.sx,ddy=vy-G.sy;if(Math.hypot(ddx,ddy)>.03&&Math.hypot(q.x-G.x,q.y-G.y)>RAM.dist*.25)want=Math.atan2(ddy,ddx)} // таран: пока далеко и нужен импульс — разворот к нему (тяга главным), у цели — носом (толстая броня вперёд)
   if(I.orient==='импульс'){const ddx=vx-G.sx,ddy=vy-G.sy;if(Math.hypot(ddx,ddy)>.05)want=Math.atan2(ddy,ddx)}
   return [vx/e,vy/e,want,1,eng,0]}}
 // защитные слои, которые в бою меняют команду плана (те же формулы, что в steer): отталкивание от камней и общий бюджет Δv
@@ -167,6 +168,7 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
   const evalAt=(G,tt)=>{let v=0;for(const e of EN){const ex=e.x+e.sx*tt,ey=e.y+e.sy*tt,d=Math.hypot(ex-G.x,ey-G.y),bt=Math.atan2(ey-G.y,ex-G.x),a=adiff(G.hd,bt),
       wb=ws.filter(m=>m.cfg.ax?Math.abs(a)<.175:bearsDir(m,s.roll||0,a,0));
       v+=e.w*PLN.wd*dpsAt(wb,e.o,d,Math.abs(adiff(e.hd,Math.atan2(G.y-ey,G.x-ex))))/Math.max(.2,e.b.md)-PLN.wr*surv*dpsAt(e.o.tur,s,d,Math.abs(a),e.b.wp)}return v};
+  let Eref=1;for(const m of ws){const C=m.cfg,E=m.k==='T'?.5*RAIL_M(C.cal)*((C.vp||VP)*1000)**2:m.k==='G'?.5*GAT_M*(GV*1000)**2:0;if(E>Eref)Eref=E} // энергия снаряда своего главного калибра, Дж
   const scs={},all=[];let best=null;s.planBan=[];
   for(const I of I0){let P=predI(s,I,intentCmd(I,tgP,slP,eng),dt,tk);
     // контакт с кораблём врага: дальше прогноз не знает, что будет (столкновение — внешнее событие), — оцениваем траекторию только до контакта
@@ -179,7 +181,10 @@ function plan2(s,g,eng,dt,F,force){if(!force&&t<(s.plT||0)&&s.plan)return s.plan
     for(const h of TH){let mn=1e9,ai=0,px0=h.x-s.x,py0=h.y-s.y;for(let i=0;i<P.length;i++){const tt=(i+1)*dt,px1=h.x+h.vx*tt-P[i].x,py1=h.y+h.vy*tt-P[i].y,qx=px1-px0,qy=py1-py0,l2=qx*qx+qy*qy||1e-12,u=Math.max(0,Math.min(1,-(px0*qx+py0*qy)/l2)),dd=Math.hypot(px0+qx*u,py0+qy*u);
         if(dd<mn){mn=dd;ai=i}px0=px1;py0=py1;if(tt>h.tc+4)break} // сближение снаряда с траекторией призрака (непрерывно между шагами)
       const ph=mn<=hr?1:Math.max(0,1-(mn-hr)/(2*hr)),Q=P[ai];sc-=PLN.wp*surv*ph*aspK(Math.abs(adiff(Q.hd,Math.atan2(-h.vy,-h.vx))))} // ожидаемое попадание × броня стороны × живучесть
-    if(I.mode==='ram'&&ce&&ce.o===g){const Q=P[ic],nx=g.x+g.sx*tc-Q.x,ny=g.y+g.sy*tc-Q.y,nl=Math.hypot(nx,ny)||1,vr=Math.max(0,((Q.sx-g.sx)*nx+(Q.sy-g.sy)*ny)/nl);sc+=PLN.wram*Math.min(1,(vr/RAM.v)**2)/Math.max(.2,EN[0].b.md)} // удар засчитываем, только если прогноз доводит до контакта; ценность — по энергии сближения (∝ v²)
+    if(I.mode==='ram'&&ce&&ce.o===g){const Q=P[ic],gx=g.x+g.sx*tc,gy=g.y+g.sy*tc,nx=gx-Q.x,ny=gy-Q.y,nl=Math.hypot(nx,ny)||1,vr=Math.max(0,((Q.sx-g.sx)*nx+(Q.sy-g.sy)*ny)/nl),
+      mu=s.T.tons*g.T.tons/(s.T.tons+g.T.tons)*1000,E=.5*mu*(vr*1000)**2,zt=g.zones[zoneTo(g,Q.x,Q.y)],zn=s.zones[0],
+      hits=E/Eref; // удар ≈ столько попаданий нашего главного калибра (по энергии)
+    sc+=PLN.wd*hits*aspK(Math.abs(adiff(g.hd||0,Math.atan2(Q.y-gy,Q.x-gx))))/Math.max(.2,EN[0].b.md)-PLN.wr*surv*hits*Math.min(3,(zt.arm||1)/Math.max(1,zn.arm||1))*(Math.abs(adiff(Q.hd,Math.atan2(ny,nx)))>.785?3:1)} // своя цена: та же энергия, делённая на соотношение брони (нос против стороны цели); не носом — втрое // удар засчитываем, только если прогноз доводит до контакта; ценность — по энергии сближения (∝ v²)
     sc-=wf*cost;scs[id]=sc;all.push([id,sc,cost]);if(!best||sc>best.sc){best={k:id,I,sc};best.P=P}}
   if(best&&s.plan&&s.plan.k!==best.k){const now=scs[s.plan.k];if(now!=null&&best.sc<now+(PLN.hyst-1)*Math.abs(now)){const I=I0.find(q=>(q.k+'·'+q.orient)===s.plan.k.replace(/·уклон.$/,'')&&!q.dodge===!s.plan.I.dodge);if(I)best={k:s.plan.k,I,sc:now}}} // гистерезис по свежей оценке
   s.planAll=Object.assign(all,{t});s.planExt=0;if(best&&best.P){s.planP=best.P;s.planS={x:s.x,y:s.y,hd:s.hd};s.planT0=t;s.planDt=dt}else s.planP=null;s.plan=best;return best}
