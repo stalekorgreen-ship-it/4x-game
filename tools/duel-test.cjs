@@ -10,7 +10,7 @@ for(let seed=1;seed<=+N;seed++){const p=await b.newPage();const errs=[];p.on('pa
  await p.goto('http://127.0.0.1:5200/');await p.waitForTimeout(2500);
  const r=await p.evaluate(async([T,typ,TAU])=>{try{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);
   const D=await import(U('01-data.ts'));const B=await import(U('05-battle.ts'));D.newGame();D.state.raid.eta=1e9;D.state.raid.warned=true;
-  const RC=(c,n)=>Array(n).fill(D.compOf(D.mkKey('rail',{cal:c,bar:'1',cap:'10'})).rcfg),GC=D.compOf(D.mkKey('gat',{tw:'1'})).gcfg;
+  const RC=(c,n)=>Array(n).fill(D.compOf(D.mkKey('rail',{cal:c,bar:'1',cap:'a'})).rcfg),GC=D.compOf(D.mkKey('gat',{tw:'1'})).gcfg;
   const mk=(name,o,tons,acc)=>({...D.fitSpec({name,eng:3,spd:1,flak:0,rails:0,...o}),tons,pow:acc*tons/120});
   const late=[];for(const sd of [0,1]){const a=sd?Math.PI:0;
    late.push({t:0,side:sd,spec:typ==='fr'?mk('Фрегат'+sd,{L:.15,arm:2,rails:2,railCfg:RC('10',2),gat:2,gatCfg:[GC,GC],ammoCap:300,energy:5000},1500,10):mk('Броненосец'+sd,{L:.3,arm:5,rails:2,railCfg:RC('20',2),gat:4,gatCfg:Array(4).fill(GC),ammoCap:500,energy:5000},9500,5),edge:80,ang:a})}
