@@ -148,10 +148,14 @@ const TPL = new Map();
 function turGeo(t) { const pi = new Int16Array(ub(t.pos).buffer), ci = ub(t.col), k = pi.length, P = new Float32Array(k), C = new Float32Array(k); for (let i = 0; i < k; i++) { P[i] = pi[i] / 20; C[i] = ci[i] / 255 }
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('color', new THREE.BufferAttribute(C, 3));
   const tu = new THREE.Object3D(); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(t.n[0], t.n[1], t.n[2])); tu.updateMatrix(); bg.applyMatrix4(tu.matrix.clone().invert()); bg.computeVertexNormals(); return bg }
+function footBox(g) { const P = g.attributes.position.array; let h = 0, hx = 0, hz = 0; for (let i = 1; i < P.length; i += 3) h = Math.max(h, P[i]); for (let i = 0; i < P.length; i += 3) if (P[i + 1] < h * .25) { hx = Math.max(hx, Math.abs(P[i])); hz = Math.max(hz, Math.abs(P[i + 2])) } return { hx: hx || 1, hz: hz || 1, h: h || 1 } }
+// коробка башни в координатах корабля (ось x — вдоль корпуса): по нормали — высота, поперёк — hz
+function turBox(p, n, f, gap = 0) { const up = Math.abs(n.y) > .5, e = up ? [f.hx, f.h / 2, f.hz] : [f.hx, f.hz, f.h / 2], c = p.clone().addScaledVector(n, f.h / 2); return new THREE.Box3(new THREE.Vector3(c.x - e[0] - gap, c.y - e[1] - gap, c.z - e[2] - gap), new THREE.Vector3(c.x + e[0] + gap, c.y + e[1] + gap, c.z + e[2] + gap)) }
+const boxOf = tu => tu.userData.box || (tu.userData.box = turBox(tu.position, tu.userData.n, tu.userData.f || { hx: 3, hz: 3, h: 3 }));
 function footR(g) { const P = g.attributes.position.array; let h = 0; for (let i = 1; i < P.length; i += 3) h = Math.max(h, P[i]); let r = 0; for (let i = 0; i < P.length; i += 3) if (P[i + 1] < h * .25) r = Math.max(r, Math.hypot(P[i], P[i + 2])); return { r: r || 1, h } }
 function tplOf(k) { if (TPL.has(k)) return TPL.get(k); const all = []; for (const d of list()) for (const t of d.turs || []) if (t.pos) all.push(t);
   const cal = s => +String(s).slice(1); let t = all.find(q => q.k === k); if (!t && /^r\d+$/.test(k)) { const rs = all.filter(q => /^r\d+$/.test(q.k)).sort((a, b) => Math.abs(cal(a.k) - cal(k)) - Math.abs(cal(b.k) - cal(k))); t = rs[0] }
-  let v = null; if (t) { const g = turGeo(t), f = footR(g); v = { geo: g, r: f.r, h: f.h } } TPL.set(k, v); return v }
+  let v = null; if (t) { const g = turGeo(t), f = footR(g), b = footBox(g); v = { geo: g, r: f.r, h: f.h, f: b } } TPL.set(k, v); return v }
 export function autoTurrets(sp, kinds) { const d = list().find(q => q.name === sp.userData.design); if (!d || !kinds.length) return [];
   const body = new THREE.Mesh(geo(d), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), rc = new THREE.Raycaster(), L = d.L, bb = new THREE.Box3().setFromObject(body), out = [];
   const T = sp.userData.turs, rOf = tu => tu.userData.r || 3, N = [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map(a => new THREE.Vector3(...a)), cand = [];
@@ -159,14 +163,49 @@ export function autoTurrets(sp, kinds) { const d = list().find(q => q.name === s
       const o = new THREE.Vector3(x, n.y ? 0 : off * (bb.max.y - bb.min.y), n.y ? off * (bb.max.z - bb.min.z) : 0).addScaledVector(n, L * 2); rc.set(o, n.clone().negate()); const h = rc.intersectObject(body, false)[0];
       if (!h || !h.face) continue; const fn = h.face.normal.clone(); if (Math.abs(fn.dot(n)) < .9) continue; cand.push({ p: h.point, n, pri: (n.y > 0 ? 0 : n.y < 0 ? 1 : 2) * 10 + Math.abs(x - (bb.min.x + bb.max.x) / 2) / L * 4 + Math.abs(off) * 2 }) } }
   cand.sort((a, b) => a.pri - b.pri);
+  const left = [];
   for (const k of kinds) { const tp = tplOf(k); if (!tp) { out.push(null); continue } let ok = null;
-    for (const c of cand) { if (T.some(tu => tu.position.distanceTo(c.p) < (rOf(tu) + tp.r) * 1.15)) continue
+    for (const c of cand) { if (c.p.x - tp.r < bb.min.x || c.p.x + tp.r > bb.max.x) continue; /* со стволами — в пределах длины корпуса */ const bx = turBox(c.p, c.n, tp.f, tp.f.hx * .1); if (T.some(tu => boxOf(tu).intersectsBox(bx))) continue
       rc.set(c.p.clone().addScaledVector(c.n, .05), c.n); const up = rc.intersectObject(body, false)[0]; if (up && up.distance < tp.h * 1.2) continue; // над площадкой нависает корпус
       ok = c; break }
-    if (!ok) { out.push(null); continue }
+    if (!ok) { out.push(null); left.push(k); continue }
     const tu = new THREE.Group(); tu.position.copy(ok.p); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ok.n); const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd);
-    const bm = new THREE.Mesh(tp.geo, lodMat); bm.name = 'body'; tu.add(bm); tu.userData = { isTur: 1, head: hd, tipX: k === 'gat' ? 6 : 8, n: ok.n.clone(), k, r: tp.r, auto: 1 }; sp.add(tu); T.push(tu); out.push(tu) }
+    out.push(mkAuto(sp, T, k, tp, ok.p, ok.n)) }
+  // не хватило ровных площадок — корпус дополняется бортовыми спонсонами под оставшиеся башни
+  if (left.length) { const add = sponsons(sp, d, body, bb, left); let j = 0; for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = add[j++] || null }
   return out }
+function mkAuto(sp, T, k, tp, p, n) { const tu = new THREE.Group(); tu.position.copy(p); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd);
+  const bm = new THREE.Mesh(tp.geo, lodMat); bm.name = 'body'; tu.add(bm); tu.userData = { isTur: 1, head: hd, tipX: k === 'gat' ? 6 : 8, n: n.clone(), k, r: tp.r, f: tp.f, auto: 1 }; sp.add(tu); T.push(tu); return tu }
+// ТРЕБОВАНИЯ К ПЛОЩАДКАМ: что нужно компоненту на корпусе (радиус основания, высота, поверхности). Сейчас — башни; дальше сюда же двигатели, сенсоры, радиаторы.
+export function padReq(kind) { const tp = tplOf(kind); return tp ? { kind, hx: tp.f.hx, hz: tp.f.hz, h: tp.f.h, gap: .15, faces: ['top', 'side', 'bottom'] } : null }
+// СПОНСОНЫ: блочный выступ на борту (по обе стороны поровну), верх — площадка под башни в ряд с интервалом. Ограничения формы:
+// длина спонсона ≤ 60% длины корпуса, вынос ≤ 35% ширины корпуса (если башня шире — не ставим), не ближе к соседним башням корпуса, чем сумма оснований.
+const SPN = { len: .6, out: .65, wall: .4 }; // длина ≤ 60% корпуса, вынос ≤ 65% ширины корпуса, заход внутрь борта
+function sponsons(sp, d, body, bb, kinds) { const T = sp.userData.turs, res = [], rc = new THREE.Raycaster(), W = bb.max.z - bb.min.z, H = bb.max.y - bb.min.y, L = bb.max.x - bb.min.x, xm = (bb.min.x + bb.max.x) / 2, ym = (bb.min.y + bb.max.y) / 2;
+  const reqs = kinds.map(padReq), side = [[], []]; reqs.forEach((q, i) => side[i % 2].push({ q, i })); // поровну по бортам — симметрия силуэта
+  const hullZ = (x, y, sg) => { rc.set(new THREE.Vector3(x, y, sg * W * 4), new THREE.Vector3(0, 0, -sg)); const h = rc.intersectObject(body, false)[0]; return h ? sg * h.point.z : 0 };
+  [1, -1].forEach((sg, si) => { const S = side[si].filter(e => e.q && e.q.hz * 2.2 <= W * SPN.out); if (!S.length) return;
+    const pitch = S.map(e => e.q.hx * 2 * (1 + e.q.gap)), need = Math.min(pitch.reduce((a, b) => a + b, 0), L * SPN.len), wo = Math.max(...S.map(e => e.q.hz)) * 2.2, th = Math.max(.8, Math.min(H * .14, wo * .18)), hmax = Math.max(...S.map(e => e.q.h));
+    // место: уровень по высоте борта × сдвиг вдоль корпуса; объём спонсона вместе с башнями не задевает ни одной башни
+    let at = null; for (const lv of [0, .3, -.3, .45, -.45]) { const yl = ym + lv * H; for (let k = 0; k <= 30 && !at; k++) for (const sgn of [1, -1]) { const c = xm + sgn * k * L * .02, a = c - need / 2, b = c + need / 2; if (a < bb.min.x + L * .08 || b > bb.max.x - L * .08) continue;
+        let zi = 0, hit = 0, ns = 0; for (let x = a; x <= b + 1e-6; x += need / 8) { ns++; const z = hullZ(x, yl, sg); if (z) { hit++; zi = Math.max(zi, z) } } if (!zi || hit < ns * .7) continue; // борт под спонсоном почти на всём участке (вырезы и ниши допустимы)
+        const side = T.filter(tu => tu.userData.n && tu.userData.n.z * sg > .5).map(tu => sg > 0 ? boxOf(tu).max.z : -boxOf(tu).min.z), clr = side.length ? Math.max(0, Math.max(...side) - zi + .5) : 0;
+        for (const off of [0, clr]) { if (off > W * .4) continue; const z0 = zi + off, vol = new THREE.Box3(new THREE.Vector3(a, yl - th / 2, sg > 0 ? z0 - (off ? 0 : SPN.wall) : -(z0 + wo)), new THREE.Vector3(b, yl + th / 2 + hmax, sg > 0 ? z0 + wo : -(z0 - (off ? 0 : SPN.wall))));
+          if (T.some(tu => boxOf(tu).intersectsBox(vol))) continue; at = { a, yl, zi, off }; break } if (at) break } if (at) break }
+    if (!at) return;
+    let x = at.a, placed = []; S.forEach((e, j) => { const pt = pitch[j]; if (x + pt > at.a + need + 1e-6) return; const p = new THREE.Vector3(x + pt / 2, at.yl + th / 2, sg * (at.zi + at.off + wo / 2)); x += pt;
+      if (p.x - tplOf(e.q.kind).r < bb.min.x || p.x + tplOf(e.q.kind).r > bb.max.x) return; placed.push({ e, p }) });
+    if (!placed.length) return; // ни одна башня не встала — спонсон не нужен
+    const a = Math.min(...placed.map(q => q.p.x - q.e.q.hx * 1.15)), b = Math.max(...placed.map(q => q.p.x + q.e.q.hx * 1.15)), len = b - a, ch = Math.min(wo * .7, len * .3);
+    // плита-трапеция в плане: у борта во всю длину, наружу сужается скосами — палубное крыло, а не коробка
+    const sh = new THREE.Shape([new THREE.Vector2(0, -SPN.wall), new THREE.Vector2(len, -SPN.wall), new THREE.Vector2(len - ch, wo), new THREE.Vector2(ch, wo)]);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }).toNonIndexed(); g.rotateX(Math.PI / 2); g.translate(0, th / 2, 0);
+    const cA = new Float32Array(g.attributes.position.count * 3), P = g.attributes.position.array; for (let i = 0; i < cA.length; i += 3) { const v = P[i + 1] > th * .49 ? .66 : .5; cA[i] = v; cA[i + 1] = v + .02; cA[i + 2] = v + .05 } g.setAttribute('color', new THREE.BufferAttribute(cA, 3)); g.computeVertexNormals();
+    const box = new THREE.Mesh(g, lodMat); box.name = 'sponson'; box.position.set(a, at.yl, sg * (at.zi + at.off)); box.scale.z = sg; sp.add(box); (sp.userData.sponsons = sp.userData.sponsons || []).push(box);
+    if (at.off > 0) for (const px of [a + ch * .6, a + len - ch * .6]) { const pg = new THREE.BoxGeometry(Math.min(2, len * .08), th * .7, at.off + SPN.wall).toNonIndexed(), pc = new Float32Array(pg.attributes.position.count * 3).fill(.42); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
+      const py = new THREE.Mesh(pg, lodMat); py.name = 'pylon'; py.position.set(px, at.yl, sg * (at.zi + (at.off - SPN.wall) / 2)); sp.add(py); box.userData.pylons = (box.userData.pylons || []).concat(py) } // пилоны: спонсон вынесен за бортовые башни
+    for (const q of placed) res[q.e.i] = mkAuto(sp, T, q.e.q.kind, tplOf(q.e.q.kind), q.p, new THREE.Vector3(0, 1, 0)) });
+  return kinds.map((_, i) => res[i] || null) }
 export function buildDesign(d, opt) {
   const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); { // нутро: тёмный внутренний корпус (меньше на 10–20%) и переборки — в пробоине видно конструкцию, а не пустоту насквозь
     gB.computeBoundingBox(); const bb = gB.boundingBox, c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3()), inner = new THREE.Group(); inner.position.copy(c); inner.scale.set(.9, .78, .78);
@@ -177,7 +216,7 @@ export function buildDesign(d, opt) {
     const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n, k: t.k }; g.add(tu); turs.push(tu);
     if (t.pos) { const pi = new Int16Array(ub(t.pos).buffer), ci = ub(t.col), k = pi.length, P = new Float32Array(k), C = new Float32Array(k); for (let i = 0; i < k; i++) { P[i] = pi[i] / 20; C[i] = ci[i] / 255 } // геометрия башни из редактора — отдельно от корпуса (те же треугольники)
       const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('color', new THREE.BufferAttribute(C, 3)); tu.updateMatrix(); bg.applyMatrix4(tu.matrix.clone().invert()); bg.computeVertexNormals();
-      const bm = new THREE.Mesh(bg, lodMat); bm.name = 'body'; tu.add(bm); tu.userData.r = footR(bg).r } }
+      const bm = new THREE.Mesh(bg, lodMat); bm.name = 'body'; tu.add(bm); tu.userData.r = footR(bg).r; tu.userData.f = footBox(bg) } }
   // огни и факелы двигателей из редактора: аддитивные спрайты (огни мигают) и конусы пламени
   const glowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const lights = [], plumes = [];
