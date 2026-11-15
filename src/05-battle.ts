@@ -47,7 +47,7 @@ const GAT_K=.5*GATP.m/GATP.area,GAT_M=GATP.m,PEN=gd('battle','pen',{Rt:5.5,rhoT:
 const penCap=(m,A)=>{const len=m*1000/(PEN.rhoP*A);return len*Math.sqrt(PEN.rhoP/PEN.rhoT)/2*ARM_E}; // МДж/см², эквивалентные предельной глубине // пуля 14 г, 1,65 см²; слой стали 2 см держит 0,3 МДж/см² (15 кДж/см³, как в редакторе)
 // оценка шанса попасть: разброс ствола против уклонения цели маневровыми за время полёта (цель видит снаряд за 12 с) и её поперечника
 // дальность, на которой шанс попасть ещё ≥ p (бисекция по той же формуле, что hitP)
-function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/2,tf=d/Math.max(.1,V),e=DISP*d*2,w=Math.min(12,tf),dg=o.T&&o.rcsN>0?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;if(h/(e+dg+1e-6)>=p)lo=d;else hi=d}return lo}
+function rangeP(s,o,V,p){let lo=.5,hi=300;for(let i=0;i<14;i++){const d=(lo+hi)/2,tf=d/Math.max(.1,V),e=DISP*d*2,w=warnT(o,V,tf,closing(s,o)),dg=o.T&&o.rcsN>0?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;if(h/(e+dg+1e-6)>=p)lo=d;else hi=d}return lo}
 // качество сопровождения цели кораблём: свой захват радаром — 1, захват союзника (данные по сети) — ally, видна только ИК/ЭМ — seen, не видна — none; помехи цели снижают
 // обнаружение снарядов: корабль уклоняется только от снаряда, который увидели его живые сенсоры и сопровождали track с.
 // ИК видит по теплу снаряда: дальность irK·√(площадь см² · (T/1000К)⁴); радар (если включён) — radK·(площадь м²)^¼. Остывание излучением: T=(T0⁻³+k·возраст)^-⅓
@@ -60,10 +60,31 @@ const EXTM=gd('battle','extmod',{size:{T:8,G:4,A:4,D:6,R:2,M:5,L:5}}); // вне
 // точка удара в системе корабля (м) против центра модуля на той же грани: модуль задет, если удар внутри его квадрата
 function extHit(o,zi,x,y){const L=o.T.L*1000,c=Math.cos(o.hd||0),sn=Math.sin(o.hd||0),dx=(x-o.x)*1000,dy=(y-o.y)*1000,au=dx*c+dy*sn,av=-dx*sn+dy*c,wr=(WR[o.cls]||.3)*1.4;
   for(const z of o.zones)for(const q of z.mods){if(!q.alive||z!==o.zones[zi])continue;const h=(EXTM.size[q.k]||0)/2;if(!h)continue;if(Math.abs(au-(q.u||0)*L)<h&&Math.abs(av-(q.v||0)*L*wr)<h)return q}return null}
+const RAM=gd('battle','ram',{on:1,mass:1.5,nose:20,dist:4,v:.2,tip:.03,cd:20,sy:.5}); // sy — сопротивление смятию стали при тупом ударе, кДж/см³ (предел текучести ~0,5 ГПа; Rt 5,5 — для пробития на гиперзвуке) // таран: масса ≥ mass× цели, нос ≥ nose слоёв, начинаем ближе dist км, сближение ≤ v км/с; пятно контакта — квадрат tip×длины носа; cd с между ударами
+// удар корпусов, неупругий: энергия ½·μ·v² (μ = m1m2/(m1+m2)) уходит в смятие. Сила одна на обоих (3-й закон) — мнётся тот, у кого сейчас слабее сопротивление:
+// броня — сталь при смятии RAM.sy (кДж/см³), за бронёй — сталь × заполненность корпуса (масса / (7,8 т/м³ × объём)). После удара — общая скорость (сохранение импульса)
+function ramHit(s,o){const rvx=s.sx-o.sx,rvy=s.sy-o.sy,dx=o.x-s.x,dy=o.y-s.y,d=Math.hypot(dx,dy)||1e-6,vr=Math.max(0,(rvx*dx+rvy*dy)/d);if(vr<=0)return;
+  const m1=s.T.tons,m2=o.T.tons,mu=m1*m2/(m1+m2);let E=.5*mu*vr*vr*1e9; // Дж
+  const zs=zoneTo(s,o.x,o.y),zo=zoneTo(o,s.x,s.y),A=Math.pow(Math.max(2,s.T.L*1000*RAM.tip),2)*1e4; // см²
+  const fill=q=>{const L=q.T.L*1000,vol=L*Math.pow(L*.22,2)*.5;return Math.min(1,q.T.tons/(7.8*vol))};
+  const P=[{q:s,z:s.zones[zs],arm:s.zones[zs].arm*2,dep:0,f:fill(s)},{q:o,z:o.zones[zo],arm:o.zones[zo].arm*2,dep:0,f:fill(o)}],Rt=RAM.sy*1000; // Дж/см³
+  for(let i=0;i<20000&&E>0;i++){const r=P.map(p=>Rt*(p.dep<p.arm?1:p.f));const ks=Math.abs(r[0]-r[1])<1e-9?[0,1]:[r[0]<r[1]?0:1];for(const k of ks){const step=(P[k].dep<P[k].arm?1:20)/ks.length,e=r[k]*A*step;P[k].dep+=Math.min(step,step*E/e);E-=e}} // равное сопротивление — мнутся оба поровну // мнём по 1 см брони / 20 см нутра
+  for(const p of P){const lay=Math.round(Math.min(p.dep,p.arm)/2),z=p.z,nc=z.nc,w=Math.max(1,Math.round(nc*.15)),c0=Math.floor(nc/2-w/2);for(let c=c0;c<c0+w;c++){const tk=Math.min(z.cols[c],lay);z.cols[c]-=tk;z.armN-=tk}
+    const inner=Math.max(0,p.dep-p.arm)/100,half=p.q.T.L*1000*.11; // м смятия за бронёй против полуширины корпуса
+    if(inner>0){const ms=z.mods.filter(m=>m.alive&&m.k!=='C'),n=Math.min(ms.length,Math.round(ms.length*inner/half));for(let i=0;i<n;i++)mdead(p.q,ms[i]);if(inner>half*.8&&p.q.core.alive){p.q.core.alive=false;p.q.aliveN--}
+      p.q.crew=Math.max(0,p.q.crew-.3*Math.min(1,inner/half));if(!p.q.core.alive||p.q.aliveN<p.q.total*.22)kill(p.q,'таран')}}
+  const vx=(m1*s.sx+m2*o.sx)/(m1+m2),vy=(m1*s.sy+m2*o.sy)/(m1+m2);s.sx=o.sx=vx;s.sy=o.sy=vy; // сцепились: общая скорость
+  s.ramT=o.ramT=t+RAM.cd;stat.ram=(stat.ram||[]);stat.ram.push({by:s.T.n,to:o.T.n,v:+(vr*1000).toFixed(0),GJ:+(.5*mu*vr*vr).toFixed(2),dep:[+(P[0].dep/100).toFixed(2),+(P[1].dep/100).toFixed(2)],kill:[!s.alive,!o.alive]});
+  fx.push({x:(s.x+o.x)/2,y:(s.y+o.y)/2,z:o.z,t0:t,d:6,r:Math.max(.5,s.T.L*.3)});say(o.side,'hit',o)}
+function zoneTo(o,x,y){const a=adiff(o.hd,Math.atan2(y-o.y,x-o.x)),ab=Math.abs(a);return ab<0.785?0:ab>2.356?2:(a>0?1:3)}
 const PMc=(s,o)=>o&&closing(s,o)>PB.passV?PMIN*PB.pass:PMIN;
+// сколько секунд цель видит наш снаряд до удара: дальность её сенсоров по снаряду (калибр ~ по скорости) / скорость сближения снаряда − время сопровождения
+function warnT(o,V,tf,cl){if(!SNS.on||!o||!o.T)return Math.min(12,tf);const kk=V>=2,cal=kk?Math.max(5,V*3):0,A=kk?Math.PI*cal*cal/4:GATP.area,T=kk?SNS.railT:SNS.gunT;let R=0;
+  for(const q of (o.scl||o.sc||[])){if(q.k==='ir')R=Math.max(R,SNS.irK*Math.sqrt(A*Math.pow(T/1000,4))*(q.res||1));else if(q.k==='rad'&&o.rdOn)R=Math.max(R,SNS.radK*Math.pow(A/1e4,.25))}
+  return Math.max(0,Math.min(tf,R/Math.max(.1,V+(cl||0)))-SNS.track)}
 const TRK=gd('battle','track',{ally:.75,seen:.5,none:.25,jam:.6,ttl:6,near:1});
 function tq(s,o){if(!o||!o.rl)return 1;const side=s.side;let q=o.byL&&t-(o.byL.get(s)??-99)<TRK.ttl?1:t-o.rl[side]<TRK.ttl?TRK.ally:t-o.rs[side]<TRK.ttl?TRK.seen:TRK.none;return Math.max(.1,q*(1-(o.jam||0)*TRK.jam))}
-function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1)/(d<TRK.near?1:tq(s,o)),w=Math.min(12,tf),
+function hitP(s,o,V,sig){const d=Math.hypot(o.x-s.x,o.y-s.y,(o.z||0)-(s.z||0)),tf=d/Math.max(.1,V+closing(s,o)),e=(V<2?GDISP:DISP)*d*2*(sig||1)/(d<TRK.near?1:tq(s,o)),w=warnT(o,V,tf,closing(s,o)),
   dg=o.T&&o.rcsN>0&&o.sc&&o.sc.length?.5*(o.acc||5)*.12/1000*w*w:0,h=o.T?o.T.L*.11:.02;return Math.max(0,Math.min(1,h/(e+dg+1e-6)))}
 // тонкая сетка брони: ячейки 10×10 см, в ячейке — остаток толщины, мм (хранятся только тронутые, остальные целые).
 // Слой = 2 см стали, держит 2 МДж/см² → удар выбивает 10 мм на каждый 1 МДж/см²; не хватило энергии — остаётся вмятина, следующий удар в то же место пробьёт легче
@@ -457,9 +478,13 @@ function steer(s,dt){
   {const g=s.tg;if(PB.on&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
     if(rv>PB.v&&d>PB.near){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0);{const vt=Math.max(PB.v,rv-dvr/PB.res),aa=s.acc/1000*Math.max(.15,eng),vc=Math.min(rv,Math.max(vt,Math.sqrt(aa*(d-PB.near)))),ux=dx/d,uy=dy/d; /* топлива мало — гасим скорость частично (до vt), но сразу поворачиваем к врагу, а не расходимся */
       vx=(g.sx+ux*vc)/Math.max(eng,.05);vy=(g.sy+uy*vc)/Math.max(eng,.05);s.pb=1;stat.pbrake=(stat.pbrake||0)+dt}}}}
+  // таран: тяжёлый корабль с толстым носом идёт в лоб на лёгкую цель рядом, сближаясь не быстрее RAM.v (км/с)
+  {const g=s.tg;s.ramTg=null;if(RAM.on&&g&&g.alive&&g.T&&!flee&&s.T.tons>=g.T.tons*RAM.mass&&s.zones[0].arm>=RAM.nose){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1e-6;
+    if(d<RAM.dist){s.ramTg=g;const ux=dx/d,uy=dy/d,vc=Math.min(RAM.v*.9,Math.max(.02,Math.sqrt(s.acc/1000*Math.max(.15,eng)*d)));vx=(g.sx+ux*vc)/Math.max(eng,.05);vy=(g.sy+uy*vc)/Math.max(eng,.05);
+      if(d<s.T.L*.5+g.T.L*.12&&t>(s.ramT||0))ramHit(s,g)}}}
   // инерция: ускорение ограничено тягой и массой
-  const a=(s.fuelCap&&s.fuel<=0?0:1)*s.acc/1000*eng*dt*(1+(boost-1)*.5),_pl=(t>=(s.vPT||0)||s.dg&&t<s.dgT||flee)?(s.vPT=t+PLAN_T,s.vTx=vx,s.vTy=vy,1):0,dvx0=s.vTx*eng-s.sx,dvy0=s.vTy*eng-s.sy,dl0=Math.hypot(dvx0,dvy0),fq=s.fuelCap?s.fuel/s.fuelCap:1,db=fq<.25?.1:.05,coast=dl0<Math.hypot(s.sx,s.sy)*.2&&(dvx0*s.sx+dvy0*s.sy)<=0===false&&Math.hypot(vx*eng,vy*eng)>Math.hypot(s.sx,s.sy)*.8&&Math.hypot(vx*eng,vy*eng)<Math.hypot(s.sx,s.sy)*1.25&&(vx*s.sx+vy*s.sy)>.97*Math.hypot(vx,vy)*Math.hypot(s.sx,s.sy),dvx=dl0<db||coast?0:dvx0,dvy=dl0<db||coast?0:dvy0,dl=dl0<db||coast?0:dl0; /* coast — идём почти куда надо и почти с нужной скоростью: летим по инерции */ /* мёртвая зона по скорости: мелкие поправки не стоят топлива; при пустеющем баке — шире */
-  if(t>=(s.dgN||0)){s.dgN=t+1;if(!(s.dg&&t<s.dgT))s.dg=null;if(s.rcsN>0&&s.sc&&s.sc.length&&(!s.fuelCap||!s.dvB||s.dvB.spend>REF.dodge)){ /* уклоняемся, если в бюджете Δv есть лишнее */ /* уклоняемся, только пока в баке больше 40% */let best=1e9; // уклонение: снаряд, который через ≤12 с пройдёт через корабль, — маневровыми вбок от его пути
+  const a=(s.fuelCap&&s.fuel<=0?0:1)*s.acc/1000*eng*dt*(1+(boost-1)*.5),_pl=(t>=(s.vPT||0)||s.ramTg||s.dg&&t<s.dgT||flee)?(s.vPT=t+PLAN_T,s.vTx=vx,s.vTy=vy,1):0,dvx0=s.vTx*eng-s.sx,dvy0=s.vTy*eng-s.sy,dl0=Math.hypot(dvx0,dvy0),fq=s.fuelCap?s.fuel/s.fuelCap:1,db=s.ramTg?.003:fq<.25?.1:.05,coast=dl0<Math.hypot(s.sx,s.sy)*.2&&(dvx0*s.sx+dvy0*s.sy)<=0===false&&Math.hypot(vx*eng,vy*eng)>Math.hypot(s.sx,s.sy)*.8&&Math.hypot(vx*eng,vy*eng)<Math.hypot(s.sx,s.sy)*1.25&&(vx*s.sx+vy*s.sy)>.97*Math.hypot(vx,vy)*Math.hypot(s.sx,s.sy),dvx=dl0<db||coast?0:dvx0,dvy=dl0<db||coast?0:dvy0,dl=dl0<db||coast?0:dl0; /* coast — идём почти куда надо и почти с нужной скоростью: летим по инерции */ /* мёртвая зона по скорости: мелкие поправки не стоят топлива; при пустеющем баке — шире */
+  if(t>=(s.dgN||0)){s.dgN=t+1;if(!(s.dg&&t<s.dgT))s.dg=null;if(!s.ramTg&&s.rcsN>0&&s.sc&&s.sc.length&&(!s.fuelCap||!s.dvB||s.dvB.spend>REF.dodge)){ /* уклоняемся, если в бюджете Δv есть лишнее */ /* уклоняемся, только пока в баке больше 40% */let best=1e9; // уклонение: снаряд, который через ≤12 с пройдёт через корабль, — маневровыми вбок от его пути
       const hr=s.T.L*.6+.05;for(const p of proj){if(p.side===s.side||p.g)continue;const rx=s.x-p.x,ry=s.y-p.y;if(rx*rx+ry*ry>3600)continue;const wx=p.vx-s.sx,wy=p.vy-s.sy,w2=wx*wx+wy*wy||1e-9,tc=(rx*wx+ry*wy)/w2;if(tc<0||tc>12||tc>=best)continue;
         const mx=rx-wx*tc,my=ry-wy*tc,md=Math.hypot(mx,my);if(md>hr)continue;if(SNS.on){const dt=p.dt||(p.dt=[-1,-1]);if(dt[s.side]<0){if(!seesP(s,p,Math.sqrt(rx*rx+ry*ry))){stat.blind=(stat.blind||0)+1;continue}dt[s.side]=t}if(t-dt[s.side]<SNS.track)continue}best=tc;const wl=Math.sqrt(w2);s.dg=md>1e-4?{x:mx/md,y:my/md}:{x:-wy/wl,y:wx/wl};s.dgU=0;s.dgT=t+Math.min(4,tc+1);s.dgV=Math.max(0,hr*1.3-md)/Math.max(1,tc)} /* ровно столько боковой скорости, чтобы снаряд прошёл мимо */
       if(best<1e9)stat.dodge=(stat.dodge||0)+1}}
@@ -472,6 +497,7 @@ function steer(s,dt){
     if(vn<0){s.sx-=1.4*vn*nx;s.sy-=1.4*vn*ny;if(-vn>.04&&t>(s.rockT2||0)){s.rockT2=t+1.5;stat.rock++;hitShip(s,'rock',-dx,-dy,s.x,s.y,Math.min(12,(e.t==='wreck'?4:2)+(-vn)*(e.t==='wreck'?25:10)))}}}}
   const rcsF=s.rcs0?.15+.85*s.rcsN/s.rcs0:1,turn=(.5/(1+Math.pow(T.L/.4,1.7)))*dt*rcsF;s.trn=Math.max(-1,Math.min(1,adiff(s.hd,want)*3))*(s.rcsN>0?1:0); // без маневровых корабль почти не вертится // 1 км — около минуты на разворот, 4 км — минуты
   {const ax=s.tur.filter(m=>m.alive&&m.cfg&&m.cfg.ax).length,all=s.tur.filter(m=>m.alive&&m.k!=='G'&&m.k!=='A').length;if(ax&&ax*2>=all&&!flee&&!s.rf&&s.tg&&s.tg.alive&&Math.hypot(s.tg.x-s.x,s.tg.y-s.y)<(s.maxR||60)*1.2)want=Math.atan2(s.tg.y-s.y,s.tg.x-s.x)} // общее правило: главный калибр осевой — нос на свою цель, когда она в дальности
+  if(s.ramTg&&s.ramTg.alive)want=Math.atan2(s.ramTg.y-s.y,s.ramTg.x-s.x); // таран — носом вперёд
   { // разворот физикой: маневровые F = 0,4 МН·∛(т/1000), плечо 0,37·L, I = M·L²/12 → α; тяжёлые корабли разворачиваются минутами
     const tons=Math.max(1,T.tons||1),Lm=Math.max(5,T.L*1000),Fr=(T.rcsMN?T.rcsMN*1e6:4e5*Math.cbrt(tons/1000))*rcsF*(s.rcsN>0?1:0),al=Fr*.37*Lm/(tons*1000*Lm*Lm/12),d=adiff(s.hd,want),wt=Math.abs(d)<.035?0:Math.sign(d)*Math.sqrt(2*al*Math.abs(d))*.9; /* мёртвая зона 2°: не дёргаем маневровые по мелочи */
     s.w=s.w||0;const dw=al*dt;if(s.fuelCap&&s.fuel<=0){s.hd+=s.w*dt;void turn}else{const dW=Math.max(-dw,Math.min(dw,wt-s.w));s.w+=dW;if(s.fuelCap&&al>0){const bt=Fr*(Math.abs(dW)/al)/(FUEL.rcsVe*1000)/1000;s.fuel=Math.max(0,s.fuel-bt);stat.rcsT=(stat.rcsT||0)+bt;stat.rcsN=(stat.rcsN||0)+1} /* маневровые тоже жгут топливо: ṁ = F/vₑ */if(Math.abs(d)<1e-3&&Math.abs(s.w)<dw)s.w=0;s.hd+=s.w*dt;void turn} }
