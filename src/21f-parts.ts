@@ -107,3 +107,26 @@ registerPart({ type: 'rail_turret',
   build({ s = 1, n = 1 }) { const root = railTurret(s, n), sockets: Socket[] = [{ name: 'mount', pos: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(0, 1, 0) }];
     for (const c of root.children) if (/^barrel_\d$/.test(c.name)) sockets.push({ name: 'muzzle_' + c.name.slice(7), pos: c.position.clone().add(new THREE.Vector3(5 * s, 0, 0)), dir: new THREE.Vector3(1, 0, 0) });
     return { root, sockets } } });
+
+// ── конструктивные секции ──────────────────────────────────────────────
+// Спонсон и надстроечная палуба — тоже детали реестра: геометрия из параметров (координаты корабля, ось x — вдоль корпуса). Всё, что стоит на секции
+// (башни, позже радиаторы и сенсоры), кладётся в её часть 'deck' — при отрыве секция уходит вместе с ними. Цвета вершин — для материала корпуса (vertexColors).
+function tint(g: THREE.BufferGeometry, top: number, side: number, ytop: number) { const P = g.attributes.position.array as any, c = new Float32Array(P.length);
+  for (let i = 0; i < P.length; i += 3) { const v = P[i + 1] > ytop - 1e-3 ? top : side; c[i] = v; c[i + 1] = v + .02; c[i + 2] = v + .05 } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.computeVertexNormals(); return g }
+// спонсон: плита-трапеция в плане (у борта во всю длину, наружу скосы), при выносе за бортовые башни — пилоны к борту
+registerPart({ type: 'sponson', build({ len, wo, th, ch, wall, x, y, z, sg, off = 0, mat }) {
+  const root = new THREE.Group(), deck = new THREE.Group(); deck.name = 'deck'; root.add(deck);
+  const sh = new THREE.Shape([new THREE.Vector2(0, -wall), new THREE.Vector2(len, -wall), new THREE.Vector2(len - ch, wo), new THREE.Vector2(ch, wo)]);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }).toNonIndexed(); g.rotateX(Math.PI / 2); g.translate(0, th / 2, 0); tint(g, .66, .5, th / 2);
+  const plate = new THREE.Mesh(g, mat); plate.name = 'plate'; plate.position.set(x, y, z); plate.scale.z = sg; deck.add(plate);
+  if (off > 0) [x + ch * .6, x + len - ch * .6].forEach((px, i) => { const pg = new THREE.BoxGeometry(Math.min(2, len * .08), th * .7, off + wall).toNonIndexed(); tint(pg, .42, .42, 1e9);
+    const py = new THREE.Mesh(pg, mat); py.name = 'pylon_' + i; py.position.set(px, y, z - sg * (off + wall) / 2); deck.add(py) });
+  return { root, sockets: [{ name: 'top', pos: new THREE.Vector3(x + len / 2, y + th / 2, z + sg * wo / 2), dir: new THREE.Vector3(0, 1, 0) }] } } });
+// надстроечная палуба: блок со скошенными торцами (профиль-трапеция), стоит на верхней поверхности корпуса
+registerPart({ type: 'deck', build({ len, w, h, x, y, mat, post = 0 }) {
+  const root = new THREE.Group(), deck = new THREE.Group(); deck.name = 'deck'; root.add(deck); const ch = Math.min(h * 1.2, len * .2);
+  const sh = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(len, 0), new THREE.Vector2(len - ch, h), new THREE.Vector2(ch, h)]);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false }).toNonIndexed(); g.translate(0, 0, -w / 2); tint(g, .68, .52, h);
+  const body = new THREE.Mesh(g, mat); body.name = 'block'; body.position.set(x, y, 0); deck.add(body);
+  if (post > 0) [.2, .5, .8].forEach((f, i) => { for (const sz of [-1, 1]) { const pg = new THREE.BoxGeometry(Math.min(1.6, len * .05), post, Math.min(1.6, w * .1)).toNonIndexed(); tint(pg, .4, .4, 1e9); const pm = new THREE.Mesh(pg, mat); pm.name = 'post_' + i + (sz > 0 ? 'r' : 'l'); pm.position.set(x + len * f, y - post / 2, sz * w * .38); deck.add(pm) } }); // стойки: палуба поднята над башнями корпуса
+  return { root, sockets: [{ name: 'top', pos: new THREE.Vector3(x + len / 2, y + h, 0), dir: new THREE.Vector3(0, 1, 0) }] } } });

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { rawFile } from './00-gd.ts';
 import { state } from './01-data.ts';
+import { createPart } from './21f-parts.ts';
 let LIST = null;
 function list() { if (LIST) return LIST; const f = rawFile('ships'); LIST = (f && f.list) || []; return LIST; }
 export const hasDesigns = () => list().length > 0;
@@ -154,8 +155,9 @@ function turBox(p, n, f, gap = 0) { const up = Math.abs(n.y) > .5, e = up ? [f.h
 const boxOf = tu => tu.userData.box || (tu.userData.box = turBox(tu.position, tu.userData.n, tu.userData.f || { hx: 3, hz: 3, h: 3 }));
 function footR(g) { const P = g.attributes.position.array; let h = 0; for (let i = 1; i < P.length; i += 3) h = Math.max(h, P[i]); let r = 0; for (let i = 0; i < P.length; i += 3) if (P[i + 1] < h * .25) r = Math.max(r, Math.hypot(P[i], P[i + 2])); return { r: r || 1, h } }
 function tplOf(k) { if (TPL.has(k)) return TPL.get(k); const all = []; for (const d of list()) for (const t of d.turs || []) if (t.pos) all.push(t);
-  const cal = s => +String(s).slice(1); let t = all.find(q => q.k === k); if (!t && /^r\d+$/.test(k)) { const rs = all.filter(q => /^r\d+$/.test(q.k)).sort((a, b) => Math.abs(cal(a.k) - cal(k)) - Math.abs(cal(b.k) - cal(k))); t = rs[0] }
-  let v = null; if (t) { const g = turGeo(t), f = footR(g), b = footBox(g); v = { geo: g, r: f.r, h: f.h, f: b } } TPL.set(k, v); return v }
+  const cal = s => +String(s).slice(1); let t = all.find(q => q.k === k), sc = 1;
+  if (!t && /^r\d+$/.test(k)) { const rs = all.filter(q => /^r\d+$/.test(q.k)).sort((a, b) => Math.abs(cal(a.k) - cal(k)) - Math.abs(cal(b.k) - cal(k))); t = rs[0]; if (t) sc = cal(k) / cal(t.k) } // рельс другого калибра: та же установка в масштабе калибров
+  let v = null; if (t) { const g = turGeo(t); if (sc !== 1) { g.scale(sc, sc, sc); g.computeVertexNormals() } const f = footR(g), b = footBox(g); v = { geo: g, r: f.r, h: f.h, f: b, sc, from: t.k } } TPL.set(k, v); return v }
 export function autoTurrets(sp, kinds) { const d = list().find(q => q.name === sp.userData.design); if (!d || !kinds.length) return [];
   const body = new THREE.Mesh(geo(d), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), rc = new THREE.Raycaster(), L = d.L, bb = new THREE.Box3().setFromObject(body), out = [];
   const T = sp.userData.turs, rOf = tu => tu.userData.r || 3, N = [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map(a => new THREE.Vector3(...a)), cand = [];
@@ -173,13 +175,39 @@ export function autoTurrets(sp, kinds) { const d = list().find(q => q.name === s
     out.push(mkAuto(sp, T, k, tp, ok.p, ok.n)) }
   // не хватило ровных площадок — корпус дополняется бортовыми спонсонами под оставшиеся башни
   if (left.length) { const add = sponsons(sp, d, body, bb, left); let j = 0; for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = add[j++] || null }
+  { const left2 = []; for (let i = 0; i < out.length; i++) if (!out[i] && kinds[i] && tplOf(kinds[i])) left2.push(i); if (left2.length) { const add = decks(sp, body, bb, left2.map(i => kinds[i])); left2.forEach((i, j) => { if (add[j]) out[i] = add[j] }) } }
+  sp.userData.layout = layoutReport(sp, kinds, out, bb);
   return out }
-function mkAuto(sp, T, k, tp, p, n) { const tu = new THREE.Group(); tu.position.copy(p); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd);
-  const bm = new THREE.Mesh(tp.geo, lodMat); bm.name = 'body'; tu.add(bm); tu.userData = { isTur: 1, head: hd, tipX: k === 'gat' ? 6 : 8, n: n.clone(), k, r: tp.r, f: tp.f, auto: 1 }; sp.add(tu); T.push(tu); return tu }
+function mkAuto(sp, T, k, tp, p, n, parent = null) { const tu = new THREE.Group(); tu.position.copy(p); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd);
+  const bm = new THREE.Mesh(tp.geo, lodMat); bm.name = 'body'; tu.add(bm); tu.userData = { isTur: 1, head: hd, tipX: k === 'gat' ? 6 : 8, n: n.clone(), k, r: tp.r, f: tp.f, auto: 1 }; (parent || sp).add(tu); T.push(tu); return tu }
 // ТРЕБОВАНИЯ К ПЛОЩАДКАМ: что нужно компоненту на корпусе (радиус основания, высота, поверхности). Сейчас — башни; дальше сюда же двигатели, сенсоры, радиаторы.
+export function layoutPlan(kinds) { const reqs = kinds.map(padReq); return { reqs, area: +reqs.reduce((a, q) => a + (q ? 4 * q.hx * q.hz * (1 + q.gap) ** 2 : 0), 0).toFixed(0), limits: { sponson: SPN, deck: DECK } } } // до постройки: что нужно и в каких пределах можно расширять корпус
 export function padReq(kind) { const tp = tplOf(kind); return tp ? { kind, hx: tp.f.hx, hz: tp.f.hz, h: tp.f.h, gap: .15, faces: ['top', 'side', 'bottom'] } : null }
 // СПОНСОНЫ: блочный выступ на борту (по обе стороны поровну), верх — площадка под башни в ряд с интервалом. Ограничения формы:
 // длина спонсона ≤ 60% длины корпуса, вынос ≤ 35% ширины корпуса (если башня шире — не ставим), не ближе к соседним башням корпуса, чем сумма оснований.
+// НАДСТРОЕЧНАЯ ПАЛУБА: если не хватило ни корпуса, ни спонсонов — блок на самом длинном свободном от башен участке верха; башни — на нём в один или два ряда.
+// Ограничения: длина ≤ 50% корпуса, ширина ≤ 70% ширины, высота ≤ 30% высоты корпуса; только над участком, где на верху корпуса нет башен.
+const DECK = { len: .5, w: .7, h: .3 };
+function decks(sp, body, bb, kinds) { const T = sp.userData.turs, rc = new THREE.Raycaster(), W = bb.max.z - bb.min.z, H = bb.max.y - bb.min.y, L = bb.max.x - bb.min.x, N = 40, cell = L / N, res = [];
+  const reqs = kinds.map(padReq).filter(Boolean); if (!reqs.length) return [];
+  const hz = Math.max(...reqs.map(q => q.hz)), hx = Math.max(...reqs.map(q => q.hx)), hmax = Math.max(...reqs.map(q => q.h)), w = Math.min(W * DECK.w, hz * 2.2 * 2), rows = w >= hz * 2.2 * 2 ? 2 : 1; if (w < hz * 2.2) return [];
+  const free = [], top = []; for (let i = 0; i < N; i++) { const x = bb.min.x + (i + .5) * cell; rc.set(new THREE.Vector3(x, bb.max.y + H * 2, 0), new THREE.Vector3(0, -1, 0)); const h = rc.intersectObject(body, false)[0]; top.push(h ? h.point.y : null);
+    const col = new THREE.Box3(new THREE.Vector3(x - cell / 2, (h ? h.point.y : bb.max.y) - .2, -w / 2), new THREE.Vector3(x + cell / 2, bb.max.y + H, w / 2)); free.push(!!h && i > N * .06 && i < N * .94 && !T.some(tu => boxOf(tu).intersectsBox(col))) }
+  let bi = -1, bl = 0; for (let i = 0; i < N;) { if (!free[i]) { i++; continue } let j = i; while (j < N && free[j]) j++; if (j - i > bl) { bl = j - i; bi = i } i = j }
+  let post = 0, len, a, y0; const h = Math.max(1, Math.min(H * DECK.h, hmax * .8));
+  if (bi >= 0 && bl * cell >= hx * 2.6) { len = Math.min(bl * cell, L * DECK.len); a = bb.min.x + bi * cell + (bl * cell - len) / 2; y0 = Math.max(...top.slice(bi, bi + bl).filter(v => v != null)) }
+  else { // верх занят башнями — второй ярус: палуба над ними на стойках, подъём ≤ 60% высоты корпуса
+    len = L * DECK.len; a = (bb.min.x + bb.max.x) / 2 - len / 2; const span = new THREE.Box3(new THREE.Vector3(a, bb.min.y, -w / 2), new THREE.Vector3(a + len, bb.max.y + H * 2, w / 2));
+    const ht = Math.max(...top.filter((v, i) => v != null && bb.min.x + (i + .5) * cell >= a && bb.min.x + (i + .5) * cell <= a + len)), tb = Math.max(ht, ...T.filter(tu => boxOf(tu).intersectsBox(span)).map(tu => boxOf(tu).max.y)) + .5;
+    if (tb - ht > H * .6) return []; y0 = tb; post = tb - ht }
+  const ch = Math.min(h * 1.2, len * .2), part = createPart('deck', { len, w, h, x: a, y: y0, mat: lodMat, post }); part.root.userData.sec = 'deck'; sp.add(part.root); (sp.userData.sections = sp.userData.sections || []).push(part); const deckG = part.piece('deck');
+  let placed = 0; const zs = rows === 2 ? [-w / 4, w / 4] : [0], occ = []; kinds.forEach((k, ki) => { const q = padReq(k); if (!q) return; let done = false;
+    for (let x = a + ch + q.hx * (1 + q.gap); x <= a + len - ch - q.hx * (1 + q.gap) + 1e-6 && !done; x += cell / 2) for (const z of zs) { const p = new THREE.Vector3(x, y0 + h, z), bx = turBox(p, new THREE.Vector3(0, 1, 0), { hx: q.hx, hz: q.hz, h: q.h }, .1);
+      if (p.x - tplOf(k).r < bb.min.x || p.x + tplOf(k).r > bb.max.x || occ.some(o => o.intersectsBox(bx)) || T.some(tu => boxOf(tu).intersectsBox(bx))) continue; occ.push(bx); res[ki] = mkAuto(sp, T, k, tplOf(k), p, new THREE.Vector3(0, 1, 0), deckG); placed++; done = true; break } });
+  if (!placed) { sp.remove(part.root); sp.userData.sections.pop() } return kinds.map((_, i) => res[i] || null) }
+// ОТЧЁТ КОМПОНОВКИ: что требовалось (площадь оснований с интервалами), куда встало (корпус / спонсон / палуба), что осталось, габариты корпуса и добавленных секций
+function layoutReport(sp, kinds, out, bb) { const r = { need: 0, hull: 0, sponson: 0, deck: 0, none: 0, area: 0, dims: bb.getSize(new THREE.Vector3()).toArray().map(v => +v.toFixed(1)), sections: (sp.userData.sections || []).map(p => p.type) };
+  kinds.forEach((k, i) => { const q = padReq(k); if (q) r.area += 4 * q.hx * q.hz * (1 + q.gap) ** 2; r.need++; const tu = out[i]; if (!tu) { r.none++; return } let o = tu.parent, sec = null; while (o && o !== sp && !sec) { sec = o.userData.sec; o = o.parent } r[sec || 'hull']++ }); r.area = +r.area.toFixed(0); return r }
 const SPN = { len: .6, out: .65, wall: .4 }; // длина ≤ 60% корпуса, вынос ≤ 65% ширины корпуса, заход внутрь борта
 function sponsons(sp, d, body, bb, kinds) { const T = sp.userData.turs, res = [], rc = new THREE.Raycaster(), W = bb.max.z - bb.min.z, H = bb.max.y - bb.min.y, L = bb.max.x - bb.min.x, xm = (bb.min.x + bb.max.x) / 2, ym = (bb.min.y + bb.max.y) / 2;
   const reqs = kinds.map(padReq), side = [[], []]; reqs.forEach((q, i) => side[i % 2].push({ q, i })); // поровну по бортам — симметрия силуэта
@@ -198,13 +226,9 @@ function sponsons(sp, d, body, bb, kinds) { const T = sp.userData.turs, res = []
     if (!placed.length) return; // ни одна башня не встала — спонсон не нужен
     const a = Math.min(...placed.map(q => q.p.x - q.e.q.hx * 1.15)), b = Math.max(...placed.map(q => q.p.x + q.e.q.hx * 1.15)), len = b - a, ch = Math.min(wo * .7, len * .3);
     // плита-трапеция в плане: у борта во всю длину, наружу сужается скосами — палубное крыло, а не коробка
-    const sh = new THREE.Shape([new THREE.Vector2(0, -SPN.wall), new THREE.Vector2(len, -SPN.wall), new THREE.Vector2(len - ch, wo), new THREE.Vector2(ch, wo)]);
-    const g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }).toNonIndexed(); g.rotateX(Math.PI / 2); g.translate(0, th / 2, 0);
-    const cA = new Float32Array(g.attributes.position.count * 3), P = g.attributes.position.array; for (let i = 0; i < cA.length; i += 3) { const v = P[i + 1] > th * .49 ? .66 : .5; cA[i] = v; cA[i + 1] = v + .02; cA[i + 2] = v + .05 } g.setAttribute('color', new THREE.BufferAttribute(cA, 3)); g.computeVertexNormals();
-    const box = new THREE.Mesh(g, lodMat); box.name = 'sponson'; box.position.set(a, at.yl, sg * (at.zi + at.off)); box.scale.z = sg; sp.add(box); (sp.userData.sponsons = sp.userData.sponsons || []).push(box);
-    if (at.off > 0) for (const px of [a + ch * .6, a + len - ch * .6]) { const pg = new THREE.BoxGeometry(Math.min(2, len * .08), th * .7, at.off + SPN.wall).toNonIndexed(), pc = new Float32Array(pg.attributes.position.count * 3).fill(.42); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
-      const py = new THREE.Mesh(pg, lodMat); py.name = 'pylon'; py.position.set(px, at.yl, sg * (at.zi + (at.off - SPN.wall) / 2)); sp.add(py); box.userData.pylons = (box.userData.pylons || []).concat(py) } // пилоны: спонсон вынесен за бортовые башни
-    for (const q of placed) res[q.e.i] = mkAuto(sp, T, q.e.q.kind, tplOf(q.e.q.kind), q.p, new THREE.Vector3(0, 1, 0)) });
+    const part = createPart('sponson', { len, wo, th, ch, wall: SPN.wall, x: a, y: at.yl, z: sg * (at.zi + at.off), sg, off: at.off, mat: lodMat }); part.root.userData.sec = 'sponson'; sp.add(part.root); (sp.userData.sections = sp.userData.sections || []).push(part); (sp.userData.sponsons = sp.userData.sponsons || []).push(part.root);
+    const deckG = part.piece('deck');
+    for (const q of placed) res[q.e.i] = mkAuto(sp, T, q.e.q.kind, tplOf(q.e.q.kind), q.p, new THREE.Vector3(0, 1, 0), deckG) });
   return kinds.map((_, i) => res[i] || null) }
 export function buildDesign(d, opt) {
   const g = new THREE.Group(), gB = geo(d).clone(), body0 = new THREE.Mesh(gB); /* своя копия корпуса: из неё откалываются куски */ const D = mkDmg(g, body0, opt && opt.arm); const body = new THREE.Mesh(gB, mkMat(D)); { // нутро: тёмный внутренний корпус (меньше на 10–20%) и переборки — в пробоине видно конструкцию, а не пустоту насквозь
