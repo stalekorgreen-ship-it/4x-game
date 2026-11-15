@@ -526,7 +526,7 @@ if (wrap && bgo) {
     (Battle as any).setMuzzle((s: any, m: any, dx: number, dy: number, dz: number) => { // орудие стреляет из реального ствола наведённой башни
       dbg.mc = (dbg.mc || 0) + 1; const g = models.get(s); if (!g || !g.visible) return null; const u = g.userData; dbg.mv = (dbg.mv || 0) + 1; if (u.sp) dbg.mu = (dbg.mu || 0) + 1; if (u.spOn) dbg.mo = (dbg.mo || 0) + 1; if (!u.sp || !u.spOn) return null; dbg.mp = (dbg.mp || 0) + 1; const sp = u.sp as THREE.Group, turs = sp.userData.turs as THREE.Group[]; dbg.mtn = turs && turs.length; if (!turs || !turs.length) { dbg.mt = (dbg.mt || 0) + 1; return null }
       sp.getWorldQuaternion(wq); dl.set(dx, dz, dy).normalize().applyQuaternion(wq.invert());
-      let tu: any = null; { const nw0 = performance.now(); let best = 1e18; for (const c of turs as any[]) { if (c.parent !== sp || c.userData.dead || c.userData.n.dot(dl) < .05) continue; const lf = c.userData.lf || 0; if (lf < best) { best = lf; tu = c } } if (tu) tu.userData.lf = nw0 } // стреляет та из повернутых к цели башен, что дольше всех молчала — огонь идёт со всех башен по очереди
+      let tu: any = null; { const nw0 = performance.now(); let best = 1e18; for (const c of turs as any[]) { if (!onSp(c, sp) || c.userData.dead || c.userData.n.dot(dl) < .05) continue; const lf = c.userData.lf || 0; if (lf < best) { best = lf; tu = c } } if (tu) tu.userData.lf = nw0 } // стреляет та из повернутых к цели башен, что дольше всех молчала — огонь идёт со всех башен по очереди
       if (!tu) { dbg.mzn = (dbg.mzn || 0) + 1; return null } dbg.mz = (dbg.mz || 0) + 1; const hd = tu.userData.head; tq.copy(tu.quaternion).invert(); const d2 = dl.clone().applyQuaternion(tq); if (d2.y < .02) { d2.y = .02; d2.normalize() }
       hq.setFromUnitVectors(X1, d2); hd.quaternion.copy(hq); tw.set(tu.userData.tipX, 0, 0).applyQuaternion(hq).add(hd.position).applyMatrix4(tu.matrix).applyMatrix4(sp.matrixWorld);
       if (flashes.length < MAXFL - 30 && cam.position.distanceToSquared(tw) < 4e6) flashes.push({ p: tw.clone(), t0: performance.now(), life: 70, sz: Math.max(.25, u.L * .004) });
@@ -541,7 +541,7 @@ if (wrap && bgo) {
     { const ws = sp.getWorldScale(_sv).x, wq = sp.getWorldQuaternion(_sq), pv = u.spP, vel = new THREE.Vector3(); if (pv && dt > 0) vel.copy(g.position).sub(pv).divideScalar(dt); u.spP = g.position.clone(); D.release(scene, ws, wq, vel) }
     { const sh = u.s, tg = sh && sh.tg && sh.tg.alive ? sh.tg : null, turs = sp.userData.turs as any[]; if (tg && turs && lv >= 9) { // свободные башни ведут цель (только вблизи — экономим кадр)
         const tw2 = new THREE.Vector3(tg.x, tg.z || 0, tg.y), iq = sp.getWorldQuaternion(new THREE.Quaternion()).invert(), sw = sp.getWorldPosition(new THREE.Vector3()), dl2 = tw2.sub(sw).applyQuaternion(iq).normalize(), hq2 = new THREE.Quaternion(), tq2 = new THREE.Quaternion();
-        for (const tu of turs) { if (tu.parent !== sp || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
+        for (const tu of turs) { if (!onSp(tu, sp) || now - (tu.userData.lf || 0) < 400 || tu.userData.n.dot(dl2) < .05) continue; const d2 = dl2.clone().applyQuaternion(tq2.copy(tu.quaternion).invert()); if (d2.y < .02) { d2.y = .02; d2.normalize() } hq2.setFromUnitVectors(_X1, d2); tu.userData.head.quaternion.slerp(hq2, .08) } } }
     D.step(dt);
     if (sp.userData.design && D.mark) { const sv = View.shipView(u.s.uid), md: Set<number> = u.mdS || (u.mdS = new Set()); // выбитые модули видны на корпусе — по событиям mod_dead (и уже выбитые к моменту постройки модели)
       const dead = u.mdInit ? (modDeadQ.get(u.s.uid) || []) : (u.mdInit = 1, View.modsOf(u.s.uid).filter(m => !m.alive)); modDeadQ.delete(u.s.uid);
@@ -570,7 +570,7 @@ if (wrap && bgo) {
       else { u.body.geometry = simpleGeo[s.side]; u.body.scale.set(u.L, u.h / .095, u.w / .17) } }
     u.lod = lod;
   }
-  let debT = -1, impCur = 0; const modDeadQ = new Map<number, any[]>(), modelById = new Map<number, THREE.Group>(); // курсор событий слоя отображения; выбитые модули, ждущие своей модели; модель по id корабля
+  let debT = -1, impCur = 0, secCur = 0; const modDeadQ = new Map<number, any[]>(), modelById = new Map<number, THREE.Group>(); // курсор событий слоя отображения; выбитые модули, ждущие своей модели; модель по id корабля
   const shTr = new Map<any, number[][]>(); let stepFreeze = false; let ultraBuilds = 0; // вблизи — слой мелких деталей поверх полного корпуса (строится лениво, по одному на кадр)
   function ultra(s: any, g: THREE.Group, want: boolean) {
     const u = g.userData; if (u.lp) return; if (!want) { if (u.ultra) u.ultra.visible = false; return } if (u.ultra) { u.ultra.visible = true; return } if (u.ultraTried || ultraBuilds >= 1 || !u.full) return; ultraBuilds++; u.ultraTried = true;
@@ -883,6 +883,7 @@ if (wrap && bgo) {
   function frame0() {
     frameNo++;
     raf = requestAnimationFrame(frame); if (!ren) return; View.poll(); // слой отображения: изменения боя → события (раз за кадр)
+    { const ev = View.drain(secCur); secCur = ev.cursor; for (const e of ev.events) if (e.type === 'section_damage' || e.type === 'section_detach') onSection(e) } // секции — до обновления моделей: корабль, погибший в этом такте, ещё цел
     { const tn = Battle.time(), dtg = debT < 0 || tn < debT ? 0 : Math.min(5, tn - debT); debT = tn; if (dtg > 0) stepDebris(dtg) } // отсоединённые части: летят сами по игровому времени (пауза — стоят), независимо от кораблей const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
     const r = (pv ? pv.host : wrap!).getBoundingClientRect(); if (pv) { const cs = ren.domElement.style; cs.position = 'fixed'; cs.left = r.left + 'px'; cs.top = r.top + 'px'; cs.width = r.width + 'px'; cs.height = r.height + 'px'; cs.zIndex = '70'; if (!pv.drag) yaw += .004 }
@@ -1031,7 +1032,7 @@ if (wrap && bgo) {
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const nw = performance.now(), ev = View.drain(impCur); impCur = ev.cursor;
-      for (const e of ev.events) { if (e.type === 'mod_dead' || e.type === 'mod_alive') applyViewEvent(e); if (e.type === 'part_detach') { onDetach(e); continue } if (e.type === 'section_damage' || e.type === 'section_detach') { onSection(e); continue } /* деталь модуля: копоть на месте / починка — по состоянию из боя */ if (e.type === 'mod_dead') { const L = modDeadQ.get(e.ship!) || []; L.push({ id: e.mod, k: e.data.k, alive: false, loc: e.data.loc }); modDeadQ.set(e.ship!, L); continue }
+      for (const e of ev.events) { if (e.type === 'mod_dead' || e.type === 'mod_alive') applyViewEvent(e); if (e.type === 'part_detach') { onDetach(e); continue } if (e.type === 'section_damage' || e.type === 'section_detach') continue; /* деталь модуля: копоть на месте / починка — по состоянию из боя */ if (e.type === 'mod_dead') { const L = modDeadQ.get(e.ship!) || []; L.push({ id: e.mod, k: e.data.k, alive: false, loc: e.data.loc }); modDeadQ.set(e.ship!, L); continue }
         if (e.type !== 'impact') continue; const q = e.data; let hit: any = null; { const gg = modelById.get(e.ship!); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
         const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         const big = q.k === 'gat' ? .5 : 1; flashes.push({ p: pos, t0: nw, life: (260 + q.pw * 50) * big, sz: Math.min(90, (30 + q.pw * 7) * big) }); if (q.left === 0 || q.k !== 'gat') flashes.push({ p: pos.clone(), t0: nw + 60, life: 500 * big, sz: Math.min(60, 20 + q.pw * 4) * big }); // вспышка ярче и дольше, у пробития — вторая волна
@@ -1165,7 +1166,7 @@ if (wrap && bgo) {
   function reset3d() {
     if (scene) for (const [, g] of models) scene.remove(g);
     puffs.length = 0; for (const w of wrecks) scene.remove(w.g); wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
-    View.poll(); impCur = View.headCursor(); modDeadQ.clear();
+    View.poll(); impCur = secCur = View.headCursor(); modDeadQ.clear();
     follow = true; fitAll = true; curSky = undefined;
   }
   (hooks as any).reset3d = reset3d;
@@ -1209,18 +1210,20 @@ if (wrap && bgo) {
     return out }
   // отрыв по событию боя: деталь модуля сходит с корабля той частью, что держит башню, с прежними мировыми координатами; скорость — корабля + вращения + импульс удара (оси сцены: x, z боя → x, y сцены)
   // секции корпуса (спонсоны, палубы) — в бой: где они (зоны борта, участок по длине в долях корпуса), объём; id = корабль×100 + номер секции
+  const onSp = (o: any, sp: any) => { for (let p = o.parent, k = 0; p && k < 6; p = p.parent, k++) if (p === sp) return true; return false };
+  const inScene = (o: any) => { let p = o; while (p.parent) p = p.parent; return p === scene };
   const secById = new Map<number, any>();
   function regSections(s: any, sp: any) { const S = sp.userData.sections || []; if (!S.length || !(Battle as any).attachStructure) return; const Ld = (sp.userData.L || 1);
     S.forEach((P: any, i: number) => { const id = s.uid * 100 + i; secById.set(id, P); P.secId = id; const bb = new THREE.Box3().setFromObject(P.piece('plate') || P.piece('block') || P.piece('deck')), sz = bb.getSize(new THREE.Vector3()), zc = (bb.min.z + bb.max.z) / 2;
       const zones = P.type === 'deck' ? [1, 3] : [zc > 0 ? 1 : 3], w = P.type === 'deck' ? { 1: .5, 3: .5 } : {}; // борт: z>0 модели — правый борт боя (зона 1); палуба сверху — делит удары с обоих бортов
       (Battle as any).attachStructure(s.uid, { id, zones, w, u0: bb.min.x / Ld, u1: bb.max.x / Ld, vol: sz.x * sz.y * sz.z }) }) }
   function onSection(e: any) { const P = secById.get(e.data.sec); if (!P) return; const main = P.piece('plate') ? 'plate' : 'block';
-    if (e.type === 'section_damage') { if (P.onShip('deck')) P.damage(main, e.data.frac); return }
-    if (!P.onShip('deck')) return; const d = e.data, deck = P.piece('deck'); // уже оторвана — повторно не отрываем
+    if (e.type === 'section_damage') { if (P.onShip('deck')) { P.damage(main, e.data.frac); ((window as any).__secDmg = (window as any).__secDmg || []).push(P.type) } return }
+    if (!P.onShip('deck')) return; const d = e.data, deck = P.piece('deck'); if (!inScene(deck)) return; // уже оторвана — повторно не отрываем; модель убрана — обломка не создаём
     deck.traverse((o: any) => { if (o.userData && o.userData.isTur) { o.userData.dead = 1; const tp = o.userData.part; if (tp) for (const k of tp.pieces.keys()) tp.state.set(k, 'detached') } }); // башни уходят с секцией
     const tw: any[] = []; deck.traverse((o: any) => { if (o.userData && o.userData.isTur) tw.push([o, o.getWorldPosition(new THREE.Vector3())]) });
     const b = P.detach('deck', { shipV: new THREE.Vector3(d.sx, 0, d.sy), shipW: new THREE.Vector3(0, -d.w, 0), impulse: new THREE.Vector3(d.dv[0], d.dv[2], d.dv[1]) });
-    if (b) { (window as any).__secDet = ((window as any).__secDet || 0) + 1; ((window as any).__secLog = (window as any).__secLog || []).push({ type: P.type, cause: d.cause, turrets: tw.length, posKept: tw.every(([o, w]: any) => o.getWorldPosition(new THREE.Vector3()).distanceTo(w) < 1e-6), body: b }) } } // журнал отрывов (для проверки)
+    if (b) { (window as any).__secDet = ((window as any).__secDet || 0) + 1; ((window as any).__secLog = (window as any).__secLog || []).push({ type: P.type, cause: d.cause, turrets: tw.length, posKept: tw.every(([o, w]: any) => o.getWorldPosition(new THREE.Vector3()).distanceTo(w) < 1e-6), body: b, tur: tw.map(([o]: any) => ({ o, hq: o.userData.head ? o.userData.head.quaternion.clone() : null, lf: o.userData.lf || 0, rel: o.position.clone() })), p0: b.obj.position.clone(), t0: Battle.time() }) } } // журнал отрывов (для проверки)
   const gone = new Set<number>(); // модули, чьи башни бой уже сорвал
   function onDetach(e: any) { gone.add(e.mod); const P: any = partOfModule(e.mod); if (!P) return; const d = e.data, pn = P.onShip('head') ? 'head' : [...P.pieces.keys()].find((k: string) => P.onShip(k)); if (!pn) return;
     const b = P.detach(pn, { shipV: new THREE.Vector3(d.sx, 0, d.sy), shipW: new THREE.Vector3(0, -d.w, 0), impulse: new THREE.Vector3(d.dv[0], d.dv[2], d.dv[1]) });
