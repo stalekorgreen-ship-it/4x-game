@@ -82,6 +82,11 @@
   "pass": 0.25,
   "passV": 1
  },
+ "gclose": {
+  "on": 1,
+  "wait": 20,
+  "r": 8
+ },
  "track": {
   "ally": 0.75,
   "seen": 0.5,
