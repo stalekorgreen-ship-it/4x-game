@@ -86,6 +86,10 @@ export class Part {
   // модуль снова жив: копоть снимается с того, что осталось на корабле; оторванное не возвращается
   repair() { for (const [m, o] of this.orig) m.material = o; this.orig.clear(); this.dmg.clear(); for (const [n, st] of this.state) if (st === 'damaged' || st === 'disabled') this.state.set(n, 'attached') }
 }
+// принять уже построенный объект как деталь (генераторы, которые строят башни внутри корабля): части — именованные дочерние объекты и явно переданные
+export function adoptPart(type: string, obj: THREE.Object3D, extra: Record<string, THREE.Object3D> = {}) { const d = REG.get(type); if (!d) throw new Error('нет детали ' + type);
+  const P = Object.create(Part.prototype); Object.assign(P, { id: ++PID, type, params: {}, root: obj, sockets: new Map(), pieces: new Map(), moduleId: null, state: new Map(), dmg: new Map(), def: d, orig: new Map() });
+  for (const c of obj.children) if (c.name) P.pieces.set(c.name, c); for (const k in extra) if (extra[k]) P.pieces.set(k, extra[k]); for (const k of P.pieces.keys()) P.state.set(k, 'attached'); obj.userData.part = P; return P as Part }
 export function createPart(type: string, params: any = {}) { const d = REG.get(type); if (!d) throw new Error('нет детали ' + type); return new Part(d, params) }
 
 // привязка деталей к модулям симуляции. События слоя отображения задают боевое состояние; графика его только показывает:
