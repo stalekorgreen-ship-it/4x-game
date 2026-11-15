@@ -138,7 +138,10 @@ export function buildDesign(d, opt) {
     body.add(inner); body.updateMatrix(); } const lod = new THREE.LOD(); lod.addLevel(body, 0); D.extraG = []; for (let i = 1; i < LODK.length; i++) { const gl = i <= 2 ? geoLod(d, i).clone() : geoLod(d, i); if (i <= 2) D.extraG.push(gl); lod.addLevel(new THREE.Mesh(gl, lodMat), 1e9); } /* ближние лоды — свои копии: откол виден и на них */ g.add(lod); D.hit2 = D.hit; D.hit = (ow, dw, kind, r, q) => { body0.matrixWorld = body.matrixWorld; return D.hit2(ow, dw, kind, r, q); };
   const turs = [];
   for (const t of d.turs) { const tu = new THREE.Group(), n = new THREE.Vector3(t.n[0], t.n[1], t.n[2]); tu.position.set(t.p[0], t.p[1], t.p[2]); tu.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-    const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu); }
+    const hd = new THREE.Group(); hd.position.y = .6; tu.add(hd); tu.userData = { isTur: 1, head: hd, tipX: t.k === 'gat' ? 6 : 8, n }; g.add(tu); turs.push(tu);
+    if (t.pos) { const pi = new Int16Array(ub(t.pos).buffer), ci = ub(t.col), k = pi.length, P = new Float32Array(k), C = new Float32Array(k); for (let i = 0; i < k; i++) { P[i] = pi[i] / 20; C[i] = ci[i] / 255 } // геометрия башни из редактора — отдельно от корпуса (те же треугольники)
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('color', new THREE.BufferAttribute(C, 3)); tu.updateMatrix(); bg.applyMatrix4(tu.matrix.clone().invert()); bg.computeVertexNormals();
+      const bm = new THREE.Mesh(bg, lodMat); bm.name = 'body'; tu.add(bm) } }
   // огни и факелы двигателей из редактора: аддитивные спрайты (огни мигают) и конусы пламени
   const glowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const lights = [], plumes = [];
