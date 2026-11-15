@@ -473,8 +473,8 @@ function steer(s,dt){
     else if(F.stance==='drift'){vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05);want=Math.atan2(uy,ux)} // по инерции: двигатели молчат, только поворот носом
     else if(F.stance==='pass'&&F.tgx!=null){const px=F.tgx-s.x,py=F.tgy-s.y,pl=Math.hypot(px,py)||1;vx=px/pl*vm*1.3;vy=py/pl*vm*1.3;want=Math.atan2(uy,ux)}}
   // экономия топлива: скорость не выше четверти оставшегося запаса Δv (чтобы хватило затормозить и маневрировать), форсаж — только при полбака и больше
-  if(s.fuelCap){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),fq=s.fuel/s.fuelCap;if(fq<.5){boost=Math.min(boost,1);s.bst=Math.min(s.bst,1)}vm=Math.min(vm,Math.max(.02,dvr*(s.rf?99:FUEL.keep)))}
-  vm*=boost*(s.raidV?2.5:1);if(s.fuelCap){const m0=dryM(s);vm=Math.min(vm,Math.max(.02,FUEL.ve*Math.log((m0+s.fuel)/m0)*(s.rf?99:FUEL.keep)*1.5))}const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
+  if(s.fuelCap){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),fq=s.fuel/s.fuelCap;if(fq<.5){boost=Math.min(boost,1);s.bst=Math.min(s.bst,1)}vm=Math.min(vm,Math.max(.02,s.rf?99:(dvr-HOME())/2))} /* разгон — не больше половины свободного Δv (вторая половина на торможение); запас «до дома» не трогаем */
+  vm*=boost*(s.raidV?2.5:1);if(s.fuelCap){const m0=dryM(s);vm=Math.min(vm,Math.max(.02,s.rf?99:(FUEL.ve*Math.log((m0+s.fuel)/m0)-HOME())/2))}const vl=Math.hypot(vx,vy);if(vl>vm){vx*=vm/vl;vy*=vm/vl}
   if(s.fuelCap&&!s.rf){const B=budget(s);s.dvB=B;if(B.spend<=0){if(B.tk){s.rf=B.tk;s.rfV=Math.max(.1,B.dvr*.25)}else{vx=s.sx/Math.max(eng,.05);vy=s.sy/Math.max(eng,.05)}}else{const ex=vx*eng-s.sx,ey=vy*eng-s.sy,ed=Math.hypot(ex,ey);if(ed>B.spend){const k=B.spend/ed;vx=(s.sx+ex*k)/Math.max(eng,.05);vy=(s.sy+ey*k)/Math.max(eng,.05)}}} // общий бюджет Δv: манёвр не трогает запас на возвращение (к танкеру или до остановки)
   // заблаговременное торможение: на встречном курсе гасим относительную скорость до PB.v ещё до сближения — если хватает топлива (Циолковский) на (rv−PB.v)·res
   {const g=s.tg;if(PB.on&&g&&g.alive&&g.T&&s.fuelCap&&!flee){const dx=g.x-s.x,dy=g.y-s.y,d=Math.hypot(dx,dy)||1,rv=Math.hypot(s.sx-g.sx,s.sy-g.sy);s.pb=0;
@@ -899,11 +899,11 @@ function lasStep(dt){
 // снабжение: транспорты держатся в хвосте и шаттлами возят боеприпасы кораблям, у которых погреб опустел меньше чем наполовину
 const SHUT_SPD=9,SHUT_T=40; // км/с, тонн за рейс
 const CAV=gd('battle','cavalry',{arc:.35}); // наскок по дуге: боковое смещение точки прицеливания = arc × дальность (сходится к проскоку) — траектория кривая, снаряды мажут
-const REF=gd('battle','refuel',{full:.95,dist:2,dv:.3,rate:6,keep:.15,back:100,mar:2,min:.2,dodge:.3}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
+const HOME=()=>REF.home;const REF=gd('battle','refuel',{home:1,full:.95,dist:2,dv:.3,rate:6,keep:.15,back:100,mar:2,min:.2,dodge:.3}); // дозаправка в бою: уходить при доле топлива go, до full; перекачка при дистанции dist км и разнице скоростей dv км/с; rate т/с; танкер оставляет себе долю keep
 // общий бюджет Δv для любого корабля: запас = погасить скорость относительно танкера (или до нуля) + долететь и затормозить у него, × mar
 function budget(s){const m0=dryM(s),dvr=FUEL.ve*Math.log((m0+s.fuel)/m0),tk=s.probe?tankerFor(s):null;let need;
   if(tk){const vr=Math.hypot(s.sx-(tk.sx||0),s.sy-(tk.sy||0)),d=Math.hypot(tk.x-s.x,tk.y-s.y);need=vr+2*Math.min(dvr*.4,Math.sqrt(2*s.acc/1000*d)*.6)}else need=Math.hypot(s.sx,s.sy);
-  return {dvr,tk,spend:dvr-need*REF.mar-REF.min}}
+  return {dvr,tk,spend:dvr-need-HOME()}} // тратим всё, кроме Δv на остановку и запаса «до дома» (REF.home км/с)
 function tankerFor(s){if(s.rf&&s.rf.alive&&s.rf.fuel>s.rf.fuelCap*REF.keep)return s.rf;let b=null,bd=1e9;for(const o of ships){if(!o.alive||o.side!==s.side||!o.tnk||o===s||o.fuel<=o.fuelCap*REF.keep)continue;const d=Math.hypot(o.x-s.x,o.y-s.y);if(d<bd){bd=d;b=o}}if(!b)s.rf=null;return b}
 let _sc=[null,null],_scT=-1;function sideC(sd){if(_scT!==t){_scT=t;_sc=[0,1].map(q=>{let x=0,y=0,n=0;for(const o of ships)if(o.alive&&o.side===q&&!o.tnk){x+=o.x;y+=o.y;n++}return n?{x:x/n,y:y/n}:{x:0,y:0}})}return _sc[sd]}
 function refuelStep(dt){for(const s of ships){let k=s.rf;if(!k)continue;if(k.alive&&k.fuel<=k.fuelCap*REF.keep){const n=tankerFor(s);if(n&&n!==k){s.rf=k=n}else{s.rf=null;s.rfOn=0;s.rfV=0;continue}} /* танкер пуст — к другому или в бой с тем, что есть */if(!s.alive||!k.alive||s.fuel>=s.fuelCap*REF.full){s.rf=null;s.rfOn=0;s.rfV=0;continue}
