@@ -15,11 +15,13 @@ for(let seed=1;seed<=+N;seed++){const p=await b.newPage();const errs=[];p.on('pa
   const late=[];for(const sd of [0,1]){const a=sd?Math.PI:0;
    late.push({t:0,side:sd,spec:typ==='fr'?mk('Фрегат'+sd,{L:.15,arm:2,rails:2,railCfg:RC('10',2),gat:2,gatCfg:[GC,GC],ammoCap:300,energy:5000},1500,10):mk('Броненосец'+sd,{L:.3,arm:5,rails:2,railCfg:RC('20',2),gat:4,gatCfg:Array(4).fill(GC),ammoCap:500,energy:5000},9500,5),edge:80,ang:a})}
   D.state.demo=true;D.state.paused=false;B.Battle.begin({title:'d',fleets:[[],[]],late,demo:true,maxT:1e5,names:['a','b'],onEnd(){}});
-  const t0=B.Battle.time();while(B.Battle.time()-t0<T&&!B.Battle.isDone())B.Battle.tickN(1);
+  B.Battle.tickN(1);const SS=B.Battle.ships().filter(s=>!s.bayOf),tau=60+Math.random()*120; // встречный курс: точка пересечения (0,0) через tau с, скорость до 2 км/с, случайное направление; полбака
+  for(const s of SS){const a=Math.random()*6.283,v=Math.random()*2;s.sx=s.vx=Math.cos(a)*v;s.sy=s.vy=Math.sin(a)*v;s.x=-s.sx*tau;s.y=-s.sy*tau;s.hd=a;if(s.fuelCap)s.fuel=s.fuelCap/2}
+  const tr=[];const t0=B.Battle.time();while(B.Battle.time()-t0<T&&!B.Battle.isDone()){B.Battle.tickN(1);const k=Math.round(B.Battle.time()-t0);if(k%60===0&&tr.length<k/60+1){const[a,c]=SS;tr.push([k,+Math.hypot(a.x-c.x,a.y-c.y).toFixed(1),+Math.hypot(a.sx-c.sx,a.sy-c.sy).toFixed(2),Math.round(100*a.fuel/a.fuelCap),Math.round(100*c.fuel/c.fuelCap),(B.Battle.stat().shots||[0,0]).join('/')])}}
   const st=B.Battle.stat(),arm=s=>s.zones.reduce((a,z)=>a+z.armN,0);
-  return {t:Math.round(B.Battle.time()-t0),hits:st.hits,shots:st.shots,dodge:st.dodge||0,blind:st.blind||0,ships:B.Battle.ships().filter(s=>!s.bayOf).map(s=>({n:s.T.n,alive:s.alive,mod:s.aliveN+'/'+s.total,arm:arm(s)}))}}catch(e){return {err:e.stack.slice(0,400)}}},[+T,typ]);
+  return {tr,t:Math.round(B.Battle.time()-t0),hits:st.hits,shots:st.shots,dodge:st.dodge||0,blind:st.blind||0,ships:B.Battle.ships().filter(s=>!s.bayOf).map(s=>({n:s.T.n,alive:s.alive,mod:s.aliveN+'/'+s.total,arm:arm(s)}))}}catch(e){return {err:e.stack.slice(0,400)}}},[+T,typ]);
  r.seed=seed;if(errs.length)r.errs=errs.slice(0,3);res.push(r);await p.close()}
-for(const r of res)console.log(JSON.stringify(r));
+for(const r of res){if(!process.env.TRACE)delete r.tr;console.log(JSON.stringify(r))}
 const s=k=>res.reduce((a,r)=>a+(r[k]?(Array.isArray(r[k])?r[k][0]+r[k][1]:r[k]):0),0);
 console.log('ИТОГ: попаданий',s('hits'),'выстрелов',s('shots'),'точность %',(100*s('hits')/Math.max(1,s('shots'))).toFixed(1),'уклонений',s('dodge'),'не увидели',s('blind'),'убито',res.reduce((a,r)=>a+(r.ships?r.ships.filter(x=>!x.alive).length:0),0));
 await b.close()})();
