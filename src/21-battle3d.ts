@@ -10,7 +10,7 @@ import { buildLoft, invFromSpec, buildWoundFx, makeWoundTex, faceV, loftMats, tu
 import type { LoftPack } from './21c-loft.ts';
 import { buildSpine } from './21d-spine.ts';
 import { View } from './21a-battle-view.ts';
-import { registerPart, createPart, adoptPart, applyViewEvent, stepDebris, debris } from './21f-parts.ts';
+import { registerPart, createPart, adoptPart, applyViewEvent, stepDebris, debris, partOfModule } from './21f-parts.ts';
 import { pickDesign, buildDesign } from './21e-design.ts';
 
 const wrap = document.getElementById('mapwrap');
@@ -510,7 +510,7 @@ if (wrap && bgo) {
       for (let i = 0; i < 100; i++) { for (const k of kin) if (i < k.length) tl.push(k[i]) } const nt = Math.max(4, Math.min(100, tl.length || Math.round(Math.sqrt(tons) / 4)));
       const dsg = pickDesign(tons, spc); const sp = dsg ? buildDesign(dsg, { arm: s.zones ? { nose: s.zones[0].arm * .02, side: s.zones[1].arm * .02, rear: s.zones[2].arm * .02 } : s.T.arm }) : buildSpine(m, { arm: s.T.arm, tn: tons, ax: tons <= 3000 ? axN : 0, t: nt, tl: tl.slice(0, 100), en: ef < .04 ? 3 : ef < .1 ? 6 : ef < .22 ? 15 : 30, hang: ((pr.hangF || 0) + (pr.hangB || 0)) > 0 ? 1 : 0, tank: tf < .03 ? 0 : 1, tankN: tf < .1 ? 1 : tf < .2 ? 2 : 3 });
       const k = u.L / (sp.userData.L + (sp.userData.design ? 0 : 16)); sp.scale.setScalar(k); if (sp.userData.setLodScale) sp.userData.setLodScale(k); u.spK = k; u.sp = sp; g.add(sp);
-      for (const m of s.tur || []) { const ti = m.loc ? m.loc.ti : -1, tu = ti >= 0 ? (sp.userData.turs || [])[ti] : null; if (!tu || m.id == null) continue; adoptPart('rail_turret', tu, sp.userData.design ? {} : { head: tu.userData.head }).bindModule(m.id) } } } // башни «хребта» — детали реестра (голова отдельной частью), привязаны к модулям по номеру башни
+      u.turByMod = turMatch(s, sp); for (const [mid, tu] of u.turByMod) { const P = adoptPart('rail_turret', tu, sp.userData.design ? {} : { head: tu.userData.head }).bindModule(mid); if (gone.has(mid)) { for (const k of P.pieces.keys()) { P.hide(k); P.state.set(k, 'detached') } } } /* башня сорвана раньше, чем построена модель — её нет */ } } // башни «хребта» — детали реестра (голова отдельной частью), привязаны к модулям по номеру башни
     u.spOn = on; if (u.sp) { u.sp.visible = on; const Dm = u.sp.userData.dmg; if (Dm && Dm.wake && !on) Dm.sleep() } u.body.visible = !on; if (u.lx) u.lx.visible = u.lx.visible && !on; if (u.fxg) u.fxg.visible = u.fxg.visible && !on; u.tur.visible = !on; if (u.eng) u.eng.visible = u.eng.visible && !on;
     return on;
   }
@@ -546,8 +546,8 @@ if (wrap && bgo) {
     if (sp.userData.design && D.mark) { const sv = View.shipView(u.s.uid), md: Set<number> = u.mdS || (u.mdS = new Set()); // выбитые модули видны на корпусе — по событиям mod_dead (и уже выбитые к моменту постройки модели)
       const dead = u.mdInit ? (modDeadQ.get(u.s.uid) || []) : (u.mdInit = 1, View.modsOf(u.s.uid).filter(m => !m.alive)); modDeadQ.delete(u.s.uid);
       for (const m of dead) { if (md.has(m.id)) continue; md.add(m.id);
-        const ti = m.loc ? m.loc.ti : -1, T3 = sp.userData.turs;
-        if (ti >= 0 && T3[ti]) { const tu = T3[ti]; D.markAt(tu.position.clone().addScaledVector(tu.userData.n, .3), tu.userData.n, 1.4); tu.userData.dead = 1 } // башня: сажа, тлеет, больше не стреляет
+        const tuM = u.turByMod && u.turByMod.get(m.id);
+        if (tuM) { const tu = tuM; D.markAt(tu.position.clone().addScaledVector(tu.userData.n, .3), tu.userData.n, 1.4); tu.userData.dead = 1 } // башня: сажа, тлеет, больше не стреляет
         else if (m.k === 'E') { const P = sp.userData.plumes.filter((p: any) => p.visible); if (P.length) P[(Math.random() * P.length) | 0].visible = false } // двигатель: его факел гаснет
         else { const mu = m.loc && m.loc.u || 0, mv = m.loc && m.loc.v || 0, Ld = sp.userData.L, x = Math.max(-.48, Math.min(.48, mu)) * Ld, sd = mv > .02 ? 1 : mv < -.02 ? -1 : (Math.random() < .5 ? 1 : -1);
           D.mark(new THREE.Vector3(x, (Math.random() - .5) * Ld * .05, sd * Ld), new THREE.Vector3(0, 0, -sd), 1.8) } } // внутренний модуль: пробоина с огнём на борту против него
@@ -1031,7 +1031,7 @@ if (wrap && bgo) {
     bolts.count = 0; projLines.geometry.setDrawRange(0, pc * 2); (projLines.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true; (projLines.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
     // попадания: вспышка, веер искр от точки удара, у крупных — столб искр
     { const nw = performance.now(), ev = View.drain(impCur); impCur = ev.cursor;
-      for (const e of ev.events) { if (e.type === 'mod_dead' || e.type === 'mod_alive') applyViewEvent(e); /* деталь модуля: копоть на месте / починка — по состоянию из боя */ if (e.type === 'mod_dead') { const L = modDeadQ.get(e.ship!) || []; L.push({ id: e.mod, k: e.data.k, alive: false, loc: e.data.loc }); modDeadQ.set(e.ship!, L); continue }
+      for (const e of ev.events) { if (e.type === 'mod_dead' || e.type === 'mod_alive') applyViewEvent(e); if (e.type === 'part_detach') { onDetach(e); continue } /* деталь модуля: копоть на месте / починка — по состоянию из боя */ if (e.type === 'mod_dead') { const L = modDeadQ.get(e.ship!) || []; L.push({ id: e.mod, k: e.data.k, alive: false, loc: e.data.loc }); modDeadQ.set(e.ship!, L); continue }
         if (e.type !== 'impact') continue; const q = e.data; let hit: any = null; { const gg = modelById.get(e.ship!); if (gg && gg.userData.det && q.k !== 'torp') { hit = peelAt(gg, q.s, q); if (hit && q.k !== 'mis') { const sd = new THREE.Vector3(q.nx, 0, q.ny).multiplyScalar(.5).add(hit.nrm.clone().multiplyScalar(.5)).normalize(), ln = Math.max(gg.userData.L * .05, cam.position.distanceTo(hit.pos) * .012); streaks.push({ a: hit.pos.clone().addScaledVector(sd, ln), b: hit.pos.clone(), t0: performance.now(), side: q.s.side }) } } } if (sparks.length > MAXSP - 40) break;
         const cp = cam.position, pos = hit ? hit.pos.clone() : new THREE.Vector3(q.x, q.z, q.y), cd = cp.distanceTo(pos); if (cd > 3000) continue;
         const big = q.k === 'gat' ? .5 : 1; flashes.push({ p: pos, t0: nw, life: (260 + q.pw * 50) * big, sz: Math.min(90, (30 + q.pw * 7) * big) }); if (q.left === 0 || q.k !== 'gat') flashes.push({ p: pos.clone(), t0: nw + 60, life: 500 * big, sz: Math.min(60, 20 + q.pw * 4) * big }); // вспышка ярче и дольше, у пробития — вторая волна
@@ -1195,6 +1195,20 @@ if (wrap && bgo) {
     else { cancelAnimationFrame(raf); if (ren) (ren.domElement as HTMLElement).style.display = 'none'; hud.style.display = 'none' }
   };
   // ТЕСТ: оторвать голову башни у корабля (визуальная проверка, бой не меняется). imp — добавочная скорость, км/с
+  // башни модели ↔ модули боя. Проект редактора: по виду установки (гатлинг, рельс по калибру, зенитка), по порядку, без подмены вида — лишние установки остаются без модуля.
+  // «Хребет» строится из состава корабля в том же порядке — по номеру башни.
+  function turMatch(s: any, sp: THREE.Object3D) { const T: any[] = sp.userData.turs || [], out = new Map<number, any>(), used = new Set<any>();
+    const kinds = (m: any) => m.k === 'G' ? ['gat'] : m.k === 'T' ? (c => c <= 10 ? ['r10', 'r15', 'r20'] : c <= 15 ? ['r15', 'r20', 'r10'] : ['r20', 'r15', 'r10'])((m.cfg && m.cfg.cal) || 10) : m.k === 'A' ? ['flak', 'ac'] : [];
+    for (const m of s.tur || []) { if (m.id == null) continue; let tu: any = null;
+      if (sp.userData.design) { const ks = kinds(m); for (const k of ks) { tu = T.find(q => !used.has(q) && q.userData.k === k); if (tu) break } }
+      else { const ti = m.loc ? m.loc.ti : -1; tu = ti >= 0 ? T[ti] : null }
+      if (tu && !used.has(tu)) { used.add(tu); out.set(m.id, tu) } }
+    return out }
+  // отрыв по событию боя: деталь модуля сходит с корабля той частью, что держит башню, с прежними мировыми координатами; скорость — корабля + вращения + импульс удара (оси сцены: x, z боя → x, y сцены)
+  const gone = new Set<number>(); // модули, чьи башни бой уже сорвал
+  function onDetach(e: any) { gone.add(e.mod); const P: any = partOfModule(e.mod); if (!P) return; const d = e.data, pn = P.onShip('head') ? 'head' : [...P.pieces.keys()].find((k: string) => P.onShip(k)); if (!pn) return;
+    const b = P.detach(pn, { shipV: new THREE.Vector3(d.sx, 0, d.sy), shipW: new THREE.Vector3(0, -d.w, 0), impulse: new THREE.Vector3(d.dv[0], d.dv[2], d.dv[1]) });
+    if (b && pn === 'head') { P.root.userData.head = new THREE.Object3D() } if (b) { P.root.userData.dead = 1; (window as any).__detN = ((window as any).__detN || 0) + 1 } }
   function detachTest(shipIdx = 0, imp = .05) { const sh = (Battle.ships() as any[]).filter(q => q.alive)[shipIdx]; const g = sh && models.get(sh); if (!g) return null;
     const tu = [...(g.userData.tur && g.userData.tur.children || []), ...((g.userData.sp && g.userData.sp.userData.turs) || [])].find((c: any) => c.userData.part && [...c.userData.part.pieces.keys()].some((k: string) => c.userData.part.onShip(k)) && c.visible !== false); if (!tu) return null; const P = tu.userData.part, sv = View.shipView(sh.uid)!;
     const nrm = tu.userData.n.clone().applyQuaternion(g.getWorldQuaternion(new THREE.Quaternion())).normalize();

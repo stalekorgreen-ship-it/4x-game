@@ -13,7 +13,7 @@ export type ShipView = { id: number; side: number; alive: boolean; name: string;
 export type ViewEvent = { seq: number; t: number; type: string; ship?: number; mod?: number; data?: any };
 
 const MAXQ = 4000; // хвост очереди: потребитель, отставший больше чем на столько событий, теряет самые старые (и узнаёт об этом по lost)
-let Q: ViewEvent[] = [], seq = 0, lastImp = 0, ramN = 0, tPrev = -1, battleObj: any = null;
+let Q: ViewEvent[] = [], seq = 0, lastImp = 0, lastDet = 0, ramN = 0, tPrev = -1, battleObj: any = null;
 const modAlive = new Map<number, boolean>(), shipAlive = new Map<number, boolean>(), fired = new Map<number, number>();
 
 function push(type: string, t: number, ship?: number, mod?: number, data?: any) { Q.push({ seq: ++seq, t, type, ship, mod, data }); if (Q.length > MAXQ) Q.splice(0, Q.length - MAXQ) }
@@ -23,7 +23,7 @@ function resetIfNew() {
   const sh = Battle.ships(), t = Battle.time();
   if (sh !== battleObj || t < tPrev) {
     battleObj = sh; modAlive.clear(); shipAlive.clear(); fired.clear(); ramN = ((Battle.stat() || {}).ram || []).length;
-    const im = Battle.impacts(); lastImp = im.length ? Math.max(...im.map((q: any) => q.id)) : 0;
+    const im = Battle.impacts(); lastImp = im.length ? Math.max(...im.map((q: any) => q.id)) : 0; const dz = Battle.detaches ? Battle.detaches() : []; lastDet = dz.length ? dz[dz.length - 1].id : 0;
     for (const s of sh) { shipAlive.set(s.uid, s.alive); for (const z of s.zones || []) for (const m of z.mods) { if (m.id == null) continue; modAlive.set(m.id, m.alive); fired.set(m.id, m.firedT ?? -1e9) } }
   }
   tPrev = t;
@@ -40,6 +40,9 @@ export function poll() {
       const a = modAlive.get(m.id); if (a === undefined) modAlive.set(m.id, m.alive); else if (a !== m.alive) { modAlive.set(m.id, m.alive); push(m.alive ? 'mod_alive' : 'mod_dead', t, s.uid, m.id, { k: m.k, loc: m.loc }) }
       const f = m.firedT; if (f != null && f !== fired.get(m.id)) { fired.set(m.id, f); push('fire', t, s.uid, m.id, { k: m.k, loc: m.loc }) } }
   }
+  // отрыв части по решению боя: id корабля и модуля, причина, где и как двигался корабль, добавочная скорость части (км/с, оси боя x, y, z)
+  for (const q of (Battle.detaches ? Battle.detaches() : []) as any[]) { if (q.id <= lastDet) continue; lastDet = q.id;
+    push('part_detach', t, q.s.uid, q.m.id, { cause: q.cause, x: q.x, y: q.y, z: q.z, hd: q.hd, sx: q.sx, sy: q.sy, w: q.w, dv: q.dv.slice() }) }
   { const R = ((Battle.stat() || {}).ram || []) as any[]; for (; ramN < R.length; ramN++) push('ram', t, undefined, undefined, { ...R[ramN] }) }
 }
 
