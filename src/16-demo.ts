@@ -199,6 +199,37 @@ export function startDemo(kind, size) {
   ui.bfollow = true; focusBattle(); ui.bfollow = false;
   log(cfg.title + '.');
 }
+// ===== ДЕМОНСТРАЦИОННЫЕ БОИ: повреждения, экипаж, ремонт. Подготовлены только начальные условия (составы, броня, погреба, исходные повреждения); всё остальное — обычная симуляция и ИИ, seed каждый раз новый =====
+export const DMG_DEMOS = {
+  A: 'A — Катастрофическая детонация: ракетоносцы и броненосцы с полными погребами и тонкой бронёй против тяжёлых рельсотронов',
+  B: 'B — Потери экипажа: легкобронированные фрегаты с большими экипажами под огнём броненосцев вблизи',
+  C: 'C — Остов и борьба за выживание: тяжело повреждённый броненосец (выбита большая часть модулей) с эскортом против фрегатов',
+  D: 'D — Комплексные повреждения и ремонт: 10 на 10, часть кораблей уже повреждена',
+};
+export function damageDemo(kind) {
+  const RC = (c, n) => Array(n).fill(compOf(mkKey('rail', {cal: c, bar: '1', cap: 'a'})).rcfg), GC = compOf(mkKey('gat', {tw: '1'})).gcfg, MC = compOf(mkKey('missile', {pw: '30', en: '5', fu: '10', em: '1', ir: '0', ac: '0', hm: '0', mt: '50'})).mcfg;
+  const mk = (name, o, tons, acc) => ({...fitSpec({name, eng: 3, spd: 1, flak: 0, rails: 0, ...o}), tons, pow: acc * tons / 120});
+  const BB = (o = {}) => mk('Броненосец', {L: .3, arm: 5, rails: 2, railCfg: RC('20', 2), gat: 4, gatCfg: Array(4).fill(GC), ammoCap: 500, energy: 5000, ...o}, 9500, 5),
+    FR = (o = {}) => mk('Фрегат', {L: .15, arm: 2, rails: 2, railCfg: RC('10', 2), gat: 2, gatCfg: [GC, GC], ammoCap: 300, energy: 5000, ...o}, 1500, 10),
+    HV = (o = {}) => mk('Тяжёлый рельсовый', {L: .28, arm: 4, rails: 3, railCfg: RC('30', 3), gat: 2, gatCfg: [GC, GC], ammoCap: 400, energy: 5000, ...o}, 7000, 5),
+    MS = (o = {}) => mk('Ракетоносец', {L: .2, arm: 2, miss: 4, missCfg: Array(4).fill(MC), gat: 2, gatCfg: [GC, GC], ammoCap: 400, energy: 5000, ...o}, 3000, 8),
+    PD = (o = {}) => mk('Сторож ПВО', {L: .12, arm: 2, gat: 6, gatCfg: Array(6).fill(GC), ammoCap: 300, energy: 5000, ...o}, 1250, 12),
+    IC = (o = {}) => mk('Перехватчик', {L: .1, arm: 1, rails: 1, railCfg: RC('10', 1), gat: 2, gatCfg: [GC, GC], ammoCap: 200, energy: 5000, ...o}, 700, 20);
+  let A = [], B = [], edge = 70, title = DMG_DEMOS[kind];
+  if (kind === 'A') { A = [MS({arm: 1, ammoCap: 900}), MS({arm: 1, ammoCap: 900}), BB({arm: 1, ammoCap: 1500}), BB({arm: 1, ammoCap: 1500})]; B = [HV(), HV(), HV(), IC()]; edge = 30 }
+  else if (kind === 'B') { A = [1, 2, 3, 4, 5, 6].map(() => FR({arm: 1, crew: 160})); B = [BB({arm: 9, ammoCap: 150}), BB({arm: 9, ammoCap: 150}), BB({arm: 9, ammoCap: 150})]; edge = 25 }
+  else if (kind === 'C') { A = [BB({dmg: .75}), FR(), FR()]; B = [FR(), FR(), FR(), IC()]; edge = 45 }
+  else { A = [BB(), BB({dmg: .4}), HV(), MS(), PD(), FR({dmg: .3}), FR(), IC(), IC(), MS({arm: 1})]; B = [BB(), HV(), HV({dmg: .3}), MS(), PD(), FR(), FR({arm: 1}), IC(), MS(), BB({arm: 3})]; edge = 90 }
+  const ang0 = Math.random() * TAU, late = [];
+  A.forEach((sp, i) => late.push({t: 0, side: 0, spec: {...sp, name: sp.name + ' ' + (i + 1) + ' (синие)'}, edge, ang: ang0}));
+  B.forEach((sp, i) => late.push({t: 0, side: 1, spec: {...sp, name: sp.name + ' ' + (i + 1) + ' (красные)'}, edge, ang: ang0 + Math.PI}));
+  return {title: 'Демонстрационный бой ' + title.split(':')[0], fleets: [[], []], late, demo: true, maxT: 14400, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
+}
+export function startDamageDemo(kind) {
+  if (Battle.active()) return;
+  const cfg = damageDemo(kind); state.demo = true; state.paused = false; Battle.begin(cfg);
+  ui.bfollow = true; focusBattle(); ui.bfollow = false; log(cfg.title + '. Корабль — щелчок: панель показывает экипаж, отсеки, погреба и ремонт; F4 — роли и состояния.');
+}
 export function refreshDemo() {
   const p = $('p-demo'); if (!p) return;
   setTimeout(() => colInit(p), 0); setTimeout(() => hooks.stressInit && hooks.stressInit(p), 0);
@@ -211,6 +242,8 @@ export function refreshDemo() {
     p.insertAdjacentHTML('beforeend', `<div class="box"><h2>Зрелая система</h2><div class="help">Заселяет 11 планет, спутников и астероидов (всего около 100 млрд человек) и запускает по 100 кораблей у каждой из 20 корпораций (≈2000 штук). Нужно, чтобы посмотреть, как выглядит и как тянет большая система. Текущая игра изменится: после просмотра нажмите «Новая игра».</div><div class="row"><button class="btn" id="dm-mature">Создать зрелую систему</button></div><div class="help" id="dm-msg"></div></div>`);
     p.addEventListener('click', e => { if (e.target.id === 'dm-mature') { $('dm-msg').textContent = 'Считаю, подождите несколько секунд…'; setTimeout(() => { const r = matureSystem(); $('dm-msg').textContent = `Готово: тел ${r.cols}, кораблей ${r.ships}. Нажмите «Пуск».`; ui.sel = {kind: 'body', id: 'earth'}; }, 30); } });
     p.addEventListener('click', e => { if (e.target.id === 'dm-war' && hooks.startWar) hooks.startWar(); });
+    p.insertAdjacentHTML('beforeend', `<div class="box"><h2>Демонстрационные бои: повреждения и ремонт</h2><div class="help">Настоящие бои: заданы только составы, броня, погреба и исходные повреждения — детонации, гибель людей, пожары, ремонт и решения ИИ считает симуляция, каждый запуск по-своему. Щёлкните по кораблю — в панели экипаж по отсекам, погреба, пожары, вакуум, ремонтные работы; F4 — роли и состояния.</div>${Object.entries(DMG_DEMOS).map(([k, v]) => `<div class="row"><button class="btn" data-dmd="${k}">${v.split(':')[0]}</button><span class="muted">${v.split(':').slice(1).join(':')}</span></div>`).join('')}</div>`);
+    p.addEventListener('click', e => { const k = e.target && e.target.dataset && e.target.dataset.dmd; if (k) startDamageDemo(k); });
     p.addEventListener('click', e => { if (e.target.id === 'dm-go') { startDemo($('dm-kind').value, +$('dm-size').value); } });
   }
 }

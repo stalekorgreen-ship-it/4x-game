@@ -232,6 +232,32 @@
   "gat": 0.25,
   "mis": 1
  },
+ "hull": {
+  "pen": 4,
+  "penK": 5,
+  "mj": 500,
+  "det": 12,
+  "detAdj": 4,
+  "fire": 0.02,
+  "gun": 15,
+  "min": 0.25,
+  "brk": 0.8
+ },
+ "dcon": {
+  "spares": 0.3,
+  "fw": 60,
+  "vw": 300,
+  "team": 2,
+  "under": 0.6,
+  "vacW": 0.5,
+  "adj": 0.6,
+  "fireKill": 0.0006,
+  "qFix": 0.8,
+  "qWreck": 0.6,
+  "wreckP": 0.3,
+  "W": {"T": 6000, "G": 2000, "A": 2000, "M": 4000, "L": 4000, "E": 6000, "R": 1200, "D": 3000, "C": 9000},
+  "fixMax": 2
+ },
  "command": {
   "period": 30,
   "minGroup": 6,
