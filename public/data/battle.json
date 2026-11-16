@@ -276,6 +276,8 @@
   "cost": {"T": 3, "G": 1, "A": 1, "M": 2, "L": 2, "E": 3, "R": 1, "D": 2, "C": 5}
  },
  "command": {
+  "sync": 1,
+  "waitMax": 300,
   "period": 30,
   "minGroup": 6,
   "fleetMax": 10
@@ -333,6 +335,11 @@
   "ammoH": 3
  },
  "missile": {
+  "pick": 1,
+  "amR": 150,
+  "amPer": 2,
+  "amHit": 0.15,
+  "amPk": 0.7,
   "pdPhys": 1,
   "mc": 1,
   "inh": 1,
@@ -355,6 +362,9 @@
   "salvoW": 30
  },
  "decoy": {
+  "phys": 1,
+  "life": 10,
+  "ej": 0.05,
   "r": 30,
   "every": 4,
   "W": 400,

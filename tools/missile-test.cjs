@@ -10,7 +10,7 @@ const R=await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('res
  const MCF=o=>D.compOf(D.mkKey('missile',{pw:'10',en:'1',fu:'1',em:'1',ir:'1',ac:'0',hm:'1',mt:'20',...o})).mcfg;
  const mk=(name,o,tons,acc)=>({...D.fitSpec({name,eng:3,spd:1,flak:0,rails:0,...o}),tons,pow:acc*tons/120});
  const CAR=(cfg,n)=>()=>mk('Носитель',{L:.2,arm:2,miss:n||4,missCfg:Array(n||4).fill(cfg),ammoCap:400,energy:5000},3000,8);
- const TGT=(gat)=>()=>mk('Цель',{L:.2,arm:3,rails:1,railCfg:RC('10',1),gat:gat,gatCfg:Array(gat).fill(GC),ammoCap:400,energy:5000},3000,8);
+ const TGT=(gat,x={})=>()=>mk('Цель',{...x,L:.2,arm:3,rails:1,railCfg:RC('10',1),gat:gat,gatCfg:Array(gat).fill(GC),ammoCap:400,energy:5000},3000,8);
  const T=()=>B.Battle.time();
  function run(name,side0,side1,dist,secs,opt={}){B.Battle.begin({title:name,fleets:[[],[]],late:[...side0.map(f=>({t:0,side:0,spec:f(),edge:80,ang:0})),...side1.map(f=>({t:0,side:1,spec:f(),edge:80,ang:Math.PI}))],demo:true,maxT:1e6,seed:9,names:['a','b'],onEnd(){}});D.state.demo=true;D.state.paused=false;B.Battle.tickN(.05);
   const S=B.Battle.ships().filter(s=>!s.bayOf),k=[0,0];for(const s of S){const i=k[s.side]++;s.sx=s.vx=s.side?0:(opt.v0||0);s.sy=s.vy=0;s.x=s.side?dist:0;s.y=i*15-(s.side?opt.off||0:0);s.hd=s.side?Math.PI:0}
@@ -22,7 +22,7 @@ const R=await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('res
    for(const [m,r] of M)if(!now.has(m)&&!r.done){r.done=1;r.end=m.end||'?';r.fl=T()-r.t0}}
   for(const [m,r] of M){if(!r.done){r.end='в полёте';r.fl=T()-r.t0}const key=r.typ+':'+r.end;st[key]=(st[key]||0)+1}
   const arr=[...M.values()],by=k=>{const a=arr.filter(r=>r.typ===k);if(!a.length)return null;const av=f=>+(a.reduce((x,r)=>x+f(r),0)/a.length).toFixed(2);return {n:a.length,полёт_с:av(r=>r.fl),двигатель_с:av(r=>r.burn),скорость_старт:av(r=>r.v0),скорость_конец:av(r=>r.v||0),израсходовано_dv:av(r=>(r.dv0||0)-(r.dv||0)),повороты_рад:av(r=>r.turn),без_цели:a.filter(r=>r.lost).length,наведение_по_флоту_с:av(r=>r.mc||0)}};
-  const s0=B.Battle.stat();return {name,maxInFlight:maxN,исходы:st,G:by('G'),U:by('U'),S_кассета:by('S-кассета'),S:by('S'),stat:{misHit:s0.misHit,misShot:s0.misShot,misSplit:s0.misSplit||0}}}
+  const s0=B.Battle.stat();return {name,maxInFlight:maxN,исходы:st,G:by('G'),U:by('U'),S_кассета:by('S-кассета'),S:by('S'),stat:{misHit:s0.misHit,misShot:s0.misShot,misSplit:s0.misSplit||0,am:s0.am,dcy:s0.dcy,mpick:s0.mpick}}}
  const G=MCF({}),Ud=MCF({hm:'0'}),Cl={...MCF({}),sub:4};
  return [
   run('G: управляемые против цели без ПВО',[CAR(G)],[TGT(0)],120,240),
@@ -33,5 +33,8 @@ const R=await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('res
   run('U: неуправляемые против цели с ПВО',[CAR(Ud)],[TGT(4)],60,200),
   run('S: кассеты против цели',[CAR(Cl)],[TGT(0)],120,240),
   run('S: кассеты против цели с ПВО',[CAR(Cl)],[TGT(4)],120,240),
+  run('DEC: ИК-головки против цели с ловушками',[CAR(G)],[TGT(0,{dec:20})],120,240),
+  run('DEC: радарные (ir=0) против цели с ловушками',[CAR(MCF({ir:'0'}))],[TGT(0,{dec:20})],120,240),
+  run('AM: залп против цели с 4 противоракетами',[CAR(G,8)],[TGT(0,{miss:4,missCfg:Array(4).fill({...G,am:1}),ammoCap:400})],150,300),
   run('MASS: 10 носителей × 4 против 10 целей с ПВО',Array(10).fill(CAR(G)),Array(10).fill(TGT(4)),150,300)]});
 for(const r of R)console.log(JSON.stringify(r));console.log('ERR',errs.slice(0,3));await b.close()})();
