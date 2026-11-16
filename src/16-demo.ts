@@ -199,6 +199,13 @@ export function startDemo(kind, size) {
   ui.bfollow = true; focusBattle(); ui.bfollow = false;
   log(cfg.title + '.');
 }
+// ЗАМЕР ПРОИЗВОДИТЕЛЬНОСТИ: одинаковый бой на любом компьютере. n на n из четырёх типов дуэли (фрегат, броненосец, ПВО, ракетоносец), фиксированное зерно;
+// kind 'mis' — ракетный: 2/3 ракетоносцев и 1/3 ПВО у каждой стороны (массовые пуски и перехваты)
+export function benchScenario(n, kind) {
+  const late = []; for (const side of [0, 1]) { const D = duelSpecs(side); for (let i = 0; i < n; i++) { const sp = kind === 'mis' ? D[i % 3 === 2 ? 2 : 3] : D[i % 4]; late.push({t: 0, side, spec: {...sp, fid: side * 50 + Math.floor(i / 10)}, edge: 260, ang: side * Math.PI}); } }
+  return {title: `Замер: ${kind === 'mis' ? 'ракетный ' : ''}${n} на ${n}`, fleets: [[], []], late, demo: true, maxT: 14400, seed: 777 + n, names: ['Синие', 'Красные'], onEnd: () => { state.demo = false; }};
+}
+export function startBench(n, kind) { if (Battle.active()) { if (Battle.abort) Battle.abort(); else return false } state.demo = true; state.paused = false; Battle.begin(benchScenario(n, kind)); ui.bfollow = true; focusBattle(); ui.bfollow = false; return true }
 // ===== ДЕМОНСТРАЦИОННЫЕ БОИ: повреждения, экипаж, ремонт. Подготовлены только начальные условия (составы, броня, погреба, исходные повреждения); всё остальное — обычная симуляция и ИИ, seed каждый раз новый =====
 export const DMG_DEMOS = {
   A: 'A — Катастрофическая детонация: ракетоносцы и броненосцы с полными погребами и тонкой бронёй против тяжёлых рельсотронов',
