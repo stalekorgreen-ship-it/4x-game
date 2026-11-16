@@ -1,0 +1,480 @@
+{
+ "base": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 7,
+    "ships": 48,
+    "mods": 410,
+    "mods0": 672,
+    "hits": 179,
+    "shots": 506,
+    "sw": 387,
+    "swBack": 0,
+    "ret": 22,
+    "back": 4,
+    "home": 4,
+    "pvoKill": 12,
+    "wins": 3,
+    "acc": 0.354,
+    "modsLeft": 0.61
+   },
+   {
+    "lost": 12,
+    "ships": 48,
+    "mods": 364,
+    "mods0": 672,
+    "hits": 167,
+    "shots": 582,
+    "sw": 368,
+    "swBack": 0,
+    "ret": 24,
+    "back": 6,
+    "home": 5,
+    "pvoKill": 13,
+    "wins": 2,
+    "acc": 0.287,
+    "modsLeft": 0.542
+   }
+  ],
+  "swBackTotal": 211
+ },
+ "org0": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 426,
+    "mods0": 672,
+    "hits": 206,
+    "shots": 579,
+    "sw": 392,
+    "swBack": 0,
+    "ret": 25,
+    "back": 5,
+    "home": 2,
+    "pvoKill": 8,
+    "wins": 2,
+    "acc": 0.356,
+    "modsLeft": 0.634
+   },
+   {
+    "lost": 11,
+    "ships": 48,
+    "mods": 409,
+    "mods0": 672,
+    "hits": 200,
+    "shots": 526,
+    "sw": 341,
+    "swBack": 0,
+    "ret": 19,
+    "back": 2,
+    "home": 1,
+    "pvoKill": 10,
+    "wins": 4,
+    "acc": 0.38,
+    "modsLeft": 0.609
+   }
+  ],
+  "swBackTotal": 168
+ },
+ "fcoff": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 11,
+    "ships": 48,
+    "mods": 383,
+    "mods0": 672,
+    "hits": 205,
+    "shots": 752,
+    "sw": 0,
+    "swBack": 0,
+    "ret": 21,
+    "back": 1,
+    "home": 5,
+    "pvoKill": 8,
+    "wins": 1,
+    "acc": 0.273,
+    "modsLeft": 0.57
+   },
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 437,
+    "mods0": 672,
+    "hits": 253,
+    "shots": 1102,
+    "sw": 0,
+    "swBack": 0,
+    "ret": 16,
+    "back": 1,
+    "home": 2,
+    "pvoKill": 9,
+    "wins": 4,
+    "acc": 0.23,
+    "modsLeft": 0.65
+   }
+  ]
+ },
+ "norole": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 9,
+    "ships": 48,
+    "mods": 374,
+    "mods0": 672,
+    "hits": 184,
+    "shots": 483,
+    "sw": 376,
+    "swBack": 0,
+    "ret": 24,
+    "back": 4,
+    "home": 5,
+    "pvoKill": 16,
+    "wins": 1,
+    "acc": 0.381,
+    "modsLeft": 0.557
+   },
+   {
+    "lost": 6,
+    "ships": 48,
+    "mods": 470,
+    "mods0": 672,
+    "hits": 219,
+    "shots": 759,
+    "sw": 416,
+    "swBack": 0,
+    "ret": 15,
+    "back": 4,
+    "home": 0,
+    "pvoKill": 12,
+    "wins": 4,
+    "acc": 0.289,
+    "modsLeft": 0.699
+   }
+  ],
+  "swBackTotal": 170
+ },
+ "hold": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 386,
+    "mods0": 672,
+    "hits": 191,
+    "shots": 493,
+    "sw": 304,
+    "swBack": 0,
+    "ret": 35,
+    "back": 14,
+    "home": 4,
+    "pvoKill": 11,
+    "wins": 3,
+    "acc": 0.387,
+    "modsLeft": 0.574
+   },
+   {
+    "lost": 12,
+    "ships": 48,
+    "mods": 326,
+    "mods0": 672,
+    "hits": 183,
+    "shots": 473,
+    "sw": 295,
+    "swBack": 0,
+    "ret": 24,
+    "back": 4,
+    "home": 5,
+    "pvoKill": 11,
+    "wins": 0,
+    "acc": 0.387,
+    "modsLeft": 0.485
+   }
+  ],
+  "swBackTotal": 119
+ },
+ "swc": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 379,
+    "mods0": 672,
+    "hits": 172,
+    "shots": 487,
+    "sw": 283,
+    "swBack": 0,
+    "ret": 26,
+    "back": 7,
+    "home": 2,
+    "pvoKill": 15,
+    "wins": 4,
+    "acc": 0.353,
+    "modsLeft": 0.564
+   },
+   {
+    "lost": 14,
+    "ships": 48,
+    "mods": 371,
+    "mods0": 672,
+    "hits": 144,
+    "shots": 490,
+    "sw": 294,
+    "swBack": 0,
+    "ret": 21,
+    "back": 2,
+    "home": 7,
+    "pvoKill": 10,
+    "wins": 2,
+    "acc": 0.294,
+    "modsLeft": 0.552
+   }
+  ],
+  "swBackTotal": 114
+ },
+ "v3": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 6,
+    "ships": 48,
+    "mods": 415,
+    "mods0": 672,
+    "hits": 238,
+    "shots": 612,
+    "sw": 375,
+    "swBack": 0,
+    "ret": 25,
+    "back": 10,
+    "home": 3,
+    "pvoKill": 13,
+    "wins": 3,
+    "acc": 0.389,
+    "modsLeft": 0.618
+   },
+   {
+    "lost": 13,
+    "ships": 48,
+    "mods": 357,
+    "mods0": 672,
+    "hits": 166,
+    "shots": 685,
+    "sw": 295,
+    "swBack": 0,
+    "ret": 30,
+    "back": 8,
+    "home": 2,
+    "pvoKill": 12,
+    "wins": 1,
+    "acc": 0.242,
+    "modsLeft": 0.531
+   }
+  ],
+  "swBackTotal": 134
+ },
+ "v3nofix": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 386,
+    "mods0": 672,
+    "hits": 191,
+    "shots": 493,
+    "sw": 304,
+    "swBack": 0,
+    "ret": 35,
+    "back": 14,
+    "home": 4,
+    "pvoKill": 11,
+    "wins": 3,
+    "acc": 0.387,
+    "modsLeft": 0.574
+   },
+   {
+    "lost": 12,
+    "ships": 48,
+    "mods": 326,
+    "mods0": 672,
+    "hits": 183,
+    "shots": 473,
+    "sw": 295,
+    "swBack": 0,
+    "ret": 24,
+    "back": 4,
+    "home": 5,
+    "pvoKill": 11,
+    "wins": 0,
+    "acc": 0.387,
+    "modsLeft": 0.485
+   }
+  ],
+  "swBackTotal": 119
+ },
+ "v3org0": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 352,
+    "mods0": 672,
+    "hits": 252,
+    "shots": 572,
+    "sw": 381,
+    "swBack": 0,
+    "ret": 28,
+    "back": 5,
+    "home": 2,
+    "pvoKill": 12,
+    "wins": 2,
+    "acc": 0.441,
+    "modsLeft": 0.524
+   },
+   {
+    "lost": 11,
+    "ships": 48,
+    "mods": 364,
+    "mods0": 672,
+    "hits": 260,
+    "shots": 869,
+    "sw": 316,
+    "swBack": 0,
+    "ret": 20,
+    "back": 2,
+    "home": 4,
+    "pvoKill": 9,
+    "wins": 1,
+    "acc": 0.299,
+    "modsLeft": 0.542
+   }
+  ],
+  "swBackTotal": 136
+ },
+ "v3fcoff": {
+  "runs": 6,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "side": [
+   {
+    "lost": 11,
+    "ships": 48,
+    "mods": 383,
+    "mods0": 672,
+    "hits": 205,
+    "shots": 752,
+    "sw": 0,
+    "swBack": 0,
+    "ret": 21,
+    "back": 1,
+    "home": 5,
+    "pvoKill": 8,
+    "wins": 1,
+    "acc": 0.273,
+    "modsLeft": 0.57
+   },
+   {
+    "lost": 8,
+    "ships": 48,
+    "mods": 437,
+    "mods0": 672,
+    "hits": 253,
+    "shots": 1102,
+    "sw": 0,
+    "swBack": 0,
+    "ret": 16,
+    "back": 1,
+    "home": 2,
+    "pvoKill": 9,
+    "wins": 4,
+    "acc": 0.23,
+    "modsLeft": 0.65
+   }
+  ]
+ }
+}

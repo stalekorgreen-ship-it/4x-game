@@ -96,7 +96,7 @@ export function createPart(type: string, params: any = {}) { const d = REG.get(t
 // mod_dead → disabled (на месте). Отрыв и разрушение — только по явной команде (будущие события боя с причиной и импульсом: part_detach / part_shatter).
 const BIND = new Map<number, Part>();
 export const partOfModule = (id: number) => BIND.get(id) || null;
-export function unbindAll() { BIND.clear() }
+export function unbindAll() { BIND.clear(); for (const b of BODIES) if (b.obj.parent) b.obj.parent.remove(b.obj); BODIES.length = 0 } // новый бой: привязки деталей к модулям и летящие обломки прошлого боя — сбросить (держали прошлый бой в памяти)
 export function applyViewEvent(ev: any, o: any = {}) { const p = ev.mod != null ? BIND.get(ev.mod) : null; if (!p) return null;
   if (ev.type === 'mod_dead') { p.disable(); return p } if (ev.type === 'mod_alive') { p.repair(); return p }
   if (ev.type === 'part_detach') return p.detach(ev.data.piece, { ...o, impulse: ev.data.impulse }); if (ev.type === 'part_shatter') return p.shatter(ev.data.piece, { ...o, impulse: ev.data.impulse }); return null }

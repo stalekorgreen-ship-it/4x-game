@@ -1,0 +1,8 @@
+// Утечки памяти: N перезапусков демо D в 3D, после каждого — принудительная сборка мусора (--expose-gc) и замер кучи JS, геометрий, текстур, объектов сцены. PORT=5200 N=8 node tools/leak-test.cjs
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--enable-precise-memory-info','--js-flags=--expose-gc']});const p=await b.newPage({viewport:{width:1280,height:720}});const errs=[];p.on('pageerror',e=>errs.push(e.message));await p.goto('http://127.0.0.1:'+(process.env.PORT||5200)+'/');await p.waitForTimeout(3000);
+const r=await p.evaluate(async(N)=>{const U=n=>(performance.getEntriesByType('resource').map(e=>e.name).find(u=>u.includes('/src/'+n))||'/src/'+n);const M=await import(U('16-demo.ts'));const B=await import(U('05-battle.ts'));const sl=ms=>new Promise(r=>setTimeout(r,ms));const out=[];
+ const H=async()=>{for(let i=0;i<3;i++){window.gc();await sl(200)}return Math.round(performance.memory.usedJSHeapSize/1048576*10)/10};
+ out.push({i:'старт',heap:await H()});
+ for(let i=0;i<N;i++){if(B.Battle.active())B.Battle.abort();M.startDamageDemo('D');await sl(300);if(i===0){const b3=document.getElementById('b3d');if(b3)b3.click()}const sb=document.querySelector('#bspd [data-v="80"]');if(sb)sb.click();await sl(8000);B.Battle.abort();await sl(500);const rr=window.__b3dRen&&window.__b3dRen();out.push({i,heap:await H(),geo:rr&&rr.geo,tex:rr&&rr.tex,obj:rr&&rr.obj})}
+ return out},+(process.env.N||8));
+console.log(JSON.stringify(r));console.log('ERR',errs.slice(0,3));await b.close()})();

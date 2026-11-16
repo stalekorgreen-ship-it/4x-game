@@ -10,7 +10,7 @@ import { buildLoft, invFromSpec, buildWoundFx, makeWoundTex, faceV, loftMats, tu
 import type { LoftPack } from './21c-loft.ts';
 import { buildSpine } from './21d-spine.ts';
 import { View } from './21a-battle-view.ts';
-import { registerPart, createPart, adoptPart, applyViewEvent, stepDebris, debris, partOfModule } from './21f-parts.ts';
+import { registerPart, createPart, adoptPart, applyViewEvent, stepDebris, debris, partOfModule, unbindAll } from './21f-parts.ts';
 import { pickDesign, buildDesign, autoTurrets } from './21e-design.ts';
 
 const wrap = document.getElementById('mapwrap');
@@ -565,7 +565,7 @@ if (wrap && bgo) {
   }
   const u0 = (ud: any) => ud.h3i || 0;
   function spineHit(q: any) { // попадание запоминаем в координатах корабля; применяем, когда включена детальная модель
-    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 20000) u.spQ.splice(0, 1000); if (q.rico && Math.random() < .9) return; // рикошет пули: рисуем каждый десятый как царапину с копотью g.updateMatrixWorld(true);
+    const g = models.get(q.s); if (!g) return; const u = g.userData; if (!u.spQ) return; if (u.spQ.length > 20000) u.spQ.splice(0, 1000); if (q.rico && Math.random() < .9) return; /* рикошет пули: рисуем каждый десятый как царапину с копотью */ g.updateMatrixWorld(true);
     const pw = q.pw || 1, kd = q.k, rk = 1; let kind = 'c', r = Math.max(1, Math.min(12, 1.2 + pw * .9)) * rk;
     if (kd === 'laser') { kind = pw < 2 ? 'g' : 's'; r = kind === 'g' ? 10 + pw * 4 : 1.5 + pw * .5 } else if (kd === 'rail') kind = pw > 6 ? 'b' : pw > 2.5 ? 'c' : 'p'; else if (kd === 'mis' || kd === 'torp' || kd === 'rock') kind = 'b'; else if (kd === 'fgt') { kind = 'g'; r = 8 } if (q.rico) { kind = 'g'; r = 3 }
     const dL = _sv.set(q.nx, q.nz || 0, q.ny).applyQuaternion(_sq.copy(g.quaternion).invert()).normalize().clone(); u.spQ.push({ dL, kind, r, t: performance.now(), pL: g.worldToLocal(new THREE.Vector3(q.x, q.z, q.y)), left: q.left, arm: q.arm, k: q.k, gE: q.gE, pw: q.pw });
@@ -1231,7 +1231,7 @@ if (wrap && bgo) {
     if (scene) for (const [, g] of models) { scene.remove(g); freeG(g) }
     puffs.length = 0; for (const w of wrecks) { scene.remove(w.g); freeG(w.g) } wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
     View.poll(); impCur = secCur = View.headCursor(); modDeadQ.clear();
-    follow = true; fitAll = true; curSky = undefined;
+    follow = true; fitAll = true; curSky = undefined; lastSel = null; deadAt = 0; mcam = null; fcam = null; tcam = null; misLive.clear(); unbindAll(); shTr.clear(); modelById.clear(); secById.clear(); for (const [, o3] of envObj) { if (o3 && (o3 as any).parent) (o3 as any).parent.remove(o3) } envObj.clear(); /* следы кораблей, модели по id, секции и препятствия прошлого боя (shTr держал весь прошлый бой — найдено снимком кучи) */ // ссылки на корабли/ракеты прошлого боя держали в памяти весь прошлый бой (~30 МБ на перезапуск)
   }
   (hooks as any).reset3d = reset3d;
   // превью корабля из конструктора: отдельный мини-бой с одним кораблём, камера медленно крутится вокруг него
