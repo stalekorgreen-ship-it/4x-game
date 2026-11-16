@@ -44,7 +44,7 @@ const R=await p.evaluate(async()=>{const U=n=>(performance.getEntriesByType('res
  {const S=battle([BB,FR],[FR]),s=S[0];kill(s,G);for(let i=0;i<30&&s.crN>0;i++)for(let z=0;z<4;z++)H.crewKill(s,z,1);const k0=s.kits;run(1200);ok('K13 без экипажа — ни ремонта, ни расхода',alive(s,G)===0&&s.kits===k0,{kits:[k0,s.kits]})}
  // K14 отход-ремонт-возвращение с расходом наборов
  {const S=battle([BB,BB,BB],[FR,FR],120),s=S[0];s.kitCap=s.kits=s.kits0=60;const k0=s.kits;kill(s,m=>m.k!=='C'&&m.k!=='R'&&m.k!=='E');const seen={};for(let i=0;i<120;i++){run(30);seen[s.rst||'ok']=1;if(seen.retreat&&(s.rst==='return'||s.rst==='ok')&&s.capW>.5)break}
-  ok('K14 отход, ремонт (с расходом наборов), возвращение',seen.retreat&&(s.rst==='return'||s.rst==='ok')&&s.kitUsed>0,{states:Object.keys(seen),now:s.rst,used:+s.kitUsed.toFixed(1)+'/'+k0})}
+  const foes=S.filter(q=>q.side===1&&q.alive).length;ok('K14 отход, ремонт (с расходом наборов), возвращение (или враг уничтожен, пока чинился)',seen.retreat&&s.kitUsed>0&&(s.rst==='return'||s.rst==='ok'||foes===0&&s.rst!=='home'),{states:Object.keys(seen),now:s.rst,used:+s.kitUsed.toFixed(1)+'/'+k0,foes,t:Math.round(T())})}
  // K15 без наборов — не застревает
  {const S=battle([BB,BB,BB],[FR,FR],120),s=S[0];s.kits=0;kill(s,m=>m.k!=='C'&&m.k!=='R'&&m.k!=='E');const seen={};for(let i=0;i<60;i++){run(30);seen[s.rst||'ok']=1;if(s.rst==='home'||s.rst==='return'||!s.alive)break}
   ok('K15 без наборов не ждёт ремонта бесконечно',s.rst==='home'||s.rst==='return'||!s.alive,{states:Object.keys(seen),now:s.rst,t:Math.round(T())})}
