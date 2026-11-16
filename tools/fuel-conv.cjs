@@ -13,7 +13,7 @@ for(const dt of STEPS){const p=await b.newPage();p.on('pageerror',e=>console.log
   const T=()=>B.Battle.time();const out={};
   // СЦЕНАРИИ БЕЗ БОЕВОГО ХАОСА: враг — далёкий неподвижный остов без двигателей (боя нет). drift — решение об уходе: корабль дрейфует от базы,
   // нужный на возвращение Δv растёт, корабль уходит, когда свободный запас кончается. Остальные — сразу на базу: проверка самого возвращения.
-  const C=.025;const SC0={drift:{f:FR,v:.3,dv:.25},fast:{f:FR,v:1.5,dv:C},eng:{f:FR,dv:C,eng:.5,v:.2},heavy:{f:BB,dv:C,v:.2},far:{f:FR,dv:C,home:-3000},turn:{f:FR,dv:C,vy:.6},nope:{f:FR,v:3,dv:-1}};
+  const C=.025;const SC0={drift:{f:FR,v:.3,dv:.25},fast:{f:FR,v:1.5,dv:C},eng:{f:FR,dv:C,eng:.5,v:.2},heavy:{f:BB,dv:C,v:.2},far:{f:FR,dv:C,home:-3000},turn:{f:FR,dv:C,vy:.6},nope:{f:FR,v:3,dv:-1},part:{f:BB,v:.4,dv:.12,home:-800}};
   const SC=window.__SC?Object.fromEntries(Object.entries(SC0).filter(([k])=>window.__SC.includes(k))):SC0;for(const[k,c]of Object.entries(SC)){B.Battle.begin({title:'c',fleets:[[],[]],late:[{t:0,side:0,spec:c.f(),edge:80,ang:0},{t:0,side:1,spec:FR(),edge:80,ang:Math.PI}],demo:true,maxT:1e6,seed:5,names:['a','b'],onEnd(){}});D.state.demo=true;D.state.paused=false;B.Battle.tickN(.05);
    const S=B.Battle.ships().filter(s=>!s.bayOf),s=S.find(q=>q.side===0),e=S.find(q=>q.side===1);s.x=0;s.y=0;s.sx=s.vx=(c.v||0);s.sy=s.vy=(c.vy||0);s.hd=0;s.home={x:c.home||-200,y:0};e.x=6000;e.y=3000;e.sx=e.vx=0;e.sy=e.vy=0;e.hd=0;for(const m of e.zones.flatMap(z=>z.mods))if(m.alive&&m.k==='E')B.Battle.dmgT.mdead(e,m);
    if(c.eng){const E=s.zones.flatMap(z=>z.mods).filter(m=>m.k==='E'&&m.alive);for(let i=0;i<Math.floor(E.length*c.eng);i++)B.Battle.dmgT.mdead(s,E[i])}
@@ -21,7 +21,7 @@ for(const dt of STEPS){const p=await b.newPage();p.on('pageerror',e=>console.log
    while(T()<t0+(window.__TMAX||6500)&&s.alive&&!B.Battle.isDone()){B.Battle.tickN(.1);dist+=Math.hypot(s.x-px,s.y-py);px=s.x;py=s.y;
     if(s.rst==='home'&&!dep)dep={t:+(s.rsT-t0).toFixed(2),fuel:+s.fuel.toFixed(3),dvr:+s.dvB.dvr.toFixed(4),need:+s.dvB.rp.need.toFixed(4)};
     const d=Math.hypot(s.x-s.home.x,s.y-s.home.y);if(dep&&d<minD){minD=d;vAt=Math.hypot(s.sx,s.sy)}if(dep&&!arr&&d<5&&Math.hypot(s.sx,s.sy)<.03)arr={t:+(T()-t0).toFixed(0),v:+Math.hypot(s.sx,s.sy).toFixed(4)}}
-   out[k]={dep,arr,minD:+minD.toFixed(2),vMin:vAt!=null?+vAt.toFixed(4):null,dist:+dist.toFixed(1),used:+(f0-s.fuel).toFixed(3),left:+s.fuel.toFixed(3),dvMain:+((s.dvSum||0)-dv0).toFixed(3),rcs:+((B.Battle.stat().rcsT||0)-st0).toFixed(2),spin:+((B.Battle.stat().spinT||0)-sp0).toFixed(2),dodge:(B.Battle.stat().dodge||0)-dg0,why:s.homeWhy}}
+   out[k]={rotF:+B.Battle.rotF(s).toFixed(2),dep,arr,minD:+minD.toFixed(2),vMin:vAt!=null?+vAt.toFixed(4):null,dist:+dist.toFixed(1),used:+(f0-s.fuel).toFixed(3),left:+s.fuel.toFixed(3),dvMain:+((s.dvSum||0)-dv0).toFixed(3),rcs:+((B.Battle.stat().rcsT||0)-st0).toFixed(2),spin:+((B.Battle.stat().spinT||0)-sp0).toFixed(2),dodge:(B.Battle.stat().dodge||0)-dg0,why:s.homeWhy}}
   return out});await p.close()}
 const ks=Object.keys(res[STEPS[0]]);for(const k of ks){console.log('== '+k);for(const dt of STEPS)console.log(String(dt).padEnd(7),JSON.stringify(res[dt][k]))}
 console.log('JSON',JSON.stringify(res));await b.close()})();
