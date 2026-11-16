@@ -564,11 +564,12 @@ function fleetAssign(F){if(t<(F.faT||0))return;F.faT=t+FC.re;for(const q of F.sh
     const covered=new Set(my.filter(q=>q.cvOf&&q.cvOf.alive).map(q=>q.cvOf)),free=my.filter(q=>!RS.includes(q)&&!q.cvOf),
       C=free.filter(q=>hpf(q)>=.55&&(q.capW==null||q.capW>=.6)&&(!q.dvB||q.dvB.spend>RET.crit*6)&&q.engN>0&&capOf(q).fp>0); /* прикрыть может только целый, с оружием, двигателями и топливом сверх резерва */
     let room=Math.max(0,Math.floor(free.length/2)-my.filter(q=>q.cvOf).length); /* в прикрытие — не больше половины оставшихся в бою: флот должен продолжать драться */
-    for(const r of [...RS].sort((a,b)=>hpf(a)-hpf(b)||a.uid-b.uid)){if(covered.has(r)||room<=0||!C.length)continue;let bq=null,bs=-1;
+    const exposed=r=>{const nn=nearestShip(r.x,r.y,1-sd);return !!nn&&nn.d<=(nn.s.maxR||60)*1.6}; /* прикрывать нужно, только пока отходящий в досягаемости врага (иначе назначение и снятие шли по кругу каждые 10 с: 349 раз за 15 боёв) */
+    for(const r of [...RS].sort((a,b)=>hpf(a)-hpf(b)||a.uid-b.uid)){if(covered.has(r)||room<=0||!C.length||!exposed(r))continue;let bq=null,bs=-1;
       for(const q of C){const c=capOf(q),sc=c.fp*hpf(q)*(.5+Math.min(1,c.ac/10))/(1+Math.hypot(q.x-r.x,q.y-r.y)/50);if(sc>bs){bs=sc;bq=q}}
       if(bq){bq.cvOf=r;covered.add(r);C.splice(C.indexOf(bq),1);room--;CV.as++}}
     for(const q of my)if(q.cvOf){q.role='прикрытие';q.prot=q.cvOf;q.roleC=null}
-    F.cvWait=new Set(RS.filter(r=>r.rst==='prep'&&!covered.has(r)&&(C.length>0)));
+    F.cvWait=new Set(RS.filter(r=>r.rst==='prep'&&!covered.has(r)&&(C.length>0)&&exposed(r)));
     // РАЗВЕДКА: корабль с лучшими сенсорами флота (дальность ≥ 1,3 медианы) и не главный по огню — держится на границе своей дальности обнаружения, но вне досягаемости врага
     const sR=q=>Math.max(0,...(q.scl||q.sc||[]).map(c=>c.rng||0)),SR=my.map(sR),mSR=med(SR);
     for(const q of my)if(q.role==='разведка'&&(sR(q)<1.3*mSR||!sR(q)))q.role=null;

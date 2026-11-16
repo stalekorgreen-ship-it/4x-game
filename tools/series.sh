@@ -27,5 +27,5 @@ run(){ IFS='|' read -r n a b p <<< "$1"; pb="$p"; if [[ "$n" == C2_* ]]; then pb
   COMP="$a;$b" SEED0=1 node tools/duel-test.cjs 15 "$p" $T comp > $O/$n.A.jsonl 2>&1
   COMP="$b;$a" SEED0=16 node tools/duel-test.cjs 15 "$pb" $T comp > $O/$n.B.jsonl 2>&1; echo "$n done"; }
 export -f run; export O T
-printf '%s\n' "${S[@]}" | xargs -P $J -I{} bash -c 'run "$@"' _ {}
+printf '%s\n' "${S[@]}" | xargs -d '\n' -P $J -I{} bash -c 'run "$@"' _ {}
 echo ALL DONE

@@ -1,0 +1,1276 @@
+{
+ "A1_fr_fr": {
+  "teams": [
+   {
+    "wins": 3,
+    "lost": 4,
+    "ships": 30,
+    "modsL": 280,
+    "mods0": 390,
+    "hits": 48,
+    "shots": 358,
+    "sw": 0,
+    "ret": 6,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.134,
+    "modsLeft": 0.718
+   },
+   {
+    "wins": 4,
+    "lost": 3,
+    "ships": 30,
+    "modsL": 310,
+    "mods0": 390,
+    "hits": 74,
+    "shots": 473,
+    "sw": 0,
+    "ret": 5,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.156,
+    "modsLeft": 0.795
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 23,
+   "cov": 0,
+   "held": 0,
+   "wait": 0,
+   "xfer": 0,
+   "scout": 0,
+   "rep": 0,
+   "relHit": 0,
+   "forms": {
+    "колонна": 1963,
+    "линия": 1631,
+    "клин": 99
+   },
+   "slot": 101.99999999999997,
+   "slotN": 3638,
+   "atk": 33516,
+   "noAtk": 6648,
+   "react": 0,
+   "fuelLeft": 610.02,
+   "dvSum": 2.31,
+   "rcs": 54.84,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 852.13,
+   "slotAvgKm": 0.03,
+   "atkShare": 0.834
+  }
+ },
+ "A2_fr_cr": {
+  "teams": [
+   {
+    "wins": 4,
+    "lost": 4,
+    "ships": 30,
+    "modsL": 296,
+    "mods0": 390,
+    "hits": 41,
+    "shots": 276,
+    "sw": 0,
+    "ret": 5,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.149,
+    "modsLeft": 0.759
+   },
+   {
+    "wins": 4,
+    "lost": 4,
+    "ships": 30,
+    "modsL": 385,
+    "mods0": 450,
+    "hits": 115,
+    "shots": 967,
+    "sw": 0,
+    "ret": 4,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.119,
+    "modsLeft": 0.856
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 22,
+   "cov": 0,
+   "held": 0,
+   "wait": 0,
+   "xfer": 0,
+   "scout": 0,
+   "rep": 0,
+   "relHit": 0,
+   "forms": {
+    "клин": 1074,
+    "колонна": 1866,
+    "линия": 669
+   },
+   "slot": 10950,
+   "slotN": 3597,
+   "atk": 27276,
+   "noAtk": 9216,
+   "react": 0,
+   "fuelLeft": 1294.98,
+   "dvSum": 2.03,
+   "rcs": 93.05,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 861.03,
+   "slotAvgKm": 3.04,
+   "atkShare": 0.747
+  }
+ },
+ "A3_cr_cr": {
+  "teams": [
+   {
+    "wins": 5,
+    "lost": 7,
+    "ships": 30,
+    "modsL": 321,
+    "mods0": 450,
+    "hits": 214,
+    "shots": 957,
+    "sw": 0,
+    "ret": 5,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.224,
+    "modsLeft": 0.713
+   },
+   {
+    "wins": 4,
+    "lost": 8,
+    "ships": 30,
+    "modsL": 307,
+    "mods0": 450,
+    "hits": 206,
+    "shots": 869,
+    "sw": 0,
+    "ret": 8,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.237,
+    "modsLeft": 0.682
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 21,
+   "cov": 0,
+   "held": 0,
+   "wait": 0,
+   "xfer": 0,
+   "scout": 0,
+   "rep": 0,
+   "relHit": 0,
+   "forms": {
+    "линия": 1769,
+    "колонна": 1297,
+    "клин": 87
+   },
+   "slot": 6,
+   "slotN": 3122,
+   "atk": 26592,
+   "noAtk": 4800,
+   "react": 0,
+   "fuelLeft": 2078.03,
+   "dvSum": 1.69,
+   "rcs": 84.12,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 808.8,
+   "slotAvgKm": 0,
+   "atkShare": 0.847
+  }
+ },
+ "A4_bb_4fr": {
+  "teams": [
+   {
+    "wins": 0,
+    "lost": 12,
+    "ships": 30,
+    "modsL": 242,
+    "mods0": 450,
+    "hits": 52,
+    "shots": 704,
+    "sw": 43,
+    "ret": 13,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.074,
+    "modsLeft": 0.538
+   },
+   {
+    "wins": 30,
+    "lost": 0,
+    "ships": 120,
+    "modsL": 1441,
+    "mods0": 1560,
+    "hits": 136,
+    "shots": 858,
+    "sw": 0,
+    "ret": 3,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.159,
+    "modsLeft": 0.924
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 0,
+   "cov": 0.23,
+   "held": 0,
+   "wait": 0,
+   "xfer": 3.47,
+   "scout": 0,
+   "rep": 0.73,
+   "relHit": 0,
+   "forms": {
+    "клин": 1073,
+    "колонна": 1180,
+    "линия": 926
+   },
+   "slot": 77311.3569609185,
+   "slotN": 7500,
+   "atk": 43572,
+   "noAtk": 14196,
+   "react": 0.53,
+   "fuelLeft": 3677.98,
+   "dvSum": 4.3,
+   "rcs": 232.35,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 811.37,
+   "slotAvgKm": 10.31,
+   "atkShare": 0.754
+  }
+ },
+ "A5_bb_mix": {
+  "teams": [
+   {
+    "wins": 0,
+    "lost": 21,
+    "ships": 30,
+    "modsL": 125,
+    "mods0": 450,
+    "hits": 64,
+    "shots": 437,
+    "sw": 66,
+    "ret": 20,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.146,
+    "modsLeft": 0.278
+   },
+   {
+    "wins": 30,
+    "lost": 2,
+    "ships": 90,
+    "modsL": 1153,
+    "mods0": 1290,
+    "hits": 340,
+    "shots": 932,
+    "sw": 0,
+    "ret": 4,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.365,
+    "modsLeft": 0.894
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 0,
+   "cov": 0.77,
+   "held": 0,
+   "wait": 0,
+   "xfer": 1.12,
+   "scout": 0,
+   "rep": 0.3,
+   "relHit": 0,
+   "forms": {
+    "колонна": 1113,
+    "клин": 647,
+    "линия": 732
+   },
+   "slot": 35666.69905471431,
+   "slotN": 3326,
+   "atk": 28872,
+   "noAtk": 10560,
+   "react": 0.63,
+   "fuelLeft": 4213.11,
+   "dvSum": 2.64,
+   "rcs": 190.23,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 727.6,
+   "slotAvgKm": 10.72,
+   "atkShare": 0.732
+  }
+ },
+ "B1_equal": {
+  "teams": [
+   {
+    "wins": 10,
+    "lost": 16,
+    "ships": 180,
+    "modsL": 1668,
+    "mods0": 2520,
+    "hits": 903,
+    "shots": 2680,
+    "sw": 769,
+    "ret": 53,
+    "back": 0,
+    "home": 5,
+    "pvo": 0,
+    "acc": 0.337,
+    "modsLeft": 0.662
+   },
+   {
+    "wins": 8,
+    "lost": 20,
+    "ships": 180,
+    "modsL": 1557,
+    "mods0": 2520,
+    "hits": 812,
+    "shots": 2563,
+    "sw": 746,
+    "ret": 61,
+    "back": 0,
+    "home": 6,
+    "pvo": 0,
+    "acc": 0.317,
+    "modsLeft": 0.618
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 12,
+   "cov": 25.57,
+   "held": 1.27,
+   "wait": 29.1,
+   "xfer": 14.08,
+   "scout": 0,
+   "rep": 6.37,
+   "relHit": 0.17,
+   "forms": {
+    "колонна": 1551,
+    "линия": 2092,
+    "клин": 137
+   },
+   "slot": 169585.01650715672,
+   "slotN": 9910,
+   "atk": 128508,
+   "noAtk": 42168,
+   "react": 23.7,
+   "fuelLeft": 10733.45,
+   "dvSum": 10.68,
+   "rcs": 633.92,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 17.11,
+   "atkShare": 0.753
+  }
+ },
+ "B2_light_vs_bal": {
+  "teams": [
+   {
+    "wins": 28,
+    "lost": 16,
+    "ships": 240,
+    "modsL": 2319,
+    "mods0": 3120,
+    "hits": 968,
+    "shots": 3555,
+    "sw": 1217,
+    "ret": 46,
+    "back": 0,
+    "home": 7,
+    "pvo": 0,
+    "acc": 0.272,
+    "modsLeft": 0.743
+   },
+   {
+    "wins": 0,
+    "lost": 12,
+    "ships": 180,
+    "modsL": 1703,
+    "mods0": 2520,
+    "hits": 414,
+    "shots": 2790,
+    "sw": 819,
+    "ret": 60,
+    "back": 2,
+    "home": 3,
+    "pvo": 0,
+    "acc": 0.148,
+    "modsLeft": 0.676
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 2,
+   "cov": 35.07,
+   "held": 67.23,
+   "wait": 46.6,
+   "xfer": 12.41,
+   "scout": 0,
+   "rep": 6.4,
+   "relHit": 0.4,
+   "forms": {
+    "колонна": 2049,
+    "клин": 927,
+    "линия": 1495
+   },
+   "slot": 544949.371384851,
+   "slotN": 19218,
+   "atk": 206268,
+   "noAtk": 58656,
+   "react": 26.33,
+   "fuelLeft": 7320.6,
+   "dvSum": 16.79,
+   "rcs": 688.09,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 28.36,
+   "atkShare": 0.779
+  }
+ },
+ "B3_heavy_vs_bal": {
+  "teams": [
+   {
+    "wins": 1,
+    "lost": 22,
+    "ships": 120,
+    "modsL": 929,
+    "mods0": 1800,
+    "hits": 769,
+    "shots": 2362,
+    "sw": 484,
+    "ret": 48,
+    "back": 1,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.326,
+    "modsLeft": 0.516
+   },
+   {
+    "wins": 26,
+    "lost": 15,
+    "ships": 180,
+    "modsL": 1813,
+    "mods0": 2520,
+    "hits": 736,
+    "shots": 2507,
+    "sw": 586,
+    "ret": 46,
+    "back": 0,
+    "home": 2,
+    "pvo": 0,
+    "acc": 0.294,
+    "modsLeft": 0.719
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 3,
+   "cov": 16.83,
+   "held": 2.3,
+   "wait": 36.3,
+   "xfer": 11.11,
+   "scout": 0,
+   "rep": 4.87,
+   "relHit": 0.43,
+   "forms": {
+    "линия": 1547,
+    "клин": 923,
+    "колонна": 1109
+   },
+   "slot": 108741.96723018597,
+   "slotN": 8175,
+   "atk": 98892,
+   "noAtk": 28296,
+   "react": 15.87,
+   "fuelLeft": 13407.54,
+   "dvSum": 8.05,
+   "rcs": 660.04,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 884.57,
+   "slotAvgKm": 13.3,
+   "atkShare": 0.778
+  }
+ },
+ "B4_scout_repair": {
+  "teams": [
+   {
+    "wins": 12,
+    "lost": 12,
+    "ships": 240,
+    "modsL": 2202,
+    "mods0": 3180,
+    "hits": 748,
+    "shots": 2754,
+    "sw": 1260,
+    "ret": 69,
+    "back": 0,
+    "home": 6,
+    "pvo": 0,
+    "acc": 0.272,
+    "modsLeft": 0.692
+   },
+   {
+    "wins": 6,
+    "lost": 21,
+    "ships": 240,
+    "modsL": 2263,
+    "mods0": 3300,
+    "hits": 1032,
+    "shots": 3757,
+    "sw": 1281,
+    "ret": 53,
+    "back": 1,
+    "home": 11,
+    "pvo": 0,
+    "acc": 0.275,
+    "modsLeft": 0.686
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 12,
+   "cov": 47.93,
+   "held": 1.83,
+   "wait": 26.93,
+   "xfer": 19.25,
+   "scout": 1,
+   "rep": 8.13,
+   "relHit": 0.33,
+   "forms": {
+    "колонна": 2087,
+    "линия": 1922,
+    "клин": 148
+   },
+   "slot": 415732.0831965,
+   "slotN": 15818,
+   "atk": 189732,
+   "noAtk": 65376,
+   "react": 36.87,
+   "fuelLeft": 11596.29,
+   "dvSum": 17.61,
+   "rcs": 840.68,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 26.28,
+   "atkShare": 0.744
+  }
+ },
+ "B5_noroles": {
+  "teams": [
+   {
+    "wins": 6,
+    "lost": 11,
+    "ships": 180,
+    "modsL": 1738,
+    "mods0": 2520,
+    "hits": 854,
+    "shots": 2654,
+    "sw": 744,
+    "ret": 50,
+    "back": 1,
+    "home": 2,
+    "pvo": 0,
+    "acc": 0.322,
+    "modsLeft": 0.69
+   },
+   {
+    "wins": 6,
+    "lost": 13,
+    "ships": 180,
+    "modsL": 1734,
+    "mods0": 2520,
+    "hits": 787,
+    "shots": 2411,
+    "sw": 789,
+    "ret": 53,
+    "back": 0,
+    "home": 2,
+    "pvo": 0,
+    "acc": 0.326,
+    "modsLeft": 0.688
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 18,
+   "cov": 29.27,
+   "held": 22.87,
+   "wait": 37.9,
+   "xfer": 15.34,
+   "scout": 0,
+   "rep": 6.23,
+   "relHit": 0.13,
+   "forms": {
+    "колонна": 1575,
+    "линия": 2090,
+    "клин": 88
+   },
+   "slot": 140477.41021695838,
+   "slotN": 9777,
+   "atk": 151536,
+   "noAtk": 48624,
+   "react": 22.77,
+   "fuelLeft": 10506.54,
+   "dvSum": 11.18,
+   "rcs": 674.79,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 14.37,
+   "atkShare": 0.757
+  }
+ },
+ "C1_nocommand": {
+  "teams": [
+   {
+    "wins": 11,
+    "lost": 18,
+    "ships": 180,
+    "modsL": 1786,
+    "mods0": 2520,
+    "hits": 1328,
+    "shots": 4178,
+    "sw": 0,
+    "ret": 53,
+    "back": 2,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.318,
+    "modsLeft": 0.709
+   },
+   {
+    "wins": 6,
+    "lost": 20,
+    "ships": 180,
+    "modsL": 1742,
+    "mods0": 2520,
+    "hits": 978,
+    "shots": 3638,
+    "sw": 0,
+    "ret": 45,
+    "back": 1,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.269,
+    "modsLeft": 0.691
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 13,
+   "cov": 0,
+   "held": 0,
+   "wait": 0,
+   "xfer": 0,
+   "scout": 0,
+   "rep": 0,
+   "relHit": 0,
+   "forms": {},
+   "slot": 0,
+   "slotN": 0,
+   "atk": 0,
+   "noAtk": 0,
+   "react": 0,
+   "fuelLeft": 10092.02,
+   "dvSum": 12.78,
+   "rcs": 779.2,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": null,
+   "atkShare": null
+  }
+ },
+ "C2_org_vs_not": {
+  "teams": [
+   {
+    "wins": 9,
+    "lost": 12,
+    "ships": 180,
+    "modsL": 1731,
+    "mods0": 2520,
+    "hits": 891,
+    "shots": 2770,
+    "sw": 760,
+    "ret": 48,
+    "back": 0,
+    "home": 4,
+    "pvo": 0,
+    "acc": 0.322,
+    "modsLeft": 0.687
+   },
+   {
+    "wins": 8,
+    "lost": 13,
+    "ships": 180,
+    "modsL": 1677,
+    "mods0": 2520,
+    "hits": 710,
+    "shots": 2398,
+    "sw": 704,
+    "ret": 56,
+    "back": 0,
+    "home": 4,
+    "pvo": 0,
+    "acc": 0.296,
+    "modsLeft": 0.665
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 13,
+   "cov": 34.7,
+   "held": 2.6,
+   "wait": 36.97,
+   "xfer": 16.57,
+   "scout": 0,
+   "rep": 6.73,
+   "relHit": 0.27,
+   "forms": {
+    "колонна": 1554,
+    "линия": 2071,
+    "клин": 109
+   },
+   "slot": 146499.54908447567,
+   "slotN": 9188,
+   "atk": 149796,
+   "noAtk": 51264,
+   "react": 23.47,
+   "fuelLeft": 10409.3,
+   "dvSum": 11.98,
+   "rcs": 686.75,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 15.94,
+   "atkShare": 0.745
+  }
+ },
+ "C4_flag_damaged": {
+  "teams": [
+   {
+    "wins": 5,
+    "lost": 29,
+    "ships": 180,
+    "modsL": 1526,
+    "mods0": 2520,
+    "hits": 708,
+    "shots": 2147,
+    "sw": 691,
+    "ret": 65,
+    "back": 0,
+    "home": 5,
+    "pvo": 0,
+    "acc": 0.33,
+    "modsLeft": 0.606
+   },
+   {
+    "wins": 18,
+    "lost": 10,
+    "ships": 180,
+    "modsL": 1777,
+    "mods0": 2520,
+    "hits": 946,
+    "shots": 2780,
+    "sw": 760,
+    "ret": 50,
+    "back": 0,
+    "home": 6,
+    "pvo": 0,
+    "acc": 0.34,
+    "modsLeft": 0.705
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 7,
+   "cov": 29.63,
+   "held": 0.13,
+   "wait": 42.97,
+   "xfer": 24.99,
+   "scout": 0,
+   "rep": 7.27,
+   "relHit": 0.27,
+   "forms": {
+    "линия": 1675,
+    "колонна": 1459,
+    "клин": 626
+   },
+   "slot": 169717.48213535704,
+   "slotN": 8839,
+   "atk": 128328,
+   "noAtk": 38940,
+   "react": 20.5,
+   "fuelLeft": 10946.33,
+   "dvSum": 10.9,
+   "rcs": 597.07,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 19.2,
+   "atkShare": 0.767
+  }
+ },
+ "C6_part_damaged": {
+  "teams": [
+   {
+    "wins": 2,
+    "lost": 20,
+    "ships": 180,
+    "modsL": 1458,
+    "mods0": 2520,
+    "hits": 486,
+    "shots": 1789,
+    "sw": 774,
+    "ret": 91,
+    "back": 3,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0.272,
+    "modsLeft": 0.579
+   },
+   {
+    "wins": 14,
+    "lost": 3,
+    "ships": 180,
+    "modsL": 1934,
+    "mods0": 2520,
+    "hits": 1095,
+    "shots": 3415,
+    "sw": 1014,
+    "ret": 42,
+    "back": 2,
+    "home": 1,
+    "pvo": 0,
+    "acc": 0.321,
+    "modsLeft": 0.767
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 14,
+   "cov": 29.57,
+   "held": 2.6,
+   "wait": 45.9,
+   "xfer": 22.36,
+   "scout": 0,
+   "rep": 6.1,
+   "relHit": 0.53,
+   "forms": {
+    "клин": 812,
+    "линия": 1866,
+    "колонна": 1579
+   },
+   "slot": 184800.19047348597,
+   "slotN": 10588,
+   "atk": 143556,
+   "noAtk": 49920,
+   "react": 27.1,
+   "fuelLeft": 10882.67,
+   "dvSum": 10.08,
+   "rcs": 630.36,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 17.45,
+   "atkShare": 0.742
+  }
+ },
+ "D1_art_vs_mis": {
+  "teams": [
+   {
+    "wins": 8,
+    "lost": 13,
+    "ships": 120,
+    "modsL": 977,
+    "mods0": 1680,
+    "hits": 366,
+    "shots": 1631,
+    "sw": 302,
+    "ret": 48,
+    "back": 8,
+    "home": 0,
+    "pvo": 61,
+    "acc": 0.224,
+    "modsLeft": 0.582
+   },
+   {
+    "wins": 7,
+    "lost": 14,
+    "ships": 120,
+    "modsL": 1193,
+    "mods0": 1800,
+    "hits": 0,
+    "shots": 0,
+    "sw": 282,
+    "ret": 24,
+    "back": 0,
+    "home": 0,
+    "pvo": 0,
+    "acc": 0,
+    "modsLeft": 0.663
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 15,
+   "cov": 14.53,
+   "held": 28.47,
+   "wait": 0.07,
+   "xfer": 10.09,
+   "scout": 0,
+   "rep": 3.43,
+   "relHit": 0.27,
+   "forms": {
+    "колонна": 1154,
+    "клин": 842,
+    "линия": 1257
+   },
+   "slot": 101326.0968395266,
+   "slotN": 5900,
+   "atk": 59988,
+   "noAtk": 16716,
+   "react": 8.97,
+   "fuelLeft": 5663.25,
+   "dvSum": 6.46,
+   "rcs": 411.59,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 895.53,
+   "slotAvgKm": 17.17,
+   "atkShare": 0.782
+  }
+ },
+ "D2_cluster_vs_pd": {
+  "teams": [
+   {
+    "wins": 20,
+    "lost": 4,
+    "ships": 90,
+    "modsL": 1121,
+    "mods0": 1350,
+    "hits": 181,
+    "shots": 811,
+    "sw": 187,
+    "ret": 11,
+    "back": 0,
+    "home": 1,
+    "pvo": 0,
+    "acc": 0.223,
+    "modsLeft": 0.83
+   },
+   {
+    "wins": 0,
+    "lost": 42,
+    "ships": 90,
+    "modsL": 455,
+    "mods0": 1350,
+    "hits": 130,
+    "shots": 586,
+    "sw": 111,
+    "ret": 37,
+    "back": 0,
+    "home": 0,
+    "pvo": 64,
+    "acc": 0.222,
+    "modsLeft": 0.337
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 10,
+   "cov": 5.77,
+   "held": 0,
+   "wait": 0,
+   "xfer": 8.78,
+   "scout": 0,
+   "rep": 2.13,
+   "relHit": 0,
+   "forms": {
+    "колонна": 1979,
+    "линия": 936,
+    "клин": 438
+   },
+   "slot": 103641.86009210868,
+   "slotN": 4922,
+   "atk": 42360,
+   "noAtk": 12012,
+   "react": 4.47,
+   "fuelLeft": 4040.39,
+   "dvSum": 4.55,
+   "rcs": 292.36,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 880.8,
+   "slotAvgKm": 21.06,
+   "atkShare": 0.779
+  }
+ },
+ "D3_guided_vs_pd": {
+  "teams": [
+   {
+    "wins": 12,
+    "lost": 7,
+    "ships": 90,
+    "modsL": 1018,
+    "mods0": 1350,
+    "hits": 153,
+    "shots": 786,
+    "sw": 252,
+    "ret": 17,
+    "back": 0,
+    "home": 2,
+    "pvo": 0,
+    "acc": 0.195,
+    "modsLeft": 0.754
+   },
+   {
+    "wins": 4,
+    "lost": 19,
+    "ships": 90,
+    "modsL": 646,
+    "mods0": 1350,
+    "hits": 183,
+    "shots": 655,
+    "sw": 140,
+    "ret": 38,
+    "back": 0,
+    "home": 1,
+    "pvo": 50,
+    "acc": 0.279,
+    "modsLeft": 0.479
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 14,
+   "cov": 11.27,
+   "held": 0,
+   "wait": 0.67,
+   "xfer": 11.69,
+   "scout": 0,
+   "rep": 2.17,
+   "relHit": 0.07,
+   "forms": {
+    "колонна": 2198,
+    "линия": 980,
+    "клин": 521
+   },
+   "slot": 100820.43615058993,
+   "slotN": 5107,
+   "atk": 43908,
+   "noAtk": 12120,
+   "react": 5.63,
+   "fuelLeft": 3953.42,
+   "dvSum": 4.87,
+   "rcs": 302.38,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 900,
+   "slotAvgKm": 19.74,
+   "atkShare": 0.784
+  }
+ },
+ "D4_mixed_salvo": {
+  "teams": [
+   {
+    "wins": 2,
+    "lost": 17,
+    "ships": 120,
+    "modsL": 1162,
+    "mods0": 1800,
+    "hits": 205,
+    "shots": 738,
+    "sw": 425,
+    "ret": 33,
+    "back": 0,
+    "home": 2,
+    "pvo": 0,
+    "acc": 0.278,
+    "modsLeft": 0.646
+   },
+   {
+    "wins": 26,
+    "lost": 24,
+    "ships": 180,
+    "modsL": 1499,
+    "mods0": 2520,
+    "hits": 497,
+    "shots": 2239,
+    "sw": 525,
+    "ret": 55,
+    "back": 2,
+    "home": 2,
+    "pvo": 109,
+    "acc": 0.222,
+    "modsLeft": 0.595
+   }
+  ],
+  "g": {
+   "runs": 30,
+   "draws": 2,
+   "cov": 28.7,
+   "held": 0.07,
+   "wait": 37.67,
+   "xfer": 13.22,
+   "scout": 0,
+   "rep": 4.7,
+   "relHit": 0.33,
+   "forms": {
+    "колонна": 1869,
+    "клин": 638,
+    "линия": 996
+   },
+   "slot": 181964.2474055402,
+   "slotN": 8680,
+   "atk": 84120,
+   "noAtk": 22104,
+   "react": 14.4,
+   "fuelLeft": 8312.97,
+   "dvSum": 8.99,
+   "rcs": 539.65,
+   "misHit": [
+    0,
+    0
+   ],
+   "misShot": [
+    0,
+    0
+   ],
+   "t": 894.5,
+   "slotAvgKm": 20.96,
+   "atkShare": 0.792
+  }
+ }
+}
