@@ -263,6 +263,9 @@
   "spares": 0.3
  },
  "kits": {
+  "dock": 3,
+  "dv": 0.05,
+  "rate": 6,
   "m": 0.5,
   "def": 1,
   "cap": 1.5,
@@ -287,6 +290,9 @@
   "tc": 60
  },
  "retreat": {
+  "maxFrac": 0.5,
+  "lose": 0.6,
+  "cw": 40,
   "hpIn": 0.35,
   "hpOut": 0.6,
   "prep": 10,
@@ -296,6 +302,8 @@
   "ret": 30
  },
  "fleetcmd": {
+  "grp": 1,
+  "form": "",
   "fix": 1,
   "on": 1,
   "re": 10,
