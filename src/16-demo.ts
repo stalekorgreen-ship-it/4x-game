@@ -243,7 +243,7 @@ export function refreshDemo() {
     p.addEventListener('click', e => { if (e.target.id === 'dm-mature') { $('dm-msg').textContent = 'Считаю, подождите несколько секунд…'; setTimeout(() => { const r = matureSystem(); $('dm-msg').textContent = `Готово: тел ${r.cols}, кораблей ${r.ships}. Нажмите «Пуск».`; ui.sel = {kind: 'body', id: 'earth'}; }, 30); } });
     p.addEventListener('click', e => { if (e.target.id === 'dm-war' && hooks.startWar) hooks.startWar(); });
     p.insertAdjacentHTML('beforeend', `<div class="box"><h2>Демонстрационные бои: повреждения и ремонт</h2><div class="help">Настоящие бои: заданы только составы, броня, погреба и исходные повреждения — детонации, гибель людей, пожары, ремонт и решения ИИ считает симуляция, каждый запуск по-своему. Щёлкните по кораблю — в панели экипаж по отсекам, погреба, пожары, вакуум, ремонтные работы; F4 — роли и состояния.</div>${Object.entries(DMG_DEMOS).map(([k, v]) => `<div class="row"><button class="btn" data-dmd="${k}">${v.split(':')[0]}</button><span class="muted">${v.split(':').slice(1).join(':')}</span></div>`).join('')}</div>`);
-    p.addEventListener('click', e => { const k = e.target && e.target.dataset && e.target.dataset.dmd; if (k) startDamageDemo(k); });
+    p.addEventListener('click', e => { const k = e.target && e.target.dataset && e.target.dataset.dmd; if (k) { startDamageDemo(k); import('./09-orders-ui.ts').then(m => m.showTab('map')); } }); // окно выбора закрываем — бой должен быть виден
     p.addEventListener('click', e => { if (e.target.id === 'dm-go') { startDemo($('dm-kind').value, +$('dm-size').value); } });
   }
 }

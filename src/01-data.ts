@@ -49,6 +49,7 @@ export const COMP = gd('modules', 'modules', {
   gat:   {name:'Пулемёт Гатлинга', desc:'ПВО и оружие против истребителей: 6000 выстр/мин, дальность 15 км, перегрев 40%/мин, остывание 20%/мин, бронепробитие 2%, 5 т боеприпасов в час', gat:1, mass:25, cost:{fe:34, si:8}},
   flak:  {name:'Зенитная турель', desc:'Сбивает истребители, бомбардировщики и торпеды', flak:1, mass:5, cost:{fe:16, si:6}},
   lgun:  {name:'Боевой лазер', desc:'Гигантская установка: бьёт мгновенно на огромное расстояние, но жрёт энергию и заряжается минутами', lgun:1, mass:450, cost:{fe:530, si:190, ree:48}},
+  kitstore:{name:'Ремонтный склад', desc:'25 ремонтных наборов по 0,5 т: без них экипаж не восстановит выбитые модули (тушить и заделывать пробоины может и так). Масса — склад с полной загрузкой', kitCap:25, mass:28, cost:{fe:30, ti:4, si:4}},
   missile:{name:'Ракетная установка', desc:'Самонаводящиеся ракеты, боезапас ограничен', msl:1, mass:10, cost:{fe:24, ti:6, si:6}},
   irs:{name:'Тепловой сканер (пассивный)', desc:'Ловит тепло чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'ir', mass:5, crewN:1, cost:{fe:14, si:10}},
   ems:{name:'ЭМ-сканер (пассивный)', desc:'Ловит радиоизлучение чужих кораблей, сам не излучает. Выдаёт контакт, но не наводку', sc:'em', mass:6, crewN:1, cost:{fe:16, si:12}},
@@ -634,7 +635,7 @@ export function designStats(parts, flags) {
     r.fuelCap += (c.fuel || 0) * n;
     r.cargoCap += (c.cargo || 0) * n;
     r.mine += (c.mine || 0) * n;
-    r.scList=r.scList||[];r.fcsN=(r.fcsN||0)+(c.fcs||0)*n;r.scCrew=(r.scCrew||0)+(c.crewN||0)*n;if(c.sc)for(let i=0;i<n;i++)r.scList.push({k:c.sc,rng:c.scRng,res:c.scRes,fine:c.scFine||0});r.ew=(r.ew||0)+(c.ew||0)*n;r.mar=(r.mar||0)+(c.mar||0)*n;r.dcon=(r.dcon||0)+(c.dcon||0)*n;r.sink=(r.sink||0)+(c.sink||0)*n;
+    r.kitCap=(r.kitCap||0)+(c.kitCap||0)*n;r.scList=r.scList||[];r.fcsN=(r.fcsN||0)+(c.fcs||0)*n;r.scCrew=(r.scCrew||0)+(c.crewN||0)*n;if(c.sc)for(let i=0;i<n;i++)r.scList.push({k:c.sc,rng:c.scRng,res:c.scRes,fine:c.scFine||0});r.ew=(r.ew||0)+(c.ew||0)*n;r.mar=(r.mar||0)+(c.mar||0)*n;r.dcon=(r.dcon||0)+(c.dcon||0)*n;r.sink=(r.sink||0)+(c.sink||0)*n;
     r.lasers += c.mine ? n : 0;
     r.crewCap += (c.crew || 0) * n;
     r.lifeCap += (c.life || 0) * n;
