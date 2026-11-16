@@ -89,10 +89,10 @@ if (wrap && bgo) {
       L.push(`== ${k ? 'ракетный бой' : 'бой'} ${n} на ${n}`, pfTxt(q) + (h0 ? ` (за замер ${(((performance as any).memory.usedJSHeapSize - h0) / 1048576).toFixed(0)} МБ)` : ''), ''); if (Battle.abort) Battle.abort() }
     pfRep = L.join('\n'); pfStep0 = null; try { await navigator.clipboard.writeText(pfRep) } catch (e) { } perf.textContent = pfRep + '\n\n(отчёт скопирован в буфер обмена)' }
   pfBar.addEventListener('click', e => { const k = (e.target as HTMLElement).dataset.pf; if (k === 'bench') pfBench(); else if (k === 'copy') { const t = pfRep || pfTxt(pfSnap()); navigator.clipboard.writeText(t).catch(() => { }) } else if (k === 'save') { const t = pfRep || pfTxt(pfSnap()), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = 'poyas4x-perf.txt'; a.click() } });
-  (window as any).__pfBench = pfBench;
+  (window as any).__pfBench = pfBench; (window as any).__b3dRen = () => { let obj = 0; if (scene) scene.traverse(() => { obj++ }); return ren ? { geo: ren.info.memory.geometries, tex: ren.info.memory.textures, obj } : null };
   addEventListener('keydown', e => { if (e.key === 'F3' || e.code === 'F3') { e.preventDefault(); perfOn = !perfOn; perf.style.display = perfOn ? 'block' : 'none'; pfBar.style.display = perfOn ? 'flex' : 'none'; perf.style.bottom = '10px'; if (perfOn) { pfX0 = performance.now(); pfN = 0; requestAnimationFrame(pfLoop) } } }, true);
 
-  let ovl: HTMLCanvasElement | null = null, ovlT = 0;
+  let ovl: HTMLCanvasElement | null = null, ovlT = 0, lastCfg: any = null;
   // метки флотов: у каждого генерала — рамка вокруг его кораблей, подпись «сторона · основной класс · число»; каждый корабль — точка цвета стороны
   // ДИАГНОСТИКА ТАКТИКИ (F4): роль и цель каждого корабля, причина смены, доклад, флагман (★); линии — к цели (цвет стороны), к прикрываемому (пунктир), место в линии (кружок)
   let tacOn = false; addEventListener('keydown', e => { if (e.key === 'F4' || e.code === 'F4') { e.preventDefault(); tacOn = !tacOn } });
@@ -933,7 +933,8 @@ if (wrap && bgo) {
     frameNo++;
     raf = requestAnimationFrame(frame); if (!ren) return; View.poll(); // слой отображения: изменения боя → события (раз за кадр)
     { const ev = View.drain(secCur); secCur = ev.cursor; for (const e of ev.events) if (e.type === 'section_damage' || e.type === 'section_detach') onSection(e) } // секции — до обновления моделей: корабль, погибший в этом такте, ещё цел
-    { const tn = Battle.time(), dtg = debT < 0 || tn < debT ? 0 : Math.min(5, tn - debT); debT = tn; if (dtg > 0) stepDebris(dtg) } // отсоединённые части: летят сами по игровому времени (пауза — стоят), независимо от кораблей const jsT0 = performance.now();
+    { const tn = Battle.time(), dtg = debT < 0 || tn < debT ? 0 : Math.min(5, tn - debT); debT = tn; if (dtg > 0) stepDebris(dtg) } // отсоединённые части: летят сами по игровому времени (пауза — стоят), независимо от кораблей
+    const jsT0 = performance.now();
     { const nf = performance.now(), dtf0 = nf - lastFT; lastFT = nf; if (dtf0 < 500) dtEma += (dtf0 - dtEma) * .08 }
     const r = (pv ? pv.host : wrap!).getBoundingClientRect(); if (pv) { const cs = ren.domElement.style; cs.position = 'fixed'; cs.left = r.left + 'px'; cs.top = r.top + 'px'; cs.width = r.width + 'px'; cs.height = r.height + 'px'; cs.zIndex = '70'; if (!pv.drag) yaw += .004 }
     if (ren.domElement.width !== Math.round(r.width * ren.getPixelRatio()) || ren.domElement.height !== Math.round(r.height * ren.getPixelRatio())) { ren.setSize(r.width, r.height, false); cam.aspect = r.width / Math.max(1, r.height); cam.updateProjectionMatrix() }
@@ -1189,6 +1190,7 @@ if (wrap && bgo) {
         dummy.position.set(f.x, f.z || 0, f.y); if (f._v == null) f._v = Math.random(); if (f._v > .15 && !f.big && !f.mk) continue; const rr = Math.max((f.r || .6) * (.5 + life) * (f.big ? .06 : .012), cam.position.distanceTo(dummy.position) * (f.big ? .002 : .0003)); /* big — событие симуляции (детонация, дым пожара): показываем всегда и крупнее; взрывы в 10 раз меньше и показываем лишь каждый ~7-й; события ракет (mk) — всегда */ dummy.scale.setScalar(f.mk ? Math.max(rr, cam.position.distanceTo(dummy.position) * (f.mk === 'end' ? .004 : .009) * (1 - life * .6)) : rr); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
         fxMesh.setMatrixAt(k, dummy.matrix); fxMesh.setColorAt(k, f.mk === 'down' ? col2.setRGB(.7, .9, 1).multiplyScalar(1.4 * (1 - life)) : f.mk === 'end' ? col2.setRGB(.45, .45, .5).multiplyScalar(1 - life) : f.smoke ? col2.setRGB(.35, .33, .3).multiplyScalar(.6 * (1 - life)) : col2.setRGB(1 - life * .3, .75 - life * .55, .35 - life * .3).multiplyScalar((1 - life) * (1 - life))); k++ }
       fxMesh.count = k; fxMesh.instanceMatrix.needsUpdate = true; if (fxMesh.instanceColor) fxMesh.instanceColor.needsUpdate = true}
+    { const cf = Battle.cfg && Battle.cfg(); if (cf && cf !== lastCfg && !pv) { if (lastCfg) reset3d(); lastCfg = cf } } // новый бой (в т.ч. перезапуск демо без выхода из 3D) — модели прошлого боя убираем и освобождаем видеопамять (раньше копились: +1300 объектов и +40 МБ на перезапуск)
     { const cf = Battle.cfg && Battle.cfg(), sk = cf ? cf.sky : null; if (sk !== curSky) buildSky(sk || null); if (skyG) skyG.position.copy(cam.position) }
     const rT0 = performance.now(); ren.render(scene, cam); if (performance.now() - ovlT > 120) { ovlT = performance.now(); try { drawFleets() } catch (e) { } }
     if (perfOn) { const nn = performance.now(); pfFrames++; pfJs += rT0 - jsT0; pfRen += nn - rT0;
@@ -1224,8 +1226,10 @@ if (wrap && bgo) {
     skyG.renderOrder = -1; scene.add(skyG);
   }
   function reset3d() {
-    if (scene) for (const [, g] of models) scene.remove(g);
-    puffs.length = 0; for (const w of wrecks) scene.remove(w.g); wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
+    // освобождаем видеопамять моделей прошлого боя (иначе при каждом новом бою/демо GPU-буферы копились). Общие геометрии/материалы three.js при следующем использовании просто загрузит заново
+    const freeG = (g: any) => g.traverse((o: any) => { if (o.geometry && !o.geometry.userData?.keep) o.geometry.dispose(); const m = o.material; if (m) for (const q of Array.isArray(m) ? m : [m]) { if (q.userData?.keep) continue; for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap', 'aoMap', 'bumpMap']) { const tx = q[k]; if (tx && !tx.userData?.keep) tx.dispose() } q.dispose() } });
+    if (scene) for (const [, g] of models) { scene.remove(g); freeG(g) }
+    puffs.length = 0; for (const w of wrecks) { scene.remove(w.g); freeG(w.g) } wrecks.length = 0; models.clear(); tdeb.length = 0; sparks.length = 0; flashes.length = 0; streaks.length = 0; cas.length = 0;
     View.poll(); impCur = secCur = View.headCursor(); modDeadQ.clear();
     follow = true; fitAll = true; curSky = undefined;
   }
