@@ -916,7 +916,7 @@ if (wrap && bgo) {
       if (!s.alive) { const g = models.get(s); if (g) { models.delete(s); makeWreck(g, s) } continue }
       alive.add(s);
       let g = models.get(s); if (!g) { g = build(s); models.set(s, g); modelById.set(s.uid, g) } g.visible = true;
-      { const LD = Battle.lead ? Battle.lead() : 0; g.position.set(s.x + (s.sx || 0) * LD, s.z, s.y + (s.sy || 0) * LD) } g.rotation.order = 'YZX'; // между шагами физики (0,25 с) — продолжение по скорости: только картинка, без рывков const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
+      { const LD = Battle.lead ? Battle.lead() : 0; g.position.set(s.x + (s.sx || 0) * LD, s.z, s.y + (s.sy || 0) * LD) } g.rotation.order = 'YZX'; /* между шагами физики (0,25 с) — продолжение по скорости: только картинка, без рывков */ const ud = g.userData; if (ud.hd == null) { ud.hd = s.hd; ud.pt = 0 }
       { let dh = s.hd - ud.hd; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ud.hd += dh * .2; const tg = s.tg && s.tg.alive ? s.tg : null, ap = tg ? Math.atan2((tg.z || 0) - (s.z || 0), Math.max(1e-3, Math.hypot(tg.x - s.x, tg.y - s.y))) : 0; ud.pt += (0 * ap - ud.pt) * .015 } // нос наклоняется к цели по высоте // сглаживание курса и тангажа
       if (ud.rl == null) ud.rl = s.roll || 0; ud.rl += ((s.roll || 0) - ud.rl) * .2; g.rotation.y = -ud.hd; g.rotation.z = ud.pt; g.rotation.x = ud.rl;
       const dd = cam.position.distanceTo(g.position), L = g.userData.L, sc = Math.max(SC, dd * .011 / L); g.scale.setScalar(sc);
